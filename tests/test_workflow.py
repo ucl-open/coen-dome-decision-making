@@ -118,9 +118,13 @@ def test_connect_zapit_stops_the_workflow(name):
 
 def test_the_mixer_never_starts_sooner_than_3_s():
     # Deliberate: a fault while the sound card boots can blue-screen the PC. Never remove or shorten it.
-    mixer = TEXT[TEXT.index("<Name>Mixer</Name>"):TEXT.index("<Name>PlayStim</Name>")]
-    assert re.search(r"<Name>MixerBootDelay</Name>[\s\S]*?<rx:DueTime>PT3S</rx:DueTime>", mixer)
-    assert "Math.Max(3.0, SpeakerArray.Device.BootDelay)" in mixer
+    nodes, edges = _scope(_named("Mixer"))
+    delay = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "MixerBootDelay")
+    assert _kind(nodes[delay]) == "rx:DelaySubscription"
+    assert nodes[delay].find(W + "Combinator").findtext("{clr-namespace:Bonsai.Reactive;assembly=Bonsai.Core}DueTime") == "PT3S"
+    expressions = [nodes[a].findtext("{clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions}Expression")
+                   for a in _upstream(edges, delay)]
+    assert "TimeSpan.FromSeconds(Math.Max(3.0, SpeakerArray.Device.BootDelay))" in expressions
 
 
 def test_the_shared_blocks_replace_the_local_copies():
@@ -165,8 +169,18 @@ def test_the_readme_lists_every_shared_block():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     table = readme[readme.index("## Shared Blocks"):]
     table = table[: table.find("\n## ", 3)] if "\n## " in table[3:] else table
-    includes = set(re.findall(r'Path="OpenRigs\.(?:Devices|Vision|Core|Logging|Control):([\w.]+)\.bonsai"', TEXT))
-    operators = set(re.findall(r'xsi:type="(?:core|dev|zap):(\w+)"', TEXT))
+    # Every OpenRigs include, and every node of any xmlns naming an OpenRigs namespace (not only core:, dev: and zap:).
+    includes = set(re.findall(r'Path="OpenRigs\.[\w.]+:([\w.]+)\.bonsai"', TEXT))
+    prefixes = [p for p, ns in re.findall(r'xmlns:(\w+)="clr-namespace:([\w.]+);', TEXT) if ns.startswith("OpenRigs")]
+    operators = {name for p in prefixes for name in re.findall(r'xsi:type="' + p + r':(\w+)"', TEXT)}
     assert includes and operators
     missing = sorted(name for name in includes | operators if f"`{name}`" not in table)
     assert not missing, f"not in the README's Shared Blocks table: {missing}"
+
+
+def test_only_the_test_mouse_runs_optogenetics_on_a_software_triggered_rig():
+    # Exactly "test", as app-rig-control's test mouse: not any subject that starts with it.
+    nodes, _ = _scope(_named("SoftwareTriggeredRealMouse?"))
+    expression = next(n.findtext("{clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions}Expression") for n in nodes
+                      if n.get(XSI) == "scr:ExpressionTransform")
+    assert expression == '!Item1.Zapit.HardwareTriggered && Item2.Trim().ToLowerInvariant() != "test"'

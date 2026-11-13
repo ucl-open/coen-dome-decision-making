@@ -106,6 +106,21 @@ public class DrawTrial
     }
 }
 
+[Combinator]
+[Description("Checks the task at Go, before the first trial: the stage is in the table and the draw's rules hold on rig.yml's speakers (TrialDraw.CheckTask). Input: the task, TrainingStage and the speaker array; stops the workflow naming every problem, else passes the task on.")]
+[WorkflowElementCategory(ElementCategory.Transform)]
+public class CheckTaskAtGo
+{
+    public IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Process(IObservable<Tuple<UclOpenCoenDomeDecisionMakingTaskLogic, int, DomeSpeakerArray>> source)
+    {
+        return source.Select(input =>
+        {
+            TrialDraw.CheckTask(input.Item1.TaskParameters, input.Item2, input.Item3);
+            return input.Item1;
+        });
+    }
+}
+
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
 public class TrialDraw
 {
@@ -127,13 +142,7 @@ public class TrialDraw
     {
         this.task = task;
         this.speakers = speakers;
-        if (stage < 0 || stage >= task.TrainingStages.Count)
-        {
-            throw new InvalidOperationException(string.Format(
-                "TrainingStage is {0}, but the task file's trainingStages has rows 0 to {1}.", stage, task.TrainingStages.Count - 1));
-        }
-        this.stage = task.TrainingStages[stage];
-        Check(task, this.stage, speakers);
+        this.stage = CheckTask(task, stage, speakers);
         var optogenetics = task.Optogenetics;
         if (optogenetics.UseZapit)
         {
@@ -148,12 +157,37 @@ public class TrialDraw
         random = new Random(Seed);
     }
 
+    /// <summary>The stage's row, once the stage is in the table and the task can be run on these speakers (CheckTask
+    /// at Go, and the draw again at the first trial); throws naming every problem.</summary>
+    public static TrainingStage CheckTask(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, DomeSpeakerArray speakers)
+    {
+        if (stage < 0 || stage >= task.TrainingStages.Count)
+        {
+            throw new InvalidOperationException(string.Format(
+                "TrainingStage is {0}, but the task file's trainingStages has rows 0 to {1}.", stage, task.TrainingStages.Count - 1));
+        }
+        var row = task.TrainingStages[stage];
+        Check(task, row, speakers);
+        return row;
+    }
+
     // Bonsai reads the task file without pydantic, so the rules the draw needs are checked again here.
     static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage, DomeSpeakerArray speakers)
     {
         var problems = new List<string>();
         var weights = Weights(stage);
         if (weights.Any(w => w < 0) || weights.Sum() <= 0) problems.Add("stage '" + stage.Label + "' needs trialWeights of 0 or more, one above 0");
+        if (task.TaskType == TaskType.Discrimination)
+        {
+            // A target modality with no trials leaves only the other modality's: every one a distractor at the right spout.
+            bool visualTarget = task.TargetModality == Modality.Visual;
+            int target = visualTarget ? weights[0] : weights[1], other = visualTarget ? weights[1] : weights[0];
+            if (target == 0 && other > 0)
+            {
+                string t = visualTarget ? "visual" : "auditory", o = visualTarget ? "auditory" : "visual";
+                problems.Add(string.Format("stage '{0}' gives targetModality {1} no trials (trialWeights.{1} 0), so every {2} trial would be a distractor: swap the {1} and {2} weights on the form", stage.Label, t, o));
+            }
+        }
         if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add("stage '" + stage.Label + "' needs contrasts, each above 0");
         var visual = task.VisualStimulus;
         foreach (var right in new[] { false, true })
@@ -174,7 +208,21 @@ public class TrialDraw
         if (task.AudioStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("audioStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
         var structure = task.TrialStructure;
         if (structure.StimulusSeconds > structure.OpenLoopSeconds + structure.ClosedLoopSeconds) problems.Add("trialStructure.stimulusSeconds is longer than openLoopSeconds plus closedLoopSeconds");
+        var opto = task.Optogenetics;
+        var soonest = SoonestNextTriggerSeconds(task);
+        if (opto.UseZapit && opto.LaserDurationSeconds >= soonest)
+        {
+            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be below {1} s, the soonest the next trial's trigger can come (laserToStimulusSeconds + openLoopSeconds + the larger of drinkSeconds and itiMinSeconds + armToTriggerSeconds), so the trigger line falls before it rises again", opto.LaserDurationSeconds, soonest));
+        }
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
+    }
+
+    /// <summary>From a trial's trigger to the next trial's at the soonest: the stimulus, the open loop, a response at
+    /// once, no timeout, the interval (drinkSeconds at least) and the arm-to-trigger wait (task.py's same rule).</summary>
+    public static double SoonestNextTriggerSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
+    {
+        var s = task.TrialStructure;
+        return task.Optogenetics.LaserToStimulusSeconds + s.OpenLoopSeconds + Math.Max(s.DrinkSeconds, s.ItiMinSeconds) + task.Optogenetics.ArmToTriggerSeconds;
     }
 
     public static int[] Weights(TrainingStage stage)
@@ -389,7 +437,7 @@ public class TrialDraw
 }
 
 [Combinator]
-[Description("A trial's Zapit StartStimulus: its condition, the laser on or off (galvos and masking light either way), the task's power on laser-on trials, timed for the laser's duration.")]
+[Description("A trial's Zapit StartStimulus: its condition, the laser on or off (galvos and masking light either way), the trial's laserPowerMw (0 mW on laser-off trials), timed for the laser's duration.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class ZapitTrialCommand
 {
@@ -415,7 +463,7 @@ public class ZapitTrialCommand
             HardwareTriggered = hardwareTriggered,
             Logging = true,
             StimDuration = (float)durationSeconds,
-            LaserPower = trial.laserOn ? (float?)trial.laserPowerMw : null,
+            LaserPower = (float)trial.laserPowerMw,   // 0 on a laser-off trial, as navigation's
         };
     }
 }

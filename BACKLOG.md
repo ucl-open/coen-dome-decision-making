@@ -1,5 +1,14 @@
 # Backlog
 
+## 2026-11-13 Audit round 1: what the mice hear changes
+
+- **The error tone and the background noise are resampled to 48 kHz** (Pip's default, taken during the audit): `src\LocalFiles\error_tone.wav` was 50 kHz and `background_white_noise.wav` 44.1 kHz, and nothing converts a WAV's rate, so on the 48 kHz mixer they played 4% low and 9% high in pitch and speed. Both are now 48 kHz, each file's duration and RMS kept (the error tone loses the 4% of its energy above 24 kHz, which 48 kHz cannot carry). This changes what the mice hear against production av-dome and every earlier experiment. Each is checked at its load (`CheckWaveRate`, as the stimulus WAVs are), so a file at another rate stops the workflow.
+
+## Audit round 1 (13 Nov 2026): not changed
+
+- `TrialNumber`, `TrialOutcome` and `StimulusOnsetTime` are published and read by nothing here: the plan's shared names, kept for any reader (the Declarations description says so).
+- **Discrimination's interval, for Pip: values or timing?** Gerion's `itiMinSeconds` 1.5 and `itiMaxSeconds` 2.5 are kept, but his graph ran about 2.6 s from outcome to stimulus on every trial (his ITI less 2.6 s was always negative, so the drawn ITI never ran), while this runs 2.6 to 3.1 s (`drinkSeconds` 2.0 at least, then the arm and 0.6 s to the stimulus) and half the logged `itiSeconds` (those under `drinkSeconds`) never ran either.
+
 ## 2026-11-13 Rebuilt on the shared dome blocks (plan v11, W2)
 
 `src\main.bonsai` was rebuilt on lib-open-rigs' dome blocks (README, Shared Blocks): DomeHardware, DomeHarpLogs, DeliverReward, DomeDisplay, Core HarpDelay on `Timestamp` for every task wait, the trial draw, row and consequences in tested C# (`tests\Extensions.Tests`). Entries below this one describe the graph before the rebuild; node names and files they cite may be gone.
@@ -7,7 +16,7 @@
 ### Not yet tried
 
 - **Nothing has run.** Checked by `check-workflow.ps1` (C# 5 compile, Extensions.Tests, Bonsai's build against the filled template, the task files) and the Python tests only; no headless run (DomeDisplay opens a full-screen window) and no rig. First: a `test` run on one dome (uncalibrated line delivers 0 and says so; ITI on Harp time within 2 ms of the drawn value; trial rows against what was shown), then Zapit on BLUE-OPTO-2.
-- **The laser-off Zapit command** (condition sent with the laser off, power unset) and the ZapitTrigger line held for `laserDurationSeconds` as the masking light: untried against Zapit.
+- **The laser-off Zapit command** (condition sent with the laser off at 0 mW, as navigation's) and the ZapitTrigger line held for `laserDurationSeconds` as the masking light: untried against Zapit.
 - **No `config\main.layout` yet**, as before: any machine-local `Settings\src\main.layout` predates the rebuild and must be deleted.
 - **No `Finished` phase**, as before.
 

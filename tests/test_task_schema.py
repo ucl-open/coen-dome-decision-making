@@ -141,10 +141,6 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
 
 
-def test_the_trial_row_logs_the_power_sent():
-    source = (CONFIG.parent / "src" / "Extensions" / "TrialRow.cs").read_text(encoding="utf-8-sig")
-    assert "laserPowerMw = trial.laserPowerMw," in source
-
 def test_the_laser_delay_is_gone():
     # Pip, 10 Nov 2026: laserDelaySeconds (stimDelay) was 0 in every task file since 24 Sep 2026; dropped.
     schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
@@ -162,11 +158,6 @@ def test_laser_to_stimulus_is_the_task_s_and_sets_the_wait(path):
     assert '<Property Name="DueSeconds" Selector="TaskParameters.Optogenetics.LaserToStimulusSeconds" />' in workflow
 
 
-def test_every_optogenetics_trial_draws_its_condition_at_random():
-    # Pip, 10 Nov 2026: no queue; plan v11 decision 11: every optogenetics trial sends a condition, laser off at 0 mW.
-    source = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
-    assert "trial.laserCondition = random.Next(conditionCount) + 1;" in source
-
 def test_the_spout_wait_is_named_by_its_ends():
     # Pip's rule (10 Nov 2026): a gap between two moments is named by its ends, as laserToStimulusSeconds.
     schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
@@ -174,10 +165,6 @@ def test_the_spout_wait_is_named_by_its_ends():
     for path in TASK_FILES:
         assert yaml.safe_load(path.read_text())["taskParameters"]["trialStructure"]["stimulusToSpoutsInSeconds"] == 0.5
 
-
-def test_each_trial_type_is_drawn_at_random_by_weight():
-    source = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
-    assert "int draw = random.Next(weights.Sum());" in source
 
 def test_target_modality_is_visual_or_auditory():
     data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
@@ -206,3 +193,12 @@ def test_weights_and_repeat_rules_are_keyed_by_trial_type_name():
         assert set(task["repeats"]["rulesPerType"]) == names
         assert all(set(stage["trialWeights"]) == names for stage in task["trainingStages"])
 
+
+def test_a_laser_outlasting_the_soonest_next_trigger_is_refused():
+    # TrialDraw.SoonestNextTriggerSeconds' rule: 0.5 + 0 + max(2.0, 1.5) + 0.1 = 2.6 s in the discrimination file.
+    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
+    on = {**data["optogenetics"], "useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "laserDurationSeconds": 2.5}})
+    with pytest.raises(ValidationError, match="laser_duration_seconds"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "laserDurationSeconds": 2.6}})
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "useZapit": False, "laserDurationSeconds": 2.6}})

@@ -274,6 +274,19 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     optogenetics: OptogeneticsSettings = Field(description="Zapit optogenetic stimulation parameters")
     training_stages: list[TrainingStage] = Field(min_length=1, description="Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go")
 
+    @model_validator(mode="after")
+    def _laser_ends_before_the_next_trigger(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # The soonest the next trial's trigger can come: the stimulus, the open loop, a response at once, no timeout, the
+        # interval (drink_seconds at least) and the arm-to-trigger wait (TrialDraw.SoonestNextTriggerSeconds, the same rule).
+        opto, s = self.optogenetics, self.trial_structure
+        soonest = opto.laser_to_stimulus_seconds + s.open_loop_seconds + max(s.drink_seconds, s.iti_min_seconds) + opto.arm_to_trigger_seconds
+        if opto.use_zapit and opto.laser_duration_seconds >= soonest:
+            raise ValueError(
+                f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be below {soonest:g} s, the soonest the next "
+                "trial's trigger can come, so the trigger line falls before it rises again"
+            )
+        return self
+
 
 class UclOpenCoenDomeDecisionMakingTaskLogic(Task):
     """Task logic definition for the coen-dome-decision-making experiment."""

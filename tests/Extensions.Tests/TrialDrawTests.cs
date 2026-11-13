@@ -138,6 +138,20 @@ public class TrialDrawTests
     }
 
     [TestMethod]
+    public void EachTrialTypeIsDrawnAtRandomByWeight()
+    {
+        // Stage 3: visual 10, auditory 10, coherent 5, conflict 5, neutral 1, each new trial drawn independently.
+        var trials = Fixture.Draw(Fixture.Task("task-discrimination.yml"), 3, 6200);
+        var weights = new Dictionary<string, double> { { "visual", 10 }, { "auditory", 10 }, { "audiovisualCoherent", 5 }, { "audiovisualConflict", 5 }, { "neutral", 1 } };
+        foreach (var w in weights)
+        {
+            Assert.AreEqual(w.Value / 31, trials.Count(t => t.trialType == w.Key) / 6200.0, 0.015, w.Key);
+        }
+        var runs = trials.Zip(trials.Skip(1), (a, b) => a.trialType == b.trialType).Count(x => x) / 6199.0;
+        Assert.AreEqual(weights.Values.Sum(v => (v / 31) * (v / 31)), runs, 0.02);   // independent: no queue
+    }
+
+    [TestMethod]
     public void RepeatsFollowTheRulesByName()
     {
         var task = Fixture.Task("task-localization.yml");
@@ -237,6 +251,44 @@ public class TrialDrawTests
         task.Optogenetics.LaserPowerMw = null;
         StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(task, Fixture.Speakers(), 4, path => 2)), "laserPowerMw");
     }
+
+    [TestMethod]
+    public void TheStageIsCheckedAtGoBeforeTheFirstTrial()
+    {
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(Fixture.Task("task-localization.yml"), 5, Fixture.Speakers())), "rows 0 to 4");
+        Assert.AreEqual("Stage 4", TrialDraw.CheckTask(Fixture.Task("task-discrimination.yml"), 4, Fixture.Speakers()).Label);
+    }
+
+    [TestMethod]
+    public void AnAuditoryTargetOnAVisualOnlyStageIsRefusedWithTheFix()
+    {
+        // Discrimination's stages 0 and 1 are visual only: with targetModality auditory every trial would be a distractor.
+        var task = Fixture.Task("task-discrimination.yml");
+        task.TargetModality = Modality.Auditory;
+        var refusal = Fixture.Refusal(() => TrialDraw.CheckTask(task, 0, Fixture.Speakers()));
+        StringAssert.Contains(refusal, "targetModality auditory no trials");
+        StringAssert.Contains(refusal, "swap the auditory and visual weights on the form");
+        var w = task.TrainingStages[0].TrialWeights;
+        w.Auditory = w.Visual;
+        w.Visual = 0;
+        Assert.IsTrue(Fixture.Draw(task, 0, 50).All(t => t.trialType == "auditory" && t.target == "Left"));
+        Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(Fixture.Task("task-localization.yml"), 0, Fixture.Speakers())));
+    }
+
+    [TestMethod]
+    public void ALaserOutlastingTheSoonestNextTriggerIsRefused()
+    {
+        // Discrimination: 0.5 s to the stimulus + 0 open loop + max(2.0 s drink, 1.5 s interval) + 0.1 s arm-to-trigger = 2.6 s.
+        var task = Fixture.Task("task-discrimination.yml");
+        task.Optogenetics.UseZapit = true;
+        task.Optogenetics.LaserPowerMw = 3;
+        Assert.AreEqual(2.6, TrialDraw.SoonestNextTriggerSeconds(task), 1e-9);
+        Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
+        task.Optogenetics.LaserDurationSeconds = 2.6;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "laserDurationSeconds");
+        task.Optogenetics.UseZapit = false;
+        Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
+    }
 }
 
 [TestClass]
@@ -257,7 +309,7 @@ public class ZapitTests
     {
         var trial = new Trial { trialNumber = 3, laserCondition = 2, laserOn = false };
         var off = ZapitTrialCommand.Build(trial, true, 1.5);
-        Assert.IsTrue(off.ConditionNumber == 2 && off.LaserOn == false && off.LaserPower == null && off.HardwareTriggered == true && off.StimDuration == 1.5f);
+        Assert.IsTrue(off.ConditionNumber == 2 && off.LaserOn == false && off.LaserPower == 0f && off.HardwareTriggered == true && off.StimDuration == 1.5f);
         trial.laserOn = true;
         trial.laserPowerMw = 3;
         Assert.AreEqual(3f, ZapitTrialCommand.Build(trial, false, 1.5).LaserPower);
@@ -296,6 +348,17 @@ public class TrialRowTests
         var correct = CreateTrialRow.Build("Left", 10, trial, 9, 4, true);
         Assert.IsTrue(correct.outcome == "Correct" && !correct.punishSound && correct.punishTimeoutSeconds == 0 && !correct.autoRewarded);
         Assert.IsFalse(CreateTrialRow.Build("Right", 10, trial, 9, 4, false).punishSound);
+    }
+
+    [TestMethod]
+    public void TheRowLogsTheConditionAndPowerSent()
+    {
+        var trial = new Trial { target = "Left", laserCondition = 2, laserOn = true, laserPowerMw = 3 };
+        var row = CreateTrialRow.Build("Left", 10, trial, 9, 4, true);
+        Assert.IsTrue(row.laserCondition == 2 && row.laserPowerMw == 3);
+        trial.laserOn = false;
+        trial.laserPowerMw = 0;
+        Assert.AreEqual(0, CreateTrialRow.Build("Left", 10, trial, 9, 4, true).laserPowerMw);
     }
 
     [TestMethod]

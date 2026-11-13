@@ -62,6 +62,7 @@ public class AuditoryStimulusSetTests
         var array = Fixture.Speakers();
         array.Device = new AudioDevice();
         array.Device.SampleRate = 48000;
+        array.SyncChannel = 31;
         array.Speakers["left"].Filter = leftFilter;
         array.Speakers["right"].Filter = "calibration/sym.json";
         array.Speakers["centre"].Filter = "calibration/sym.json";
@@ -108,9 +109,24 @@ public class AuditoryStimulusSetTests
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/rate.json"))), "designed for 44100 Hz");
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/none.json"))), "filter not found");
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/other.json"))), "measured on 'OTHER-RIG'");
+        var noSync = Speakers("calibration/sym.json");
+        noSync.SyncChannel = null;
+        StringAssert.Contains(refusal(() => Load(noSync)), "no syncChannel");
         Wave(5, waves[5], 44100);
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/sym.json"))), "filtered_pink_pulse_train_5.wav");
         File.Delete(Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_42.wav"));
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/sym.json"))), "filtered_pink_pulse_train_42.wav");
+    }
+
+    [TestMethod]
+    public void AWaveTheMixerPlaysAtAnotherRateIsRefused()
+    {
+        foreach (var name in new[] { "error_tone.wav", "background_white_noise.wav" })
+        {
+            CheckWaveRate.Check(Path.Combine(Fixture.Repo(), "src", "LocalFiles", name), 48000);
+        }
+        Wave(3, waves[3], 44100);
+        var wave = Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_3.wav");
+        StringAssert.Contains(Fixture.Refusal(() => CheckWaveRate.Check(wave, 48000)), "is 44100 Hz, but the audio device runs at 48000 Hz");
     }
 }

@@ -81,7 +81,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
-        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test) and SessionId are the launch's; the parameters a controller may change until Go (TrainingStage, ManualRewardUl, SpoutStepSize; the task's own settings are the task file's, which rig-control writes at Go and names in TaskPath) and the commands it may send while ready or recording. The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. Go publishes RunSettings (SubjectId, SessionId, TrainingStage) and TaskFilePath. StepperStepSize follows the controller live; RewardUl is what RewardLeft and RewardRight deliver: ManualRewardUl until the first trial gives its size.</Description>
+        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test) and SessionId are the launch's; the parameters a controller may change until Go (TrainingStage, ManualRewardUl, SpoutStepSize; the task's own settings are the task file's, which rig-control writes at Go and names in TaskPath) and the commands it may send while ready or recording. The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. Go publishes RunSettings (SubjectId, SessionId, TrainingStage) and TaskFilePath. SpoutStepSize follows the controller live; RewardUl is what RewardLeft and RewardRight deliver: ManualRewardUl until the first trial gives its size. Each parameter's one default is its subject's (SpoutStepSize, RewardUl), shown to the controller by ParameterDefault a second after Start.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="ExternalizedMapping">
@@ -126,13 +126,13 @@
                 </Parameter>
                 <Parameter>
                   <Name>ManualRewardUl</Name>
-                  <Value>3</Value>
+                  <Value />
                   <Description>Microlitres RewardLeft and RewardRight deliver before Go, taken live; after Go a manual reward is the current trial's size. The task's own reward sizes are the task file's (trainingStages rewardSizeUl).</Description>
                   <Minimum>0</Minimum>
                 </Parameter>
                 <Parameter>
                   <Name>SpoutStepSize</Name>
-                  <Value>150</Value>
+                  <Value />
                   <Description>Motor steps each spout nudge moves, taken live (HarpLickSpoutStage's StepSize).</Description>
                   <Minimum>1</Minimum>
                   <WholeNumber>true</WholeNumber>
@@ -296,7 +296,7 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject">
-              <Name>StepperStepSize</Name>
+              <Name>SpoutStepSize</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>ControlEvents</Name>
@@ -311,7 +311,7 @@
               <scr:Expression>Convert.ToInt32(it)</scr:Expression>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>StepperStepSize</Name>
+              <Name>SpoutStepSize</Name>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="DoubleProperty">
@@ -355,6 +355,42 @@
             <Expression xsi:type="MulticastSubject">
               <Name>RewardUl</Name>
             </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>SpoutStepSize</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Take">
+                <rx:Count>1</rx:Count>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:DelaySubscription">
+                <rx:DueTime>PT1S</rx:DueTime>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="orcl:ParameterDefault">
+                <orcl:Name>SpoutStepSize</orcl:Name>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>RewardUl</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Take">
+                <rx:Count>1</rx:Count>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:DelaySubscription">
+                <rx:DueTime>PT1S</rx:DueTime>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="orcl:ParameterDefault">
+                <orcl:Name>ManualRewardUl</orcl:Name>
+              </Combinator>
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -389,6 +425,12 @@
             <Edge From="37" To="38" Label="Source1" />
             <Edge From="38" To="39" Label="Source1" />
             <Edge From="39" To="40" Label="Source1" />
+            <Edge From="41" To="42" Label="Source1" />
+            <Edge From="42" To="43" Label="Source1" />
+            <Edge From="43" To="44" Label="Source1" />
+            <Edge From="45" To="46" Label="Source1" />
+            <Edge From="46" To="47" Label="Source1" />
+            <Edge From="47" To="48" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -419,7 +461,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. Trial (each trial as drawn), TrialNumber (from 1), TrialOutcome, StimulusOnsetTime (Harp seconds) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and ErrorSound start the stimuli; Zapit's commands and replies; DeliverRewardCommand, each (side, microlitres) reward.</Description>
+        <Description>Subjects the groups share. Trial (each trial as drawn), TrialNumber (from 1), TrialOutcome, StimulusOnsetTime (Harp seconds; these three are the plan's shared names, published for any reader and read by none here yet) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and ErrorSound start the stimuli; Zapit's commands and replies; DeliverRewardCommand, each (side, microlitres) reward.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
@@ -485,10 +527,9 @@
               </PropertyMappings>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>StepperStepSize</Name>
+              <Name>SpoutStepSize</Name>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:DomeHardware.bonsai">
-              <SpoutStepSize>150</SpoutStepSize>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="BooleanProperty">
@@ -596,7 +637,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ShowGrating</Name>
-              <Description>Draws a trial's grating from VisualStimulus until VisualStimulusOff: contrast, elevation and phase the trial's, the rest the task's, the azimuth GratingAzimuthDeg (closed loop moves it), flickering at 8 Hz, with the photodiode square black on its on frames and white on its off frames.</Description>
+              <Description>Draws a trial's grating from VisualStimulus until VisualStimulusOff: contrast, elevation and phase the trial's, the rest the task's, the azimuth GratingAzimuthDeg (closed loop moves it), flickering at the stimulus set's pulse rate, with the photodiode square black on its on frames and white on its off frames.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -615,10 +656,10 @@
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>Flicker</Name>
-                    <Description>The grating's 8 Hz on and off, the auditory stimulus set's pulse rate (AuditoryStimulusSet.PulseRateHz): a render-clock stimulus, not a task wait.</Description>
+                    <Description>The grating on and off at the auditory stimulus set's pulse rate (AuditoryStimulusSet.PulseRateHz): each half period is its FlickerHalfPeriod, mapped in. A render-clock stimulus, not a task wait.</Description>
                     <Combinator xsi:type="gl:Timer">
                       <gl:DueTime>PT0S</gl:DueTime>
-                      <gl:Period>PT0.0625S</gl:Period>
+                      <gl:Period>PT0S</gl:Period>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="Mod">
@@ -766,6 +807,14 @@
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:IgnoreElements" />
                   </Expression>
+                  <Expression xsi:type="SubscribeSubject">
+                    <Name>AuditoryStimulusSet</Name>
+                  </Expression>
+                  <Expression xsi:type="PropertyMapping">
+                    <PropertyMappings>
+                      <Property Name="Period" Selector="FlickerHalfPeriod" />
+                    </PropertyMappings>
+                  </Expression>
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
@@ -797,6 +846,8 @@
                   <Edge From="26" To="25" Label="Source1" />
                   <Edge From="20" To="25" Label="Source2" />
                   <Edge From="2" To="27" Label="Source1" />
+                  <Edge From="28" To="29" Label="Source1" />
+                  <Edge From="29" To="4" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
@@ -816,7 +867,7 @@
           <Nodes>
             <Expression xsi:type="GroupWorkflow">
               <Name>LoadAudioFiles</Name>
-              <Description>The auditory stimulus set and the speakers' filters (rig.yml's speakerArray; LoadAuditoryStimulusSet stops the workflow naming any file missing, unfiltered, at another rate or from another machine), the sync gate, the task's error sound and the background noise.</Description>
+              <Description>The auditory stimulus set and the speakers' filters (rig.yml's speakerArray; LoadAuditoryStimulusSet stops the workflow naming any file missing, unfiltered, at another rate or from another machine), the sync gate, the task's error sound and the background noise, each WAV checked to be at the mixer's rate (CheckWaveRate).</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="SubscribeSubject">
@@ -945,6 +996,34 @@
                   <Expression xsi:type="rx:AsyncSubject">
                     <Name>waveformBackground</Name>
                   </Expression>
+                  <Expression xsi:type="SubscribeSubject">
+                    <Name>RigConfigs</Name>
+                  </Expression>
+                  <Expression xsi:type="MemberSelector">
+                    <Selector>SpeakerArray.Device.SampleRate</Selector>
+                  </Expression>
+                  <Expression xsi:type="SubscribeSubject">
+                    <Name>TaskConfig</Name>
+                  </Expression>
+                  <Expression xsi:type="PropertyMapping">
+                    <PropertyMappings>
+                      <Property Name="FileName" Selector="TaskParameters.Punishment.Sound.Path" />
+                    </PropertyMappings>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Name>ErrorSoundRate</Name>
+                    <Description>The task's error sound must be at the mixer's rate (AudioReader keeps the file's): checked at Go, when the task names it.</Description>
+                    <Combinator xsi:type="p1:CheckWaveRate">
+                      <p1:FileName>LocalFiles\error_tone.wav</p1:FileName>
+                    </Combinator>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Name>BackgroundNoiseRate</Name>
+                    <Description>The background noise must be at the mixer's rate (AudioReader keeps the file's): checked at Start.</Description>
+                    <Combinator xsi:type="p1:CheckWaveRate">
+                      <p1:FileName>LocalFiles\background_white_noise.wav</p1:FileName>
+                    </Combinator>
+                  </Expression>
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
@@ -968,6 +1047,11 @@
                   <Edge From="21" To="22" Label="Source1" />
                   <Edge From="22" To="23" Label="Source1" />
                   <Edge From="23" To="24" Label="Source1" />
+                  <Edge From="25" To="26" Label="Source1" />
+                  <Edge From="27" To="28" Label="Source1" />
+                  <Edge From="26" To="29" Label="Source1" />
+                  <Edge From="28" To="29" Label="Source2" />
+                  <Edge From="26" To="30" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
@@ -1243,7 +1327,7 @@
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
                     <scr:Name>SyncChannel</scr:Name>
-                    <scr:Description>rig.yml's speakerArray.syncChannel; a rig.yml without one stops the workflow here.</scr:Description>
+                    <scr:Description>rig.yml's speakerArray.syncChannel; a rig.yml without one has already stopped the workflow at Start (LoadAuditoryStimulusSet).</scr:Description>
                     <scr:Expression>SpeakerArray.SyncChannel.Value</scr:Expression>
                   </Expression>
                   <Expression xsi:type="Combinator">
@@ -1688,14 +1772,14 @@
                   </Expression>
                   <Expression xsi:type="rx:Condition">
                     <Name>SoftwareTriggeredRealMouse?</Name>
-                    <Description>A rig without hardware triggering starts the laser when the command reaches Zapit, with no onset in the Harp log: test mice only.</Description>
+                    <Description>A rig without hardware triggering starts the laser when the command reaches Zapit, with no onset in the Harp log: the test mouse only (SubjectId exactly test).</Description>
                     <Workflow>
                       <Nodes>
                         <Expression xsi:type="WorkflowInput">
                           <Name>Source1</Name>
                         </Expression>
                         <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>!Item1.Zapit.HardwareTriggered &amp;&amp; !Item2.ToLowerInvariant().StartsWith(&quot;test&quot;)</scr:Expression>
+                          <scr:Expression>!Item1.Zapit.HardwareTriggered &amp;&amp; Item2.Trim().ToLowerInvariant() != &quot;test&quot;</scr:Expression>
                         </Expression>
                         <Expression xsi:type="WorkflowOutput" />
                       </Nodes>
@@ -2287,7 +2371,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trial loop, every wait on the Harp clock (Core HarpDelay on Timestamp): draw the trial; arm Zapit; armToTriggerSeconds; set the ZapitTrigger line; laserToStimulusSeconds; run the trial; draw the next from its end.</Description>
+        <Description>The trial loop, every wait on the Harp clock (Core HarpDelay on Timestamp): the task checked at Go (CheckTaskAtGo); once the experiment folder exists, the spouts out (on a stage with spout movements) and the first trial drawn; then for each trial: draw the trial; arm Zapit; armToTriggerSeconds; set the ZapitTrigger line; laserToStimulusSeconds; run the trial; draw the next from its end.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -3367,6 +3451,62 @@
             <Expression xsi:type="MulticastSubject">
               <Name>TrialEnds</Name>
             </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TaskConfig</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrainingStage</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>RigConfigs</Name>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>SpeakerArray</Selector>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Zip" />
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Name>CheckTaskAtGo</Name>
+              <Description>The task checked at Go (TrialDraw.CheckTask, tested C#): a stage past the table, a target modality with no trials or a laser that would outlast the next trigger stops the workflow here, before the first trial.</Description>
+              <Combinator xsi:type="p1:CheckTaskAtGo" />
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TaskConfig</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrainingStage</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Zip" />
+            </Expression>
+            <Expression xsi:type="rx:Condition">
+              <Name>SpoutMovements?</Name>
+              <Description>Trial 1 starts with the spouts out, as every later trial does after the last one's drink; a stage without spout movements (habituation) keeps them in.</Description>
+              <Workflow>
+                <Nodes>
+                  <Expression xsi:type="WorkflowInput">
+                    <Name>Source1</Name>
+                  </Expression>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Expression>Item2.TaskParameters.TrainingStages[Item3].SpoutMovements</scr:Expression>
+                  </Expression>
+                  <Expression xsi:type="WorkflowOutput" />
+                </Nodes>
+                <Edges>
+                  <Edge From="0" To="1" Label="Source1" />
+                  <Edge From="1" To="2" Label="Source1" />
+                </Edges>
+              </Workflow>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:ToLickSpoutCommand">
+                <dev:Command>SpoutsOut</dev:Command>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>LickSpoutStage.Commands</Name>
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -3394,6 +3534,17 @@
             <Edge From="23" To="20" Label="Source3" />
             <Edge From="20" To="24" Label="Source1" />
             <Edge From="24" To="25" Label="Source1" />
+            <Edge From="26" To="30" Label="Source1" />
+            <Edge From="27" To="30" Label="Source2" />
+            <Edge From="28" To="29" Label="Source1" />
+            <Edge From="29" To="30" Label="Source3" />
+            <Edge From="30" To="31" Label="Source1" />
+            <Edge From="1" To="34" Label="Source1" />
+            <Edge From="32" To="34" Label="Source2" />
+            <Edge From="33" To="34" Label="Source3" />
+            <Edge From="34" To="35" Label="Source1" />
+            <Edge From="35" To="36" Label="Source1" />
+            <Edge From="36" To="37" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

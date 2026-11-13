@@ -24,6 +24,12 @@ public class AuditoryStimulusSet
     /// <summary>Pulse rate the set was generated at, in Hz; the grating flickers at it too.</summary>
     public const double PulseRateHz = 8;
 
+    /// <summary>Half the pulse period: the grating's flicker is on for one, off for the next.</summary>
+    public TimeSpan FlickerHalfPeriod
+    {
+        get { return TimeSpan.FromSeconds(0.5 / PulseRateHz); }
+    }
+
     readonly Mat[] raw;
     readonly Dictionary<int, Mat[]> equalised;
     readonly Dictionary<int, Mat> kernels;
@@ -113,6 +119,7 @@ public class AuditoryStimulusSet
 
         var kernels = new Dictionary<int, Mat>();
         var problems = new List<string>();
+        if (!speakerArray.SyncChannel.HasValue) problems.Add("rig.yml's speakerArray has no syncChannel, the channel each stimulus's sync copy plays on");
         foreach (var entry in speakerArray.Speakers)
         {
             var speaker = entry.Value;
@@ -217,6 +224,30 @@ public class AuditoryStimulusSet
         return true;
     }
 
+    /// <summary>A WAV file's sample rate, from its fmt chunk.</summary>
+    public static int WaveSampleRate(string path)
+    {
+        using (var reader = new BinaryReader(File.OpenRead(path)))
+        {
+            if (new string(reader.ReadChars(4)) != "RIFF") throw new InvalidDataException("not a WAV file: " + path);
+            reader.ReadInt32();
+            if (new string(reader.ReadChars(4)) != "WAVE") throw new InvalidDataException("not a WAV file: " + path);
+            while (reader.BaseStream.Position + 8 <= reader.BaseStream.Length)
+            {
+                string id = new string(reader.ReadChars(4));
+                int size = reader.ReadInt32();
+                if (id == "fmt ")
+                {
+                    reader.ReadInt16();
+                    reader.ReadInt16();
+                    return reader.ReadInt32();
+                }
+                reader.BaseStream.Seek(size + (size & 1), SeekOrigin.Current);
+            }
+            throw new InvalidDataException("has no fmt chunk: " + path);
+        }
+    }
+
     // A mono 16-bit PCM WAV as a 1 x samples F32 waveform in -1 to 1, scaled as the production
     // workflow's Rescale (-32768 to 32767 onto -1 to 1).
     static Mat ReadWave(string path, int sampleRate)
@@ -273,7 +304,7 @@ public class AuditoryStimulusSet
 }
 
 [Combinator]
-[Description("Loads the rig's auditory stimulus set at Start: the 100 waveforms in <RigConfigDirectory>\\<Folder>, each equalised for every speaker with a filter (a SpeakerFilter artefact) in rig.yml. Stops the workflow, naming each file, if a speaker has no filter, any waveform or filter is missing, is not mono 16-bit PCM at the audio device's rate, or a filter was designed for another rate or measured on another machine. Input is a Zip of RigConfigs.SpeakerArray and RigConfigDirectory.")]
+[Description("Loads the rig's auditory stimulus set at Start: the 100 waveforms in <RigConfigDirectory>\\<Folder>, each equalised for every speaker with a filter (a SpeakerFilter artefact) in rig.yml. Stops the workflow, naming each file, if rig.yml has no syncChannel, a speaker has no filter, any waveform or filter is missing, is not mono 16-bit PCM at the audio device's rate, or a filter was designed for another rate or measured on another machine. Input is a Zip of RigConfigs.SpeakerArray and RigConfigDirectory.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LoadAuditoryStimulusSet
 {
@@ -314,5 +345,33 @@ public class EqualiseForSpeaker
     public IObservable<Mat> Process(IObservable<Tuple<AuditoryStimulusSet, Mat, int>> source)
     {
         return source.Select(input => input.Item1.EqualiseFor(input.Item2, input.Item3));
+    }
+}
+
+[Combinator]
+[Description("Stops the workflow if a WAV file the mixer plays (read by AudioReader, which keeps the file's rate) is not at the audio device's rate: nothing converts it, so it would play at the wrong pitch and speed. Input is the device's sample rate (rig.yml speakerArray.device.sampleRate); passes it on.")]
+[WorkflowElementCategory(ElementCategory.Transform)]
+public class CheckWaveRate
+{
+    [Description("The WAV file, relative to the workflow's folder (src).")]
+    public string FileName { get; set; }
+
+    public IObservable<int> Process(IObservable<int> source)
+    {
+        return source.Select(rate =>
+        {
+            Check(FileName, rate);
+            return rate;
+        });
+    }
+
+    public static void Check(string fileName, int deviceRate)
+    {
+        var path = Path.GetFullPath(fileName);
+        var rate = AuditoryStimulusSet.WaveSampleRate(path);
+        if (rate != deviceRate)
+        {
+            throw new InvalidOperationException(path + " is " + rate + " Hz, but the audio device runs at " + deviceRate + " Hz: resample it to " + deviceRate + " Hz (duration and level kept).");
+        }
     }
 }
