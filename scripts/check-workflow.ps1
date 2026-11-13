@@ -1,4 +1,4 @@
-param(
+﻿param(
     # Internal: the step this script runs in a fresh process of its own (assemblies stay loaded).
     [ValidateSet('', 'Build', 'RigDevice', 'Checks', 'Audio')][string]$Step = '',
     [string]$Workflow = 'main.bonsai'
@@ -27,7 +27,7 @@ $self = $MyInvocation.MyCommand.Path
 $repo = Split-Path -Parent (Split-Path -Parent $self)
 $bin = Join-Path ([IO.Path]::GetTempPath()) 'coen-dome-decision-making-check'
 $bonsaiDir = Join-Path $repo '.bonsai'
-$workflows = 'main.bonsai', 'CalibrateValve.bonsai', 'CameraFrameMonitor.bonsai'
+$workflows = 'main.bonsai'
 
 function Initialize-Assemblies {
     [xml]$cfg = Get-Content (Join-Path $bonsaiDir 'Bonsai.config') -Raw

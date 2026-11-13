@@ -3,7 +3,6 @@ import subprocess
 from pathlib import Path
 
 import pydantic
-from open_rigs._generators.calibration import export_schema
 
 import ucl_open_coen_dome_decision_making.rig
 import ucl_open_coen_dome_decision_making.task
@@ -38,10 +37,6 @@ def main():
     SCHEMA_ROOT.mkdir(parents=True, exist_ok=True)
     regenerate(ucl_open_coen_dome_decision_making.rig.UclOpenCoenDomeDecisionMakingRig, SCHEMA_ROOT / "ucl_open_coen_dome_decision_making.json")
     regenerate(ucl_open_coen_dome_decision_making.task.UclOpenCoenDomeDecisionMakingTaskLogic, SCHEMA_ROOT / "ucl_open_coen_dome_decision_making_task.json")
-    # The platform's calibration types (artefacts and procedure settings) generate no C# here: the
-    # rig schema binds them to OpenRigs.Core. The schema is exported only so config/valve-calibration.yml
-    # validates in the editor.
-    export_schema(SCHEMA_ROOT / "calibration.json")
 
 
 if __name__ == "__main__":
