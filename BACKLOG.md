@@ -1,5 +1,16 @@
 # Backlog
 
+## 2026-11-13 Rebuilt on the shared dome blocks (plan v11, W2)
+
+`src\main.bonsai` was rebuilt on lib-open-rigs' dome blocks (README, Shared Blocks): DomeHardware, DomeHarpLogs, DeliverReward, DomeDisplay, Core HarpDelay on `Timestamp` for every task wait, the trial draw, row and consequences in tested C# (`tests\Extensions.Tests`). Entries below this one describe the graph before the rebuild; node names and files they cite may be gone.
+
+### Not yet tried
+
+- **Nothing has run.** Checked by `check-workflow.ps1` (C# 5 compile, Extensions.Tests, Bonsai's build against the filled template, the task files) and the Python tests only; no headless run (DomeDisplay opens a full-screen window) and no rig. First: a `test` run on one dome (uncalibrated line delivers 0 and says so; ITI on Harp time within 2 ms of the drawn value; trial rows against what was shown), then Zapit on BLUE-OPTO-2.
+- **The laser-off Zapit command** (condition sent with the laser off, power unset) and the ZapitTrigger line held for `laserDurationSeconds` as the masking light: untried against Zapit.
+- **No `config\main.layout` yet**, as before: any machine-local `Settings\src\main.layout` predates the rebuild and must be deleted.
+- **No `Finished` phase**, as before.
+
 ## 2026-11-10 Independent audit, round 5 of 5 (the 9-10 Nov naming and laser work)
 
 Fixed: `src\Extensions\README.md`'s Zapit wiring and timing model described the graph before the open-rigs branch: StartStimulus sent "in StimuliPresentation" "at stimulus onset", the trigger written "when Zapit's reply confirms it is armed", the laser lagging the stimulus, and power "not sent". Traced by node index: `ArmZapit`, HarpDelay 0.1 s, `StartLaser` (no wait for the reply), HarpDelay `laserToStimulusSeconds`, `ExecuteTrial`; the laser leads the stimulus and `laserPowerMw` goes with each StartStimulus. Rewritten. `itiMinSeconds`, `itiMaxSeconds` and the `itiSeconds` column (its meaning goes into every manifest) now say the draw runs from the outcome (after any timeout) to the next stimulus and includes 2 s to drink, 0.1 s to arm and `laserToStimulusSeconds`, a shorter draw running as their sum, as rig-control's form already said (test).
