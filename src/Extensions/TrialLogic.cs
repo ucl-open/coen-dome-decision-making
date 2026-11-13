@@ -653,10 +653,14 @@ public enum TrialMoment
 }
 
 [Combinator]
-[Description("The seconds from now (the input's Harp time) to the trial's stimulus or laser trigger, for a HarpDelay's DueSeconds: (trial, seconds). Stops the workflow if that moment has passed, rather than shift it.")]
+[Description("The seconds from now (the input's Harp time) to the trial's stimulus or laser trigger, for a HarpDelay's DueSeconds: (trial, seconds). A moment up to ClockStepSeconds past (Go is seen on the first clock tick after it) comes at once; one further past stops the workflow, rather than shift it.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SecondsUntil
 {
+    /// <summary>How far past a moment may be and still come at once: Go is exact, but is seen on the first tick of the
+    /// 1 kHz Harp clock after it, so a moment at Go (the trigger with a lead, the stimulus without) is up to a tick late.</summary>
+    public const double ClockStepSeconds = 0.01;
+
     public TrialMoment Moment { get; set; }
 
     public IObservable<Tuple<Trial, double>> Process(IObservable<Timestamped<Trial>> source)
@@ -668,7 +672,7 @@ public class SecondsUntil
     public static double Seconds(Trial trial, TrialMoment moment, double now)
     {
         var due = trial.goTime + (moment == TrialMoment.Stimulus ? trial.leadSeconds : trial.triggerAfterGoSeconds);
-        if (double.IsNaN(due) || due < now - 1e-6)
+        if (double.IsNaN(due) || due < now - ClockStepSeconds)
         {
             throw new InvalidOperationException(string.Format("Trial {0}'s {1} was due at {2} s on the Harp clock, but its wait began at {3} s.", trial.trialNumber, moment == TrialMoment.Stimulus ? "stimulus" : "laser trigger", due, now));
         }

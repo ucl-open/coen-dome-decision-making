@@ -405,6 +405,21 @@ public class GoTests
     }
 
     [TestMethod]
+    public void AMomentAtGoComesAtOnceThoughGoIsSeenOnTheNextTick()
+    {
+        // A drawn interval is never a whole number of ticks: Go (11.5004 s) is seen on the 11.501 s tick.
+        foreach (var lead in new[] { 0.5, 0.0 })
+        {
+            var trial = Trial(lead);
+            trial.itiSeconds = 2.0004;
+            var go = Run(trial);
+            Assert.AreEqual(11.5004 - lead + 0.5, go.goTime, 1e-9);
+            var moment = lead > 0 ? TrialMoment.LaserTrigger : TrialMoment.Stimulus;
+            Assert.AreEqual(0, SecondsUntil.Seconds(go, moment, Math.Ceiling(go.goTime * 1000) / 1000), 1e-12);
+        }
+    }
+
+    [TestMethod]
     public void AMomentAlreadyPastStopsTheWorkflow()
     {
         var go = Run(Trial(-0.5));
