@@ -302,6 +302,23 @@ public class TrialDrawTests
     }
 
     [TestMethod]
+    public void ALargeRewardOverTheCapIsRefusedAtGo()
+    {
+        // Audit round 5: DeliverReward refuses a reward over its MaxRewardUl (lib's MAX_REWARD_UL) mid-session; Go refuses it first.
+        var task = Fixture.Task("task-localization.yml");
+        task.Reward.LargeRewardProbability = 0.2;
+        task.Reward.LargeRewardMultiplier = 3;
+        task.TrainingStages[4].RewardSizeUl = 8;
+        var refusal = Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers()));
+        StringAssert.Contains(refusal, "stage '" + task.TrainingStages[4].Label + "' rewardSizeUl (8 ul) x reward.largeRewardMultiplier (3) is 24 ul, more than 20 ul");
+        task.TrainingStages[4].RewardSizeUl = OpenRigs.Core.LoadRewardLine.DefaultMaxRewardUl / 3;
+        Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
+        task.TrainingStages[4].RewardSizeUl = 8;
+        task.Reward.LargeRewardProbability = 0;
+        Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
+    }
+
+    [TestMethod]
     public void TheSignedLeadIsRefusedOutsideTheIntervalAndTheResponseWindow()
     {
         Func<double, string> refusal = lead =>

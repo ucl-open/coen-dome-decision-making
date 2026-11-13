@@ -23,6 +23,18 @@
 - A trial records whether its trigger or its outcome came first, and both `UnlessAnswered` and the row's `laserPowerMw` read that record, so a row no longer logs 0 mW when the laser fired.
 - Every rig.yml speaker needs a filter (`DomeSpeakers.RequireFilters`, as coen-dome-navigation); the manual reward's subject is `ManualRewardUl`. Unit-tested and build-checked only.
 
+## 2026-11-13 Audit round 5: changed
+
+- The check at Go (`TrialDraw.Check`) refuses a stage whose `rewardSizeUl` times `largeRewardMultiplier` passes lib-open-rigs' cap (`LoadRewardLine.DefaultMaxRewardUl`, 20 ul, tied there to `MAX_REWARD_UL`) while large rewards are on, as task.py does: app-rig-control checks task files against the JSON schema only, so such a file stopped mid-session when `DeliverReward` refused the reward (test).
+- `config\main.layout` is tracked, an empty layout for now, as coen-dome-navigation's, so `Setup.ps1` replaces a stale per-machine one (test); save the real one on a dome with the Spinnaker SDK.
+
+## Audit round 5 (13 Nov 2026): not changed
+
+- `wheelQuietCm` 0 is refused unless the wheel wait is off: any travel would hold Go on encoder jitter.
+- The 20 ul cap is written in three places in lib-open-rigs, tied by tests.
+- A calibration `pulseGapMs` of 0 is allowed; the domes fire at the calibrated gap.
+- Lab IDs are not checked unique over time; the lab never reuses them.
+
 ## 2026-11-13 Audit round 4: changed
 
 - One cap on a reward, lib-open-rigs' `MAX_REWARD_UL` (20 ul, tied there to `LoadRewardLine.DefaultMaxRewardUl` and `DeliverReward`'s `MaxRewardUl`): each stage's `rewardSizeUl` is at most it, the task refuses a stage whose `rewardSizeUl` times `largeRewardMultiplier` passes it while large rewards are on, and `ManualRewardUl`'s `Maximum` is it (tests).
@@ -64,7 +76,7 @@
 
 - **Nothing has run.** Checked by `check-workflow.ps1` (C# 5 compile, Extensions.Tests, Bonsai's build against the filled template, the task files) and the Python tests only; no headless run (DomeDisplay opens a full-screen window) and no rig. First: a `test` run on one dome (uncalibrated line delivers 0 and says so; ITI on Harp time within 2 ms of the drawn value; trial rows against what was shown), then Zapit on BLUE-OPTO-2.
 - **The laser-off Zapit command** (condition sent with the laser off at 0 mW, as navigation's) and the ZapitTrigger line held for `laserDurationSeconds` as the masking light: untried against Zapit.
-- **No `config\main.layout` yet**, as before: any machine-local `Settings\src\main.layout` predates the rebuild and must be deleted.
+- **`config\main.layout` is empty** (audit round 5): `Setup.ps1` replaces any machine-local `Settings\src\main.layout` with it; the real layout is still to be saved on a dome.
 - **No `Finished` phase**, as before.
 
 ## 2026-11-10 Independent audit, round 5 of 5 (the 9-10 Nov naming and laser work)

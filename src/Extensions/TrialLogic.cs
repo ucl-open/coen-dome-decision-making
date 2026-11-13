@@ -1,5 +1,6 @@
 using Bonsai;
 using Bonsai.Harp;
+using OpenRigs.Core;
 using OpenRigs.Devices.Zapit;
 using System;
 using System.Collections.Generic;
@@ -265,6 +266,12 @@ public class TrialDraw
         if (opto.UseZapit && opto.LaserDurationSeconds > longest + 1e-9)
         {
             problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (openLoopSeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
+        }
+        // DeliverReward refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
+        var multiplier = task.Reward.LargeRewardMultiplier;
+        if (task.Reward.LargeRewardProbability > 0 && multiplier > 1 && stage.RewardSizeUl * multiplier > LoadRewardLine.DefaultMaxRewardUl + 1e-9)
+        {
+            problems.Add(string.Format("stage '{0}' rewardSizeUl ({1} ul) x reward.largeRewardMultiplier ({2}) is {3} ul, more than {4} ul, the most one reward may ask for", stage.Label, stage.RewardSizeUl, multiplier, stage.RewardSizeUl * multiplier, LoadRewardLine.DefaultMaxRewardUl));
         }
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
     }

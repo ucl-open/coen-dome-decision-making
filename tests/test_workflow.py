@@ -236,3 +236,9 @@ def test_the_readme_lists_every_shared_block():
 def test_manual_rewards_use_their_own_subject_name():
     # Audit round 3: the subject a manual reward reads is ManualRewardUl, as the controller's parameter; no RewardUl.
     assert "<Name>RewardUl</Name>" not in TEXT and TEXT.count("<Name>ManualRewardUl</Name>") >= 4
+
+
+def test_the_layout_is_tracked():
+    # Audit round 5: a tracked layout replaces a stale per-machine one at Setup, as coen-dome-navigation's.
+    assert (ROOT / "config" / "main.layout").read_text(encoding="utf-8").count("<VisualizerLayout") == 1
+    assert "..\\config\\main.layout" in (ROOT / ".bonsai" / "Setup.ps1").read_text(encoding="utf-8-sig")
