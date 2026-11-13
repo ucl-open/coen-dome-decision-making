@@ -13,7 +13,7 @@ using UclOpenCoenDomeDecisionMaking;
 
 /// <summary>
 /// The auditory stimuli of an experiment: the rig's set of stimulus waveforms, each already
-/// equalised for every speaker that has a filter in rig.yml, so a trial's stimulus is a lookup
+/// equalised for every speaker with its filter from rig.yml, so a trial's stimulus is a lookup
 /// with no filtering at stimulus onset.
 /// </summary>
 public class AuditoryStimulusSet
@@ -49,7 +49,7 @@ public class AuditoryStimulusSet
         get { return raw[0].Cols; }
     }
 
-    /// <summary>The waveform a trial plays on a channel, equalised if that speaker has a filter.</summary>
+    /// <summary>The waveform a trial plays on a channel, equalised for that speaker.</summary>
     public Mat Stimulus(int index, int channel)
     {
         if (index < 0 || index >= raw.Length)
@@ -96,11 +96,14 @@ public class AuditoryStimulusSet
         }
     }
 
+    /// <summary>The machine a filter must have been measured on; a test may set another.</summary>
+    public static string MachineName = Environment.MachineName;
+
     /// <summary>
     /// Reads the set and the speakers' filters, failing with a message naming every file that is
     /// missing or unusable; public so a check can run it without a workflow.
     /// </summary>
-    public static AuditoryStimulusSet Load(SpeakerArray speakerArray, string rigDirectory, string folder, string filePrefix)
+    public static AuditoryStimulusSet Load(DomeSpeakerArray speakerArray, string rigDirectory, string folder, string filePrefix)
     {
         if (speakerArray == null || speakerArray.Speakers == null || speakerArray.Speakers.Count == 0)
         {
@@ -115,7 +118,7 @@ public class AuditoryStimulusSet
             var speaker = entry.Value;
             if (string.IsNullOrEmpty(speaker.Filter))
             {
-                Console.WriteLine("WARNING: speaker '" + entry.Key + "' (channel " + speaker.Channel + ") has no filter in rig.yml, so it plays unequalised.");
+                problems.Add("speaker '" + entry.Key + "' (channel " + speaker.Channel + ") has no filter in rig.yml");
                 continue;
             }
             string path = Path.GetFullPath(Path.IsPathRooted(speaker.Filter) ? speaker.Filter : Path.Combine(rigDirectory, speaker.Filter));
@@ -149,10 +152,10 @@ public class AuditoryStimulusSet
                 problems.Add("speaker '" + entry.Key + "' filter's taps are not symmetric, so equalising by correlation would not be its convolution: " + path);
                 continue;
             }
-            if (!string.IsNullOrEmpty(filter.MachineName) &&
-                !string.Equals(filter.MachineName, Environment.MachineName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(filter.MachineName, MachineName, StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("WARNING: speaker '" + entry.Key + "' filter was measured on " + filter.MachineName + ", not on this machine (" + Environment.MachineName + "): " + path);
+                problems.Add("speaker '" + entry.Key + "' filter was measured on '" + filter.MachineName + "', not on this machine (" + MachineName + "): " + path);
+                continue;
             }
             var kernel = new Mat(1, filter.Taps.Count, Depth.F32, 1);
             Marshal.Copy(filter.Taps.Select(tap => (float)tap).ToArray(), 0, kernel.Data, filter.Taps.Count);
@@ -270,7 +273,7 @@ public class AuditoryStimulusSet
 }
 
 [Combinator]
-[Description("Loads the rig's auditory stimulus set at Start: the 100 waveforms in <RigConfigDirectory>\\<Folder>, each equalised for every speaker with a filter (a SpeakerFilter artefact) in rig.yml. Stops the workflow, naming each file, if any waveform or filter is missing, is not mono 16-bit PCM at the audio device's rate, or a filter was designed for another rate. Input is a Zip of RigConfigs.SpeakerArray and RigConfigDirectory.")]
+[Description("Loads the rig's auditory stimulus set at Start: the 100 waveforms in <RigConfigDirectory>\\<Folder>, each equalised for every speaker with a filter (a SpeakerFilter artefact) in rig.yml. Stops the workflow, naming each file, if a speaker has no filter, any waveform or filter is missing, is not mono 16-bit PCM at the audio device's rate, or a filter was designed for another rate or measured on another machine. Input is a Zip of RigConfigs.SpeakerArray and RigConfigDirectory.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LoadAuditoryStimulusSet
 {
@@ -286,20 +289,20 @@ public class LoadAuditoryStimulusSet
     [Description("The waveforms' file name before their index: <FilePrefix>0.wav and on.")]
     public string FilePrefix { get; set; }
 
-    public IObservable<AuditoryStimulusSet> Process(IObservable<Tuple<SpeakerArray, string>> source)
+    public IObservable<AuditoryStimulusSet> Process(IObservable<Tuple<DomeSpeakerArray, string>> source)
     {
         return source.Select(input => AuditoryStimulusSet.Load(input.Item1, input.Item2, Folder, FilePrefix));
     }
 }
 
 [Combinator]
-[Description("The waveform a trial plays: the stimulus set's waveform at the trial's audioWaveformIdx, equalised for the speaker on the given mixer channel. Input is a Zip of the stimulus set, the trial and the channel.")]
+[Description("The waveform a trial plays: the stimulus set's waveform at the trial's audioWaveformIndex, equalised for its speaker. Input is the stimulus set and the trial.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {
-    public IObservable<Mat> Process(IObservable<Tuple<AuditoryStimulusSet, Trial, int>> source)
+    public IObservable<Mat> Process(IObservable<Tuple<AuditoryStimulusSet, Trial>> source)
     {
-        return source.Select(input => input.Item1.Stimulus(input.Item2.audioWaveformIdx, input.Item3));
+        return source.Select(input => input.Item1.Stimulus(input.Item2.audioWaveformIndex, input.Item2.speakerChannel));
     }
 }
 

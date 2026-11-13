@@ -1,4 +1,4 @@
-# What each BonsaiData_Trial column this workflow writes means (TrialRow.cs builds the row).
+# What each BonsaiData_Trial column this workflow writes means (TrialRow.cs builds the row, from TrialLogic.cs's Trial).
 # ExperimentManifest (TrialColumns) copies this file into every experiment's manifest.json at
 # Start, so each experiment carries the meaning of its own trial log; open_rigs.trials reads it
 # from there (lib-open-rigs DECISIONS.md, stage 3).
@@ -24,7 +24,7 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral]
-  description: What the trial showed, in words (InitialiseTrial.TrialTypeName) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in discrimination). In discrimination the target modality's trials and the other modality's say which they showed; the task file's targetModality (in the manifest) says which is the target. Until 9 Nov 2026 it was a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning.
+  description: What the trial showed, in words (TrialDraw.TypeNames, also the keys of the task's trialWeights and rulesPerType) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in discrimination). In discrimination the target modality's trials and the other modality's say which they showed; the task file's targetModality (in the manifest) says which is the target. Until 9 Nov 2026 it was a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning.
 target:
   type: string
   values: [Left, Right]
@@ -64,7 +64,11 @@ itiSeconds:
   type: double
   unit: s
   formerly: [itiDuration]
-  description: The inter-trial interval drawn before this trial (the last trial's draw), NaN on the first. It ran from the last trial's outcome, after any punishment timeout, to this trial's stimulus, and includes 2 s to drink, 0.1 s to arm Zapit and the task's laserToStimulusSeconds, so a draw shorter than 2.1 s plus laserToStimulusSeconds ran as that. Until 9 Nov 2026 it was the interval after the trial.
+  description: The inter-trial interval drawn before this trial (the last trial's draw), NaN on the first. It ran from the last trial's outcome, after any punishment timeout, to this trial's start (the Zapit arm, armToTriggerSeconds plus laserToStimulusSeconds before the stimulus), and includes the task's drinkSeconds, so a draw shorter than drinkSeconds ran as drinkSeconds. Until 13 Nov 2026 it ran to the stimulus and included 2 s to drink, 0.1 s to arm and laserToStimulusSeconds; until 9 Nov 2026 it was the interval after the trial.
+itiStartTime:
+  type: double
+  unit: s
+  description: Harp time the inter-trial interval before this trial began (the last trial's outcome, after any timeout), NaN on the first.
 punishSound:
   type: bool
   description: True when the error sound played - an incorrect choice, with the task's punishment.sound enabled.
@@ -94,7 +98,7 @@ audioAzimuthDeg:
   type: double
   unit: deg
   formerly: [audioAzimuth]
-  description: Azimuth of the speaker that played, after snapping to the nearest wired one; NaN when none played.
+  description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played.
 audioElevationDeg:
   type: double
   unit: deg
@@ -106,7 +110,7 @@ audioWaveformIndex:
 laserCondition:
   type: int
   formerly: [optoCondition]
-  description: The Zapit condition sent to Zapit this trial, 0 when none was sent (Zapit numbers conditions from 1). Here a condition is sent only with the laser on, so laserCondition > 0 and laserPowerMw > 0 agree. Until 9 Nov 2026 optoStimulated also said whether there was stimulation; it was always laserCondition > 0.
+  description: The Zapit condition sent to Zapit this trial, 0 without optogenetics (Zapit numbers conditions from 1). With optogenetics every trial sends one, the laser off at 0 mW on laser-off trials (the galvos move and the masking light shows), so laserPowerMw > 0 says the laser was on. From 13 Nov 2026; before, a condition was sent only with the laser on. Until 9 Nov 2026 optoStimulated also said whether there was stimulation.
 laserPowerMw:
   type: double
   unit: mW

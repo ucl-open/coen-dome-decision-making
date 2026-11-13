@@ -1,96 +1,97 @@
 using Bonsai;
 using Bonsai.Harp;
-using OpenTK;
 using System;
 using System.ComponentModel;
 using System.Reactive.Linq;
 
 // One row of BonsaiData_Trial. Each field is a column, named and typed as the lab's list
 // (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
-// means, lists it (rig-control checks both before launch); the order is the file's. The row
-// travels Timestamped, and its Seconds (the Harp time the outcome was known: the choice, or the
-// end of the response window) is the file's first column.
+// means, lists it; the order is the file's. The row travels Timestamped, and its Seconds (the Harp
+// time the outcome was known: the choice, or the end of the response window) is the first column.
 public class TrialRow
 {
     public int trialNumber;
-    public string trialType;  // in words: what was shown (InitialiseTrial.TrialTypeName)
+    public string trialType;
     public string target;
     public string choice;
     public string outcome;
-    public double stimulusOnsetTime;  // Harp time the stimulus was commanded on; NaN if it never was
-    public double choiceTime;  // Harp time of the lick that made the choice; NaN on NoResponse
+    public double stimulusOnsetTime;
+    public double choiceTime;
     public double rewardSizeUl;
     public bool bothSpouts;
     public int repeatCount;
-    public double itiSeconds;  // the interval drawn before this trial (the last trial's), NaN on the first
-    public bool punishSound;  // the error sound played: Incorrect, with punishment.sound enabled
-    public double punishTimeoutSeconds;  // the timeout after this trial: Incorrect, or a miss not auto-rewarded; else 0
+    public double itiSeconds;
+    public double itiStartTime;
+    public bool punishSound;
+    public double punishTimeoutSeconds;
     public double visualAzimuthDeg;
     public double visualElevationDeg;
     public double visualContrast;
     public double visualPhaseRad;
-    public double audioAzimuthDeg;  // the speaker that played, after snapping to the nearest wired one
+    public double audioAzimuthDeg;
     public double audioElevationDeg;
     public int audioWaveformIndex;
-    public int laserCondition;  // 0 when not stimulated (Zapit numbers conditions from 1)
-    public double laserPowerMw;  // the power sent with StartStimulus; 0 on laser-off trials
-    public bool autoRewarded;  // a miss on an auto-reward trial, rewarded at the target spout
+    public int laserCondition;
+    public double laserPowerMw;
+    public bool autoRewarded;
 }
 
 [Combinator]
-[Description("Builds the trial's BonsaiData_Trial row when its choice is made. Input: the choice (Left, Right or NoResponse) stamped with the Harp time it was made, with the trial as drawn, the Harp time of its stimulus onset (NaN if none), the index of the speaker that played (-1 if none) and the speaker locations.")]
+[Description("Builds the trial's BonsaiData_Trial row when its outcome is known. Input: the choice (Left, Right or NoResponse) stamped with the Harp time it was made, the trial, and the Harp time of its stimulus onset (NaN if none).")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CreateTrialRow
 {
-    public IObservable<Timestamped<TrialRow>> Process(IObservable<Tuple<Timestamped<string>, Tuple<Trial, double, int, Vector3[]>>> source)
+    [Description("The timeout after an incorrect choice or a miss not auto-rewarded, in seconds (punishment.timeoutSeconds).")]
+    public double TimeoutSeconds { get; set; }
+
+    [Description("Whether the error sound plays on an incorrect choice (punishment.sound.enabled).")]
+    public bool PunishSound { get; set; }
+
+    public IObservable<Timestamped<TrialRow>> Process(IObservable<Tuple<Timestamped<string>, Trial, double>> source)
     {
-        return Observable.Defer(() =>
-        {
-            // The interval before a trial is the one the last trial drew (Pip, 9 Nov 2026: itiSeconds
-            // means the wait before this trial in every task); none before the first.
-            double previousIti = double.NaN;
-            return source.Select(value => Build(value, ref previousIti));
-        });
+        return source.Select(value => new Timestamped<TrialRow>(Build(value.Item1.Value, value.Item1.Seconds, value.Item2, value.Item3, TimeoutSeconds, PunishSound), value.Item1.Seconds));
     }
 
-    static Timestamped<TrialRow> Build(Tuple<Timestamped<string>, Tuple<Trial, double, int, Vector3[]>> value, ref double previousIti)
+    public static string Outcome(string choice, Trial trial)
     {
-        var choice = value.Item1.Value;
-        var trial = value.Item2.Item1;
-        var speaker = value.Item2.Item3;
-        var locations = value.Item2.Item4;
-        bool played = trial.audioEnabled && locations != null && speaker >= 0 && speaker < locations.Length;
-        var outcome = choice == "NoResponse" ? "NoResponse" : choice == trial.targetSide ? "Correct" : "Incorrect";
-        // ApplyConsequences: the timeout follows an incorrect choice or a miss, unless the miss was
-        // auto-rewarded; the error sound only an incorrect choice.
-        bool timedOut = outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward);
-        var row = new TrialRow
+        return choice == "NoResponse" ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
+    }
+
+    // ApplyConsequences: the timeout follows an incorrect choice or a miss that was not auto-rewarded.
+    public static bool TimedOut(string outcome, Trial trial)
+    {
+        return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward);
+    }
+
+    public static TrialRow Build(string choice, double choiceTime, Trial trial, double stimulusOnsetTime, double timeoutSeconds, bool punishSound)
+    {
+        var outcome = Outcome(choice, trial);
+        return new TrialRow
         {
             trialNumber = trial.trialNumber,
-            trialType = trial.trialTypeName,
-            target = trial.targetSide,
+            trialType = trial.trialType,
+            target = trial.target,
             choice = choice,
             outcome = outcome,
-            stimulusOnsetTime = value.Item2.Item2,
-            choiceTime = choice == "NoResponse" ? double.NaN : value.Item1.Seconds,
-            rewardSizeUl = trial.RewardSizeInUl,
-            bothSpouts = trial.BothSpouts,
-            repeatCount = trial.RepeatCount,
-            itiSeconds = previousIti,
-            punishSound = outcome == "Incorrect" && trial.punishSoundEnabled,
-            punishTimeoutSeconds = timedOut ? trial.IncorrectTimeoutDuration : 0.0,
-            visualAzimuthDeg = trial.visualAzimuth,
-            visualElevationDeg = trial.visualElevation,
+            stimulusOnsetTime = stimulusOnsetTime,
+            choiceTime = choice == "NoResponse" ? double.NaN : choiceTime,
+            rewardSizeUl = trial.rewardSizeUl,
+            bothSpouts = trial.bothSpouts,
+            repeatCount = trial.repeatCount,
+            itiSeconds = trial.itiSeconds,
+            itiStartTime = trial.itiStartTime,
+            punishSound = outcome == "Incorrect" && punishSound,
+            punishTimeoutSeconds = TimedOut(outcome, trial) ? timeoutSeconds : 0.0,
+            visualAzimuthDeg = trial.visualAzimuthDeg,
+            visualElevationDeg = trial.visualElevationDeg,
             visualContrast = trial.visualContrast,
-            visualPhaseRad = trial.visualPhase,
-            audioAzimuthDeg = played ? locations[speaker].X : double.NaN,
-            audioElevationDeg = played ? locations[speaker].Y : double.NaN,
-            audioWaveformIndex = trial.audioWaveformIdx,
-            laserCondition = trial.OptogeneticCondition,
-            laserPowerMw = trial.OptogeneticPower,
+            visualPhaseRad = trial.visualPhaseRad,
+            audioAzimuthDeg = trial.audioAzimuthDeg,
+            audioElevationDeg = trial.audioElevationDeg,
+            audioWaveformIndex = trial.audioWaveformIndex,
+            laserCondition = trial.laserCondition,
+            laserPowerMw = trial.laserPowerMw,
             autoRewarded = trial.autoReward && choice == "NoResponse",
         };
-        previousIti = trial.ITI;
-        return new Timestamped<TrialRow>(row, value.Item1.Seconds);
     }
 }
