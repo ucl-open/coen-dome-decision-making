@@ -67,7 +67,7 @@ public class AuditoryStimulusSet
         return equalised.TryGetValue(channel, out waveforms) ? waveforms[index] : raw[index];
     }
 
-    /// <summary>Any waveform equalised for a channel's speaker; unchanged if it has no filter.</summary>
+    /// <summary>Any waveform equalised for a channel's speaker; unchanged on a channel no speaker is on.</summary>
     public Mat EqualiseFor(Mat waveform, int channel)
     {
         Mat kernel;
@@ -115,6 +115,8 @@ public class AuditoryStimulusSet
         {
             throw new InvalidOperationException("rig.yml has no speakerArray.speakers, so there is nowhere to play the auditory stimuli.");
         }
+        // Every speaker has a filter or the workflow stops here, naming each without (the rule every dome holds).
+        OpenRigs.Devices.DomeSpeakers.RequireFilters(speakerArray.Speakers.Select(entry => new KeyValuePair<string, string>(entry.Key, entry.Value.Filter)));
         int sampleRate = speakerArray.Device.SampleRate;
 
         var kernels = new Dictionary<int, Mat>();
@@ -123,11 +125,6 @@ public class AuditoryStimulusSet
         foreach (var entry in speakerArray.Speakers)
         {
             var speaker = entry.Value;
-            if (string.IsNullOrEmpty(speaker.Filter))
-            {
-                problems.Add("speaker '" + entry.Key + "' (channel " + speaker.Channel + ") has no filter in rig.yml");
-                continue;
-            }
             string path = Path.GetFullPath(Path.IsPathRooted(speaker.Filter) ? speaker.Filter : Path.Combine(rigDirectory, speaker.Filter));
             if (!File.Exists(path))
             {
@@ -338,7 +335,7 @@ public class SelectAuditoryStimulus
 }
 
 [Combinator]
-[Description("Equalises a waveform for the speaker on the given mixer channel with that speaker's filter from rig.yml; passes it unchanged if the speaker has none. Input is a Zip of the stimulus set, the waveform and the channel.")]
+[Description("Equalises a waveform for the speaker on the given mixer channel with that speaker's filter from rig.yml; passes it unchanged on a channel no speaker is on (every speaker has a filter). Input is a Zip of the stimulus set, the waveform and the channel.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class EqualiseForSpeaker
 {

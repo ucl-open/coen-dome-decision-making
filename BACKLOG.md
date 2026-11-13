@@ -16,6 +16,23 @@
 
 - The wheel's quiet wait counts the travel in the last `wheelQuietSeconds` (was all travel since the last restart, so slow fidgeting delayed Go); the lick wait needs both spouts released for `lickQuietSeconds` (a held contact holds Go); a trial answered before its trigger (negative `laserToStimulusSeconds`) gets no laser and logs `laserPowerMw` 0, as in coen-dome-navigation (`UnlessAnswered`). Unit-tested and build-checked only.
 
+## 2026-11-13 Audit round 3: changed
+
+- Zapit's connection, its start checks and the refusal of a real mouse on a rig without hardware triggering are lib-open-rigs' `Zapit.ConnectZapit` (Devices coen-lab.8), shared with coen-dome-navigation; the 0.2 s reply margin is its `ZapitTrial.ReplyMarginSeconds` and `ZAPIT_REPLY_MARGIN_SECONDS`.
+- On a rig without hardware triggering (test mouse only) Zapit gets the StartStimulus at the trigger, not at the interval's start: Zapit starts the laser on receipt, so it came 3.4 to 4.4 s early.
+- A trial records whether its trigger or its outcome came first, and both `UnlessAnswered` and the row's `laserPowerMw` read that record, so a row no longer logs 0 mW when the laser fired.
+- Every rig.yml speaker needs a filter (`DomeSpeakers.RequireFilters`, as coen-dome-navigation); the manual reward's subject is `ManualRewardUl`. Unit-tested and build-checked only.
+
+## Audit round 3 (13 Nov 2026): not changed
+
+- coen-dome-decision-making: a laser-off control trial and a laser trial skipped because it was answered first look alike in the row (`laserPowerMw` 0); which one follows from `choiceTime` and the lead.
+- coen-dome-decision-making: discrimination's minimum interval equals its `drinkSeconds`; both are Gerion's measured values.
+- jsonschema accepts K:'s old rig.yml keys, but the generated deserializer and app-rig-control's key walk refuse them.
+- `usedBy` stays incomplete until `add-names.ps1` runs at switch step 8.
+- A skipped trial leaves Zapit armed; app-zapit disarms it.
+- coen-dome-navigation arms the next trial during the last one's ramp-down; the trigger hold is at least the longest ramp-down.
+- coen-dome-decision-making has no `goTime` column; it is `itiStartTime + itiSeconds - lead + quietWaitSeconds`.
+
 ## Audit round 2 (13 Nov 2026): not changed
 
 - `QuietWait` is the same class here and in coen-dome-navigation's `Corridor.cs`: moving it into the fork needs a package bump pushed into every in-use workflow, and each copy is tested where it runs. Move it if a third workflow needs it, and change both copies together until then.

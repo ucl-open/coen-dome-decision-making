@@ -4,13 +4,12 @@ from typing import Literal
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
 from open_rigs.core.task import Task, TaskParameters
+from open_rigs.rigs.dome import ZAPIT_REPLY_MARGIN_SECONDS
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from swc.aeon.schema import BaseSchema
 
 from ucl_open_coen_dome_decision_making import __semver__
 
-# Zapit's armed reply must be in this long before the trigger it is armed for (TrialDraw.ZapitReplyMarginSeconds).
-ZAPIT_REPLY_MARGIN_SEC = 0.2
 # The longest ramp-down a Zapit conditions file may have (lib-open-rigs ZapitConditions.MaximumRampDownMs): Zapit
 # refuses the next StartStimulus while a timed stimulus and its ramp-down still play.
 ZAPIT_RAMP_DOWN_SEC = 0.5
@@ -308,9 +307,9 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         # TrialDraw.Check's same rules (Pip, 13 Nov 2026).
         opto, s = self.optogenetics, self.trial_structure
         lead = opto.laser_to_stimulus_seconds
-        if lead + ZAPIT_REPLY_MARGIN_SEC > s.iti_min_seconds + 1e-9:
+        if lead + ZAPIT_REPLY_MARGIN_SECONDS > s.iti_min_seconds + 1e-9:
             raise ValueError(
-                f"optogenetics.laser_to_stimulus_seconds ({lead} s) plus Zapit's {ZAPIT_REPLY_MARGIN_SEC} s reply margin must be at most "
+                f"optogenetics.laser_to_stimulus_seconds ({lead} s) plus Zapit's {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin must be at most "
                 f"trial_structure.iti_min_seconds ({s.iti_min_seconds} s), the shortest interval"
             )
         if -lead > s.open_loop_seconds + s.closed_loop_seconds + 1e-9:
@@ -320,11 +319,11 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             )
         # Trigger to the next trigger is at least open_loop + iti_min (a response at once, no timeout, a quiet mouse); the
         # next arm waits for this laser and its ramp-down, and its reply needs the margin before that next trigger.
-        longest = s.open_loop_seconds + s.iti_min_seconds - ZAPIT_RAMP_DOWN_SEC - ZAPIT_REPLY_MARGIN_SEC
+        longest = s.open_loop_seconds + s.iti_min_seconds - ZAPIT_RAMP_DOWN_SEC - ZAPIT_REPLY_MARGIN_SECONDS
         if opto.use_zapit and opto.laser_duration_seconds > longest + 1e-9:
             raise ValueError(
                 f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be at most {longest:g} s (open_loop_seconds + "
-                f"iti_min_seconds - {ZAPIT_RAMP_DOWN_SEC} s ramp-down - {ZAPIT_REPLY_MARGIN_SEC} s reply margin), so Zapit can be armed for the next trial in time"
+                f"iti_min_seconds - {ZAPIT_RAMP_DOWN_SEC} s ramp-down - {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin), so Zapit can be armed for the next trial in time"
             )
         return self
 

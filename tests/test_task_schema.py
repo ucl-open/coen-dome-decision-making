@@ -209,10 +209,11 @@ def test_the_quiet_waits_are_per_stage_off_by_default_and_refused_negative_or_ha
 
 def test_the_constants_are_the_c_sharp_s():
     import re
-    from ucl_open_coen_dome_decision_making.task import ZAPIT_REPLY_MARGIN_SEC
-
     logic = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
-    assert float(re.search(r"const double ZapitReplyMarginSeconds = ([\d.]+);", logic).group(1)) == ZAPIT_REPLY_MARGIN_SEC
+    # Zapit's reply margin is lib-open-rigs' alone (ZapitTrial.ReplyMarginSeconds, ZAPIT_REPLY_MARGIN_SECONDS; audit round 3).
+    assert "ZapitTrial.ReplyMarginSeconds" in logic and not re.search(r"const double \w*Margin", logic)
+    task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
+    assert "from open_rigs.rigs.dome import ZAPIT_REPLY_MARGIN_SECONDS" in task_py and "= 0.2" not in task_py
     assert "ZapitConditions.MaximumRampDownMs / 1000" in logic
 
 

@@ -44,9 +44,43 @@ public class Trial
     public bool spoutMovements;
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
 
+    // Whether the laser fired, decided once by whichever comes first (Pip, 13 Nov 2026): the trigger (UnlessAnswered fires
+    // it) or the outcome (the row forgoes it). Private, so never logged; each trial, a repeat included, decides afresh.
+    object laserGate = new object();
+    bool laserDecided, laserFired;
+
+    /// <summary>At the trigger: fires the laser unless the outcome came first. Returns whether it fires.</summary>
+    public bool FireLaser()
+    {
+        return DecideLaser(true);
+    }
+
+    /// <summary>At the outcome: whether the trigger came first and fired the laser; if not, it never will.</summary>
+    public bool LaserFiredByOutcome()
+    {
+        return DecideLaser(false);
+    }
+
+    bool DecideLaser(bool fire)
+    {
+        lock (laserGate)
+        {
+            if (!laserDecided)
+            {
+                laserDecided = true;
+                laserFired = fire;
+            }
+            return laserFired;
+        }
+    }
+
     public Trial Clone()
     {
-        return (Trial)MemberwiseClone();
+        var trial = (Trial)MemberwiseClone();
+        trial.laserGate = new object();
+        trial.laserDecided = false;
+        trial.laserFired = false;
+        return trial;
     }
 }
 
@@ -219,9 +253,9 @@ public class TrialDraw
         if ((stage.WheelQuietSeconds > 0) != (stage.WheelQuietCm > 0)) problems.Add("stage '" + stage.Label + "' needs wheelQuietSeconds and wheelQuietCm both above 0 (the wheel's quiet wait) or both 0 (off)");
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
-        if (lead + ZapitReplyMarginSeconds > structure.ItiMinSeconds + 1e-9)
+        if (lead + ZapitTrial.ReplyMarginSeconds > structure.ItiMinSeconds + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) plus Zapit's {1} s reply margin must be at most trialStructure.itiMinSeconds ({2} s), the shortest interval", lead, ZapitReplyMarginSeconds, structure.ItiMinSeconds));
+            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) plus Zapit's {1} s reply margin must be at most trialStructure.itiMinSeconds ({2} s), the shortest interval", lead, ZapitTrial.ReplyMarginSeconds, structure.ItiMinSeconds));
         }
         if (-lead > structure.OpenLoopSeconds + structure.ClosedLoopSeconds + 1e-9)
         {
@@ -230,13 +264,10 @@ public class TrialDraw
         var longest = LongestLaserSeconds(task);
         if (opto.UseZapit && opto.LaserDurationSeconds > longest + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (openLoopSeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitRampDownSeconds, ZapitReplyMarginSeconds));
+            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (openLoopSeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
         }
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
     }
-
-    /// <summary>How long before its trigger Zapit's armed reply must be in, in seconds (task.py ZAPIT_REPLY_MARGIN_SEC).</summary>
-    public const double ZapitReplyMarginSeconds = 0.2;
 
     /// <summary>The longest ramp-down a conditions file may have, in seconds: Zapit refuses the next StartStimulus while a
     /// timed stimulus and its ramp-down play, so the next trial is armed only this long after the laser ends.</summary>
@@ -248,7 +279,7 @@ public class TrialDraw
     public static double LongestLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         var s = task.TrialStructure;
-        return s.OpenLoopSeconds + s.ItiMinSeconds - ZapitRampDownSeconds - ZapitReplyMarginSeconds;
+        return s.OpenLoopSeconds + s.ItiMinSeconds - ZapitRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
     }
 
     public static int[] Weights(TrainingStage stage)
@@ -470,8 +501,8 @@ public class TrialDraw
 }
 
 [Combinator]
-[Description("A trial's Zapit StartStimulus: its condition, the laser on or off (galvos and masking light either way), the trial's laserPowerMw (0 mW on laser-off trials), timed for the laser's duration.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
+[Description("A trial's Zapit StartStimulus: its condition, the laser on or off (galvos and masking light either way), the trial's laserPowerMw (0 mW on laser-off trials), timed for the laser's duration. Sent as the trial's laser begins (first input) on a hardware-triggered rig, whose DAQ then waits for the ZapitTrigger line; at the trigger (second input) otherwise, as Zapit then starts the laser on receipt.")]
+[WorkflowElementCategory(ElementCategory.Combinator)]
 public class ZapitTrialCommand
 {
     [Description("Whether the Zapit DAQ waits for the ZapitTrigger line (rig.yml's zapit.hardwareTriggered).")]
@@ -480,9 +511,21 @@ public class ZapitTrialCommand
     [Description("How long the stimulus lasts, in seconds (optogenetics.laserDurationSeconds).")]
     public double DurationSeconds { get; set; }
 
-    public IObservable<ZapitCommand> Process(IObservable<Trial> source)
+    public IObservable<ZapitCommand> Process(IObservable<Trial> trial, IObservable<Trial> trigger)
     {
-        return source.Select(trial => Build(trial, HardwareTriggered, DurationSeconds));
+        // Read at subscription, once rig.yml's mapping has set them.
+        return Observable.Defer(() =>
+        {
+            var hardwareTriggered = HardwareTriggered;
+            var duration = DurationSeconds;
+            return SendAt(trial, trigger, hardwareTriggered).Select(t => Build(t, hardwareTriggered, duration));
+        });
+    }
+
+    /// <summary>When the command goes: as the laser begins on a hardware-triggered rig, else at the trigger.</summary>
+    public static IObservable<Trial> SendAt(IObservable<Trial> trial, IObservable<Trial> trigger, bool hardwareTriggered)
+    {
+        return hardwareTriggered ? trial : trigger;
     }
 
     public static ZapitCommand Build(Trial trial, bool hardwareTriggered, double durationSeconds)
@@ -677,8 +720,10 @@ public enum TrialMoment
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SecondsUntil
 {
-    /// <summary>How far past a moment may be and still come at once: Go is exact, but is seen on the first tick of the
-    /// 1 kHz Harp clock after it, so a moment at Go (the trigger with a lead, the stimulus without) is up to a tick late.</summary>
+    /// <summary>How far past a moment may be and still come at once: Go is exact, but is seen on a tick of the 1 kHz
+    /// Harp clock after it, and the timestamp generator's messages reach Bonsai with USB lag, so a moment at Go (the
+    /// trigger with a lead, the stimulus without) comes a few ms late. 10 ms covers both; a tighter bound would stop
+    /// experiments on trial 1 (audit round 2's bug).</summary>
     public const double ClockStepSeconds = 0.01;
 
     public TrialMoment Moment { get; set; }
@@ -712,58 +757,54 @@ public class TrialGoFor
 }
 
 [Combinator]
-[Description("Passes the trial on at its trigger (first input) only if Zapit has armed it by then (second input: CheckZapitArmed's reply); stops the workflow otherwise, rather than shift the trigger.")]
+[Description("Passes the trial on at its trigger (first input). On a hardware-triggered rig only if Zapit has armed it by then (second input: CheckZapitArmed's reply), stopping the workflow otherwise rather than shift the trigger; on a rig without, the trigger sends the command, so it passes at once and ends only once that reply is checked.")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
 public class RequireZapitArmed
 {
+    [Description("Whether the Zapit DAQ waits for the ZapitTrigger line (rig.yml's zapit.hardwareTriggered).")]
+    public bool HardwareTriggered { get; set; }
+
     public IObservable<Trial> Process(IObservable<Timestamped<Trial>> trigger, IObservable<ZapitReply> armed)
     {
         return Observable.Create<Trial>(observer =>
         {
+            var hardwareTriggered = HardwareTriggered;
             var gate = new object();
-            bool isArmed = false;
-            var armedSubscription = armed.Subscribe(_ => { lock (gate) isArmed = true; }, observer.OnError);
+            bool isArmed = false, passed = false, triggerDone = false;
+            // Without the trigger line, a trigger that passed sent the command: end only once its reply is checked.
+            Action completeIfDone = () =>
+            {
+                if (triggerDone && (hardwareTriggered || !passed || isArmed)) observer.OnCompleted();
+            };
+            var armedSubscription = armed.Subscribe(_ => { lock (gate) { isArmed = true; completeIfDone(); } }, observer.OnError);
             var triggerSubscription = trigger.Subscribe(value =>
             {
-                bool ok;
-                lock (gate) ok = isArmed;
-                if (ok) observer.OnNext(value.Value);
-                else observer.OnError(new InvalidOperationException(string.Format(
-                    "Zapit had not answered trial {0}'s StartStimulus by its trigger at {1} s on the Harp clock, so the workflow stopped rather than move the trigger. Is Zapit running and answering quickly?",
-                    value.Value.trialNumber, value.Seconds)));
-            }, observer.OnError, observer.OnCompleted);
+                lock (gate)
+                {
+                    if (hardwareTriggered && !isArmed)
+                    {
+                        observer.OnError(new InvalidOperationException(string.Format(
+                            "Zapit had not answered trial {0}'s StartStimulus by its trigger at {1} s on the Harp clock, so the workflow stopped rather than move the trigger. Is Zapit running and answering quickly?",
+                            value.Value.trialNumber, value.Seconds)));
+                        return;
+                    }
+                    passed = true;
+                }
+                observer.OnNext(value.Value);
+            }, observer.OnError, () => { lock (gate) { triggerDone = true; completeIfDone(); } });
             return new System.Reactive.Disposables.CompositeDisposable(armedSubscription, triggerSubscription);
         });
     }
 }
 
 [Combinator]
-[Description("Passes the trial on at its laser trigger (first input) unless its row (second input: TrialRow) came before the trigger was due: a trial answered before a trigger after its stimulus gets no laser (Pip, 13 Nov 2026), as in coen-dome-navigation. Completes with the trigger.")]
+[Description("Passes the trial on at its laser trigger unless its outcome came first: a trial answered before a trigger after its stimulus gets no laser (Pip, 13 Nov 2026), as in coen-dome-navigation. The trial records which came first (Trial.FireLaser), and its row's laserPowerMw reads the same record. Completes with the trigger.")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
 public class UnlessAnswered
 {
-    public IObservable<Timestamped<Trial>> Process(IObservable<Timestamped<Trial>> trigger, IObservable<Timestamped<TrialRow>> rows)
+    public IObservable<Timestamped<Trial>> Process(IObservable<Timestamped<Trial>> trigger)
     {
-        return Observable.Create<Timestamped<Trial>>(observer =>
-        {
-            var gate = new object();
-            TrialRow row = null;
-            double rowSeconds = double.NaN;
-            var rowSubscription = rows.Subscribe(value => { lock (gate) { row = value.Value; rowSeconds = value.Seconds; } }, observer.OnError);
-            var triggerSubscription = trigger.Subscribe(value =>
-            {
-                bool skipped;
-                lock (gate) skipped = row != null && row.trialNumber == value.Value.trialNumber && LaserSkipped(value.Value, rowSeconds);
-                if (!skipped) observer.OnNext(value);
-            }, observer.OnError, observer.OnCompleted);
-            return new System.Reactive.Disposables.CompositeDisposable(rowSubscription, triggerSubscription);
-        });
-    }
-
-    /// <summary>Whether a trial whose outcome came at Harp time outcomeSeconds gets no laser: its trigger was due later.</summary>
-    public static bool LaserSkipped(Trial trial, double outcomeSeconds)
-    {
-        return outcomeSeconds < trial.goTime + trial.triggerAfterGoSeconds;
+        return trigger.Where(value => value.Value.FireLaser());
     }
 }
 

@@ -104,7 +104,7 @@ public class AuditoryStimulusSetTests
     public void EveryUnusableFileIsRefusedByName()
     {
         Func<Action, string> refusal = Fixture.Refusal;
-        StringAssert.Contains(refusal(() => Load(Speakers(null))), "'left' (channel 0) has no filter");
+        StringAssert.Contains(refusal(() => Load(Speakers(null))), "speaker 'left' has no filter");
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/asym.json"))), "not symmetric");
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/rate.json"))), "designed for 44100 Hz");
         StringAssert.Contains(refusal(() => Load(Speakers("calibration/none.json"))), "filter not found");

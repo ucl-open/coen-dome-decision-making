@@ -426,24 +426,29 @@ public class GoTests
     }
 
     [TestMethod]
-    public void ATrialAnsweredBeforeItsTriggerHasNoLaser()
+    public void ATrialAnsweredBeforeItsTriggerHasNoLaserAndItsRowSaysSo()
     {
-        var go = new Trial { trialNumber = 5, goTime = 20, triggerAfterGoSeconds = 0.4, laserOn = true, laserPowerMw = 3 };
-        Assert.IsTrue(UnlessAnswered.LaserSkipped(go, 20.3));
-        Assert.IsFalse(UnlessAnswered.LaserSkipped(go, 20.5));
-        Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.3, go, 20, 0, false).laserPowerMw);
-        Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, go, 20, 0, false).laserPowerMw);
-
+        Func<Trial> go = () => new Trial { trialNumber = 5, goTime = 20, triggerAfterGoSeconds = 0.4, laserCondition = 1, laserOn = true, laserPowerMw = 3 };
         var trigger = new System.Reactive.Subjects.Subject<Bonsai.Harp.Timestamped<Trial>>();
-        var rows = new System.Reactive.Subjects.BehaviorSubject<Bonsai.Harp.Timestamped<TrialRow>>(
-            new Bonsai.Harp.Timestamped<TrialRow>(new TrialRow { trialNumber = 4 }, 10));   // the last trial's row, replayed
         var passed = new List<Trial>();
-        new UnlessAnswered().Process(trigger, rows).Subscribe(t => passed.Add(t.Value));
-        trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(go, 20.4));
+        new UnlessAnswered().Process(trigger).Subscribe(t => passed.Add(t.Value));
+
+        // The trigger first: the laser fires and the row, built after, logs the power.
+        var triggered = go();
+        trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(triggered, 20.4));
         Assert.AreEqual(1, passed.Count, "not answered: the laser fires");
-        rows.OnNext(new Bonsai.Harp.Timestamped<TrialRow>(new TrialRow { trialNumber = 5 }, 20.3));
-        trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(go, 20.4));
-        Assert.AreEqual(1, passed.Count, "answered at 20.3 s, before its 20.4 s trigger: no laser");
+        Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserPowerMw);
+
+        // The outcome first: the row logs 0 mW and the trigger after it is dropped, whatever the Harp times (audit round 3).
+        var answered = go();
+        Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserPowerMw);
+        trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(answered, 20.4));
+        Assert.AreEqual(1, passed.Count, "answered before its trigger arrived: no laser");
+
+        // A repeat is a clone, and decides afresh.
+        var repeat = triggered.Clone();
+        Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.3, repeat, 20, 0, false).laserPowerMw);
+        Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserPowerMw);
     }
 
     [TestMethod]
@@ -475,16 +480,52 @@ public class GoTests
         var armed = new System.Reactive.Subjects.Subject<OpenRigs.Devices.Zapit.ZapitReply>();
         var passed = new List<Trial>();
         Exception error = null;
-        new RequireZapitArmed().Process(trigger, armed).Subscribe(passed.Add, e => error = e);
+        new RequireZapitArmed { HardwareTriggered = true }.Process(trigger, armed).Subscribe(passed.Add, e => error = e);
         var trial = new Trial { trialNumber = 7 };
         armed.OnNext(new OpenRigs.Devices.Zapit.ZapitReply());
         trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(trial, 5));
         Assert.AreEqual(1, passed.Count);
 
         var late = new System.Reactive.Subjects.Subject<Bonsai.Harp.Timestamped<Trial>>();
-        new RequireZapitArmed().Process(late, new System.Reactive.Subjects.Subject<OpenRigs.Devices.Zapit.ZapitReply>()).Subscribe(_ => { }, e => error = e);
+        new RequireZapitArmed { HardwareTriggered = true }.Process(late, new System.Reactive.Subjects.Subject<OpenRigs.Devices.Zapit.ZapitReply>()).Subscribe(_ => { }, e => error = e);
         late.OnNext(new Bonsai.Harp.Timestamped<Trial>(trial, 5));
         StringAssert.Contains(error.Message, "had not answered trial 7's StartStimulus by its trigger");
+    }
+
+    [TestMethod]
+    public void WithoutHardwareTriggeringTheCommandGoesAtTheTriggerAndItsReplyIsChecked()
+    {
+        // Zapit starts the laser when a command reaches it on such a rig (audit round 3): never at the interval's start.
+        var trial = new System.Reactive.Subjects.Subject<Trial>();
+        var trigger = new System.Reactive.Subjects.Subject<Trial>();
+        var sent = new List<OpenRigs.Devices.Zapit.ZapitCommand>();
+        new ZapitTrialCommand { HardwareTriggered = false, DurationSeconds = 1 }.Process(trial, trigger).Subscribe(sent.Add);
+        var laser = new Trial { trialNumber = 7, laserCondition = 1, laserOn = true, laserPowerMw = 3 };
+        trial.OnNext(laser);
+        Assert.AreEqual(0, sent.Count, "nothing at the interval's start");
+        trigger.OnNext(laser);
+        Assert.AreEqual(1, sent.Count);
+        Assert.IsFalse(sent[0].HardwareTriggered);
+
+        var hardware = new List<OpenRigs.Devices.Zapit.ZapitCommand>();
+        var trial2 = new System.Reactive.Subjects.Subject<Trial>();
+        new ZapitTrialCommand { HardwareTriggered = true, DurationSeconds = 1 }.Process(trial2, trigger).Subscribe(hardware.Add);
+        trial2.OnNext(laser);
+        trigger.OnNext(laser);
+        Assert.AreEqual(1, hardware.Count, "a hardware-triggered rig is armed as the laser begins, not at the trigger");
+
+        // The trigger passes before any reply, and the laser ends only once the reply has come.
+        var at = new System.Reactive.Subjects.Subject<Bonsai.Harp.Timestamped<Trial>>();
+        var armed = new System.Reactive.Subjects.Subject<OpenRigs.Devices.Zapit.ZapitReply>();
+        var passed = new List<Trial>();
+        bool completed = false;
+        new RequireZapitArmed { HardwareTriggered = false }.Process(at, armed).Subscribe(passed.Add, () => completed = true);
+        at.OnNext(new Bonsai.Harp.Timestamped<Trial>(laser, 5));
+        at.OnCompleted();
+        Assert.AreEqual(1, passed.Count);
+        Assert.IsFalse(completed, "waits for the reply to the command the trigger sent");
+        armed.OnNext(new OpenRigs.Devices.Zapit.ZapitReply());
+        Assert.IsTrue(completed);
     }
 
     [TestMethod]
@@ -572,6 +613,7 @@ public class TrialRowTests
     public void TheRowLogsTheConditionAndPowerSent()
     {
         var trial = new Trial { target = "Left", laserCondition = 2, laserOn = true, laserPowerMw = 3 };
+        Assert.IsTrue(trial.FireLaser(), "its trigger came first");
         var row = CreateTrialRow.Build("Left", 10, trial, 9, 4, true);
         Assert.IsTrue(row.laserCondition == 2 && row.laserPowerMw == 3);
         trial.laserOn = false;

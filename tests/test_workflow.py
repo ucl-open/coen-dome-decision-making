@@ -98,11 +98,17 @@ def test_the_trigger_rises_only_once_zapit_armed_the_trial():
     require = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:RequireZapitArmed")
     check = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:CheckZapitArmed")
     trigger = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "Trigger")
-    # Pip, 13 Nov 2026: no laser on a trial answered before its trigger (UnlessAnswered, fed the trial rows).
+    # Pip, 13 Nov 2026: no laser on a trial answered before its trigger. UnlessAnswered and the row read one per-trial
+    # record of which came first (audit round 3), not the row's Harp time.
     unless = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:UnlessAnswered")
-    rows = next(i for i, n in enumerate(nodes) if _kind(n) == "SubscribeSubject" and n.findtext(W + "Name") == "TrialRow")
-    assert (trigger, unless, "Source1") in edges and (rows, unless, "Source2") in edges
+    assert [e for e in edges if e[1] == unless] == [(trigger, unless, "Source1")]
     assert (check, require, "Source2") in edges and (unless, require, "Source1") in edges
+    # Audit round 3: without hardware triggering Zapit starts the laser on receipt, so ArmZapit sends at the trigger then.
+    arm = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "ArmZapit")
+    assert (require, arm, "Source2") in edges
+    for target in (arm, require):
+        mappings = [a for a, b, _ in edges if b == target and nodes[a].get(XSI) == "PropertyMapping"]
+        assert any("Zapit.HardwareTriggered" in ET.tostring(nodes[a], encoding="unicode") for a in mappings)
     assert any(nodes[i].findtext(W + "Name") == "ZapitReplies" for i in _upstream(edges, check))
     # The trigger is timed from the trial's Go, never from Zapit's reply.
     assert check not in _upstream(edges, trigger)
@@ -146,18 +152,16 @@ def test_the_next_trial_is_drawn_at_the_start_of_the_interval():
     assert "RestOfInterval" not in TEXT
 
 
-@pytest.mark.parametrize("name", ["ZapitError?", "SoftwareTriggeredRealMouse?", "NoConditionsLoaded?"])
-def test_connect_zapit_stops_the_workflow(name):
-    nodes, edges = _scope(_named("ConnectZapit"))
-    condition = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == name)
-    downstream, frontier = set(), [condition]
-    while frontier:
-        a = frontier.pop()
-        for x, b, _ in edges:
-            if x == a and b not in downstream:
-                downstream.add(b)
-                frontier.append(b)
-    assert any(_kind(nodes[i]) == "core:ThrowError" for i in downstream)
+def test_zapit_is_the_shared_include_given_the_conditions_file():
+    # Audit round 3: the connect, check and refusal chain is lib-open-rigs' Zapit.ConnectZapit (its stops are tested C#
+    # there), shared with coen-dome-navigation; nothing of it is built here.
+    nodes, edges = _scope(_named("Zapit"))
+    include = next(i for i, n in enumerate(nodes) if n.get("Path") == "OpenRigs.Devices:Zapit.ConnectZapit.bonsai")
+    path = [nodes[i] for i in _upstream(edges, include)]
+    assert any(n.findtext(W + "Selector") == "TaskParameters.Optogenetics.ZapitConfigPath" for n in path)
+    assert any(n.get(XSI) == "rx:Condition" and "Optogenetics.UseZapit" in ET.tostring(n, encoding="unicode") for n in path)
+    for local in ("zap:ZapitClient", "zap:CheckZapitConditionCount", "core:ThrowError", "ConnectZapit</Name>"):
+        assert local not in TEXT
 
 
 def test_the_mixer_never_starts_sooner_than_3_s():
@@ -222,9 +226,6 @@ def test_the_readme_lists_every_shared_block():
     assert not missing, f"not in the README's Shared Blocks table: {missing}"
 
 
-def test_only_the_test_mouse_runs_optogenetics_on_a_software_triggered_rig():
-    # Exactly "test", as app-rig-control's test mouse: not any subject that starts with it.
-    nodes, _ = _scope(_named("SoftwareTriggeredRealMouse?"))
-    expression = next(n.findtext("{clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions}Expression") for n in nodes
-                      if n.get(XSI) == "scr:ExpressionTransform")
-    assert expression == '!Item1.Zapit.HardwareTriggered && Item2.Trim().ToLowerInvariant() != "test"'
+def test_manual_rewards_use_their_own_subject_name():
+    # Audit round 3: the subject a manual reward reads is ManualRewardUl, as the controller's parameter; no RewardUl.
+    assert "<Name>RewardUl</Name>" not in TEXT and TEXT.count("<Name>ManualRewardUl</Name>") >= 4
