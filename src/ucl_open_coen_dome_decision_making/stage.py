@@ -101,11 +101,12 @@ def unanswered(root: Path) -> bool:
         return True
 
 
-def _subject_folders(base: Path, subject: str, unread: list[str]) -> list[Path]:
+def _subject_folders(base: Path, subject: str, unread: list[str], eartag: str = "") -> list[Path]:
     try:
         if unanswered(base):
             raise OSError(base)
-        return [*base.glob(f"sub-{subject}/ses-*"), *base.glob(f"*/sub-{subject}/ses-*")]
+        names = [n for n in dict.fromkeys((subject, eartag)) if n]  # runs before 13 Nov 2026 were filed under the eartag
+        return [f for n in names for f in (*base.glob(f"sub-{n}/ses-*"), *base.glob(f"*/sub-{n}/ses-*"))]
     except OSError:
         unread.append(f"{base} (No Answer)")
         return []
@@ -123,14 +124,14 @@ def _read(folder: Path) -> tuple[Experiment | None, bool]:
     return read_production(folder), False
 
 
-def experiments(subject: str, roots: list[Path], unread: list[str]) -> list[Experiment]:
+def experiments(subject: str, roots: list[Path], unread: list[str], eartag: str = "") -> list[Experiment]:
     """Every experiment of the mouse with trials, newest first; a folder seen twice (on the rig and in staging)
     counts once. A root that does not answer, an unreadable experiment and one with only its manifest left
     (its data in none of the roots) are added to `unread`."""
     found: dict[str, Experiment] = {}
     manifest_only: list[str] = []
     for base in roots:
-        for folder in _subject_folders(base, subject, unread):
+        for folder in _subject_folders(base, subject, unread, eartag):
             if folder.name in found or not folder.is_dir():
                 continue
             try:
@@ -161,11 +162,12 @@ def main() -> None:
     """Print the suggestion for --subject and --task-type as one JSON line."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--subject", required=True)
+    parser.add_argument("--eartag", default="", help="also search sub-<eartag>: runs before 13 Nov 2026 were filed under it")
     parser.add_argument("--task-type", required=True, choices=["localization", "discrimination"])
     parser.add_argument("--root", action="append", type=Path, help="where the mouse's experiments are (repeatable)")
     args = parser.parse_args()
     unread: list[str] = []
-    history = experiments(args.subject, args.root or ROOTS, unread)
+    history = experiments(args.subject, args.root or ROOTS, unread, args.eartag)
     if unread:
         print(json.dumps({"value": None, "why": f"Could Not Read {' and '.join(unread)}: Choose the Stage by Hand"}))
         return

@@ -90,3 +90,10 @@ def test_the_script_runs_with_the_standard_library_alone(tmp_path):
     done = subprocess.run([sys.executable, "-I", str(STAGE_PY), "--subject=GN012", "--task-type=discrimination", f"--root={tmp_path}"],
                           capture_output=True, text=True, check=True)
     assert json.loads(done.stdout.strip().splitlines()[-1])["value"] == 3
+
+
+def test_runs_filed_under_the_eartag_are_found_when_it_is_given(tmp_path):
+    write_new(tmp_path / "sub-GN012" / "ses-006D1_2026-11-13T10-00-00", 2, 60)
+    write_new(tmp_path / "sub-PCO1-01503" / "ses-005D1_2026-11-10T10-00-00", 3, 60)
+    assert [e.stage for e in experiments("GN012", [tmp_path], [])] == [2]
+    assert [e.stage for e in experiments("GN012", [tmp_path], [], "PCO1-01503")] == [2, 3]
