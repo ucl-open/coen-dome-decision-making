@@ -4,7 +4,7 @@
       "description": "Auditory stimulus parameters common to all trials.",
       "properties": {
         "speakerLocations": {
-          "description": "Candidate lateral sound positions, one drawn per audio trial; no azimuth-0 entry, the centre sound of visual-only and neutral trials is fixed in code",
+          "description": "Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker",
           "items": {
             "$ref": "#/$defs/SphericalPosition"
           },
@@ -28,7 +28,7 @@
       "type": "string"
     },
     "OptogeneticsSettings": {
-      "description": "Zapit optogenetic stimulation parameters. Names as coen-dome-navigation's where they mean the same (Pip,\n9 Nov 2026); laser_duration_seconds is a timed stimulus here, where the corridor's laserMaxSeconds is a cap.",
+      "description": "Zapit optogenetic stimulation parameters, named as coen-dome-navigation's where they mean the same;\nlaserDurationSeconds is a timed stimulus here, where the corridor's laserMaxSeconds is a cap.",
       "if": {
         "additionalProperties": true,
         "properties": {
@@ -43,13 +43,13 @@
       "properties": {
         "useZapit": {
           "default": false,
-          "description": "Whether Zapit runs this experiment: each laser-on trial sends it a condition (laser-off trials send nothing), and rig-control checks Zapit is answering before Go",
+          "description": "Whether Zapit runs this experiment: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and rig-control checks Zapit is answering before Go",
           "title": "UseZapit",
           "type": "boolean"
         },
         "zapitConfigPath": {
           "default": "",
-          "description": "Path to the Zapit conditions file (the one loaded in Zapit) listing the stimulation conditions. Named ...ConfigPath so rig-control keeps a copy beside the task file at Go",
+          "description": "Path to the Zapit conditions file (the one loaded in Zapit). Named ...ConfigPath so rig-control keeps a copy beside the task file at Go",
           "title": "ZapitConfigPath",
           "type": "string"
         },
@@ -64,12 +64,12 @@
             }
           ],
           "default": null,
-          "description": "Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus (overriding the conditions file's power) and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
+          "description": "Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
           "title": "LaserPowerMw"
         },
         "laserOnProbability": {
           "default": 0.75,
-          "description": "Probability that a trial after trials_before_laser is a laser-on trial",
+          "description": "Probability that a trial after trialsBeforeLaser is a laser-on trial",
           "maximum": 1,
           "minimum": 0,
           "title": "LaserOnProbability",
@@ -77,14 +77,21 @@
         },
         "laserDurationSeconds": {
           "default": 1.5,
-          "description": "How long the laser stays on, in seconds (a timed stimulus)",
-          "minimum": 0,
+          "description": "How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus)",
+          "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
+          "type": "number"
+        },
+        "armToTriggerSeconds": {
+          "default": 0.1,
+          "description": "From Zapit's reply that it armed the trial's condition to the trigger, in seconds; also the wait on a trial without Zapit",
+          "minimum": 0,
+          "title": "ArmToTriggerSeconds",
           "type": "number"
         },
         "laserToStimulusSeconds": {
           "default": 0.5,
-          "description": "From the trial's laser trigger (zapit.triggerLine) to the trial's stimulus, in seconds, on every trial, laser on or off and with or without Zapit: Bonsai waits this long on the Harp clock after the trigger, then commands the stimulus (stimulusOnsetTime, within a few ms; the screen and sound card add their own latency). On a rig without hardware triggering the laser starts when Zapit gets the command, 0.1 s before the trigger",
+          "description": "From the trial's trigger (the ZapitTrigger line) to the stimulus, in seconds, on every trial, laser on or off and with or without Zapit (stimulusOnsetTime, within a few ms; the screen and sound card add their own latency)",
           "minimum": 0,
           "title": "LaserToStimulusSeconds",
           "type": "number"
@@ -97,7 +104,7 @@
         },
         "trialsBeforeLaser": {
           "default": 0,
-          "description": "Trials at the experiment's start with no laser-on trial among them (repeats included, as in trialNumber)",
+          "description": "Trials at the experiment's start with the laser off (repeats included, as in trialNumber)",
           "maximum": 2147483647,
           "minimum": -2147483648,
           "title": "TrialsBeforeLaser",
@@ -136,7 +143,6 @@
           "default": {
             "enabled": false,
             "path": "LocalFiles\\error_tone.wav",
-            "channel": 2,
             "gain": 1.0
           },
           "description": "The error sound on an incorrect response",
@@ -147,7 +153,7 @@
       "type": "object"
     },
     "PunishmentSound": {
-      "description": "The error sound played on an incorrect response.",
+      "description": "The error sound played on an incorrect response, on rig.yml's speakerArray.errorSoundChannel.",
       "properties": {
         "enabled": {
           "default": false,
@@ -157,17 +163,9 @@
         },
         "path": {
           "default": "LocalFiles\\error_tone.wav",
-          "description": "Wav file of the error sound",
+          "description": "Wav file of the error sound, from the workflow's folder",
           "title": "Path",
           "type": "string"
-        },
-        "channel": {
-          "default": 2,
-          "description": "Mixer output channel the error sound plays on",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
-          "title": "Channel",
-          "type": "integer"
         },
         "gain": {
           "default": 1.0,
@@ -202,19 +200,16 @@
           "type": "integer"
         },
         "rulesPerType": {
-          "default": [
-            "onFailure",
-            "onFailure",
-            "onFailure",
-            "onTimeout",
-            "onTimeout"
-          ],
-          "description": "Repeat rule per trial type, indexed by trial type",
-          "items": {
-            "$ref": "#/$defs/RepeatRule"
+          "$ref": "#/$defs/TrialTypeRules",
+          "default": {
+            "visual": "onFailure",
+            "auditory": "onFailure",
+            "audiovisualCoherent": "onFailure",
+            "audiovisualConflict": "onTimeout",
+            "neutral": "onTimeout"
           },
-          "title": "RulesPerType",
-          "type": "array"
+          "description": "Repeat rule per trial type",
+          "title": "RulesPerType"
         }
       },
       "title": "RepeatSettings",
@@ -244,14 +239,6 @@
     "RewardSettings": {
       "description": "Reward delivery parameters; per-stage reward size lives in the training stage table.",
       "properties": {
-        "rewardProbability": {
-          "default": 1.0,
-          "description": "Meant as the probability that a correct response is rewarded. Not used: every correct response is rewarded, whatever its value (BACKLOG)",
-          "maximum": 1,
-          "minimum": 0,
-          "title": "RewardProbability",
-          "type": "number"
-        },
         "largeRewardMultiplier": {
           "default": 1.0,
           "description": "Reward size multiplier applied on large-reward trials",
@@ -313,7 +300,7 @@
       "type": "string"
     },
     "TrainingStage": {
-      "description": "One complete row of the training stage table; stages are selected by index at runtime.",
+      "description": "One row of the training stage table, chosen by the TrainingStage parameter.",
       "properties": {
         "label": {
           "description": "Human-readable stage name, for documentation and logs",
@@ -321,14 +308,9 @@
           "type": "string"
         },
         "trialWeights": {
-          "description": "Relative draw weight per trial type, indexed by trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)",
-          "items": {
-            "maximum": 2147483647,
-            "minimum": -2147483648,
-            "type": "integer"
-          },
-          "title": "TrialWeights",
-          "type": "array"
+          "$ref": "#/$defs/TrialTypeWeights",
+          "description": "Relative draw weight per trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)",
+          "title": "TrialWeights"
         },
         "autoRewardProbability": {
           "description": "Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and still counts as a timeout for repeats",
@@ -345,16 +327,17 @@
           "type": "number"
         },
         "rewardSizeUl": {
-          "description": "Reward size, in microliters. The valve's calibration plans the pulses; an uncalibrated valve gives ceil(size/2) pulses of rig.yml's width, taken as 2 ul each (RewardLine)",
+          "description": "Reward size, in microlitres; the valve's calibration plans the pulses",
           "minimum": 0,
           "title": "RewardSizeUl",
           "type": "number"
         },
         "contrasts": {
-          "description": "Candidate grating contrasts to draw from on visual trials",
+          "description": "Candidate grating contrasts, each above 0, one drawn per trial that shows the grating",
           "items": {
             "type": "number"
           },
+          "minItems": 1,
           "title": "Contrasts",
           "type": "array"
         },
@@ -383,59 +366,145 @@
       "type": "object"
     },
     "TrialStructure": {
-      "description": "Timing parameters of the trial state machine.",
+      "description": "Timing of each trial, every wait on the Harp clock.",
       "properties": {
         "itiMinSeconds": {
-          "default": 4.0,
-          "description": "Lower bound of the uniformly drawn inter-trial interval, in seconds, from the outcome (after any punishment timeout) to the next stimulus. It includes 2 s to drink, 0.1 s to arm Zapit and optogenetics.laserToStimulusSeconds, so a draw shorter than 2.1 s plus laserToStimulusSeconds runs as that",
+          "default": 3.4,
+          "description": "Lower bound of the uniformly drawn inter-trial interval, in seconds: from the outcome (after any timeout) to the next trial's start, the Zapit arm. It includes drinkSeconds, so a draw shorter than drinkSeconds runs as drinkSeconds",
           "minimum": 0,
           "title": "ItiMinSeconds",
           "type": "number"
         },
         "itiMaxSeconds": {
-          "default": 5.0,
-          "description": "Upper bound of the uniformly drawn inter-trial interval, in seconds; it includes 2 s to drink, 0.1 s to arm Zapit and optogenetics.laserToStimulusSeconds (itiMinSeconds)",
+          "default": 4.4,
+          "description": "Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSeconds)",
           "minimum": 0,
           "title": "ItiMaxSeconds",
           "type": "number"
         },
-        "quiescentMinSeconds": {
-          "default": 0.1,
-          "description": "Lower bound of a quiescent period drawn per trial, in seconds. Not used: the workflow has no quiescent wait, so changing it changes nothing (BACKLOG)",
+        "drinkSeconds": {
+          "default": 2.0,
+          "description": "From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward",
           "minimum": 0,
-          "title": "QuiescentMinSeconds",
-          "type": "number"
-        },
-        "quiescentMaxSeconds": {
-          "default": 0.25,
-          "description": "Upper bound of a quiescent period drawn per trial, in seconds. Not used: the workflow has no quiescent wait, so changing it changes nothing (BACKLOG)",
-          "minimum": 0,
-          "title": "QuiescentMaxSeconds",
+          "title": "DrinkSeconds",
           "type": "number"
         },
         "openLoopSeconds": {
           "default": 0.0,
-          "description": "Open-loop period after stimulus onset, in seconds",
+          "description": "From stimulus onset to the response window, in seconds",
           "minimum": 0,
           "title": "OpenLoopSeconds",
           "type": "number"
         },
         "closedLoopSeconds": {
           "default": 1.5,
-          "description": "Closed-loop response period, in seconds",
-          "minimum": 0,
+          "description": "The response window, in seconds",
+          "exclusiveMinimum": 0,
           "title": "ClosedLoopSeconds",
+          "type": "number"
+        },
+        "stimulusSeconds": {
+          "default": 1.5,
+          "description": "How long the grating shows, in seconds from onset; at most openLoopSeconds plus closedLoopSeconds, so it never outlasts the response window",
+          "exclusiveMinimum": 0,
+          "title": "StimulusSeconds",
           "type": "number"
         },
         "stimulusToSpoutsInSeconds": {
           "default": 0.5,
-          "description": "From stimulus onset to moving the response spouts in, in seconds (spoutInDelaySeconds until 10 Nov 2026)",
+          "description": "From stimulus onset to moving the response spouts in, in seconds",
           "minimum": 0,
           "title": "StimulusToSpoutsInSeconds",
           "type": "number"
         }
       },
       "title": "TrialStructure",
+      "type": "object"
+    },
+    "TrialTypeRules": {
+      "description": "The repeat rule of each trial type, by the name the trial log gives it.",
+      "properties": {
+        "visual": {
+          "$ref": "#/$defs/RepeatRule",
+          "default": "onFailure",
+          "description": "The grating alone",
+          "title": "Visual"
+        },
+        "auditory": {
+          "$ref": "#/$defs/RepeatRule",
+          "default": "onFailure",
+          "description": "The sound alone",
+          "title": "Auditory"
+        },
+        "audiovisualCoherent": {
+          "$ref": "#/$defs/RepeatRule",
+          "default": "onFailure",
+          "description": "Grating and sound on the same side",
+          "title": "AudiovisualCoherent"
+        },
+        "audiovisualConflict": {
+          "$ref": "#/$defs/RepeatRule",
+          "default": "onTimeout",
+          "description": "Grating and sound on opposite sides",
+          "title": "AudiovisualConflict"
+        },
+        "neutral": {
+          "$ref": "#/$defs/RepeatRule",
+          "default": "onTimeout",
+          "description": "Grey screen",
+          "title": "Neutral"
+        }
+      },
+      "title": "TrialTypeRules",
+      "type": "object"
+    },
+    "TrialTypeWeights": {
+      "description": "Relative draw weight of each trial type, by the name the trial log gives it (what the trial showed).",
+      "properties": {
+        "visual": {
+          "description": "The grating alone",
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "title": "Visual",
+          "type": "integer"
+        },
+        "auditory": {
+          "description": "The sound alone",
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "title": "Auditory",
+          "type": "integer"
+        },
+        "audiovisualCoherent": {
+          "description": "Grating and sound on the same side",
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "title": "AudiovisualCoherent",
+          "type": "integer"
+        },
+        "audiovisualConflict": {
+          "description": "Grating and sound on opposite sides",
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "title": "AudiovisualConflict",
+          "type": "integer"
+        },
+        "neutral": {
+          "description": "Grey screen, centre sound in localization, silent in discrimination",
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "title": "Neutral",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "visual",
+        "auditory",
+        "audiovisualCoherent",
+        "audiovisualConflict",
+        "neutral"
+      ],
+      "title": "TrialTypeWeights",
       "type": "object"
     },
     "UclOpenCoenDomeDecisionMakingTaskLogic": {
@@ -481,7 +550,7 @@
         "taskType": {
           "$ref": "#/$defs/TaskType",
           "default": "localization",
-          "description": "localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other; trial types 0 and 1 are then target and distractor trials"
+          "description": "localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other"
         },
         "targetModality": {
           "$ref": "#/$defs/Modality",
@@ -491,7 +560,7 @@
         },
         "trialStructure": {
           "$ref": "#/$defs/TrialStructure",
-          "description": "Timing parameters of the trial state machine"
+          "description": "Timing of each trial"
         },
         "visualStimulus": {
           "$ref": "#/$defs/VisualStimulus",
@@ -526,10 +595,11 @@
           "title": "Optogenetics"
         },
         "trainingStages": {
-          "description": "Training stage table indexed by stage id; ids past the end clamp to the last row",
+          "description": "Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go",
           "items": {
             "$ref": "#/$defs/TrainingStage"
           },
+          "minItems": 1,
           "title": "TrainingStages",
           "type": "array"
         }

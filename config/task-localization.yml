@@ -1,16 +1,16 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making audiovisual localisation task.
-# Loaded by src/main.bonsai at startup and published as the TaskConfig subject.
+# Read by src/main.bonsai at Go and published as the TaskConfig subject.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   rngSeed: null            # null = draw a random seed; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
-    itiMinSeconds: 4.0            # s
-    itiMaxSeconds: 5.0            # s
-    quiescentMinSeconds: 0.1      # s, not used: no quiescent wait in this workflow
-    quiescentMaxSeconds: 0.25     # s, not used
-    openLoopSeconds: 0.0  # s
-    closedLoopSeconds: 1.5   # s
+    itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next trial, drinkSeconds included
+    itiMaxSeconds: 4.4            # s
+    drinkSeconds: 2.0             # s, from the outcome to drawing the spouts back
+    openLoopSeconds: 0.0          # s
+    closedLoopSeconds: 1.5        # s, the response window
+    stimulusSeconds: 1.5          # s, the grating; at most openLoopSeconds + closedLoopSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
     azimuthMinDeg: -60        # deg, grating azimuth drawn uniformly in [min, max]
@@ -35,57 +35,56 @@ taskParameters:
     sound:               # the error sound, on an incorrect choice
       enabled: true
       path: LocalFiles\error_tone.wav
-      channel: 2
       gain: 1.0
   reward:
-    rewardProbability: 1.0        # not used: every correct response is rewarded
     largeRewardMultiplier: 1
     largeRewardProbability: 0.0
   repeats:
     maxRepeats: 5
-    rulesPerType: [onFailure, onFailure, onFailure, onTimeout, onTimeout]
+    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onTimeout, neutral: onTimeout }
   optogenetics:
     useZapit: true
     zapitConfigPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
     laserPowerMw: 3.0              # mW on laser-on trials, every condition (avdome_main_initialstim.yml's laserPowerInMW, BLUE-OPTO-2, 10 Nov 2026)
     laserOnProbability: 0.5
     laserDurationSeconds: 2.5      # s
-    laserToStimulusSeconds: 0.5    # s, laser trigger to the stimulus (stimulusOnsetTime); every trial
+    armToTriggerSeconds: 0.1       # s, Zapit's armed reply to the trigger; every trial
+    laserToStimulusSeconds: 0.5    # s, the trigger to the stimulus (stimulusOnsetTime); every trial
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
-  trainingStages:          # row index = stage id selected in the GUI; ids past the end use the last row
+  trainingStages:          # row index = stage id selected in the GUI; a stage past the end stops the workflow at Go
     - label: Stage 0       # habituation, coherent only, single spout half the time, no repeats
-      trialWeights: [0, 0, 10, 0, 0]
+      trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 0.5
-      rewardSizeUl: 3      # delivered as ceil(size/2) valve pulses
+      rewardSizeUl: 3      # ul, planned from the valve's calibration
       contrasts: [3.0]
       allowRepeats: false
     - label: Stage 1       # coherent trials only
-      trialWeights: [0, 0, 10, 0, 0]
+      trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
       contrasts: [3.0]
       allowRepeats: true
     - label: Stage 2       # unisensory auditory added
-      trialWeights: [0, 10, 10, 0, 0]
+      trialWeights: { visual: 0, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
-      contrasts: [0, 0.25, 0.5, 1.0]
+      contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
     - label: Stage 3       # unisensory visual added
-      trialWeights: [10, 10, 10, 0, 0]
+      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
-      contrasts: [0, 0.25, 0.5, 1.0]
+      contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
     - label: Stage 4       # conflict and neutral trials added
-      trialWeights: [10, 10, 5, 5, 1]
+      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
-      contrasts: [0, 0.25, 0.5, 1.0]
+      contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true

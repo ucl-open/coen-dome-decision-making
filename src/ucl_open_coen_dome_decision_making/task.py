@@ -1,39 +1,39 @@
 from enum import StrEnum
 from typing import List, Literal, Optional
 
-from pydantic import ConfigDict, Field, field_validator, model_validator
-from swc.aeon.schema import BaseSchema
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
 from open_rigs.core.task import Task, TaskParameters
+from pydantic import ConfigDict, Field, field_validator, model_validator
+from swc.aeon.schema import BaseSchema
 
 from ucl_open_coen_dome_decision_making import __semver__
 
-TRIAL_TYPE_COUNT = 5
-"""Trial types, by index: 0 unisensory visual, 1 unisensory audio, 2 multisensory coherent,
-3 multisensory conflict, 4 neutral."""
-
 
 class TrialStructure(BaseSchema):
-    """Timing parameters of the trial state machine."""
+    """Timing of each trial, every wait on the Harp clock."""
 
     iti_min_seconds: Double = Field(
-        default=4.0,
+        default=3.4,
         ge=0,
-        description="Lower bound of the uniformly drawn inter-trial interval, in seconds, from the outcome (after any punishment timeout) to the next stimulus. It includes 2 s to drink, 0.1 s to arm Zapit and optogenetics.laserToStimulusSeconds, so a draw shorter than 2.1 s plus laserToStimulusSeconds runs as that",
+        description="Lower bound of the uniformly drawn inter-trial interval, in seconds: from the outcome (after any timeout) to the next trial's start, the Zapit arm. It includes drinkSeconds, so a draw shorter than drinkSeconds runs as drinkSeconds",
     )
-    iti_max_seconds: Double = Field(
-        default=5.0,
-        ge=0,
-        description="Upper bound of the uniformly drawn inter-trial interval, in seconds; it includes 2 s to drink, 0.1 s to arm Zapit and optogenetics.laserToStimulusSeconds (itiMinSeconds)",
+    iti_max_seconds: Double = Field(default=4.4, ge=0, description="Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSeconds)")
+    drink_seconds: Double = Field(default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward")
+    open_loop_seconds: Double = Field(default=0.0, ge=0, description="From stimulus onset to the response window, in seconds")
+    closed_loop_seconds: Double = Field(default=1.5, gt=0, description="The response window, in seconds")
+    stimulus_seconds: Double = Field(
+        default=1.5, gt=0, description="How long the grating shows, in seconds from onset; at most openLoopSeconds plus closedLoopSeconds, so it never outlasts the response window"
     )
-    quiescent_min_seconds: Double = Field(default=0.1, ge=0, description="Lower bound of a quiescent period drawn per trial, in seconds. Not used: the workflow has no quiescent wait, so changing it changes nothing (BACKLOG)")
-    quiescent_max_seconds: Double = Field(default=0.25, ge=0, description="Upper bound of a quiescent period drawn per trial, in seconds. Not used: the workflow has no quiescent wait, so changing it changes nothing (BACKLOG)")
-    open_loop_seconds: Double = Field(default=0.0, ge=0, description="Open-loop period after stimulus onset, in seconds")
-    closed_loop_seconds: Double = Field(default=1.5, ge=0, description="Closed-loop response period, in seconds")
-    stimulus_to_spouts_in_seconds: Double = Field(
-        default=0.5, ge=0, description="From stimulus onset to moving the response spouts in, in seconds (spoutInDelaySeconds until 10 Nov 2026)"
-    )
+    stimulus_to_spouts_in_seconds: Double = Field(default=0.5, ge=0, description="From stimulus onset to moving the response spouts in, in seconds")
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "TrialStructure":
+        if self.iti_max_seconds < self.iti_min_seconds:
+            raise ValueError("iti_max_seconds must be >= iti_min_seconds")
+        if self.stimulus_seconds > self.open_loop_seconds + self.closed_loop_seconds:
+            raise ValueError("stimulus_seconds must not exceed open_loop_seconds + closed_loop_seconds")
+        return self
 
 
 class VisualStimulus(BaseSchema):
@@ -54,24 +54,25 @@ class VisualStimulus(BaseSchema):
     temporal_frequency_hz: Double = Field(default=0.0, ge=0, description="Unsigned grating drift rate, in Hz, drifting orthogonal to orientationDeg (orientationDeg + 90 degrees); 0 is static")
 
     @model_validator(mode="after")
-    def _bounds_ordered(self) -> "VisualStimulus":
+    def _each_side_has_a_range(self) -> "VisualStimulus":
+        # Side-restricted trials draw from one side each; TrialDraw.Check refuses the same at Go,
+        # since Bonsai reads the YAML without pydantic.
         if self.azimuth_max_deg < self.azimuth_min_deg:
             raise ValueError("azimuth_max_deg must be >= azimuth_min_deg")
         if self.elevation_max_deg < self.elevation_min_deg:
             raise ValueError("elevation_max_deg must be >= elevation_min_deg")
-        return self
-
-    @model_validator(mode="after")
-    def _overwrite_azimuths_cover_both_sides(self) -> "VisualStimulus":
-        # Coherent and conflict trials draw from one side each, so a list needs a usable value on
-        # both. InitialiseTrial.cs repeats this check, since Bonsai loads the YAML without pydantic.
         values = self.fixed_azimuths_deg
+        cap = self.coherent_azimuth_cap_deg
         if not values:
+            low, high = self.azimuth_min_deg, self.azimuth_max_deg
+            if not max(low, 0) < min(high, cap):
+                raise ValueError("azimuth_min_deg to azimuth_max_deg needs a right-side range within coherent_azimuth_cap_deg")
+            if not max(low, -cap) < min(high, 0):
+                raise ValueError("azimuth_min_deg to azimuth_max_deg needs a left-side range within coherent_azimuth_cap_deg")
             return self
         for value in values:
             if not -180 <= value <= 180:
                 raise ValueError(f"fixed_azimuths_deg value {value} is outside [-180, 180]")
-        cap = self.coherent_azimuth_cap_deg
         if not any(0 < value <= cap for value in values):
             raise ValueError(f"fixed_azimuths_deg needs a value in (0, {cap}] (coherent_azimuth_cap_deg) for right-side trials")
         if not any(-cap <= value < 0 for value in values):
@@ -83,24 +84,22 @@ class AudioStimulus(BaseSchema):
     """Auditory stimulus parameters common to all trials."""
 
     speaker_locations: List[SphericalPosition] = Field(
-        description="Candidate lateral sound positions, one drawn per audio trial; no azimuth-0 entry, the centre sound of visual-only and neutral trials is fixed in code"
+        description="Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker"
     )
 
     @field_validator("speaker_locations")
     @classmethod
-    def _at_least_one_location(cls, value: List[SphericalPosition]) -> List[SphericalPosition]:
-        if not value:
-            raise ValueError("speaker_locations must have at least one entry")
-        # A centre entry would make some unisensory audio trials centre trials with a coin-flip target.
+    def _both_sides(cls, value: List[SphericalPosition]) -> List[SphericalPosition]:
         if any(location.azimuth == 0 for location in value):
             raise ValueError("speaker_locations must not have an azimuth-0 entry; the centre sound is fixed in code")
+        if not any(location.azimuth < 0 for location in value) or not any(location.azimuth > 0 for location in value):
+            raise ValueError("speaker_locations needs at least one location on each side")
         return value
 
 
 class RewardSettings(BaseSchema):
     """Reward delivery parameters; per-stage reward size lives in the training stage table."""
 
-    reward_probability: Double = Field(default=1.0, ge=0, le=1, description="Meant as the probability that a correct response is rewarded. Not used: every correct response is rewarded, whatever its value (BACKLOG)")
     large_reward_multiplier: Double = Field(default=1.0, ge=0, description="Reward size multiplier applied on large-reward trials")
     large_reward_probability: Double = Field(default=0.0, ge=0, le=1, description="Probability that a trial is a large-reward trial")
 
@@ -113,11 +112,10 @@ class ResponseSettings(BaseSchema):
 
 
 class PunishmentSound(BaseSchema):
-    """The error sound played on an incorrect response."""
+    """The error sound played on an incorrect response, on rig.yml's speakerArray.errorSoundChannel."""
 
     enabled: Bool = Field(default=False, description="Whether the error sound plays on incorrect responses")
-    path: String = Field(default="LocalFiles\\error_tone.wav", description="Wav file of the error sound")
-    channel: Int = Field(default=2, ge=0, description="Mixer output channel the error sound plays on")
+    path: String = Field(default="LocalFiles\\error_tone.wav", description="Wav file of the error sound, from the workflow's folder")
     gain: Double = Field(default=1.0, ge=0, description="Playback gain of the error sound")
 
 
@@ -152,41 +150,49 @@ class RepeatRule(StrEnum):
     ON_TIMEOUT = "onTimeout"
 
 
+class TrialTypeWeights(BaseSchema):
+    """Relative draw weight of each trial type, by the name the trial log gives it (what the trial showed)."""
+
+    visual: Int = Field(ge=0, description="The grating alone")
+    auditory: Int = Field(ge=0, description="The sound alone")
+    audiovisual_coherent: Int = Field(ge=0, description="Grating and sound on the same side")
+    audiovisual_conflict: Int = Field(ge=0, description="Grating and sound on opposite sides")
+    neutral: Int = Field(ge=0, description="Grey screen, centre sound in localization, silent in discrimination")
+
+    @model_validator(mode="after")
+    def _some_weight(self) -> "TrialTypeWeights":
+        if not any(self.model_dump().values()):
+            raise ValueError("trial_weights needs a trial type with a weight above 0")
+        return self
+
+
+class TrialTypeRules(BaseSchema):
+    """The repeat rule of each trial type, by the name the trial log gives it."""
+
+    visual: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="The grating alone")
+    auditory: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="The sound alone")
+    audiovisual_coherent: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="Grating and sound on the same side")
+    audiovisual_conflict: RepeatRule = Field(default=RepeatRule.ON_TIMEOUT, description="Grating and sound on opposite sides")
+    neutral: RepeatRule = Field(default=RepeatRule.ON_TIMEOUT, description="Grey screen")
+
+
 class RepeatSettings(BaseSchema):
     """Trial repetition policy."""
 
     max_repeats: Int = Field(default=5, ge=0, description="Maximum number of consecutive repeats of the same trial")
-    rules_per_type: List[RepeatRule] = Field(
-        default=[
-            RepeatRule.ON_FAILURE,
-            RepeatRule.ON_FAILURE,
-            RepeatRule.ON_FAILURE,
-            RepeatRule.ON_TIMEOUT,
-            RepeatRule.ON_TIMEOUT,
-        ],
-        description="Repeat rule per trial type, indexed by trial type",
-    )
-
-    @field_validator("rules_per_type")
-    @classmethod
-    def _one_rule_per_trial_type(cls, value: List[RepeatRule]) -> List[RepeatRule]:
-        if len(value) != TRIAL_TYPE_COUNT:
-            raise ValueError(f"rules_per_type must have exactly {TRIAL_TYPE_COUNT} entries, got {len(value)}")
-        return value
+    rules_per_type: TrialTypeRules = Field(default=TrialTypeRules(), description="Repeat rule per trial type")
 
 
 class OptogeneticsSettings(BaseSchema):
-    """Zapit optogenetic stimulation parameters. Names as coen-dome-navigation's where they mean the same (Pip,
-    9 Nov 2026); laser_duration_seconds is a timed stimulus here, where the corridor's laserMaxSeconds is a cap."""
+    """Zapit optogenetic stimulation parameters, named as coen-dome-navigation's where they mean the same;
+    laserDurationSeconds is a timed stimulus here, where the corridor's laserMaxSeconds is a cap."""
 
     # Required with optogenetics on, in the JSON schema too: rig-control checks the task file against the
     # schema, not this model. additionalProperties is spelt out because rig-control closes every object
-    # that lists properties (as coen-dome-navigation's).
+    # that lists properties.
     model_config = ConfigDict(
         json_schema_extra={
             "if": {"properties": {"useZapit": {"const": True}}, "required": ["useZapit"], "additionalProperties": True},
-            # zapitConfigPath too (audit, 10 Nov 2026, round 2): the form said to set it first, but an empty one
-            # passed rig-control and stopped the experiment at its first trial.
             "then": {
                 "properties": {"zapitConfigPath": {"minLength": 1}, "laserPowerMw": {"type": "number"}},
                 "required": ["laserPowerMw"],
@@ -195,18 +201,26 @@ class OptogeneticsSettings(BaseSchema):
         }
     )
 
-    use_zapit: Bool = Field(default=False, description="Whether Zapit runs this experiment: each laser-on trial sends it a condition (laser-off trials send nothing), and rig-control checks Zapit is answering before Go")
-    zapit_config_path: String = Field(default="", description="Path to the Zapit conditions file (the one loaded in Zapit) listing the stimulation conditions. Named ...ConfigPath so rig-control keeps a copy beside the task file at Go")
+    use_zapit: Bool = Field(
+        default=False,
+        description="Whether Zapit runs this experiment: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and rig-control checks Zapit is answering before Go",
+    )
+    zapit_config_path: String = Field(default="", description="Path to the Zapit conditions file (the one loaded in Zapit). Named ...ConfigPath so rig-control keeps a copy beside the task file at Go")
     laser_power_mw: Optional[Double] = Field(
         default=None,
         gt=0,
-        description="Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus (overriding the conditions file's power) and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
+        description="Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
     )
-    laser_on_probability: Double = Field(default=0.75, ge=0, le=1, description="Probability that a trial after trials_before_laser is a laser-on trial")
-    laser_duration_seconds: Double = Field(default=1.5, ge=0, description="How long the laser stays on, in seconds (a timed stimulus)")
-    laser_to_stimulus_seconds: Double = Field(default=0.5, ge=0, description="From the trial's laser trigger (zapit.triggerLine) to the trial's stimulus, in seconds, on every trial, laser on or off and with or without Zapit: Bonsai waits this long on the Harp clock after the trigger, then commands the stimulus (stimulusOnsetTime, within a few ms; the screen and sound card add their own latency). On a rig without hardware triggering the laser starts when Zapit gets the command, 0.1 s before the trigger")
+    laser_on_probability: Double = Field(default=0.75, ge=0, le=1, description="Probability that a trial after trialsBeforeLaser is a laser-on trial")
+    laser_duration_seconds: Double = Field(default=1.5, gt=0, description="How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus)")
+    arm_to_trigger_seconds: Double = Field(default=0.1, ge=0, description="From Zapit's reply that it armed the trial's condition to the trigger, in seconds; also the wait on a trial without Zapit")
+    laser_to_stimulus_seconds: Double = Field(
+        default=0.5,
+        ge=0,
+        description="From the trial's trigger (the ZapitTrigger line) to the stimulus, in seconds, on every trial, laser on or off and with or without Zapit (stimulusOnsetTime, within a few ms; the screen and sound card add their own latency)",
+    )
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
-    trials_before_laser: Int = Field(default=0, ge=0, description="Trials at the experiment's start with no laser-on trial among them (repeats included, as in trialNumber)")
+    trials_before_laser: Int = Field(default=0, ge=0, description="Trials at the experiment's start with the laser off (repeats included, as in trialNumber)")
 
     @model_validator(mode="after")
     def _power_when_on(self) -> "OptogeneticsSettings":
@@ -216,29 +230,29 @@ class OptogeneticsSettings(BaseSchema):
             raise ValueError("use_zapit is on but zapit_config_path is empty")
         return self
 
+
 class TrainingStage(BaseSchema):
-    """One complete row of the training stage table; stages are selected by index at runtime."""
+    """One row of the training stage table, chosen by the TrainingStage parameter."""
 
     label: String = Field(description="Human-readable stage name, for documentation and logs")
-    trial_weights: List[Int] = Field(description="Relative draw weight per trial type, indexed by trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)")
+    trial_weights: TrialTypeWeights = Field(
+        description="Relative draw weight per trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)"
+    )
     auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and still counts as a timeout for repeats")
     both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
-    reward_size_ul: Double = Field(
-        ge=0,
-        description="Reward size, in microliters. The valve's calibration plans the pulses; an uncalibrated valve gives ceil(size/2) pulses of rig.yml's width, taken as 2 ul each (RewardLine)",
-    )
-    contrasts: List[Double] = Field(description="Candidate grating contrasts to draw from on visual trials")
+    reward_size_ul: Double = Field(ge=0, description="Reward size, in microlitres; the valve's calibration plans the pulses")
+    contrasts: List[Double] = Field(min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
     allow_repeats: Bool = Field(description="Whether failed trials may be repeated in this stage")
     spout_movements: Bool = Field(
         default=True,
         description="Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
     )
 
-    @field_validator("trial_weights")
+    @field_validator("contrasts")
     @classmethod
-    def _one_weight_per_trial_type(cls, value: List[int]) -> List[int]:
-        if len(value) != TRIAL_TYPE_COUNT:
-            raise ValueError(f"trial_weights must have exactly {TRIAL_TYPE_COUNT} entries, got {len(value)}")
+    def _positive(cls, value: List[float]) -> List[float]:
+        if any(contrast <= 0 for contrast in value):
+            raise ValueError("contrasts must each be above 0")
         return value
 
 
@@ -247,13 +261,10 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
 
     task_type: TaskType = Field(
         default=TaskType.LOCALIZATION,
-        description="localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other; trial types 0 and 1 are then target and distractor trials",
+        description="localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other",
     )
-    target_modality: Modality = Field(
-        default=Modality.VISUAL,
-        description="Discrimination only: the modality answered at the left spout",
-    )
-    trial_structure: TrialStructure = Field(description="Timing parameters of the trial state machine")
+    target_modality: Modality = Field(default=Modality.VISUAL, description="Discrimination only: the modality answered at the left spout")
+    trial_structure: TrialStructure = Field(description="Timing of each trial")
     visual_stimulus: VisualStimulus = Field(description="Grating stimulus parameters")
     audio_stimulus: AudioStimulus = Field(description="Auditory stimulus parameters")
     response: ResponseSettings = Field(description="Lick-accumulation response rule")
@@ -261,16 +272,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     reward: RewardSettings = Field(description="Reward delivery parameters")
     repeats: RepeatSettings = Field(description="Trial repetition policy")
     optogenetics: OptogeneticsSettings = Field(description="Zapit optogenetic stimulation parameters")
-    training_stages: List[TrainingStage] = Field(
-        description="Training stage table indexed by stage id; ids past the end clamp to the last row"
-    )
-
-    @field_validator("training_stages")
-    @classmethod
-    def _at_least_one_stage(cls, value: List[TrainingStage]) -> List[TrainingStage]:
-        if not value:
-            raise ValueError("training_stages must have at least one entry")
-        return value
+    training_stages: List[TrainingStage] = Field(min_length=1, description="Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go")
 
 
 class UclOpenCoenDomeDecisionMakingTaskLogic(Task):
