@@ -37,6 +37,7 @@ public class Trial
     public double laserPowerMw;        // 0 with the laser off
     public bool autoReward;
     public bool spoutMovements;
+    public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
 
     public Trial Clone()
     {
@@ -224,6 +225,7 @@ public class TrialDraw
             trial = New();
         }
         trial.trialNumber = ++drawn;
+        trial.rngSeed = Seed;
         trial.itiSeconds = last == null ? double.NaN : last.nextItiSeconds;
         trial.itiStartTime = last == null ? double.NaN : end.ItiStartTime;
         last = trial;
