@@ -43,7 +43,7 @@ stimulusOnsetTime:
   type: double
   unit: s
   formerly: [stimulusOnsetSeconds]
-  description: Harp time the workflow commanded the stimulus on, NaN if it never was. The physical onset is in the hardware logs.
+  description: Harp time the workflow commanded the stimulus on, NaN if it never was - the trial's Go plus the lead, max(laserToStimulusSeconds, 0) in the task file (in the manifest); with optogenetics the trigger was stimulusOnsetTime - laserToStimulusSeconds. The physical onset is in the hardware logs.
 choiceTime:
   type: double
   unit: s
@@ -64,11 +64,15 @@ itiSeconds:
   type: double
   unit: s
   formerly: [itiDuration]
-  description: The inter-trial interval drawn before this trial (the last trial's draw), NaN on the first. It ran from the last trial's outcome, after any punishment timeout, to this trial's start (the Zapit arm, armToTriggerSeconds plus laserToStimulusSeconds before the stimulus), and includes the task's drinkSeconds, so a draw shorter than drinkSeconds ran as drinkSeconds. Until 13 Nov 2026 it ran to the stimulus and included 2 s to drink, 0.1 s to arm and laserToStimulusSeconds; until 9 Nov 2026 it was the interval after the trial.
+  description: The inter-trial interval drawn for this trial (uniformly, itiMinSeconds to itiMaxSeconds, a repeat too), from itiStartTime (the last outcome, after any timeout) to this trial's stimulus with a quiet mouse, drinkSeconds included; the stage's quiet waits add quietWaitSeconds, so the stimulus was commanded at itiStartTime + itiSeconds + quietWaitSeconds. From 13 Nov 2026 (Pip) it is what ran, and trial 1 has one too. Before, it was the draw before the trial (NaN on the first), ran to the trial's start (the Zapit arm), and a draw shorter than drinkSeconds ran as drinkSeconds plus 0.1 s to arm and laserToStimulusSeconds; until 9 Nov 2026 it was the interval after the trial.
 itiStartTime:
   type: double
   unit: s
-  description: Harp time the inter-trial interval before this trial began (the last trial's outcome, after any timeout), NaN on the first.
+  description: Harp time the inter-trial interval before this trial began - the last trial's outcome, after any timeout; on trial 1 the first draw, once the experiment folder existed (NaN on trial 1 until 13 Nov 2026).
+quietWaitSeconds:
+  type: double
+  unit: s
+  description: How long the stage's quiet waits (lickQuietSeconds, wheelQuietSeconds and wheelQuietCm) held this trial's Go past the end of its interval less the lead; 0 with the waits off or a quiet mouse. From 13 Nov 2026.
 punishSound:
   type: bool
   description: True when the error sound played - an incorrect choice, with the task's punishment.sound enabled.

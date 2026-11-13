@@ -9,6 +9,12 @@ from swc.aeon.schema import BaseSchema
 
 from ucl_open_coen_dome_decision_making import __semver__
 
+# Zapit's armed reply must be in this long before the trigger it is armed for (TrialDraw.ZapitReplyMarginSeconds).
+ZAPIT_REPLY_MARGIN_SEC = 0.2
+# The longest ramp-down a Zapit conditions file may have (lib-open-rigs ZapitConditions.MaximumRampDownMs): Zapit
+# refuses the next StartStimulus while a timed stimulus and its ramp-down still play.
+ZAPIT_RAMP_DOWN_SEC = 0.5
+
 
 class TrialStructure(BaseSchema):
     """Timing of each trial, every wait on the Harp clock."""
@@ -16,10 +22,10 @@ class TrialStructure(BaseSchema):
     iti_min_seconds: Double = Field(
         default=3.4,
         ge=0,
-        description="Lower bound of the uniformly drawn inter-trial interval, in seconds: from the outcome (after any timeout) to the next trial's start, the Zapit arm. It includes drinkSeconds, so a draw shorter than drinkSeconds runs as drinkSeconds",
+        description="Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds",
     )
     iti_max_seconds: Double = Field(default=4.4, ge=0, description="Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSeconds)")
-    drink_seconds: Double = Field(default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward")
+    drink_seconds: Double = Field(default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval")
     open_loop_seconds: Double = Field(default=0.0, ge=0, description="From stimulus onset to the response window, in seconds")
     closed_loop_seconds: Double = Field(default=1.5, gt=0, description="The response window, in seconds")
     stimulus_seconds: Double = Field(
@@ -31,6 +37,8 @@ class TrialStructure(BaseSchema):
     def _ordered(self) -> "TrialStructure":
         if self.iti_max_seconds < self.iti_min_seconds:
             raise ValueError("iti_max_seconds must be >= iti_min_seconds")
+        if self.iti_min_seconds < self.drink_seconds:
+            raise ValueError("iti_min_seconds must be >= drink_seconds: the spouts go out drink_seconds into the interval, before the stimulus")
         if self.stimulus_seconds > self.open_loop_seconds + self.closed_loop_seconds:
             raise ValueError("stimulus_seconds must not exceed open_loop_seconds + closed_loop_seconds")
         return self
@@ -212,12 +220,14 @@ class OptogeneticsSettings(BaseSchema):
         description="Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
     )
     laser_on_probability: Double = Field(default=0.75, ge=0, le=1, description="Probability that a trial after trialsBeforeLaser is a laser-on trial")
-    laser_duration_seconds: Double = Field(default=1.5, gt=0, description="How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus)")
-    arm_to_trigger_seconds: Double = Field(default=0.1, ge=0, description="From Zapit's reply that it armed the trial's condition to the trigger, in seconds; also the wait on a trial without Zapit")
+    laser_duration_seconds: Double = Field(
+        default=1.5,
+        gt=0,
+        description="How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
+    )
     laser_to_stimulus_seconds: Double = Field(
         default=0.5,
-        ge=0,
-        description="From the trial's trigger (the ZapitTrigger line) to the stimulus, in seconds, on every trial, laser on or off and with or without Zapit (stimulusOnsetTime, within a few ms; the screen and sound card add their own latency)",
+        description="Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. Every trial waits for its Go (the end of the interval less the lead max(this, 0), once the stage's quiet waits hold); the trigger rises at Go and the stimulus comes the lead after it, or with a negative value the stimulus comes at Go and the trigger this long after. The lead applies in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin) and below -(openLoopSeconds + closedLoopSeconds). stimulusOnsetTime is commanded within a few ms; the screen and sound card add their own latency",
     )
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
     trials_before_laser: Int = Field(default=0, ge=0, description="Trials at the experiment's start with the laser off (repeats included, as in trialNumber)")
@@ -247,6 +257,25 @@ class TrainingStage(BaseSchema):
         default=True,
         description="Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
     )
+    lick_quiet_seconds: Double = Field(
+        default=0.0,
+        ge=0,
+        description="Quiet wait: Go needs this long without a lick on either spout, in seconds, counted from the interval's start and restarted by every lick; 0: off. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
+    )
+    wheel_quiet_seconds: Double = Field(
+        default=0.0,
+        ge=0,
+        description="Quiet wait: Go needs this long with the wheel still, in seconds, counted from the interval's start and restarted whenever the wheel's total distance (forward and back added) since the last restart passes wheelQuietCm; 0: off (with wheelQuietCm 0)",
+    )
+    wheel_quiet_cm: Double = Field(
+        default=0.0, ge=0, description="The wheel distance, forward and back added, that restarts the wheel's quiet wait, in cm; 0: off (with wheelQuietSeconds 0)"
+    )
+
+    @model_validator(mode="after")
+    def _wheel_quiet_pair(self) -> "TrainingStage":
+        if (self.wheel_quiet_seconds > 0) != (self.wheel_quiet_cm > 0):
+            raise ValueError("wheel_quiet_seconds and wheel_quiet_cm must both be above 0 (the wheel's quiet wait) or both 0 (off)")
+        return self
 
     @field_validator("contrasts")
     @classmethod
@@ -275,15 +304,27 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     training_stages: list[TrainingStage] = Field(min_length=1, description="Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go")
 
     @model_validator(mode="after")
-    def _laser_ends_before_the_next_trigger(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # The soonest the next trial's trigger can come: the stimulus, the open loop, a response at once, no timeout, the
-        # interval (drink_seconds at least) and the arm-to-trigger wait (TrialDraw.SoonestNextTriggerSeconds, the same rule).
+    def _timing_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # TrialDraw.Check's same rules (Pip, 13 Nov 2026).
         opto, s = self.optogenetics, self.trial_structure
-        soonest = opto.laser_to_stimulus_seconds + s.open_loop_seconds + max(s.drink_seconds, s.iti_min_seconds) + opto.arm_to_trigger_seconds
-        if opto.use_zapit and opto.laser_duration_seconds >= soonest:
+        lead = opto.laser_to_stimulus_seconds
+        if lead + ZAPIT_REPLY_MARGIN_SEC > s.iti_min_seconds + 1e-9:
             raise ValueError(
-                f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be below {soonest:g} s, the soonest the next "
-                "trial's trigger can come, so the trigger line falls before it rises again"
+                f"optogenetics.laser_to_stimulus_seconds ({lead} s) plus Zapit's {ZAPIT_REPLY_MARGIN_SEC} s reply margin must be at most "
+                f"trial_structure.iti_min_seconds ({s.iti_min_seconds} s), the shortest interval"
+            )
+        if -lead > s.open_loop_seconds + s.closed_loop_seconds + 1e-9:
+            raise ValueError(
+                f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "
+                f"(open_loop_seconds + closed_loop_seconds, {s.open_loop_seconds + s.closed_loop_seconds:g} s)"
+            )
+        # Trigger to the next trigger is at least open_loop + iti_min (a response at once, no timeout, a quiet mouse); the
+        # next arm waits for this laser and its ramp-down, and its reply needs the margin before that next trigger.
+        longest = s.open_loop_seconds + s.iti_min_seconds - ZAPIT_RAMP_DOWN_SEC - ZAPIT_REPLY_MARGIN_SEC
+        if opto.use_zapit and opto.laser_duration_seconds > longest + 1e-9:
+            raise ValueError(
+                f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be at most {longest:g} s (open_loop_seconds + "
+                f"iti_min_seconds - {ZAPIT_RAMP_DOWN_SEC} s ramp-down - {ZAPIT_REPLY_MARGIN_SEC} s reply margin), so Zapit can be armed for the next trial in time"
             )
         return self
 

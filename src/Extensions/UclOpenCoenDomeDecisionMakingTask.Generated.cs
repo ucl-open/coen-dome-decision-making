@@ -238,8 +238,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _laserDurationSeconds;
     
-        private double _armToTriggerSeconds;
-    
         private double _laserToStimulusSeconds;
     
         private bool _noLaserOnRepeats;
@@ -252,7 +250,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _zapitConfigPath = "";
             _laserOnProbability = 0.75D;
             _laserDurationSeconds = 1.5D;
-            _armToTriggerSeconds = 0.1D;
             _laserToStimulusSeconds = 0.5D;
             _noLaserOnRepeats = true;
             _trialsBeforeLaser = 0;
@@ -265,7 +262,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _laserPowerMw = other._laserPowerMw;
             _laserOnProbability = other._laserOnProbability;
             _laserDurationSeconds = other._laserDurationSeconds;
-            _armToTriggerSeconds = other._armToTriggerSeconds;
             _laserToStimulusSeconds = other._laserToStimulusSeconds;
             _noLaserOnRepeats = other._noLaserOnRepeats;
             _trialsBeforeLaser = other._trialsBeforeLaser;
@@ -349,12 +345,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus)
+        /// How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserDurationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserDurationSeconds")]
-        [System.ComponentModel.DescriptionAttribute("How long the laser and the masking light stay on, in seconds from the trigger (a " +
-            "timed stimulus)")]
+        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger")]
         public double LaserDurationSeconds
         {
             get
@@ -368,32 +363,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// From Zapit's reply that it armed the trial's condition to the trigger, in seconds; also the wait on a trial without Zapit
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("armToTriggerSeconds")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="armToTriggerSeconds")]
-        [System.ComponentModel.DescriptionAttribute("From Zapit\'s reply that it armed the trial\'s condition to the trigger, in seconds" +
-            "; also the wait on a trial without Zapit")]
-        public double ArmToTriggerSeconds
-        {
-            get
-            {
-                return _armToTriggerSeconds;
-            }
-            set
-            {
-                _armToTriggerSeconds = value;
-            }
-        }
-    
-        /// <summary>
-        /// From the trial's trigger (the ZapitTrigger line) to the stimulus, in seconds, on every trial, laser on or off and with or without Zapit (stimulusOnsetTime, within a few ms; the screen and sound card add their own latency)
+        /// Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. Every trial waits for its Go (the end of the interval less the lead max(this, 0), once the stage's quiet waits hold); the trigger rises at Go and the stimulus comes the lead after it, or with a negative value the stimulus comes at Go and the trigger this long after. The lead applies in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin) and below -(openLoopSeconds + closedLoopSeconds). stimulusOnsetTime is commanded within a few ms; the screen and sound card add their own latency
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserToStimulusSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserToStimulusSeconds")]
-        [System.ComponentModel.DescriptionAttribute("From the trial\'s trigger (the ZapitTrigger line) to the stimulus, in seconds, on " +
-            "every trial, laser on or off and with or without Zapit (stimulusOnsetTime, withi" +
-            "n a few ms; the screen and sound card add their own latency)")]
+        [System.ComponentModel.DescriptionAttribute(@"Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. Every trial waits for its Go (the end of the interval less the lead max(this, 0), once the stage's quiet waits hold); the trigger rises at Go and the stimulus comes the lead after it, or with a negative value the stimulus comes at Go and the trigger this long after. The lead applies in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin) and below -(openLoopSeconds + closedLoopSeconds). stimulusOnsetTime is commanded within a few ms; the screen and sound card add their own latency")]
         public double LaserToStimulusSeconds
         {
             get
@@ -460,7 +434,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("LaserPowerMw = " + _laserPowerMw + ", ");
             stringBuilder.Append("LaserOnProbability = " + _laserOnProbability + ", ");
             stringBuilder.Append("LaserDurationSeconds = " + _laserDurationSeconds + ", ");
-            stringBuilder.Append("ArmToTriggerSeconds = " + _armToTriggerSeconds + ", ");
             stringBuilder.Append("LaserToStimulusSeconds = " + _laserToStimulusSeconds + ", ");
             stringBuilder.Append("NoLaserOnRepeats = " + _noLaserOnRepeats + ", ");
             stringBuilder.Append("TrialsBeforeLaser = " + _trialsBeforeLaser);
@@ -1168,11 +1141,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private bool _spoutMovements;
     
+        private double _lickQuietSeconds;
+    
+        private double _wheelQuietSeconds;
+    
+        private double _wheelQuietCm;
+    
         public TrainingStage()
         {
             _trialWeights = new TrialTypeWeights();
             _contrasts = new System.Collections.Generic.List<double>();
             _spoutMovements = true;
+            _lickQuietSeconds = 0D;
+            _wheelQuietSeconds = 0D;
+            _wheelQuietCm = 0D;
         }
     
         protected TrainingStage(TrainingStage other)
@@ -1185,6 +1167,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _contrasts = other._contrasts;
             _allowRepeats = other._allowRepeats;
             _spoutMovements = other._spoutMovements;
+            _lickQuietSeconds = other._lickQuietSeconds;
+            _wheelQuietSeconds = other._wheelQuietSeconds;
+            _wheelQuietCm = other._wheelQuietCm;
         }
     
         /// <summary>
@@ -1338,6 +1323,66 @@ namespace UclOpenCoenDomeDecisionMakingTask
             }
         }
     
+        /// <summary>
+        /// Quiet wait: Go needs this long without a lick on either spout, in seconds, counted from the interval's start and restarted by every lick; 0: off. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("lickQuietSeconds")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="lickQuietSeconds")]
+        [System.ComponentModel.DescriptionAttribute("Quiet wait: Go needs this long without a lick on either spout, in seconds, counte" +
+            "d from the interval\'s start and restarted by every lick; 0: off. It lengthens th" +
+            "e interval only when the mouse licks late in it (quietWaitSeconds)")]
+        public double LickQuietSeconds
+        {
+            get
+            {
+                return _lickQuietSeconds;
+            }
+            set
+            {
+                _lickQuietSeconds = value;
+            }
+        }
+    
+        /// <summary>
+        /// Quiet wait: Go needs this long with the wheel still, in seconds, counted from the interval's start and restarted whenever the wheel's total distance (forward and back added) since the last restart passes wheelQuietCm; 0: off (with wheelQuietCm 0)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("wheelQuietSeconds")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="wheelQuietSeconds")]
+        [System.ComponentModel.DescriptionAttribute("Quiet wait: Go needs this long with the wheel still, in seconds, counted from the" +
+            " interval\'s start and restarted whenever the wheel\'s total distance (forward and" +
+            " back added) since the last restart passes wheelQuietCm; 0: off (with wheelQuiet" +
+            "Cm 0)")]
+        public double WheelQuietSeconds
+        {
+            get
+            {
+                return _wheelQuietSeconds;
+            }
+            set
+            {
+                _wheelQuietSeconds = value;
+            }
+        }
+    
+        /// <summary>
+        /// The wheel distance, forward and back added, that restarts the wheel's quiet wait, in cm; 0: off (with wheelQuietSeconds 0)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("wheelQuietCm")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="wheelQuietCm")]
+        [System.ComponentModel.DescriptionAttribute("The wheel distance, forward and back added, that restarts the wheel\'s quiet wait," +
+            " in cm; 0: off (with wheelQuietSeconds 0)")]
+        public double WheelQuietCm
+        {
+            get
+            {
+                return _wheelQuietCm;
+            }
+            set
+            {
+                _wheelQuietCm = value;
+            }
+        }
+    
         public System.IObservable<TrainingStage> Generate()
         {
             return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new TrainingStage(this)));
@@ -1357,7 +1402,10 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("RewardSizeUl = " + _rewardSizeUl + ", ");
             stringBuilder.Append("Contrasts = " + _contrasts + ", ");
             stringBuilder.Append("AllowRepeats = " + _allowRepeats + ", ");
-            stringBuilder.Append("SpoutMovements = " + _spoutMovements);
+            stringBuilder.Append("SpoutMovements = " + _spoutMovements + ", ");
+            stringBuilder.Append("LickQuietSeconds = " + _lickQuietSeconds + ", ");
+            stringBuilder.Append("WheelQuietSeconds = " + _wheelQuietSeconds + ", ");
+            stringBuilder.Append("WheelQuietCm = " + _wheelQuietCm);
             return true;
         }
     
@@ -1423,13 +1471,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Lower bound of the uniformly drawn inter-trial interval, in seconds: from the outcome (after any timeout) to the next trial's start, the Zapit arm. It includes drinkSeconds, so a draw shorter than drinkSeconds runs as drinkSeconds
+        /// Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("itiMinSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="itiMinSeconds")]
-        [System.ComponentModel.DescriptionAttribute("Lower bound of the uniformly drawn inter-trial interval, in seconds: from the out" +
-            "come (after any timeout) to the next trial\'s start, the Zapit arm. It includes d" +
-            "rinkSeconds, so a draw shorter than drinkSeconds runs as drinkSeconds")]
+        [System.ComponentModel.DescriptionAttribute(@"Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds")]
         public double ItiMinSeconds
         {
             get
@@ -1462,12 +1508,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward
+        /// From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("drinkSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="drinkSeconds")]
         [System.ComponentModel.DescriptionAttribute("From the outcome (after any timeout) to drawing the spouts back, in seconds: time" +
-            " to drink a reward")]
+            " to drink a reward, inside the interval")]
         public double DrinkSeconds
         {
             get

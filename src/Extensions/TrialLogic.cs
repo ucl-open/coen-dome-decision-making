@@ -19,10 +19,15 @@ public class Trial
     public double rewardSizeUl;
     public bool bothSpouts;
     public int repeatCount;            // 0 for a new draw
-    public double itiSeconds;          // the interval drawn before this trial (the last trial's), NaN on the first
-    public double itiStartTime;        // Harp time that interval began, NaN on the first
-    public double nextItiSeconds;      // the interval drawn for after this trial
-    public double waitAfterDrinkSeconds; // nextItiSeconds less drinkSeconds, at least 0: the rest of the interval
+    public double itiSeconds;          // the interval drawn for this trial: its start to the stimulus, with a quiet mouse
+    public double itiStartTime;        // Harp time that interval began: the last outcome after any timeout (trial 1: the first draw)
+    public double leadSeconds;         // Go to the stimulus: max(laserToStimulusSeconds, 0), in every experiment
+    public double triggerAfterGoSeconds; // Go to the trigger: max(-laserToStimulusSeconds, 0); read only with optogenetics
+    public double lickQuietSeconds;    // the stage's quiet waits (TrainingStage), 0: off
+    public double wheelQuietSeconds;
+    public double wheelQuietCm;
+    public double goTime;              // Harp time of Go (WaitForGo): the trigger with a lead, the stimulus without; NaN before
+    public double quietWaitSeconds;    // how long the quiet waits put Go after the interval allowed it; NaN before Go
     public double visualAzimuthDeg;
     public double visualElevationDeg;
     public double visualContrast;      // 0: grey screen
@@ -51,25 +56,25 @@ public class TrialEnd
     public string Outcome;      // Correct, Incorrect or NoResponse; null before the first trial
     public double ItiStartTime;
 
-    public static TrialEnd First()
+    public static TrialEnd First(double seconds)
     {
-        return new TrialEnd { Outcome = null, ItiStartTime = double.NaN };
+        return new TrialEnd { Outcome = null, ItiStartTime = seconds };
     }
 }
 
 [Combinator]
-[Description("Starts the trial loop: one TrialEnd with no outcome for each input.")]
+[Description("Starts the trial loop: one TrialEnd with no outcome for each input, the first trial's interval starting at the input's Harp time.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class StartTrials
 {
-    public IObservable<TrialEnd> Process<TSource>(IObservable<TSource> source)
+    public IObservable<TrialEnd> Process<TSource>(IObservable<Timestamped<TSource>> source)
     {
-        return source.Select(_ => TrialEnd.First());
+        return source.Select(value => TrialEnd.First(value.Seconds));
     }
 }
 
 [Combinator]
-[Description("Ends a trial: its outcome, stamped with the Harp time its inter-trial interval begins.")]
+[Description("Ends a trial at the start of the next interval: its outcome, stamped with the Harp time the interval begins (after any timeout), so the next trial is drawn and Zapit armed while the interval runs.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class EndTrial
 {
@@ -85,7 +90,7 @@ public class EndTrial
 /// every trial, so one random stream and one repeat history serve the experiment.
 /// </summary>
 [Combinator]
-[Description("Draws each trial from the task file and rig.yml's speakers. Input: the last trial's end (StartTrials before the first), the task and the speaker array. Checks the task at the first trial and stops the workflow on a stage past the table or a side with no stimulus or speaker.")]
+[Description("Draws each trial from the task file and rig.yml's speakers, at the start of its interval. Input: the last trial's end (StartTrials before the first), the task and the speaker array. Checks the task at the first trial and stops the workflow on a stage past the table or a side with no stimulus or speaker.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class DrawTrial
 {
@@ -208,21 +213,42 @@ public class TrialDraw
         if (task.AudioStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("audioStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
         var structure = task.TrialStructure;
         if (structure.StimulusSeconds > structure.OpenLoopSeconds + structure.ClosedLoopSeconds) problems.Add("trialStructure.stimulusSeconds is longer than openLoopSeconds plus closedLoopSeconds");
+        if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
+        if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts go out drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
+        if (stage.LickQuietSeconds < 0 || stage.WheelQuietSeconds < 0 || stage.WheelQuietCm < 0) problems.Add("stage '" + stage.Label + "' has a negative lickQuietSeconds, wheelQuietSeconds or wheelQuietCm");
+        if ((stage.WheelQuietSeconds > 0) != (stage.WheelQuietCm > 0)) problems.Add("stage '" + stage.Label + "' needs wheelQuietSeconds and wheelQuietCm both above 0 (the wheel's quiet wait) or both 0 (off)");
         var opto = task.Optogenetics;
-        var soonest = SoonestNextTriggerSeconds(task);
-        if (opto.UseZapit && opto.LaserDurationSeconds >= soonest)
+        var lead = opto.LaserToStimulusSeconds;
+        if (lead + ZapitReplyMarginSeconds > structure.ItiMinSeconds + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be below {1} s, the soonest the next trial's trigger can come (laserToStimulusSeconds + openLoopSeconds + the larger of drinkSeconds and itiMinSeconds + armToTriggerSeconds), so the trigger line falls before it rises again", opto.LaserDurationSeconds, soonest));
+            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) plus Zapit's {1} s reply margin must be at most trialStructure.itiMinSeconds ({2} s), the shortest interval", lead, ZapitReplyMarginSeconds, structure.ItiMinSeconds));
+        }
+        if (-lead > structure.OpenLoopSeconds + structure.ClosedLoopSeconds + 1e-9)
+        {
+            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (openLoopSeconds + closedLoopSeconds, {1} s)", lead, structure.OpenLoopSeconds + structure.ClosedLoopSeconds));
+        }
+        var longest = LongestLaserSeconds(task);
+        if (opto.UseZapit && opto.LaserDurationSeconds > longest + 1e-9)
+        {
+            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (openLoopSeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitRampDownSeconds, ZapitReplyMarginSeconds));
         }
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
     }
 
-    /// <summary>From a trial's trigger to the next trial's at the soonest: the stimulus, the open loop, a response at
-    /// once, no timeout, the interval (drinkSeconds at least) and the arm-to-trigger wait (task.py's same rule).</summary>
-    public static double SoonestNextTriggerSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
+    /// <summary>How long before its trigger Zapit's armed reply must be in, in seconds (task.py ZAPIT_REPLY_MARGIN_SEC).</summary>
+    public const double ZapitReplyMarginSeconds = 0.2;
+
+    /// <summary>The longest ramp-down a conditions file may have, in seconds: Zapit refuses the next StartStimulus while a
+    /// timed stimulus and its ramp-down play, so the next trial is armed only this long after the laser ends.</summary>
+    public const double ZapitRampDownSeconds = ZapitConditions.MaximumRampDownMs / 1000;
+
+    /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least openLoopSeconds
+    /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, its ramp-down and Zapit's
+    /// reply margin must fit before the next trigger.</summary>
+    public static double LongestLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         var s = task.TrialStructure;
-        return task.Optogenetics.LaserToStimulusSeconds + s.OpenLoopSeconds + Math.Max(s.DrinkSeconds, s.ItiMinSeconds) + task.Optogenetics.ArmToTriggerSeconds;
+        return s.OpenLoopSeconds + s.ItiMinSeconds - ZapitRampDownSeconds - ZapitReplyMarginSeconds;
     }
 
     public static int[] Weights(TrainingStage stage)
@@ -274,8 +300,18 @@ public class TrialDraw
         }
         trial.trialNumber = ++drawn;
         trial.rngSeed = Seed;
-        trial.itiSeconds = last == null ? double.NaN : last.nextItiSeconds;
-        trial.itiStartTime = last == null ? double.NaN : end.ItiStartTime;
+        // Every trial, a repeat too, draws its own interval, from the end it is drawn at (Pip, 13 Nov 2026).
+        var structure = task.TrialStructure;
+        trial.itiSeconds = Uniform(structure.ItiMinSeconds, structure.ItiMaxSeconds);
+        trial.itiStartTime = end.ItiStartTime;
+        var lead = task.Optogenetics.LaserToStimulusSeconds;
+        trial.leadSeconds = Math.Max(lead, 0);
+        trial.triggerAfterGoSeconds = Math.Max(-lead, 0);
+        trial.lickQuietSeconds = stage.LickQuietSeconds;
+        trial.wheelQuietSeconds = stage.WheelQuietSeconds;
+        trial.wheelQuietCm = stage.WheelQuietCm;
+        trial.goTime = double.NaN;
+        trial.quietWaitSeconds = double.NaN;
         last = trial;
         return trial;
     }
@@ -294,15 +330,12 @@ public class TrialDraw
 
     Trial New()
     {
-        var structure = task.TrialStructure;
         var trial = new Trial();
         trial.autoReward = random.NextDouble() < stage.AutoRewardProbability;
         trial.spoutMovements = stage.SpoutMovements;
         trial.bothSpouts = random.NextDouble() < stage.BothSpoutsProbability;
         var large = random.NextDouble() < task.Reward.LargeRewardProbability;
         trial.rewardSizeUl = large ? stage.RewardSizeUl * task.Reward.LargeRewardMultiplier : stage.RewardSizeUl;
-        trial.nextItiSeconds = Uniform(structure.ItiMinSeconds, structure.ItiMaxSeconds);
-        trial.waitAfterDrinkSeconds = Math.Max(0, trial.nextItiSeconds - structure.DrinkSeconds);
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
         int type = WeightedType();
@@ -487,6 +520,196 @@ public class CheckZapitArmed
                 "Zapit armed condition {0} with laserOn {1}, but trial {2} asked for condition {3} with laserOn {4}.",
                 reply.Value, reply.LaserOn, trial.trialNumber, trial.laserCondition, laserOn));
         }
+    }
+}
+
+/// <summary>
+/// A trial's quiet waits (Pip, 13 Nov 2026), on the Harp clock: from the interval's start, Go needs lickSeconds with no
+/// lick and wheelSeconds in which the wheel's total distance (forward and back added) stays within wheelCm, each wait
+/// restarting on its own; Go is the first moment at or after earliest at which both hold. With both off Go is earliest.
+/// </summary>
+public class QuietWait
+{
+    readonly double earliest, lickSeconds, wheelSeconds, wheelCm;
+    double lickSince, wheelSince, wheelMoved, lastWheel;
+
+    public QuietWait(double intervalStart, double earliest, double lickSeconds, double wheelSeconds, double wheelCm, double wheelAtStart)
+    {
+        this.earliest = earliest;
+        this.lickSeconds = lickSeconds;
+        this.wheelSeconds = wheelSeconds;
+        this.wheelCm = wheelCm;
+        lickSince = wheelSince = intervalStart;
+        lastWheel = wheelAtStart;
+    }
+
+    /// <summary>A lick at Harp time now restarts the lick wait.</summary>
+    public void Lick(double now)
+    {
+        if (lickSeconds > 0) lickSince = Math.Max(lickSince, now);
+    }
+
+    /// <summary>The wheel's distance in cm at Harp time now: past wheelCm of travel since the last restart restarts the wait.</summary>
+    public void Wheel(double cm, double now)
+    {
+        if (!double.IsNaN(lastWheel)) wheelMoved += Math.Abs(cm - lastWheel);
+        lastWheel = cm;
+        if (wheelSeconds > 0 && wheelMoved > wheelCm)
+        {
+            wheelSince = Math.Max(wheelSince, now);
+            wheelMoved = 0;
+        }
+    }
+
+    /// <summary>When Go falls if nothing more restarts a wait: exact, not rounded to a clock tick.</summary>
+    public double GoTime
+    {
+        get { return Math.Max(earliest, Math.Max(lickSince + lickSeconds, wheelSince + wheelSeconds)); }
+    }
+
+    public double Earliest { get { return earliest; } }
+}
+
+/// <summary>Holds one trial at a time until its Go; apart from Bonsai so a test can run it.</summary>
+public class GoWaiter
+{
+    Trial trial;
+    QuietWait wait;
+    double now = double.NaN, wheel = double.NaN;
+
+    /// <summary>A trial drawn at its interval's start begins waiting: Go no sooner than the interval's end less its lead.</summary>
+    public void Start(Trial next)
+    {
+        if (trial != null)
+        {
+            throw new InvalidOperationException(string.Format("Trial {0} was drawn while trial {1} still waited for its Go.", next.trialNumber, trial.trialNumber));
+        }
+        trial = next;
+        wait = new QuietWait(next.itiStartTime, next.itiStartTime + next.itiSeconds - next.leadSeconds, next.lickQuietSeconds, next.wheelQuietSeconds, next.wheelQuietCm, wheel);
+    }
+
+    public void Lick(bool lick)
+    {
+        if (lick && trial != null && !double.IsNaN(now)) wait.Lick(now);
+    }
+
+    public void Wheel(double cm)
+    {
+        wheel = cm;
+        if (trial != null && !double.IsNaN(now)) wait.Wheel(cm, now);
+    }
+
+    /// <summary>The Harp clock: the trial once its Go has come, with goTime and quietWaitSeconds set; else null.</summary>
+    public Trial Clock(double seconds)
+    {
+        now = seconds;
+        if (trial == null || seconds < wait.GoTime - 1e-9) return null;
+        var go = trial;
+        go.goTime = wait.GoTime;
+        go.quietWaitSeconds = wait.GoTime - wait.Earliest;
+        trial = null;
+        return go;
+    }
+}
+
+[Combinator]
+[Description("Each trial at its Go: the interval's end less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (no lick for lickQuietSeconds; the wheel within wheelQuietCm for wheelQuietSeconds). Inputs: the trials, the Harp clock, the left and right lick states, the wheel's distance in cm. Sets the trial's goTime and quietWaitSeconds.")]
+[WorkflowElementCategory(ElementCategory.Combinator)]
+public class WaitForGo
+{
+    public IObservable<Trial> Process(IObservable<Trial> trials, IObservable<double> clock, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<double> wheelCm)
+    {
+        return Observable.Create<Trial>(observer =>
+        {
+            var gate = new object();
+            var waiter = new GoWaiter();
+            Action<Action> run = step =>
+            {
+                lock (gate)
+                {
+                    try { step(); }
+                    catch (Exception error) { observer.OnError(error); }
+                }
+            };
+            return new System.Reactive.Disposables.CompositeDisposable(
+                wheelCm.Subscribe(cm => run(() => waiter.Wheel(cm)), observer.OnError),
+                lickLeft.Subscribe(lick => run(() => waiter.Lick(lick)), observer.OnError),
+                lickRight.Subscribe(lick => run(() => waiter.Lick(lick)), observer.OnError),
+                trials.Subscribe(trial => run(() => waiter.Start(trial)), observer.OnError),
+                clock.Subscribe(seconds => run(() =>
+                {
+                    var go = waiter.Clock(seconds);
+                    if (go != null) observer.OnNext(go);
+                }), observer.OnError));
+        });
+    }
+}
+
+/// <summary>A moment of a trial timed from its Go.</summary>
+public enum TrialMoment
+{
+    Stimulus,       // goTime + leadSeconds
+    LaserTrigger    // goTime + triggerAfterGoSeconds
+}
+
+[Combinator]
+[Description("The seconds from now (the input's Harp time) to the trial's stimulus or laser trigger, for a HarpDelay's DueSeconds: (trial, seconds). Stops the workflow if that moment has passed, rather than shift it.")]
+[WorkflowElementCategory(ElementCategory.Transform)]
+public class SecondsUntil
+{
+    public TrialMoment Moment { get; set; }
+
+    public IObservable<Tuple<Trial, double>> Process(IObservable<Timestamped<Trial>> source)
+    {
+        var moment = Moment;
+        return source.Select(value => Tuple.Create(value.Value, Seconds(value.Value, moment, value.Seconds)));
+    }
+
+    public static double Seconds(Trial trial, TrialMoment moment, double now)
+    {
+        var due = trial.goTime + (moment == TrialMoment.Stimulus ? trial.leadSeconds : trial.triggerAfterGoSeconds);
+        if (double.IsNaN(due) || due < now - 1e-6)
+        {
+            throw new InvalidOperationException(string.Format("Trial {0}'s {1} was due at {2} s on the Harp clock, but its wait began at {3} s.", trial.trialNumber, moment == TrialMoment.Stimulus ? "stimulus" : "laser trigger", due, now));
+        }
+        return Math.Max(0, due - now);
+    }
+}
+
+[Combinator]
+[Description("The Go of the input trial (first input, one trial) from the trials' Gos (second input, a subject that replays the latest): the one with its trialNumber, once.")]
+[WorkflowElementCategory(ElementCategory.Combinator)]
+public class TrialGoFor
+{
+    public IObservable<Trial> Process(IObservable<Trial> trial, IObservable<Trial> goes)
+    {
+        return trial.Take(1).SelectMany(t => goes.Where(go => go.trialNumber == t.trialNumber).Take(1));
+    }
+}
+
+[Combinator]
+[Description("Passes the trial on at its trigger (first input) only if Zapit has armed it by then (second input: CheckZapitArmed's reply); stops the workflow otherwise, rather than shift the trigger.")]
+[WorkflowElementCategory(ElementCategory.Combinator)]
+public class RequireZapitArmed
+{
+    public IObservable<Trial> Process(IObservable<Timestamped<Trial>> trigger, IObservable<ZapitReply> armed)
+    {
+        return Observable.Create<Trial>(observer =>
+        {
+            var gate = new object();
+            bool isArmed = false;
+            var armedSubscription = armed.Subscribe(_ => { lock (gate) isArmed = true; }, observer.OnError);
+            var triggerSubscription = trigger.Subscribe(value =>
+            {
+                bool ok;
+                lock (gate) ok = isArmed;
+                if (ok) observer.OnNext(value.Value);
+                else observer.OnError(new InvalidOperationException(string.Format(
+                    "Zapit had not answered trial {0}'s StartStimulus by its trigger at {1} s on the Harp clock, so the workflow stopped rather than move the trigger. Is Zapit running and answering quickly?",
+                    value.Value.trialNumber, value.Seconds)));
+            }, observer.OnError, observer.OnCompleted);
+            return new System.Reactive.Disposables.CompositeDisposable(armedSubscription, triggerSubscription);
+        });
     }
 }
 

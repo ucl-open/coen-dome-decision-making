@@ -22,6 +22,7 @@ public class TrialRow
     public int repeatCount;
     public double itiSeconds;
     public double itiStartTime;
+    public double quietWaitSeconds;
     public bool punishSound;
     public double punishTimeoutSeconds;
     public double visualAzimuthDeg;
@@ -80,6 +81,7 @@ public class CreateTrialRow
             repeatCount = trial.repeatCount,
             itiSeconds = trial.itiSeconds,
             itiStartTime = trial.itiStartTime,
+            quietWaitSeconds = trial.quietWaitSeconds,
             punishSound = outcome == "Incorrect" && punishSound,
             punishTimeoutSeconds = TimedOut(outcome, trial) ? timeoutSeconds : 0.0,
             visualAzimuthDeg = trial.visualAzimuthDeg,

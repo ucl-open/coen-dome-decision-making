@@ -85,11 +85,16 @@ def test_the_discrimination_file_keeps_the_spouts_in_for_habituation():
     assert all(stage.spout_movements for stage in task.training_stages[1:])
 
 
-def test_the_discrimination_iti_is_gerion_s():
-    # Plan v11: itiSeconds runs from the outcome (after any timeout) to the next trial and includes drinkSeconds, as
-    # Gerion's ITI includes his 2 s drink, so his 1.5-2.5 s are the file's values.
-    trial = _task("task-discrimination.yml").trial_structure
-    assert (trial.iti_min_seconds, trial.iti_max_seconds, trial.drink_seconds) == (1.5, 2.5, 2.0)
+def test_the_discrimination_iti_is_what_gerion_s_mice_got():
+    # Pip, 13 Nov 2026, measured from 18 of Gerion's sessions: 1.5 s drink + max(ITI - 2, 0) with ITI 1.5-2.5 s, so
+    # 1.5-2.0 s from the outcome to the next stimulus, and the 4 s timeout first after an incorrect choice or a miss.
+    task = _task("task-discrimination.yml")
+    trial = task.trial_structure
+    assert (trial.iti_min_seconds, trial.iti_max_seconds, trial.drink_seconds) == (1.5, 2.0, 1.5)
+    assert task.punishment.timeout_seconds == 4.0
+    # The localization file keeps its interval.
+    local = _task("task-localization.yml").trial_structure
+    assert (local.iti_min_seconds, local.iti_max_seconds, local.drink_seconds) == (3.4, 4.4, 2.0)
 
 def test_the_iti_descriptions_say_the_drink_is_in_the_interval():
     from ucl_open_coen_dome_decision_making.task import TrialStructure
@@ -109,7 +114,7 @@ def test_rig_control_keeps_the_zapit_file(path):
 def test_laser_power_is_required_with_optogenetics_on():
     # Pip, 10 Nov 2026: this workflow sends and logs laserPowerMw as coen-dome-navigation does, required when on.
     data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
-    on = {**data["optogenetics"], "useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml"}
+    on = {**data["optogenetics"], "useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml", "laserDurationSeconds": 0.8}
     with pytest.raises(ValidationError, match="laser_power_mw is not set"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     with pytest.raises(ValidationError):
@@ -149,13 +154,66 @@ def test_the_laser_delay_is_gone():
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda p: p.name)
-def test_laser_to_stimulus_is_the_task_s_and_sets_the_wait(path):
-    # Pip, 10 Nov 2026: the fixed 0.5 s wait between the laser's trigger and ExecuteTrial is the task's
-    # laserToStimulusSeconds (0.5 keeps the timing), on every trial.
+def test_laser_to_stimulus_is_the_task_s_and_arm_to_trigger_is_gone(path):
+    # Pip, 13 Nov 2026: Zapit adds no time, so the arm-to-trigger wait is gone; laserToStimulusSeconds keeps 0.5 s.
     opto = yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]
-    assert opto["laserToStimulusSeconds"] == 0.5
-    workflow = (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
-    assert '<Property Name="DueSeconds" Selector="TaskParameters.Optogenetics.LaserToStimulusSeconds" />' in workflow
+    assert opto["laserToStimulusSeconds"] == 0.5 and "armToTriggerSeconds" not in opto
+    for text in (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json", CONFIG.parent / "src" / "main.bonsai",
+                 CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs"):
+        assert "ArmToTrigger" not in text.read_text(encoding="utf-8-sig") and "armToTrigger" not in text.read_text(encoding="utf-8-sig")
+
+
+def _with(name="task-discrimination.yml", opto=None, structure=None, stage=None):
+    data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
+    data["optogenetics"].update(opto or {})
+    data["trialStructure"].update(structure or {})
+    data["trainingStages"][0].update(stage or {})
+    return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
+@pytest.mark.parametrize("lead", [1.3, 0.5, 0.0, -0.5, -1.5])
+def test_a_signed_lead_inside_the_interval_and_the_response_window_is_accepted(lead):
+    # Discrimination: itiMinSeconds 1.5 less the 0.2 s reply margin; the response window 0 + 1.5 s.
+    assert _with(opto={"laserToStimulusSeconds": lead}).optogenetics.laser_to_stimulus_seconds == lead
+
+
+@pytest.mark.parametrize("lead, words", [(1.31, "reply margin"), (-1.51, "after the response window")])
+def test_a_lead_outside_them_is_refused(lead, words):
+    with pytest.raises(ValidationError, match=words):
+        _with(opto={"laserToStimulusSeconds": lead})
+
+
+def test_a_laser_that_would_delay_the_next_arm_is_refused():
+    # TrialDraw.LongestLaserSeconds' rule: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s margin = 0.8 s.
+    on = {"useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
+    _with(opto={**on, "laserDurationSeconds": 0.8})
+    with pytest.raises(ValidationError, match="laser_duration_seconds"):
+        _with(opto={**on, "laserDurationSeconds": 0.81})
+    _with(opto={**on, "useZapit": False, "laserDurationSeconds": 2.5})
+
+
+def test_the_interval_is_at_least_the_drink():
+    with pytest.raises(ValidationError, match="drink_seconds"):
+        _with(structure={"drinkSeconds": 1.6})
+
+
+def test_the_quiet_waits_are_per_stage_off_by_default_and_refused_negative_or_half_set():
+    for path in TASK_FILES:
+        for stage in yaml.safe_load(path.read_text())["taskParameters"]["trainingStages"]:
+            assert (stage["lickQuietSeconds"], stage["wheelQuietSeconds"], stage["wheelQuietCm"]) == (0, 0, 0)
+    _with(stage={"lickQuietSeconds": 1.0, "wheelQuietSeconds": 1.0, "wheelQuietCm": 2.0})
+    for bad in ({"lickQuietSeconds": -1}, {"wheelQuietSeconds": 1.0}, {"wheelQuietCm": 2.0}):
+        with pytest.raises(ValidationError):
+            _with(stage=bad)
+
+
+def test_the_constants_are_the_c_sharp_s():
+    import re
+    from ucl_open_coen_dome_decision_making.task import ZAPIT_REPLY_MARGIN_SEC
+
+    logic = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
+    assert float(re.search(r"const double ZapitReplyMarginSeconds = ([\d.]+);", logic).group(1)) == ZAPIT_REPLY_MARGIN_SEC
+    assert "ZapitConditions.MaximumRampDownMs / 1000" in logic
 
 
 def test_the_spout_wait_is_named_by_its_ends():
@@ -194,11 +252,3 @@ def test_weights_and_repeat_rules_are_keyed_by_trial_type_name():
         assert all(set(stage["trialWeights"]) == names for stage in task["trainingStages"])
 
 
-def test_a_laser_outlasting_the_soonest_next_trigger_is_refused():
-    # TrialDraw.SoonestNextTriggerSeconds' rule: 0.5 + 0 + max(2.0, 1.5) + 0.1 = 2.6 s in the discrimination file.
-    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
-    on = {**data["optogenetics"], "useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
-    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "laserDurationSeconds": 2.5}})
-    with pytest.raises(ValidationError, match="laser_duration_seconds"):
-        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "laserDurationSeconds": 2.6}})
-    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "useZapit": False, "laserDurationSeconds": 2.6}})

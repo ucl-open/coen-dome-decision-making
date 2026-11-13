@@ -49,7 +49,7 @@ static class Fixture
     {
         var draw = new TrialDraw(task, Speakers(), stage, path => 2);
         var trials = new List<Trial>();
-        var end = TrialEnd.First();
+        var end = TrialEnd.First(99);
         for (int i = 0; i < count; i++)
         {
             var trial = draw.Next(end);
@@ -170,22 +170,31 @@ public class TrialDrawTests
     }
 
     [TestMethod]
-    public void EachTrialCarriesTheIntervalBeforeIt()
+    public void EachTrialDrawsItsOwnIntervalFromTheEndItIsDrawnAt()
     {
         var task = Fixture.Task("task-discrimination.yml");
-        var trials = Fixture.Draw(task, 3, 50);
-        Assert.IsTrue(double.IsNaN(trials[0].itiSeconds) && double.IsNaN(trials[0].itiStartTime));
-        for (int i = 1; i < trials.Count; i++)
+        var trials = Fixture.Draw(task, 3, 300, t => t.trialNumber % 3 == 0 ? "Incorrect" : "Correct");
+        for (int i = 0; i < trials.Count; i++)
         {
-            Assert.AreEqual(trials[i - 1].nextItiSeconds, trials[i].itiSeconds);
-            Assert.AreEqual(100 + i - 1, trials[i].itiStartTime);
+            Assert.AreEqual(99 + i, trials[i].itiStartTime);   // trial 1: the first draw (StartTrials)
             Assert.AreEqual(i + 1, trials[i].trialNumber);
         }
-        foreach (var t in trials)
-        {
-            Assert.IsTrue(t.nextItiSeconds >= 1.5 && t.nextItiSeconds <= 2.5, "Gerion's 1.5 to 2.5 s");
-            Assert.AreEqual(Math.Max(0, t.nextItiSeconds - 2.0), t.waitAfterDrinkSeconds, 1e-12);
-        }
+        // What Gerion's mice got (Pip, 13 Nov 2026): 1.5 to 2.0 s from the outcome (after any timeout) to the stimulus.
+        Assert.IsTrue(trials.All(t => t.itiSeconds >= 1.5 && t.itiSeconds <= 2.0));
+        Assert.IsTrue(trials.Max(t => t.itiSeconds) > 1.95 && trials.Min(t => t.itiSeconds) < 1.55);
+        var repeats = Fixture.Draw(Fixture.Task("task-localization.yml"), 4, 300, t => "Incorrect").Where(t => t.repeatCount > 0).ToList();
+        Assert.IsTrue(repeats.Count > 10 && repeats.Select(t => t.itiSeconds).Distinct().Count() == repeats.Count, "a repeat draws its own");
+        Assert.IsTrue(trials.All(t => t.leadSeconds == 0.5 && t.triggerAfterGoSeconds == 0 && double.IsNaN(t.goTime)));
+    }
+
+    [TestMethod]
+    public void TheDiscriminationFileIsWhatGerionsMiceGot()
+    {
+        var s = Fixture.Task("task-discrimination.yml");
+        Assert.AreEqual(1.5, s.TrialStructure.ItiMinSeconds);
+        Assert.AreEqual(2.0, s.TrialStructure.ItiMaxSeconds);
+        Assert.AreEqual(1.5, s.TrialStructure.DrinkSeconds);
+        Assert.AreEqual(4.0, s.Punishment.TimeoutSeconds);   // incorrect or a miss: 5.5 to 6.0 s outcome to stimulus
     }
 
     [TestMethod]
@@ -249,6 +258,7 @@ public class TrialDrawTests
         task = Fixture.Task("task-discrimination.yml");
         task.Optogenetics.UseZapit = true;
         task.Optogenetics.LaserPowerMw = null;
+        task.Optogenetics.LaserDurationSeconds = 0.8;
         StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(task, Fixture.Speakers(), 4, path => 2)), "laserPowerMw");
     }
 
@@ -276,18 +286,169 @@ public class TrialDrawTests
     }
 
     [TestMethod]
-    public void ALaserOutlastingTheSoonestNextTriggerIsRefused()
+    public void ALaserThatWouldDelayTheNextArmIsRefused()
     {
-        // Discrimination: 0.5 s to the stimulus + 0 open loop + max(2.0 s drink, 1.5 s interval) + 0.1 s arm-to-trigger = 2.6 s.
+        // Discrimination: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s reply margin = 0.8 s.
         var task = Fixture.Task("task-discrimination.yml");
         task.Optogenetics.UseZapit = true;
         task.Optogenetics.LaserPowerMw = 3;
-        Assert.AreEqual(2.6, TrialDraw.SoonestNextTriggerSeconds(task), 1e-9);
+        Assert.AreEqual(0.8, TrialDraw.LongestLaserSeconds(task), 1e-9);
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "laserDurationSeconds (2.5 s) must be at most 0.8 s");
+        task.Optogenetics.LaserDurationSeconds = 0.8;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
-        task.Optogenetics.LaserDurationSeconds = 2.6;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "laserDurationSeconds");
+        task.Optogenetics.LaserDurationSeconds = 2.5;
         task.Optogenetics.UseZapit = false;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
+    }
+
+    [TestMethod]
+    public void TheSignedLeadIsRefusedOutsideTheIntervalAndTheResponseWindow()
+    {
+        Func<double, string> refusal = lead =>
+        {
+            var task = Fixture.Task("task-discrimination.yml");   // itiMinSeconds 1.5, response window 0 + 1.5 s
+            task.Optogenetics.LaserToStimulusSeconds = lead;
+            return Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers()));
+        };
+        foreach (var ok in new[] { 1.3, 0.5, 0.0, -0.5, -1.5 }) Assert.AreEqual("accepted", refusal(ok), ok.ToString());
+        StringAssert.Contains(refusal(1.31), "reply margin must be at most trialStructure.itiMinSeconds");
+        StringAssert.Contains(refusal(-1.51), "after the response window");
+    }
+
+    [TestMethod]
+    public void TheQuietWaitsAreRefusedNegativeOrHalfSet()
+    {
+        var task = Fixture.Task("task-localization.yml");
+        task.TrainingStages[4].WheelQuietSeconds = 1;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "both above 0");
+        task.TrainingStages[4].WheelQuietCm = 2;
+        Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
+        task.TrainingStages[4].LickQuietSeconds = -1;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "negative");
+        task = Fixture.Task("task-localization.yml");
+        task.TrialStructure.DrinkSeconds = 3.5;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "below drinkSeconds");
+    }
+}
+
+/// <summary>Go and the stimulus and trigger timed from it (Pip, 13 Nov 2026), on a stand-in Harp clock of 1 ms ticks.</summary>
+[TestClass]
+public class GoTests
+{
+    static Trial Trial(double lead, double lick = 0, double wheelSeconds = 0, double wheelCm = 0)
+    {
+        return new Trial { trialNumber = 1, itiStartTime = 10, itiSeconds = 2, leadSeconds = Math.Max(lead, 0), triggerAfterGoSeconds = Math.Max(-lead, 0),
+                           lickQuietSeconds = lick, wheelQuietSeconds = wheelSeconds, wheelQuietCm = wheelCm };
+    }
+
+    // Ticks the clock from 10 s; each step's action runs at its time. Returns the trial at Go.
+    static Trial Run(Trial trial, Dictionary<double, Action<GoWaiter>> steps = null)
+    {
+        var waiter = new GoWaiter();
+        waiter.Wheel(0);
+        waiter.Clock(10);
+        waiter.Start(trial);
+        for (int ms = 10001; ms < 30000; ms++)
+        {
+            var now = ms / 1000.0;
+            var go = waiter.Clock(now);
+            if (go != null) return go;
+            Action<GoWaiter> step;
+            if (steps != null && steps.TryGetValue(now, out step)) step(waiter);   // a lick or wheel sample stamped with this tick
+        }
+        throw new AssertFailedException("no Go");
+    }
+
+    [TestMethod]
+    public void WithTheWaitsOffTheStimulusIsExactlyTheIntervalAfterItsStart()
+    {
+        foreach (var lead in new[] { 0.5, 0.0, -0.5 })
+        {
+            var go = Run(Trial(lead));
+            Assert.AreEqual(12 - Math.Max(lead, 0), go.goTime, 1e-12);
+            Assert.AreEqual(0, go.quietWaitSeconds, 1e-12);
+            Assert.AreEqual(12, go.goTime + go.leadSeconds, 1e-12, "the stimulus: no time added by Zapit or the waits");
+            Assert.AreEqual(12, SecondsUntil.Seconds(go, TrialMoment.Stimulus, go.goTime) + go.goTime, 1e-12);
+            // The trigger: stimulus - laserToStimulusSeconds, before, with or after it.
+            Assert.AreEqual(12 - lead, SecondsUntil.Seconds(go, TrialMoment.LaserTrigger, go.goTime) + go.goTime, 1e-12);
+        }
+    }
+
+    [TestMethod]
+    public void ALickRestartsTheLickWaitAndTheLeadStaysExact()
+    {
+        var steps = new Dictionary<double, Action<GoWaiter>> { { 11.0, w => w.Lick(true) }, { 11.2, w => w.Lick(false) } };
+        var quiet = Run(Trial(0.5, 1.0));                // quiet from 10 s: Go at 11.5, the interval's end less the lead
+        Assert.AreEqual(11.5, quiet.goTime, 1e-12);
+        var licked = Run(Trial(0.5, 1.0), steps);         // licked at 11.0 (the clock's last tick): Go at 12.0
+        Assert.AreEqual(12.0, licked.goTime, 1e-9);
+        Assert.AreEqual(0.5, licked.quietWaitSeconds, 1e-9);
+        Assert.AreEqual(12.5, licked.goTime + licked.leadSeconds, 1e-9);
+        steps[11.4] = w => w.Lick(true);                  // a later lick restarts it again
+        Assert.AreEqual(12.4, Run(Trial(0.5, 1.0), steps).goTime, 1e-9);
+    }
+
+    [TestMethod]
+    public void TheWheelsTotalDistanceRestartsTheWheelWait()
+    {
+        // Rocking forward and back 0.6 cm a time: net distance 0, total past 1 cm on the second swing.
+        var steps = new Dictionary<double, Action<GoWaiter>> { { 11.0, w => w.Wheel(0.6) }, { 11.3, w => w.Wheel(0.0) } };
+        var rocked = Run(Trial(0.5, 0, 1.0, 1.0), steps);
+        Assert.AreEqual(12.3, rocked.goTime, 1e-9);
+        Assert.AreEqual(0.8, rocked.quietWaitSeconds, 1e-9);
+        steps.Remove(11.3);                               // 0.6 cm alone stays within 1 cm
+        Assert.AreEqual(11.5, Run(Trial(0.5, 0, 1.0, 1.0), steps).goTime, 1e-9);
+        // Each wait restarts on its own; Go needs both.
+        steps[11.3] = w => w.Wheel(0.0);
+        steps[11.8] = w => w.Lick(true);
+        Assert.AreEqual(12.8, Run(Trial(0.5, 1.0, 1.0, 1.0), steps).goTime, 1e-9);
+    }
+
+    [TestMethod]
+    public void AMomentAlreadyPastStopsTheWorkflow()
+    {
+        var go = Run(Trial(-0.5));
+        StringAssert.Contains(Fixture.Refusal(() => SecondsUntil.Seconds(go, TrialMoment.LaserTrigger, go.goTime + 0.6)), "laser trigger was due");
+    }
+
+    [TestMethod]
+    public void TheTriggerPassesOnlyOnceZapitArmedIt()
+    {
+        var trigger = new System.Reactive.Subjects.Subject<Bonsai.Harp.Timestamped<Trial>>();
+        var armed = new System.Reactive.Subjects.Subject<OpenRigs.Devices.Zapit.ZapitReply>();
+        var passed = new List<Trial>();
+        Exception error = null;
+        new RequireZapitArmed().Process(trigger, armed).Subscribe(passed.Add, e => error = e);
+        var trial = new Trial { trialNumber = 7 };
+        armed.OnNext(new OpenRigs.Devices.Zapit.ZapitReply());
+        trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(trial, 5));
+        Assert.AreEqual(1, passed.Count);
+
+        var late = new System.Reactive.Subjects.Subject<Bonsai.Harp.Timestamped<Trial>>();
+        new RequireZapitArmed().Process(late, new System.Reactive.Subjects.Subject<OpenRigs.Devices.Zapit.ZapitReply>()).Subscribe(_ => { }, e => error = e);
+        late.OnNext(new Bonsai.Harp.Timestamped<Trial>(trial, 5));
+        StringAssert.Contains(error.Message, "had not answered trial 7's StartStimulus by its trigger");
+    }
+
+    [TestMethod]
+    public void TheLaserWaitsForItsOwnTrialsGo()
+    {
+        var goes = new System.Reactive.Subjects.BehaviorSubject<Trial>(new Trial { trialNumber = 3 });
+        var found = new List<Trial>();
+        new TrialGoFor().Process(System.Reactive.Linq.Observable.Return(new Trial { trialNumber = 4 }), goes).Subscribe(found.Add);
+        Assert.AreEqual(0, found.Count);
+        goes.OnNext(new Trial { trialNumber = 4 });
+        goes.OnNext(new Trial { trialNumber = 4 });
+        Assert.AreEqual(1, found.Count);
+    }
+
+    [TestMethod]
+    public void ATrialDrawnWhileAnotherWaitsStopsTheWorkflow()
+    {
+        var waiter = new GoWaiter();
+        waiter.Clock(10);
+        waiter.Start(Trial(0.5));
+        StringAssert.Contains(Fixture.Refusal(() => waiter.Start(new Trial { trialNumber = 2 })), "still waited");
     }
 }
 

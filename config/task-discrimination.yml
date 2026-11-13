@@ -10,9 +10,9 @@ taskParameters:
   targetModality: visual   # visual or auditory: the modality answered at the left spout; set per mouse on the form
   rngSeed: null            # null = draw a random seed; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
-    itiMinSeconds: 1.5            # s, Gerion's: from the outcome (after any timeout) to the next trial, drinkSeconds included
-    itiMaxSeconds: 2.5            # s, Gerion's. His stage 0 (habituation) adds none: set both to 0 on the form
-    drinkSeconds: 2.0             # s, from the outcome to drawing the spouts back
+    itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
+    itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5; Pip, 13 Nov 2026). Stage 0: set both to 1.5 on the form
+    drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
     openLoopSeconds: 0.0          # s
     closedLoopSeconds: 1.5        # s, the response window
     stimulusSeconds: 1.5          # s, the grating; at most openLoopSeconds + closedLoopSeconds
@@ -52,9 +52,8 @@ taskParameters:
     zapitConfigPath: ""
     laserPowerMw: null             # mW on laser-on trials, every condition; required with optogenetics on
     laserOnProbability: 0.5
-    laserDurationSeconds: 2.5      # s
-    armToTriggerSeconds: 0.1       # s, Zapit's armed reply to the trigger; every trial
-    laserToStimulusSeconds: 0.5    # s, the trigger to the stimulus (stimulusOnsetTime); every trial
+    laserDurationSeconds: 2.5      # s; with optogenetics on at most openLoopSeconds + itiMinSeconds - 0.7 (0.8 here), so ticking useZapit is refused until this is shortened
+    laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
   trainingStages:          # row index = stage id selected in the GUI; a stage past the end stops the workflow at Go
@@ -65,6 +64,9 @@ taskParameters:
       rewardSizeUl: 3      # ul, planned from the valve's calibration
       contrasts: [1.0]
       allowRepeats: false
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
       spoutMovements: false
     - label: Stage 1       # target trials only, every miss auto-rewarded
       trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
@@ -73,6 +75,9 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [1.0]
       allowRepeats: false
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
     - label: Stage 2       # distractor and coherent trials added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
@@ -80,6 +85,9 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.5, 1.0]
       allowRepeats: false
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
     - label: Stage 3       # conflict and neutral trials added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
       autoRewardProbability: 0.0
@@ -87,6 +95,9 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.5, 1.0]
       allowRepeats: false
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
     - label: Stage 4       # as stage 3, wider contrasts (Gerion's default row)
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
       autoRewardProbability: 0.0
@@ -94,3 +105,6 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.5, 1.0, 2.0, 3.0]
       allowRepeats: false
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait

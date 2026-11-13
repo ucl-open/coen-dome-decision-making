@@ -1,5 +1,13 @@
 # Backlog
 
+## 2026-11-13 Pip's timing decisions
+
+- **Pip, 13 Nov 2026: Zapit adds no time; laserToStimulusSeconds is signed (before/after the stimulus).** `armToTriggerSeconds` is gone. Each trial is drawn at the start of its interval (the outcome, after any timeout) and, with optogenetics, Zapit is sent its StartStimulus then (`Laser`); the stimulus comes at the interval's end whether optogenetics is on or off, and the trigger at the stimulus less `laserToStimulusSeconds`. A Zapit reply not in by the trigger stops the workflow (`RequireZapitArmed`); the trigger is never moved.
+- **Pip, 13 Nov 2026: quiet waits per stage** (`lickQuietSeconds`, `wheelQuietSeconds`, `wheelQuietCm`, the same names as coen-dome-navigation's; 0 in every stage, so nothing changes until someone sets them). Go is the first moment at or after the interval's end less the lead (max(`laserToStimulusSeconds`, 0)) with both waits held; the trigger rises at Go and the stimulus comes the lead after it, in every experiment. `quietWaitSeconds` (new column) says how much the waits added.
+- **Arming waits for the last laser to end.** Zapit refuses a StartStimulus while a timed stimulus and its ramp-down play (app-zapit `pointer.send_samples`), so a trial's arm waits for the last trial's `laserDurationSeconds` and the longest ramp-down a conditions file may have (0.5 s, lib-open-rigs `ZapitConditions.MaximumRampDownMs`) when they end after its interval starts. Hence `laserDurationSeconds` is now at most `openLoopSeconds + itiMinSeconds - 0.7 s`: 0.8 s in the discrimination file (whose 2.5 s is refused once `useZapit` is ticked) and 2.7 s in localization's (2.5 s kept). **For Pip**: shorten the discrimination laser, or say if a shorter ramp should be read from the conditions file.
+- **Trial 1 now has an interval** (`itiSeconds`, `itiStartTime`): from the first draw, once the experiment folder exists, so Zapit can be armed before its trigger. Every trial, a repeat too, draws its own `itiSeconds`, which is what ran.
+- **Untried**: build-checked and unit-tested only (`tests\Extensions.Tests` `GoTests`); no run against Zapit or a rig yet.
+
 ## 2026-11-13 Audit round 1: what the mice hear changes
 
 - **The error tone and the background noise are resampled to 48 kHz** (Pip's default, taken during the audit): `src\LocalFiles\error_tone.wav` was 50 kHz and `background_white_noise.wav` 44.1 kHz, and nothing converts a WAV's rate, so on the 48 kHz mixer they played 4% low and 9% high in pitch and speed. Both are now 48 kHz, each file's duration and RMS kept (the error tone loses the 4% of its energy above 24 kHz, which 48 kHz cannot carry). This changes what the mice hear against production av-dome and every earlier experiment. Each is checked at its load (`CheckWaveRate`, as the stimulus WAVs are), so a file at another rate stops the workflow.
@@ -7,7 +15,7 @@
 ## Audit round 1 (13 Nov 2026): not changed
 
 - `TrialNumber`, `TrialOutcome` and `StimulusOnsetTime` are published and read by nothing here: the plan's shared names, kept for any reader (the Declarations description says so).
-- **Discrimination's interval, for Pip: values or timing?** Gerion's `itiMinSeconds` 1.5 and `itiMaxSeconds` 2.5 are kept, but his graph ran about 2.6 s from outcome to stimulus on every trial (his ITI less 2.6 s was always negative, so the drawn ITI never ran), while this runs 2.6 to 3.1 s (`drinkSeconds` 2.0 at least, then the arm and 0.6 s to the stimulus) and half the logged `itiSeconds` (those under `drinkSeconds`) never ran either.
+- **Discrimination's interval** (measured from 18 of Gerion's sessions): his discrimination ran 1.5 s drink + max(ITI - 2, 0) (ITI uniform 1.5-2.5 s, stage 0 0) = 1.5-2.0 s from the outcome to the next stimulus after a correct choice, and the 4 s timeout + the same = 5.5-6.0 s after an incorrect choice or a miss. Pip, 13 Nov 2026, chose to match it: `itiMinSeconds` 1.5, `itiMaxSeconds` 2.0, `drinkSeconds` 1.5 (the interval includes the drink); stage 0 is 1.5 fixed (both set to 1.5 on the form, as the task file has no per-stage interval).
 
 ## 2026-11-13 Rebuilt on the shared dome blocks (plan v11, W2)
 

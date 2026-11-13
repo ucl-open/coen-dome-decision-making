@@ -5,7 +5,7 @@
 taskParameters:
   rngSeed: null            # null = draw a random seed; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
-    itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next trial, drinkSeconds included
+    itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included
     itiMaxSeconds: 4.4            # s
     drinkSeconds: 2.0             # s, from the outcome to drawing the spouts back
     openLoopSeconds: 0.0          # s
@@ -48,8 +48,7 @@ taskParameters:
     laserPowerMw: 3.0              # mW on laser-on trials, every condition (avdome_main_initialstim.yml's laserPowerInMW, BLUE-OPTO-2, 10 Nov 2026)
     laserOnProbability: 0.5
     laserDurationSeconds: 2.5      # s
-    armToTriggerSeconds: 0.1       # s, Zapit's armed reply to the trigger; every trial
-    laserToStimulusSeconds: 0.5    # s, the trigger to the stimulus (stimulusOnsetTime); every trial
+    laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
   trainingStages:          # row index = stage id selected in the GUI; a stage past the end stops the workflow at Go
@@ -60,6 +59,9 @@ taskParameters:
       rewardSizeUl: 3      # ul, planned from the valve's calibration
       contrasts: [3.0]
       allowRepeats: false
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
     - label: Stage 1       # coherent trials only
       trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
@@ -67,6 +69,9 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [3.0]
       allowRepeats: true
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
     - label: Stage 2       # unisensory auditory added
       trialWeights: { visual: 0, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
@@ -74,6 +79,9 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
     - label: Stage 3       # unisensory visual added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
@@ -81,6 +89,9 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait
     - label: Stage 4       # conflict and neutral trials added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
       autoRewardProbability: 0.0
@@ -88,3 +99,6 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
+      lickQuietSeconds: 0  # s without a lick (either spout) before Go, restarted by each lick; 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) that restarts the wheel's wait

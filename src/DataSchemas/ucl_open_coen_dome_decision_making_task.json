@@ -77,22 +77,14 @@
         },
         "laserDurationSeconds": {
           "default": 1.5,
-          "description": "How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus)",
+          "description": "How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
           "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
           "type": "number"
         },
-        "armToTriggerSeconds": {
-          "default": 0.1,
-          "description": "From Zapit's reply that it armed the trial's condition to the trigger, in seconds; also the wait on a trial without Zapit",
-          "minimum": 0,
-          "title": "ArmToTriggerSeconds",
-          "type": "number"
-        },
         "laserToStimulusSeconds": {
           "default": 0.5,
-          "description": "From the trial's trigger (the ZapitTrigger line) to the stimulus, in seconds, on every trial, laser on or off and with or without Zapit (stimulusOnsetTime, within a few ms; the screen and sound card add their own latency)",
-          "minimum": 0,
+          "description": "Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. Every trial waits for its Go (the end of the interval less the lead max(this, 0), once the stage's quiet waits hold); the trigger rises at Go and the stimulus comes the lead after it, or with a negative value the stimulus comes at Go and the trigger this long after. The lead applies in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin) and below -(openLoopSeconds + closedLoopSeconds). stimulusOnsetTime is commanded within a few ms; the screen and sound card add their own latency",
           "title": "LaserToStimulusSeconds",
           "type": "number"
         },
@@ -351,6 +343,27 @@
           "description": "Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
           "title": "SpoutMovements",
           "type": "boolean"
+        },
+        "lickQuietSeconds": {
+          "default": 0.0,
+          "description": "Quiet wait: Go needs this long without a lick on either spout, in seconds, counted from the interval's start and restarted by every lick; 0: off. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
+          "minimum": 0,
+          "title": "LickQuietSeconds",
+          "type": "number"
+        },
+        "wheelQuietSeconds": {
+          "default": 0.0,
+          "description": "Quiet wait: Go needs this long with the wheel still, in seconds, counted from the interval's start and restarted whenever the wheel's total distance (forward and back added) since the last restart passes wheelQuietCm; 0: off (with wheelQuietCm 0)",
+          "minimum": 0,
+          "title": "WheelQuietSeconds",
+          "type": "number"
+        },
+        "wheelQuietCm": {
+          "default": 0.0,
+          "description": "The wheel distance, forward and back added, that restarts the wheel's quiet wait, in cm; 0: off (with wheelQuietSeconds 0)",
+          "minimum": 0,
+          "title": "WheelQuietCm",
+          "type": "number"
         }
       },
       "required": [
@@ -370,7 +383,7 @@
       "properties": {
         "itiMinSeconds": {
           "default": 3.4,
-          "description": "Lower bound of the uniformly drawn inter-trial interval, in seconds: from the outcome (after any timeout) to the next trial's start, the Zapit arm. It includes drinkSeconds, so a draw shorter than drinkSeconds runs as drinkSeconds",
+          "description": "Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds",
           "minimum": 0,
           "title": "ItiMinSeconds",
           "type": "number"
@@ -384,7 +397,7 @@
         },
         "drinkSeconds": {
           "default": 2.0,
-          "description": "From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward",
+          "description": "From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval",
           "minimum": 0,
           "title": "DrinkSeconds",
           "type": "number"
