@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import List, Literal, Optional
+from typing import Literal
 
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
@@ -41,7 +41,7 @@ class VisualStimulus(BaseSchema):
 
     azimuth_min_deg: Double = Field(default=-60.0, ge=-180, le=180, description="Lower bound of the uniformly drawn grating azimuth, in degrees")
     azimuth_max_deg: Double = Field(default=60.0, ge=-180, le=180, description="Upper bound of the uniformly drawn grating azimuth, in degrees")
-    fixed_azimuths_deg: Optional[List[Double]] = Field(
+    fixed_azimuths_deg: list[Double] | None = Field(
         default=None,
         description="Discrete grating azimuths, in degrees; when set and non-empty, every trial draws from this list (filtered to the trial's side, capped on coherent trials) instead of [azimuthMinDeg, azimuthMaxDeg]",
     )
@@ -83,13 +83,13 @@ class VisualStimulus(BaseSchema):
 class AudioStimulus(BaseSchema):
     """Auditory stimulus parameters common to all trials."""
 
-    speaker_locations: List[SphericalPosition] = Field(
+    speaker_locations: list[SphericalPosition] = Field(
         description="Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker"
     )
 
     @field_validator("speaker_locations")
     @classmethod
-    def _both_sides(cls, value: List[SphericalPosition]) -> List[SphericalPosition]:
+    def _both_sides(cls, value: list[SphericalPosition]) -> list[SphericalPosition]:
         if any(location.azimuth == 0 for location in value):
             raise ValueError("speaker_locations must not have an azimuth-0 entry; the centre sound is fixed in code")
         if not any(location.azimuth < 0 for location in value) or not any(location.azimuth > 0 for location in value):
@@ -206,7 +206,7 @@ class OptogeneticsSettings(BaseSchema):
         description="Whether Zapit runs this experiment: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and rig-control checks Zapit is answering before Go",
     )
     zapit_config_path: String = Field(default="", description="Path to the Zapit conditions file (the one loaded in Zapit). Named ...ConfigPath so rig-control keeps a copy beside the task file at Go")
-    laser_power_mw: Optional[Double] = Field(
+    laser_power_mw: Double | None = Field(
         default=None,
         gt=0,
         description="Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
@@ -241,7 +241,7 @@ class TrainingStage(BaseSchema):
     auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and still counts as a timeout for repeats")
     both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
     reward_size_ul: Double = Field(ge=0, description="Reward size, in microlitres; the valve's calibration plans the pulses")
-    contrasts: List[Double] = Field(min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
+    contrasts: list[Double] = Field(min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
     allow_repeats: Bool = Field(description="Whether failed trials may be repeated in this stage")
     spout_movements: Bool = Field(
         default=True,
@@ -250,7 +250,7 @@ class TrainingStage(BaseSchema):
 
     @field_validator("contrasts")
     @classmethod
-    def _positive(cls, value: List[float]) -> List[float]:
+    def _positive(cls, value: list[float]) -> list[float]:
         if any(contrast <= 0 for contrast in value):
             raise ValueError("contrasts must each be above 0")
         return value
@@ -272,7 +272,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     reward: RewardSettings = Field(description="Reward delivery parameters")
     repeats: RepeatSettings = Field(description="Trial repetition policy")
     optogenetics: OptogeneticsSettings = Field(description="Zapit optogenetic stimulation parameters")
-    training_stages: List[TrainingStage] = Field(min_length=1, description="Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go")
+    training_stages: list[TrainingStage] = Field(min_length=1, description="Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go")
 
 
 class UclOpenCoenDomeDecisionMakingTaskLogic(Task):

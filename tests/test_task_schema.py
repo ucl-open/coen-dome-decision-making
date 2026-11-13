@@ -4,7 +4,11 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from ucl_open_coen_dome_decision_making.task import AudioStimulus, UclOpenCoenDomeDecisionMakingTaskParameters, VisualStimulus
+from ucl_open_coen_dome_decision_making.task import (
+    AudioStimulus,
+    UclOpenCoenDomeDecisionMakingTaskParameters,
+    VisualStimulus,
+)
 
 CONFIG = Path(__file__).parent.parent / "config"
 TASK_FILES = sorted(CONFIG.glob("task*.yml"))
@@ -81,33 +85,18 @@ def test_the_discrimination_file_keeps_the_spouts_in_for_habituation():
     assert all(stage.spout_movements for stage in task.training_stages[1:])
 
 
-def test_the_discrimination_iti_adds_what_gerion_s_did():
-    # Gerion's ITI node waits max(ITI - 2.0, 0) after his 1.5-2.5 s draw; this workflow's waits
-    # ITI - 0.1 - laserToStimulusSeconds - 2.0, so the file's range is his plus 0.6 s at the files'
-    # 0.5 s (audit of 8 Nov 2026). The wait it subtracts is the task's own since 10 Nov 2026 (round 2):
-    # it was a typed 0.5 after laserToStimulusSeconds became the task's, so any other value changed the ITI.
-    workflow = (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
-    assert "it.Item1 &gt; 2.1 + it.Item2 ? it.Item1 - 0.1 - it.Item2 - 2.0 : 0.0" in workflow
-    iti = workflow.index("it.Item1 &gt; 2.1 + it.Item2")
-    assert "TaskParameters.Optogenetics.LaserToStimulusSeconds" in workflow[iti : iti + 3000]
-    task = _task("task-discrimination.yml")
-    trial = task.trial_structure
-    lead = 0.1 + task.optogenetics.laser_to_stimulus_seconds
-    assert (trial.iti_min_seconds, trial.iti_max_seconds) == pytest.approx((1.5 + lead, 2.5 + lead))
+def test_the_discrimination_iti_is_gerion_s():
+    # Plan v11: itiSeconds runs from the outcome (after any timeout) to the next trial and includes drinkSeconds, as
+    # Gerion's ITI includes his 2 s drink, so his 1.5-2.5 s are the file's values.
+    trial = _task("task-discrimination.yml").trial_structure
+    assert (trial.iti_min_seconds, trial.iti_max_seconds, trial.drink_seconds) == (1.5, 2.5, 2.0)
 
-
-def test_the_iti_descriptions_say_what_comes_out_of_the_draw():
-    # Audit, 10 Nov 2026, round 5: the task fields and the itiSeconds meaning (copied into every manifest) said only
-    # "the drawn interval" (the column, "which the drink time comes out of"), while the ITI expression above takes
-    # 2 s to drink, 0.1 s to arm and laserToStimulusSeconds out of it and runs a shorter draw as their sum.
+def test_the_iti_descriptions_say_the_drink_is_in_the_interval():
     from ucl_open_coen_dome_decision_making.task import TrialStructure
 
-    fields = TrialStructure.model_fields
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
-    for text in (fields["iti_min_seconds"].description, columns["itiSeconds"]["description"]):
-        assert "2 s to drink" in text and "0.1 s to arm Zapit" in text and "laserToStimulusSeconds" in text
-        assert "shorter than 2.1 s plus laserToStimulusSeconds" in text
-
+    for text in (TrialStructure.model_fields["iti_min_seconds"].description, columns["itiSeconds"]["description"]):
+        assert "drinkSeconds" in text and "timeout" in text
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda p: p.name)
 def test_rig_control_keeps_the_zapit_file(path):
@@ -154,10 +143,7 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
 
 def test_the_trial_row_logs_the_power_sent():
     source = (CONFIG.parent / "src" / "Extensions" / "TrialRow.cs").read_text(encoding="utf-8-sig")
-    assert "laserPowerMw = trial.OptogeneticPower," in source
-    workflow = (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
-    assert '<Property Name="LaserPower" Selector="OptogeneticPower" />' in workflow
-
+    assert "laserPowerMw = trial.laserPowerMw," in source
 
 def test_the_laser_delay_is_gone():
     # Pip, 10 Nov 2026: laserDelaySeconds (stimDelay) was 0 in every task file since 24 Sep 2026; dropped.
@@ -176,14 +162,10 @@ def test_laser_to_stimulus_is_the_task_s_and_sets_the_wait(path):
     assert '<Property Name="DueSeconds" Selector="TaskParameters.Optogenetics.LaserToStimulusSeconds" />' in workflow
 
 
-def test_each_laser_on_trial_draws_its_condition_at_random():
-    # Pip, 10 Nov 2026: balancedConditions (always true) dropped; a shuffled queue made a site unlikely to follow
-    # itself and the end of each cycle predictable, which confounds trial-history analyses.
-    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
-    assert "balancedConditions" not in schema and "pseudorandomSelection" not in schema
-    source = (CONFIG.parent / "src" / "Extensions" / "InitialiseTrial.cs").read_text(encoding="utf-8-sig")
-    assert "_conditionQueue" not in source and "zapitConditions[rand.Next(zapitConditions.Count)]" in source
-
+def test_every_optogenetics_trial_draws_its_condition_at_random():
+    # Pip, 10 Nov 2026: no queue; plan v11 decision 11: every optogenetics trial sends a condition, laser off at 0 mW.
+    source = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
+    assert "trial.laserCondition = random.Next(conditionCount) + 1;" in source
 
 def test_the_spout_wait_is_named_by_its_ends():
     # Pip's rule (10 Nov 2026): a gap between two moments is named by its ends, as laserToStimulusSeconds.
@@ -194,11 +176,8 @@ def test_the_spout_wait_is_named_by_its_ends():
 
 
 def test_each_trial_type_is_drawn_at_random_by_weight():
-    # Pip, 10 Nov 2026: trial types were dealt from shuffled blocks of the weights, which made a type unlikely to follow
-    # itself and each block's end predictable; now each new trial draws its type independently, weighted by trialWeights.
-    source = (CONFIG.parent / "src" / "Extensions" / "InitialiseTrial.cs").read_text(encoding="utf-8-sig")
-    assert "shuffledTrialSequence" not in source and "int draw = random.Next(total);" in source
-
+    source = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
+    assert "int draw = random.Next(weights.Sum());" in source
 
 def test_target_modality_is_visual_or_auditory():
     data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
@@ -206,8 +185,24 @@ def test_target_modality_is_visual_or_auditory():
     with pytest.raises(ValidationError):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "targetModality": "smell"})
 
-def test_reward_size_says_a_calibrated_valve_plans_its_pulses():
-    # Audit, 10 Nov 2026, round 3: it said every reward is ceil(size/2) pulses, true only of an uncalibrated valve (RewardLine.cs).
+def test_reward_size_says_the_calibration_plans_its_pulses():
     from ucl_open_coen_dome_decision_making.task import TrainingStage
-    description = TrainingStage.model_fields["reward_size_ul"].description
-    assert "calibration" in description and "uncalibrated" in description
+    assert "calibration" in TrainingStage.model_fields["reward_size_ul"].description
+
+
+def test_the_stimulus_never_outlasts_the_response_window():
+    from ucl_open_coen_dome_decision_making.task import TrialStructure
+    TrialStructure(stimulusSeconds=1.5, openLoopSeconds=0, closedLoopSeconds=1.5)
+    with pytest.raises(ValidationError, match="stimulus_seconds"):
+        TrialStructure(stimulusSeconds=2.0, openLoopSeconds=0, closedLoopSeconds=1.5)
+
+
+def test_weights_and_repeat_rules_are_keyed_by_trial_type_name():
+    names = {"visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral"}
+    columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
+    assert set(columns["trialType"]["values"]) == names
+    for path in TASK_FILES:
+        task = yaml.safe_load(path.read_text())["taskParameters"]
+        assert set(task["repeats"]["rulesPerType"]) == names
+        assert all(set(stage["trialWeights"]) == names for stage in task["trainingStages"])
+

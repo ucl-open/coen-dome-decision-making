@@ -42,8 +42,8 @@ foreach ($n in $labDescriptions.Keys) {
     if ($tc.Contains($n) -and $tc[$n].description -cne $labDescriptions[$n]) { $tc[$n].description = $labDescriptions[$n]; $described += $n }
 }
 $streams = @($prev.streams)
-# This workflow's own stream: Zapit's replies.
-$ownStreams = @('BonsaiData_ZapitReplies')
+# This workflow's own streams: Zapit's replies and its conditions file.
+$ownStreams = @('BonsaiData_ZapitReplies', 'Settings_ZapitConditions')
 # Names this workflow wrote once and no longer does (Pip, 9 Nov 2026): optoStimulated and optoCondition became
 # laserCondition (and laserPowerMw); the angle columns end in their unit; Zapit's replies moved into BonsaiData.
 $retired = @{ trialColumns = @('optoStimulated', 'optoCondition', 'visualAzimuth', 'visualElevation', 'visualPhase', 'audioAzimuth', 'audioElevation'); streams = @('Zapit') }

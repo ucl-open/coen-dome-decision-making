@@ -1,60 +1,52 @@
+import json
 from pathlib import Path
 
+import pydantic
 import pytest
 import yaml
 from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.rig import UclOpenCoenDomeDecisionMakingRig
 
-TEMPLATE = Path(__file__).parent.parent / "config" / "rig-template.yml"
+ROOT = Path(__file__).parent.parent
+TEMPLATE = ROOT / "config" / "rig-template.yml"
 
 
 def template() -> dict:
     return yaml.safe_load(TEMPLATE.read_text(encoding="utf-8"))
 
 
-def test_the_rig_template_validates_and_names_each_side_s_reward_valve():
+def test_rig_py_is_the_dome_rig_model():
+    from open_rigs.rigs.dome import DomeRig
+
+    assert UclOpenCoenDomeDecisionMakingRig is DomeRig
+
+
+def test_the_template_validates_with_a_reward_valve_per_side_and_the_zapit_trigger():
     rig = UclOpenCoenDomeDecisionMakingRig.model_validate(template())
-    assert (rig.reward_valves.left.value, rig.reward_valves.right.value) == ("DO1", "DO2")
+    wiring = rig.behavior_board["main"].wiring
+    assert (wiring.do1.side.value, wiring.do2.side.value, wiring.do3.device) == ("left", "right", "ZapitTrigger")
+    assert rig.behavior_board["main"].running_wheel.wheel_diameter_mm == 75
 
 
-def test_reward_valves_is_required():
-    # The workflow takes each side's line from it (LoadSideRewardLine); nothing is assumed.
+@pytest.mark.parametrize("key", ["rewardValves", "interPulseInterval"])
+def test_the_old_keys_are_refused(key):
+    # The generated C# refuses a rig.yml key it lacks, so a rig.yml still holding these stops at Start.
+    committed = json.loads((ROOT / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making.json").read_text(encoding="utf-8"))
+    assert key not in json.dumps(committed)
+
+
+def test_a_side_without_its_valve_is_refused_naming_the_rule():
     data = template()
-    del data["rewardValves"]
-    with pytest.raises(ValidationError):
+    del data["behaviorBoard"]["main"]["wiring"]["DO2"]
+    with pytest.raises(ValidationError, match=r"right RewardValve.*dome rig model, open_rigs.rigs.dome"):
         UclOpenCoenDomeDecisionMakingRig.model_validate(data)
-
-
-def test_the_sides_may_be_swapped():
-    data = template()
-    data["rewardValves"] = {"left": "DO2", "right": "DO1"}
-    assert UclOpenCoenDomeDecisionMakingRig.model_validate(data).reward_valves.left.value == "DO2"
 
 
 def test_the_committed_schema_is_the_model_s():
-    # The generated C# (UclOpenCoenDomeDecisionMaking.Generated.cs) is made from this file and refuses a rig.yml key
-    # it lacks: a stale schema stopped every rig whose rig.yml had a board's wiring (audit, 8 Nov 2026).
+    # The generated C# is made from this file and refuses a rig.yml key it lacks.
     # Regenerate with `uv run python -m ucl_open_coen_dome_decision_making.regenerate`.
-    import json
-
-    import pydantic
-
-    committed = json.loads((TEMPLATE.parent.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making.json").read_text(encoding="utf-8"))
+    committed = json.loads((ROOT / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making.json").read_text(encoding="utf-8"))
     model = pydantic.RootModel[UclOpenCoenDomeDecisionMakingRig].model_json_schema(
         by_alias=True, mode="serialization", union_format="primitive_type_array")
     assert committed == json.loads(json.dumps(model))
-
-
-def test_a_board_s_wiring_validates():
-    data = template()
-    data["behaviorBoard"]["main"]["wiring"] = {"DO1": {"device": "RewardValve", "side": "left"}}
-    assert UclOpenCoenDomeDecisionMakingRig.model_validate(data).behavior_board["main"].wiring.do1.side.value == "left"
-
-
-@pytest.mark.parametrize("sides",[{"left": "DO1", "right": "DO1"}, {"left": "DO4", "right": "DO1"}, {"left": "DO1"}])
-def test_each_side_needs_its_own_board_line(sides):
-    data = template()
-    data["rewardValves"] = sides
-    with pytest.raises(ValidationError):
-        UclOpenCoenDomeDecisionMakingRig.model_validate(data)
