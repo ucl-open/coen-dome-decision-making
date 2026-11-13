@@ -118,7 +118,7 @@ laserCondition:
 laserPowerMw:
   type: double
   unit: mW
-  description: Laser power sent to Zapit for this trial (the task's optogenetics.laserPowerMw), as commanded, not measured. 0 on laser-off trials and without optogenetics. From 10 Nov 2026; before, Zapit's config file set the power.
+  description: Laser power sent to Zapit for this trial (the task's optogenetics.laserPowerMw), as commanded, not measured. 0 on laser-off trials, without optogenetics, and on a trial answered before its trigger (no laser after an answer, from 13 Nov 2026). From 10 Nov 2026; before, Zapit's config file set the power.
 autoRewarded:
   type: bool
   description: True when a miss on an auto-reward trial was rewarded at the target spout.

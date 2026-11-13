@@ -260,15 +260,15 @@ class TrainingStage(BaseSchema):
     lick_quiet_seconds: Double = Field(
         default=0.0,
         ge=0,
-        description="Quiet wait: Go needs this long without a lick on either spout, in seconds, counted from the interval's start and restarted by every lick; 0: off. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
+        description="Quiet wait: Go needs this long with both spouts released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds Go until released; 0: off. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
     )
     wheel_quiet_seconds: Double = Field(
         default=0.0,
         ge=0,
-        description="Quiet wait: Go needs this long with the wheel still, in seconds, counted from the interval's start and restarted whenever the wheel's total distance (forward and back added) since the last restart passes wheelQuietCm; 0: off (with wheelQuietCm 0)",
+        description="Quiet wait: Go needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0)",
     )
     wheel_quiet_cm: Double = Field(
-        default=0.0, ge=0, description="The wheel distance, forward and back added, that restarts the wheel's quiet wait, in cm; 0: off (with wheelQuietSeconds 0)"
+        default=0.0, ge=0, description="The most the wheel may move, forward and back added, within the last wheelQuietSeconds before Go, in cm; 0: off (with wheelQuietSeconds 0)"
     )
 
     @model_validator(mode="after")

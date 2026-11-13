@@ -98,7 +98,11 @@ def test_the_trigger_rises_only_once_zapit_armed_the_trial():
     require = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:RequireZapitArmed")
     check = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:CheckZapitArmed")
     trigger = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "Trigger")
-    assert (check, require, "Source2") in edges and (trigger, require, "Source1") in edges
+    # Pip, 13 Nov 2026: no laser on a trial answered before its trigger (UnlessAnswered, fed the trial rows).
+    unless = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:UnlessAnswered")
+    rows = next(i for i, n in enumerate(nodes) if _kind(n) == "SubscribeSubject" and n.findtext(W + "Name") == "TrialRow")
+    assert (trigger, unless, "Source1") in edges and (rows, unless, "Source2") in edges
+    assert (check, require, "Source2") in edges and (unless, require, "Source1") in edges
     assert any(nodes[i].findtext(W + "Name") == "ZapitReplies" for i in _upstream(edges, check))
     # The trigger is timed from the trial's Go, never from Zapit's reply.
     assert check not in _upstream(edges, trigger)

@@ -524,16 +524,19 @@ public class CheckZapitArmed
 }
 
 /// <summary>
-/// A trial's quiet waits (Pip, 13 Nov 2026), on the Harp clock: from the interval's start, Go needs lickSeconds with no
-/// lick and wheelSeconds in which the wheel's total distance (forward and back added) stays within wheelCm, each wait
-/// restarting on its own; Go is the first moment at or after earliest at which both hold. With both off Go is earliest.
+/// A trial's quiet waits (Pip, 13 Nov 2026), on the Harp clock, counted from the interval's start: Go needs every
+/// spout released for lickSeconds (a held contact blocks Go), and the wheel's distance (forward and back added)
+/// within wheelCm over the last wheelSeconds; Go is the first moment at or after earliest at which both hold. With both
+/// off Go is earliest. coen-dome-navigation's Corridor.cs has the same class: change both together.
 /// </summary>
 public class QuietWait
 {
     readonly double earliest, lickSeconds, wheelSeconds, wheelCm;
-    double lickSince, wheelSince, wheelMoved, lastWheel;
+    readonly Queue<KeyValuePair<double, double>> moves = new Queue<KeyValuePair<double, double>>();  // (Harp time, cm) in the window
+    double lickSince, wheelSince, lastWheel, recentCm;
+    bool held;
 
-    public QuietWait(double intervalStart, double earliest, double lickSeconds, double wheelSeconds, double wheelCm, double wheelAtStart)
+    public QuietWait(double intervalStart, double earliest, double lickSeconds, double wheelSeconds, double wheelCm, double wheelAtStart, bool lickHeld)
     {
         this.earliest = earliest;
         this.lickSeconds = lickSeconds;
@@ -541,30 +544,43 @@ public class QuietWait
         this.wheelCm = wheelCm;
         lickSince = wheelSince = intervalStart;
         lastWheel = wheelAtStart;
+        held = lickHeld;
     }
 
-    /// <summary>A lick at Harp time now restarts the lick wait.</summary>
-    public void Lick(double now)
+    /// <summary>A spout touched or released at Harp time now (held: any spout still touched) restarts the lick wait.</summary>
+    public void Lick(bool anyHeld, double now)
     {
-        if (lickSeconds > 0) lickSince = Math.Max(lickSince, now);
+        held = anyHeld;
+        lickSince = Math.Max(lickSince, now);
     }
 
-    /// <summary>The wheel's distance in cm at Harp time now: past wheelCm of travel since the last restart restarts the wait.</summary>
+    /// <summary>The wheel's distance in cm at Harp time now: once the travel within the last wheelSeconds passes wheelCm,
+    /// the wait restarts at the latest move that still takes it past.</summary>
     public void Wheel(double cm, double now)
     {
-        if (!double.IsNaN(lastWheel)) wheelMoved += Math.Abs(cm - lastWheel);
+        var moved = double.IsNaN(lastWheel) ? 0 : Math.Abs(cm - lastWheel);
         lastWheel = cm;
-        if (wheelSeconds > 0 && wheelMoved > wheelCm)
+        if (!(wheelSeconds > 0)) return;
+        while (moves.Count > 0 && moves.Peek().Key <= now - wheelSeconds) recentCm -= moves.Dequeue().Value;
+        if (moved == 0) return;
+        moves.Enqueue(new KeyValuePair<double, double>(now, moved));
+        recentCm += moved;
+        while (recentCm > wheelCm)
         {
-            wheelSince = Math.Max(wheelSince, now);
-            wheelMoved = 0;
+            var oldest = moves.Dequeue();
+            recentCm -= oldest.Value;
+            wheelSince = Math.Max(wheelSince, oldest.Key);
         }
     }
 
-    /// <summary>When Go falls if nothing more restarts a wait: exact, not rounded to a clock tick.</summary>
+    /// <summary>When Go falls if nothing more restarts a wait (infinity while a spout is held): exact, not rounded to a clock tick.</summary>
     public double GoTime
     {
-        get { return Math.Max(earliest, Math.Max(lickSince + lickSeconds, wheelSince + wheelSeconds)); }
+        get
+        {
+            if (lickSeconds > 0 && held) return double.PositiveInfinity;
+            return Math.Max(earliest, Math.Max(lickSeconds > 0 ? lickSince + lickSeconds : 0, wheelSince + wheelSeconds));
+        }
     }
 
     public double Earliest { get { return earliest; } }
@@ -576,6 +592,7 @@ public class GoWaiter
     Trial trial;
     QuietWait wait;
     double now = double.NaN, wheel = double.NaN;
+    readonly bool[] touched = new bool[2];   // each spout's lick detector: touched now
 
     /// <summary>A trial drawn at its interval's start begins waiting: Go no sooner than the interval's end less its lead.</summary>
     public void Start(Trial next)
@@ -585,12 +602,15 @@ public class GoWaiter
             throw new InvalidOperationException(string.Format("Trial {0} was drawn while trial {1} still waited for its Go.", next.trialNumber, trial.trialNumber));
         }
         trial = next;
-        wait = new QuietWait(next.itiStartTime, next.itiStartTime + next.itiSeconds - next.leadSeconds, next.lickQuietSeconds, next.wheelQuietSeconds, next.wheelQuietCm, wheel);
+        wait = new QuietWait(next.itiStartTime, next.itiStartTime + next.itiSeconds - next.leadSeconds, next.lickQuietSeconds, next.wheelQuietSeconds, next.wheelQuietCm, wheel, touched.Any(t => t));
     }
 
-    public void Lick(bool lick)
+    /// <summary>A spout's lick detector changed (spout 0 left, 1 right): touched or released.</summary>
+    public void Lick(int spout, bool lick)
     {
-        if (lick && trial != null && !double.IsNaN(now)) wait.Lick(now);
+        if (touched[spout] == lick) return;
+        touched[spout] = lick;
+        if (trial != null && !double.IsNaN(now)) wait.Lick(touched.Any(t => t), now);
     }
 
     public void Wheel(double cm)
@@ -613,7 +633,7 @@ public class GoWaiter
 }
 
 [Combinator]
-[Description("Each trial at its Go: the interval's end less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (no lick for lickQuietSeconds; the wheel within wheelQuietCm for wheelQuietSeconds). Inputs: the trials, the Harp clock, the left and right lick states, the wheel's distance in cm. Sets the trial's goTime and quietWaitSeconds.")]
+[Description("Each trial at its Go: the interval's end less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds). Inputs: the trials, the Harp clock, the left and right lick states, the wheel's distance in cm. Sets the trial's goTime and quietWaitSeconds.")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
 public class WaitForGo
 {
@@ -633,8 +653,8 @@ public class WaitForGo
             };
             return new System.Reactive.Disposables.CompositeDisposable(
                 wheelCm.Subscribe(cm => run(() => waiter.Wheel(cm)), observer.OnError),
-                lickLeft.Subscribe(lick => run(() => waiter.Lick(lick)), observer.OnError),
-                lickRight.Subscribe(lick => run(() => waiter.Lick(lick)), observer.OnError),
+                lickLeft.Subscribe(lick => run(() => waiter.Lick(0, lick)), observer.OnError),
+                lickRight.Subscribe(lick => run(() => waiter.Lick(1, lick)), observer.OnError),
                 trials.Subscribe(trial => run(() => waiter.Start(trial)), observer.OnError),
                 clock.Subscribe(seconds => run(() =>
                 {
@@ -714,6 +734,36 @@ public class RequireZapitArmed
             }, observer.OnError, observer.OnCompleted);
             return new System.Reactive.Disposables.CompositeDisposable(armedSubscription, triggerSubscription);
         });
+    }
+}
+
+[Combinator]
+[Description("Passes the trial on at its laser trigger (first input) unless its row (second input: TrialRow) came before the trigger was due: a trial answered before a trigger after its stimulus gets no laser (Pip, 13 Nov 2026), as in coen-dome-navigation. Completes with the trigger.")]
+[WorkflowElementCategory(ElementCategory.Combinator)]
+public class UnlessAnswered
+{
+    public IObservable<Timestamped<Trial>> Process(IObservable<Timestamped<Trial>> trigger, IObservable<Timestamped<TrialRow>> rows)
+    {
+        return Observable.Create<Timestamped<Trial>>(observer =>
+        {
+            var gate = new object();
+            TrialRow row = null;
+            double rowSeconds = double.NaN;
+            var rowSubscription = rows.Subscribe(value => { lock (gate) { row = value.Value; rowSeconds = value.Seconds; } }, observer.OnError);
+            var triggerSubscription = trigger.Subscribe(value =>
+            {
+                bool skipped;
+                lock (gate) skipped = row != null && row.trialNumber == value.Value.trialNumber && LaserSkipped(value.Value, rowSeconds);
+                if (!skipped) observer.OnNext(value);
+            }, observer.OnError, observer.OnCompleted);
+            return new System.Reactive.Disposables.CompositeDisposable(rowSubscription, triggerSubscription);
+        });
+    }
+
+    /// <summary>Whether a trial whose outcome came at Harp time outcomeSeconds gets no laser: its trigger was due later.</summary>
+    public static bool LaserSkipped(Trial trial, double outcomeSeconds)
+    {
+        return outcomeSeconds < trial.goTime + trial.triggerAfterGoSeconds;
     }
 }
 

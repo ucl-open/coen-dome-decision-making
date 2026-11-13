@@ -92,7 +92,7 @@ public class CreateTrialRow
             audioElevationDeg = trial.audioElevationDeg,
             audioWaveformIndex = trial.audioWaveformIndex,
             laserCondition = trial.laserCondition,
-            laserPowerMw = trial.laserPowerMw,
+            laserPowerMw = UnlessAnswered.LaserSkipped(trial, choiceTime) ? 0 : trial.laserPowerMw,  // answered before its trigger: no laser
             autoRewarded = trial.autoReward && choice == "NoResponse",
         };
     }

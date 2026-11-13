@@ -2438,7 +2438,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>WaitForGo</Name>
-              <Description>Each trial's Go (tested C#), on the Harp clock: the end of its interval less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (no lick on either spout for lickQuietSeconds; the wheel within wheelQuietCm, forward and back added, for wheelQuietSeconds; each counted from the interval's start and restarted on its own). Sets goTime and quietWaitSeconds.</Description>
+              <Description>Each trial's Go (tested C#), on the Harp clock: the end of its interval less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds, a held contact blocking Go; the wheel within wheelQuietCm, forward and back added, over the last wheelQuietSeconds; each counted from the interval's start). Sets goTime and quietWaitSeconds.</Description>
               <Combinator xsi:type="p1:WaitForGo" />
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject">
@@ -3182,7 +3182,7 @@
             </Expression>
             <Expression xsi:type="rx:CreateObservable">
               <Name>Laser</Name>
-              <Description>One optogenetics trial's laser, the trials one after another (Concat), so the next is armed only once this one ends: Zapit sent the trial's StartStimulus (ArmZapit) and its armed reply checked (CheckZapitArmed: a refusal or the wrong condition stops the workflow); at the trial's trigger (its Go, or -laserToStimulusSeconds after it; SecondsUntil on the Harp clock) the ZapitTrigger line rises, but only if Zapit has answered by then (RequireZapitArmed stops the workflow otherwise, never moving the trigger); the line falls laserDurationSeconds later, and the laser ends after the longest ramp-down (RampDown).</Description>
+              <Description>One optogenetics trial's laser, the trials one after another (Concat), so the next is armed only once this one ends: Zapit sent the trial's StartStimulus (ArmZapit) and its armed reply checked (CheckZapitArmed: a refusal or the wrong condition stops the workflow); at the trial's trigger (its Go, or -laserToStimulusSeconds after it; SecondsUntil on the Harp clock) the ZapitTrigger line rises, unless the trial was answered before then (UnlessAnswered: no laser), and only if Zapit has answered by then (RequireZapitArmed stops the workflow otherwise, never moving the trigger); the line falls laserDurationSeconds later, and the laser ends after the longest ramp-down (RampDown).</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -3358,6 +3358,14 @@
                     <Name>Timestamp</Name>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
+                  <Expression xsi:type="SubscribeSubject">
+                    <Name>TrialRow</Name>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Name>UnlessAnswered</Name>
+                    <Description>No laser on a trial answered before its trigger (a trigger after the stimulus, Pip 13 Nov 2026): its row logs laserPowerMw 0.</Description>
+                    <Combinator xsi:type="p1:UnlessAnswered" />
+                  </Expression>
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
@@ -3380,7 +3388,9 @@
                   <Edge From="20" To="21" Label="Source1" />
                   <Edge From="21" To="23" Label="Source1" />
                   <Edge From="22" To="23" Label="Source2" />
-                  <Edge From="23" To="24" Label="Source1" />
+                  <Edge From="23" To="43" Label="Source1" />
+                  <Edge From="42" To="43" Label="Source2" />
+                  <Edge From="43" To="24" Label="Source1" />
                   <Edge From="15" To="24" Label="Source2" />
                   <Edge From="24" To="25" Label="Source1" />
                   <Edge From="26" To="25" Label="Source2" />

@@ -377,31 +377,73 @@ public class GoTests
     [TestMethod]
     public void ALickRestartsTheLickWaitAndTheLeadStaysExact()
     {
-        var steps = new Dictionary<double, Action<GoWaiter>> { { 11.0, w => w.Lick(true) }, { 11.2, w => w.Lick(false) } };
+        var steps = new Dictionary<double, Action<GoWaiter>> { { 11.0, w => w.Lick(0, true) }, { 11.2, w => w.Lick(0, false) } };
         var quiet = Run(Trial(0.5, 1.0));                // quiet from 10 s: Go at 11.5, the interval's end less the lead
         Assert.AreEqual(11.5, quiet.goTime, 1e-12);
-        var licked = Run(Trial(0.5, 1.0), steps);         // licked at 11.0 (the clock's last tick): Go at 12.0
-        Assert.AreEqual(12.0, licked.goTime, 1e-9);
-        Assert.AreEqual(0.5, licked.quietWaitSeconds, 1e-9);
-        Assert.AreEqual(12.5, licked.goTime + licked.leadSeconds, 1e-9);
-        steps[11.4] = w => w.Lick(true);                  // a later lick restarts it again
-        Assert.AreEqual(12.4, Run(Trial(0.5, 1.0), steps).goTime, 1e-9);
+        var licked = Run(Trial(0.5, 1.0), steps);         // touched at 11.0, released at 11.2: Go a second after the release
+        Assert.AreEqual(12.2, licked.goTime, 1e-9);
+        Assert.AreEqual(0.7, licked.quietWaitSeconds, 1e-9);
+        Assert.AreEqual(12.7, licked.goTime + licked.leadSeconds, 1e-9);
+        steps[11.4] = w => w.Lick(1, true);               // a later lick on the other spout restarts it again
+        steps[11.45] = w => w.Lick(1, false);
+        Assert.AreEqual(12.45, Run(Trial(0.5, 1.0), steps).goTime, 1e-9);
     }
 
     [TestMethod]
-    public void TheWheelsTotalDistanceRestartsTheWheelWait()
+    public void AHeldContactHoldsGoUntilReleased()
     {
-        // Rocking forward and back 0.6 cm a time: net distance 0, total past 1 cm on the second swing.
+        // A paw on the left spout from 10.5 s to 13 s: no Go while it is held, then a second after the release.
+        var steps = new Dictionary<double, Action<GoWaiter>> { { 10.5, w => w.Lick(0, true) }, { 13.0, w => w.Lick(0, false) } };
+        Assert.AreEqual(14.0, Run(Trial(0.5, 1.0), steps).goTime, 1e-9);
+        // With the lick wait off, a held contact does not matter.
+        Assert.AreEqual(11.5, Run(Trial(0.5), steps).goTime, 1e-9);
+    }
+
+    [TestMethod]
+    public void TheWheelWaitCountsTheLastWheelQuietSeconds()
+    {
+        // Rocking forward and back 0.6 cm a time: net distance 0, 1.2 cm within a second, so Go a second after the first swing.
         var steps = new Dictionary<double, Action<GoWaiter>> { { 11.0, w => w.Wheel(0.6) }, { 11.3, w => w.Wheel(0.0) } };
         var rocked = Run(Trial(0.5, 0, 1.0, 1.0), steps);
-        Assert.AreEqual(12.3, rocked.goTime, 1e-9);
-        Assert.AreEqual(0.8, rocked.quietWaitSeconds, 1e-9);
+        Assert.AreEqual(12.0, rocked.goTime, 1e-9);
+        Assert.AreEqual(0.5, rocked.quietWaitSeconds, 1e-9);
         steps.Remove(11.3);                               // 0.6 cm alone stays within 1 cm
         Assert.AreEqual(11.5, Run(Trial(0.5, 0, 1.0, 1.0), steps).goTime, 1e-9);
         // Each wait restarts on its own; Go needs both.
         steps[11.3] = w => w.Wheel(0.0);
-        steps[11.8] = w => w.Lick(true);
-        Assert.AreEqual(12.8, Run(Trial(0.5, 1.0, 1.0, 1.0), steps).goTime, 1e-9);
+        steps[11.8] = w => w.Lick(0, true);
+        steps[11.85] = w => w.Lick(0, false);
+        Assert.AreEqual(12.85, Run(Trial(0.5, 1.0, 1.0, 1.0), steps).goTime, 1e-9);
+    }
+
+    [TestMethod]
+    public void SlowFidgetingWithinTheThresholdNeverDelaysGo()
+    {
+        // 0.3 cm every 0.4 s through the interval: 1.2 cm in all, past 1 cm, but never more than 0.9 cm within a second.
+        var steps = new Dictionary<double, Action<GoWaiter>>();
+        for (int i = 1; i <= 4; i++) { var cm = 0.3 * i; steps[Math.Round(9.8 + 0.4 * i, 3)] = w => w.Wheel(cm); }
+        Assert.AreEqual(11.5, Run(Trial(0.5, 0, 1.0, 1.0), steps).goTime, 1e-9);
+    }
+
+    [TestMethod]
+    public void ATrialAnsweredBeforeItsTriggerHasNoLaser()
+    {
+        var go = new Trial { trialNumber = 5, goTime = 20, triggerAfterGoSeconds = 0.4, laserOn = true, laserPowerMw = 3 };
+        Assert.IsTrue(UnlessAnswered.LaserSkipped(go, 20.3));
+        Assert.IsFalse(UnlessAnswered.LaserSkipped(go, 20.5));
+        Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.3, go, 20, 0, false).laserPowerMw);
+        Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, go, 20, 0, false).laserPowerMw);
+
+        var trigger = new System.Reactive.Subjects.Subject<Bonsai.Harp.Timestamped<Trial>>();
+        var rows = new System.Reactive.Subjects.BehaviorSubject<Bonsai.Harp.Timestamped<TrialRow>>(
+            new Bonsai.Harp.Timestamped<TrialRow>(new TrialRow { trialNumber = 4 }, 10));   // the last trial's row, replayed
+        var passed = new List<Trial>();
+        new UnlessAnswered().Process(trigger, rows).Subscribe(t => passed.Add(t.Value));
+        trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(go, 20.4));
+        Assert.AreEqual(1, passed.Count, "not answered: the laser fires");
+        rows.OnNext(new Bonsai.Harp.Timestamped<TrialRow>(new TrialRow { trialNumber = 5 }, 20.3));
+        trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(go, 20.4));
+        Assert.AreEqual(1, passed.Count, "answered at 20.3 s, before its 20.4 s trigger: no laser");
     }
 
     [TestMethod]

@@ -12,6 +12,10 @@
 
 - **The error tone and the background noise are resampled to 48 kHz** (Pip's default, taken during the audit): `src\LocalFiles\error_tone.wav` was 50 kHz and `background_white_noise.wav` 44.1 kHz, and nothing converts a WAV's rate, so on the 48 kHz mixer they played 4% low and 9% high in pitch and speed. Both are now 48 kHz, each file's duration and RMS kept (the error tone loses the 4% of its energy above 24 kHz, which 48 kHz cannot carry). This changes what the mice hear against production av-dome and every earlier experiment. Each is checked at its load (`CheckWaveRate`, as the stimulus WAVs are), so a file at another rate stops the workflow.
 
+## 2026-11-13 Audit round 2: Pip's quiet-wait and laser decisions
+
+- The wheel's quiet wait counts the travel in the last `wheelQuietSeconds` (was all travel since the last restart, so slow fidgeting delayed Go); the lick wait needs both spouts released for `lickQuietSeconds` (a held contact holds Go); a trial answered before its trigger (negative `laserToStimulusSeconds`) gets no laser and logs `laserPowerMw` 0, as in coen-dome-navigation (`UnlessAnswered`). Unit-tested and build-checked only.
+
 ## Audit round 2 (13 Nov 2026): not changed
 
 - `QuietWait` is the same class here and in coen-dome-navigation's `Corridor.cs`: moving it into the fork needs a package bump pushed into every in-use workflow, and each copy is tested where it runs. Move it if a third workflow needs it, and change both copies together until then.
