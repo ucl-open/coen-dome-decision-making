@@ -213,8 +213,31 @@ def test_the_constants_are_the_c_sharp_s():
     # Zapit's reply margin is lib-open-rigs' alone (ZapitTrial.ReplyMarginSeconds, ZAPIT_REPLY_MARGIN_SECONDS; audit round 3).
     assert "ZapitTrial.ReplyMarginSeconds" in logic and not re.search(r"const double \w*Margin", logic)
     task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
-    assert "from open_rigs.rigs.dome import ZAPIT_REPLY_MARGIN_SECONDS" in task_py and "= 0.2" not in task_py
+    # The ramp-down and reward caps are lib-open-rigs' too (audit round 4), each tied there to its C# value.
+    assert "from open_rigs.rigs.dome import MAX_REWARD_UL, ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS" in task_py
+    assert not re.search(r"(?m)^[A-Z_]+ = [0-9.]+$", task_py)
     assert "ZapitConditions.MaximumRampDownMs / 1000" in logic
+
+
+def test_a_reward_over_the_cap_is_refused():
+    from open_rigs.rigs.dome import MAX_REWARD_UL
+
+    _with(stage={"rewardSizeUl": MAX_REWARD_UL})
+    with pytest.raises(ValidationError, match="less than or equal to 20"):
+        _with(stage={"rewardSizeUl": MAX_REWARD_UL + 1})
+
+
+def test_a_large_reward_over_the_cap_is_refused():
+    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
+    data["reward"].update({"largeRewardMultiplier": 3, "largeRewardProbability": 0.1})
+    data["trainingStages"][0]["rewardSizeUl"] = 7
+    with pytest.raises(ValidationError, match=r"reward_size_ul \(7.0 ul\) x reward.large_reward_multiplier \(3.0\) is more than 20 ul"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    data["trainingStages"][0]["rewardSizeUl"] = 6
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    data["reward"]["largeRewardProbability"] = 0
+    data["trainingStages"][0]["rewardSizeUl"] = 7
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 def test_the_spout_wait_is_named_by_its_ends():

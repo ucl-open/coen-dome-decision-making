@@ -4,15 +4,11 @@ from typing import Literal
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
 from open_rigs.core.task import Task, TaskParameters
-from open_rigs.rigs.dome import ZAPIT_REPLY_MARGIN_SECONDS
+from open_rigs.rigs.dome import MAX_REWARD_UL, ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from swc.aeon.schema import BaseSchema
 
 from ucl_open_coen_dome_decision_making import __semver__
-
-# The longest ramp-down a Zapit conditions file may have (lib-open-rigs ZapitConditions.MaximumRampDownMs): Zapit
-# refuses the next StartStimulus while a timed stimulus and its ramp-down still play.
-ZAPIT_RAMP_DOWN_SEC = 0.5
 
 
 class TrialStructure(BaseSchema):
@@ -249,7 +245,9 @@ class TrainingStage(BaseSchema):
     )
     auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and still counts as a timeout for repeats")
     both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
-    reward_size_ul: Double = Field(ge=0, description="Reward size, in microlitres; the valve's calibration plans the pulses")
+    reward_size_ul: Double = Field(
+        ge=0, le=MAX_REWARD_UL, description=f"Reward size, in microlitres; the valve's calibration plans the pulses. At most {MAX_REWARD_UL}, the most one reward may ask for, with largeRewardMultiplier applied"
+    )
     contrasts: list[Double] = Field(min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
     allow_repeats: Bool = Field(description="Whether failed trials may be repeated in this stage")
     spout_movements: Bool = Field(
@@ -319,12 +317,25 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             )
         # Trigger to the next trigger is at least open_loop + iti_min (a response at once, no timeout, a quiet mouse); the
         # next arm waits for this laser and its ramp-down, and its reply needs the margin before that next trigger.
-        longest = s.open_loop_seconds + s.iti_min_seconds - ZAPIT_RAMP_DOWN_SEC - ZAPIT_REPLY_MARGIN_SECONDS
+        longest = s.open_loop_seconds + s.iti_min_seconds - ZAPIT_MAX_RAMP_DOWN_SECONDS - ZAPIT_REPLY_MARGIN_SECONDS
         if opto.use_zapit and opto.laser_duration_seconds > longest + 1e-9:
             raise ValueError(
                 f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be at most {longest:g} s (open_loop_seconds + "
-                f"iti_min_seconds - {ZAPIT_RAMP_DOWN_SEC} s ramp-down - {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin), so Zapit can be armed for the next trial in time"
+                f"iti_min_seconds - {ZAPIT_MAX_RAMP_DOWN_SECONDS} s ramp-down - {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin), so Zapit can be armed for the next trial in time"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _large_reward_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # DeliverReward refuses a reward over MaxRewardUl when it plans it, mid-session; refuse it here instead.
+        multiplier = self.reward.large_reward_multiplier
+        if self.reward.large_reward_probability > 0 and multiplier > 1:
+            for index, stage in enumerate(self.training_stages):
+                if stage.reward_size_ul * multiplier > MAX_REWARD_UL + 1e-9:
+                    raise ValueError(
+                        f"training_stages[{index}] ({stage.label}): reward_size_ul ({stage.reward_size_ul} ul) x reward.large_reward_multiplier "
+                        f"({multiplier}) is more than {MAX_REWARD_UL} ul, the most one reward may ask for"
+                    )
         return self
 
 

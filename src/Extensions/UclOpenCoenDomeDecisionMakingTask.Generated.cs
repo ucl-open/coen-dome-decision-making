@@ -1249,11 +1249,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Reward size, in microlitres; the valve's calibration plans the pulses
+        /// Reward size, in microlitres; the valve's calibration plans the pulses. At most 20, the most one reward may ask for, with largeRewardMultiplier applied
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("rewardSizeUl", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="rewardSizeUl")]
-        [System.ComponentModel.DescriptionAttribute("Reward size, in microlitres; the valve\'s calibration plans the pulses")]
+        [System.ComponentModel.DescriptionAttribute("Reward size, in microlitres; the valve\'s calibration plans the pulses. At most 20" +
+            ", the most one reward may ask for, with largeRewardMultiplier applied")]
         public double RewardSizeUl
         {
             get

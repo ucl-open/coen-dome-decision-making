@@ -129,6 +129,7 @@
                   <Value />
                   <Description>Microlitres RewardLeft and RewardRight deliver before Go, taken live; after Go a manual reward is the current trial's size. The task's own reward sizes are the task file's (trainingStages rewardSizeUl).</Description>
                   <Minimum>0</Minimum>
+                  <Maximum>20</Maximum>
                 </Parameter>
                 <Parameter>
                   <Name>SpoutStepSize</Name>

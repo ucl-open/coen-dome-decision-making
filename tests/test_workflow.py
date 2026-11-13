@@ -127,8 +127,15 @@ def test_each_laser_runs_after_the_last_and_its_ramp_down():
     output = next(i for i, n in enumerate(nodes) if n.get(XSI) == "WorkflowOutput")
     ramp = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "RampDown")
     assert (ramp, output, "Source1") in edges
-    from ucl_open_coen_dome_decision_making.task import ZAPIT_RAMP_DOWN_SEC
-    assert float(nodes[ramp].find(W + "Combinator").findtext("{clr-namespace:OpenRigs.Core;assembly=OpenRigs.Core}DueSeconds")) == ZAPIT_RAMP_DOWN_SEC
+    from open_rigs.rigs.dome import ZAPIT_MAX_RAMP_DOWN_SECONDS
+    assert float(nodes[ramp].find(W + "Combinator").findtext("{clr-namespace:OpenRigs.Core;assembly=OpenRigs.Core}DueSeconds")) == ZAPIT_MAX_RAMP_DOWN_SECONDS
+
+
+def test_the_manual_reward_is_capped_as_every_reward():
+    # Audit round 4: ManualRewardUl's Maximum is the lib's MAX_REWARD_UL (DeliverReward's MaxRewardUl).
+    from open_rigs.rigs.dome import MAX_REWARD_UL
+    parameter = next(p for p in MAIN.iter() if p.tag.endswith("Parameter") and p.findtext(W + "Name") == "ManualRewardUl")
+    assert float(parameter.findtext(W + "Maximum")) == MAX_REWARD_UL
 
 
 def test_zapit_adds_no_time_to_the_stimulus():

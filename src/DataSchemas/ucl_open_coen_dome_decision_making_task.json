@@ -319,7 +319,8 @@
           "type": "number"
         },
         "rewardSizeUl": {
-          "description": "Reward size, in microlitres; the valve's calibration plans the pulses",
+          "description": "Reward size, in microlitres; the valve's calibration plans the pulses. At most 20, the most one reward may ask for, with largeRewardMultiplier applied",
+          "maximum": 20,
           "minimum": 0,
           "title": "RewardSizeUl",
           "type": "number"

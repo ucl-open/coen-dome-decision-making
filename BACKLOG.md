@@ -23,6 +23,19 @@
 - A trial records whether its trigger or its outcome came first, and both `UnlessAnswered` and the row's `laserPowerMw` read that record, so a row no longer logs 0 mW when the laser fired.
 - Every rig.yml speaker needs a filter (`DomeSpeakers.RequireFilters`, as coen-dome-navigation); the manual reward's subject is `ManualRewardUl`. Unit-tested and build-checked only.
 
+## 2026-11-13 Audit round 4: changed
+
+- One cap on a reward, lib-open-rigs' `MAX_REWARD_UL` (20 ul, tied there to `LoadRewardLine.DefaultMaxRewardUl` and `DeliverReward`'s `MaxRewardUl`): each stage's `rewardSizeUl` is at most it, the task refuses a stage whose `rewardSizeUl` times `largeRewardMultiplier` passes it while large rewards are on, and `ManualRewardUl`'s `Maximum` is it (tests).
+- The longest Zapit ramp-down is lib-open-rigs' `ZAPIT_MAX_RAMP_DOWN_SECONDS` (tied there to `ZapitConditions.MaximumRampDownMs`); `RampDown`'s 0.5 s is tested against it.
+
+## Audit round 4 (13 Nov 2026): not changed
+
+- coen-qc-calibrate-valve and the domes pace pulses on different Harp-synced devices, about 1 ms apart.
+- `ReadTextFile.cs` is duplicated in both dome workflows; moving it to a lab package costs a package bump.
+- No trigger or Go time column; both follow from `itiStartTime`, `itiSeconds`, the lead and `quietWaitSeconds`.
+- `choiceTime` is the latest Harp tick when the choice is read, not the deciding lick's own timestamp.
+- A skipped trial leaves Zapit armed; the next trial disarms it.
+
 ## Audit round 3 (13 Nov 2026): not changed
 
 - coen-dome-decision-making: a laser-off control trial and a laser trial skipped because it was answered first look alike in the row (`laserPowerMw` 0); which one follows from `choiceTime` and the lead.
