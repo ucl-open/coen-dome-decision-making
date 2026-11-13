@@ -49,8 +49,10 @@ $ownStreams = @('BonsaiData_ZapitReplies', 'Settings_ZapitConditions')
 $retired = @{ trialColumns = @('optoStimulated', 'optoCondition', 'visualAzimuth', 'visualElevation', 'visualPhase', 'audioAzimuth', 'audioElevation'); streams = @('Zapit') }
 foreach ($s in $ownStreams) { if ($streams -notcontains $s) { $streams += $s; $added += "stream $s" } }
 $es = [ordered]@{}; foreach ($p in $prev.experimentSettings.PSObject.Properties) { $es[$p.Name] = $p.Value }
-# usedBy as it was, with this repo on each of its names (the lab's Settings_* and calibration streams
-# it already writes are tagged by whoever saves the list).
+# The lab's names this workflow also uses: tagged here too, so none leaves the list while this workflow needs it.
+$sharedStreams = @('Settings_Rig', 'Settings_Task', 'Settings_Experiment', 'ValveCalibrationDO1', 'ValveCalibrationDO2')
+$settings = @('TrainingStage', 'ManualRewardUl', 'SpoutStepSize')
+# usedBy as it was, with this repo on each of its names.
 $usedBy = [ordered]@{}
 foreach ($section in 'streams', 'experimentSettings', 'trialColumns') {
     $usedBy[$section] = [ordered]@{}
@@ -64,6 +66,8 @@ function Add-Tag([string]$Section, [string]$Name) {
 }
 foreach ($name in $cols.PSObject.Properties.Name) { Add-Tag 'trialColumns' $name }
 foreach ($s in $ownStreams) { Add-Tag 'streams' $s }
+foreach ($s in $sharedStreams) { if ($streams -notcontains $s) { throw "stream $s is not on the list" }; Add-Tag 'streams' $s }
+foreach ($k in $settings) { if (-not $es.Contains($k)) { throw "setting $k is not on the list" }; Add-Tag 'experimentSettings' $k }
 $removed = @()
 foreach ($section in $retired.Keys) {
     foreach ($name in $retired[$section]) {
