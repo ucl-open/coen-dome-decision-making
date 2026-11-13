@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Linq;
-using UclOpenAvDomeTask;
+using UclOpenCoenDomeDecisionMakingTask;
 using System.IO;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -38,12 +38,12 @@ public class InitialiseTrial
     // corridor's does: it was a console warning, and every trial ran with the laser off (audit, 10 Nov 2026).
     private List<int> zapitConditions;
 
-    public IObservable<Trial> Process(IObservable<Tuple<string, UclOpenAvDomeTaskLogic>> source)
+    public IObservable<Trial> Process(IObservable<Tuple<string, UclOpenCoenDomeDecisionMakingTaskLogic>> source)
     {
         return source.Select(value =>
         {
             string previousOutcome = value.Item1;
-            UclOpenAvDomeTaskParameters parameters = value.Item2.TaskParameters;
+            UclOpenCoenDomeDecisionMakingTaskParameters parameters = value.Item2.TaskParameters;
             TrainingStage stage = GetTrainingStage(parameters);
 
             EnsureRandomInitialised(parameters);
@@ -85,7 +85,7 @@ public class InitialiseTrial
         });
     }
 
-    private void EnsureRandomInitialised(UclOpenAvDomeTaskParameters parameters)
+    private void EnsureRandomInitialised(UclOpenCoenDomeDecisionMakingTaskParameters parameters)
     {
         if (trialRand != null) return;
         int seed;
@@ -105,7 +105,7 @@ public class InitialiseTrial
     // validators, so the rules the draws depend on are checked here, once, before the first trial.
     private bool configChecked;
 
-    private void EnsureConfigChecked(UclOpenAvDomeTaskParameters parameters)
+    private void EnsureConfigChecked(UclOpenCoenDomeDecisionMakingTaskParameters parameters)
     {
         if (configChecked) return;
         var visual = parameters.VisualStimulus;
@@ -139,7 +139,7 @@ public class InitialiseTrial
         configChecked = true;
     }
 
-    private TrainingStage GetTrainingStage(UclOpenAvDomeTaskParameters parameters)
+    private TrainingStage GetTrainingStage(UclOpenCoenDomeDecisionMakingTaskParameters parameters)
     {
         var stages = parameters.TrainingStages;
         if (stages == null || stages.Count == 0)
@@ -152,7 +152,7 @@ public class InitialiseTrial
         return stages[index];
     }
 
-    private bool ShouldRepeatTrial(UclOpenAvDomeTaskParameters parameters, TrainingStage stage, string previousOutcome)
+    private bool ShouldRepeatTrial(UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage, string previousOutcome)
     {
         // Don't repeat if no previous trial (the first trial), max repeats reached,
         // or the current stage disables repeats.
@@ -179,7 +179,7 @@ public class InitialiseTrial
         }
     }
 
-    private Trial GenerateNewTrial(UclOpenAvDomeTaskParameters parameters, TrainingStage stage)
+    private Trial GenerateNewTrial(UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage)
     {
         var trialData = new Trial();
         trialData.rngSeedUsed = rngSeedUsed;
@@ -373,7 +373,7 @@ public class InitialiseTrial
         return conditions;
     }
 
-    private void SetupOptogeneticParameters(Trial trialData, UclOpenAvDomeTaskParameters parameters, Random rand)
+    private void SetupOptogeneticParameters(Trial trialData, UclOpenCoenDomeDecisionMakingTaskParameters parameters, Random rand)
     {
         // Default: no optogenetic stimulation
         ClearOptogeneticParameters(trialData);
@@ -533,7 +533,7 @@ public class InitialiseTrial
         trial.audioElevation = CentreAudioElevation;
     }
 
-    private void SetupUnisensoryVisualTrial(Trial trial, UclOpenAvDomeTaskParameters parameters, TrainingStage stage, Random rand)
+    private void SetupUnisensoryVisualTrial(Trial trial, UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage, Random rand)
     {
         // For unisensory visual: visual stimulus with non-zero contrast anywhere in the configured
         // region, auditory stimulus at the centre
@@ -563,7 +563,7 @@ public class InitialiseTrial
         trial.IsRewarded = drawRandomBasedOnProbability(trial.RewardProbability, rand);
     }
 
-    private void SetupUnisensoryAudioTrial(Trial trial, UclOpenAvDomeTaskParameters parameters, TrainingStage stage, Random rand)
+    private void SetupUnisensoryAudioTrial(Trial trial, UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage, Random rand)
     {
         // For unisensory audio: zero contrast (gray screen), auditory stimulus drawn from the
         // configured speaker locations
@@ -598,7 +598,7 @@ public class InitialiseTrial
     // Discrimination: the answer is the modality, not the side. A target trial presents the
     // target modality and is answered at the left spout; a distractor trial presents the other
     // modality and is answered at the right spout. Visual-only trials are silent.
-    private void SetupDiscriminationTrial(Trial trial, UclOpenAvDomeTaskParameters parameters, TrainingStage stage, Random rand, bool isTarget)
+    private void SetupDiscriminationTrial(Trial trial, UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage, Random rand, bool isTarget)
     {
         bool visual = (parameters.TargetModality == Modality.Visual) == isTarget;
         if (visual) SetupUnisensoryVisualTrial(trial, parameters, stage, rand);
@@ -607,7 +607,7 @@ public class InitialiseTrial
         trial.audioEnabled = !visual;
     }
 
-    private void SetupMultisensoryCoherentTrial(Trial trial, UclOpenAvDomeTaskParameters parameters, TrainingStage stage, Random rand)
+    private void SetupMultisensoryCoherentTrial(Trial trial, UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage, Random rand)
     {
         // For coherent trials: visual and auditory stimuli on same side
 
@@ -628,7 +628,7 @@ public class InitialiseTrial
         trial.IsRewarded = drawRandomBasedOnProbability(trial.RewardProbability, rand);
     }
 
-    private void SetupMultisensoryConflictTrial(Trial trial, UclOpenAvDomeTaskParameters parameters, TrainingStage stage, Random rand)
+    private void SetupMultisensoryConflictTrial(Trial trial, UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage, Random rand)
     {
         // For conflict trials: visual and auditory stimuli on opposite sides
 
@@ -650,7 +650,7 @@ public class InitialiseTrial
         trial.IsRewarded = drawRandomBasedOnProbability(trial.RewardProbability, rand);
     }
 
-    private void SetupNeutralTrial(Trial trial, UclOpenAvDomeTaskParameters parameters, TrainingStage stage, Random rand)
+    private void SetupNeutralTrial(Trial trial, UclOpenCoenDomeDecisionMakingTaskParameters parameters, TrainingStage stage, Random rand)
     {
         // For neutral trials: zero contrast (gray screen), auditory stimulus at the centre
 

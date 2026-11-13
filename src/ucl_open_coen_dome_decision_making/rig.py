@@ -15,7 +15,7 @@ from open_rigs.devices import (
 # driver's wiring: (what each line or motor is connected to).
 from open_rigs.rigs.behaviour_box import BehaviorBoard, HarpStepperDriver, SpinnakerCamera
 
-from ucl_open_av_dome import __semver__
+from ucl_open_coen_dome_decision_making import __semver__
 
 
 class ZapitServer(BaseSchema):
@@ -68,8 +68,8 @@ class RewardValves(BaseSchema):
         return self
 
 
-class UclOpenAvDomeRig(Rig):
-    """Rig configuration for the av-dome experiment.
+class UclOpenCoenDomeDecisionMakingRig(Rig):
+    """Rig configuration for the coen-dome-decision-making experiment.
 
     Each kind of device is a group of named entries, as the lab's rig.yml (open_rigs.rigs.behaviour_box):
     the name in the data is the kind and the entry joined by a hyphen, so behaviorBoard: main: is

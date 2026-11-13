@@ -67,7 +67,7 @@ def test_the_stimulus_is_commanded_as_execute_trial_starts():
 
 
 def test_never_read_fields_say_so():
-    from ucl_open_av_dome.task import RewardSettings, TrialStructure
+    from ucl_open_coen_dome_decision_making.task import RewardSettings, TrialStructure
     for model, field in ((TrialStructure, "quiescent_min_seconds"), (TrialStructure, "quiescent_max_seconds"),
                          (RewardSettings, "reward_probability")):
         assert "Not used" in model.model_fields[field].description

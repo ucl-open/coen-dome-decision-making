@@ -7,7 +7,7 @@ from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
 from open_rigs.core.task import Task, TaskParameters
 
-from ucl_open_av_dome import __semver__
+from ucl_open_coen_dome_decision_making import __semver__
 
 TRIAL_TYPE_COUNT = 5
 """Trial types, by index: 0 unisensory visual, 1 unisensory audio, 2 multisensory coherent,
@@ -242,8 +242,8 @@ class TrainingStage(BaseSchema):
         return value
 
 
-class UclOpenAvDomeTaskParameters(TaskParameters):
-    """Task parameters for the av-dome audiovisual tasks: localization and discrimination."""
+class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
+    """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and discrimination."""
 
     task_type: TaskType = Field(
         default=TaskType.LOCALIZATION,
@@ -273,9 +273,9 @@ class UclOpenAvDomeTaskParameters(TaskParameters):
         return value
 
 
-class UclOpenAvDomeTaskLogic(Task):
-    """Task logic definition for the av-dome experiment."""
+class UclOpenCoenDomeDecisionMakingTaskLogic(Task):
+    """Task logic definition for the coen-dome-decision-making experiment."""
 
     version: Literal[__semver__] = __semver__
-    name: Literal["UclOpenAvDome"] = Field(default="UclOpenAvDome", description="Name of the task logic", frozen=True)
-    task_parameters: UclOpenAvDomeTaskParameters = Field(description="Parameters of the task logic")
+    name: Literal["UclOpenCoenDomeDecisionMaking"] = Field(default="UclOpenCoenDomeDecisionMaking", description="Name of the task logic", frozen=True)
+    task_parameters: UclOpenCoenDomeDecisionMakingTaskParameters = Field(description="Parameters of the task logic")

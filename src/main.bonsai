@@ -2,7 +2,7 @@
 <WorkflowBuilder Version="2.9.0"
                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                  xmlns:p1="clr-namespace:;assembly=Extensions"
-                 xmlns:p2="clr-namespace:UclOpenAvDome;assembly=Extensions"
+                 xmlns:p2="clr-namespace:UclOpenCoenDomeDecisionMaking;assembly=Extensions"
                  xmlns:uoc="clr-namespace:OpenRigs.Core;assembly=OpenRigs.Core"
                  xmlns:orcl="clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control"
                  xmlns:hd="clr-namespace:OpenRigs.HarpDevices;assembly=OpenRigs.HarpDevices"
@@ -22,7 +22,7 @@
                  xmlns:p5="clr-namespace:OpenCV.Net;assembly=OpenCV.Net"
                  xmlns:io="clr-namespace:Bonsai.IO;assembly=Bonsai.System"
                  xmlns:orl="clr-namespace:OpenRigs.Logging;assembly=OpenRigs.Logging"
-                 xmlns:p6="clr-namespace:UclOpenAvDomeTask;assembly=Extensions"
+                 xmlns:p6="clr-namespace:UclOpenCoenDomeDecisionMakingTask;assembly=Extensions"
                  xmlns:cv="clr-namespace:Bonsai.Vision;assembly=Bonsai.Vision"
                  xmlns:wie="clr-namespace:Bonsai.Windows.Input;assembly=Bonsai.Windows.Input"
                  xmlns="https://bonsai-rx.org/2018/workflow">
@@ -62,7 +62,7 @@
               </Workflow>
             </Expression>
             <Expression xsi:type="p2:DeserializeFromYaml">
-              <p2:Type xsi:type="TypeMapping" TypeArguments="p2:UclOpenAvDomeRig" />
+              <p2:Type xsi:type="TypeMapping" TypeArguments="p2:UclOpenCoenDomeDecisionMakingRig" />
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Take">
@@ -3011,7 +3011,7 @@
               <Combinator xsi:type="p2:ReadTextFile" />
             </Expression>
             <Expression xsi:type="p6:DeserializeFromYaml">
-              <p6:Type xsi:type="TypeMapping" TypeArguments="p6:UclOpenAvDomeTaskLogic" />
+              <p6:Type xsi:type="TypeMapping" TypeArguments="p6:UclOpenCoenDomeDecisionMakingTaskLogic" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TaskConfig</Name>
@@ -5141,7 +5141,7 @@
             <Expression xsi:type="mf:ExperimentManifest">
               <Name>ExperimentManifest</Name>
               <Description>Writes manifest.json into the experiment folder (OpenRigs.Manifest), finding PathPrefix itself: once when the folder appears and again when the workflow stops. No run is connected: an experiment ends with the controller's Stop, recorded as stopped with its reason. It records the machine, this repo's commit, Bonsai's command line, who launched it and sent Go (every parameter at Go is in Settings_Experiment), rig.yml's path and hash and, each by its hash, the calibration files it and the workflow read by path (MeshMap.csv, gammalut.bmp, every file in AuditoryStimuli, the speakers' filters) and this mouse's spout positions (LickSpoutPositions\{SubjectId}.csv), what each BonsaiData_Trial column means (schemas\trial-columns.yml, copied in at Start), and what the experiment must leave: a folder for each device in rig.yml (BehaviorBoard-Main, TimestampGeneratorGen3-Main, StepperDriver-A/B, LicketySplit-Left/Right, Camera-Face/Pupil/Body), the record and register map RecordHarpDevices writes for each Harp device (harp), each of the three settings files in Settings (Settings/Settings_Rig_, Settings/Settings_Task_, Settings/Settings_Experiment_, each expected on its own) and BonsaiData (BonsaiData_Trial and BonsaiData_Async), which the overnight copy (rig-sync) alarms on if missing.</Description>
-              <mf:IngestScript>av-dome</mf:IngestScript>
+              <mf:IngestScript>coen-dome-decision-making</mf:IngestScript>
               <mf:ConfigFiles>C:\Coen-Lab-Local\RigConfigs\%COMPUTERNAME%\rig.yml;C:\Coen-Lab-Local\RigConfigs\%COMPUTERNAME%\calibration\MeshMap.csv;C:\Coen-Lab-Local\RigConfigs\%COMPUTERNAME%\calibration\gammalut.bmp;C:\Coen-Lab-Local\RigConfigs\%COMPUTERNAME%\calibration\AuditoryStimuli;C:\Coen-Lab-Local\RigConfigs\%COMPUTERNAME%\calibration\speaker-left.json;C:\Coen-Lab-Local\RigConfigs\%COMPUTERNAME%\calibration\speaker-right.json;C:\Coen-Lab-Local\RigConfigs\%COMPUTERNAME%\calibration\LickSpoutPositions\{SubjectId}.csv</mf:ConfigFiles>
               <mf:ExpectedFiles>auto;harp;Settings/Settings_Rig_;Settings/Settings_Task_;Settings/Settings_Experiment_;BonsaiData/</mf:ExpectedFiles>
               <mf:TrialColumns>schemas\trial-columns.yml</mf:TrialColumns>

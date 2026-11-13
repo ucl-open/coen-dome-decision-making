@@ -1,12 +1,12 @@
 import os
 
-from ucl_open_av_dome.task import (
-    UclOpenAvDomeTaskLogic,
-    UclOpenAvDomeTaskParameters,
+from ucl_open_coen_dome_decision_making.task import (
+    UclOpenCoenDomeDecisionMakingTaskLogic,
+    UclOpenCoenDomeDecisionMakingTaskParameters,
 )
 
-task_logic = UclOpenAvDomeTaskLogic(
-    task_parameters=UclOpenAvDomeTaskParameters(),
+task_logic = UclOpenCoenDomeDecisionMakingTaskLogic(
+    task_parameters=UclOpenCoenDomeDecisionMakingTaskParameters(),
 )
 
 def main(path_seed: str = "./local/{schema}.json"):

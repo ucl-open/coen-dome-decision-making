@@ -1,7 +1,7 @@
 param([switch]$Apply, [string]$ListPath = 'K:\config\data-dictionary.json')
 # Adds this workflow's trial columns (schemas\trial-columns.yml) and its own streams to the lab's
 # names list (K:\config\data-dictionary.json), which rig-control checks before it launches the
-# workflow, and tags each name this workflow uses with av-dome (usedBy; every other
+# workflow, and tags each name this workflow uses with coen-dome-decision-making (usedBy; every other
 # repo's tags are kept). Names it no longer writes ($retired) lose its tag, and leave the list when
 # no other repo is tagged on them. Without -Apply it only says what it would change. -Apply saves through
 # rig-setup's own Save-NamesDictionary, which refuses if the file changed since it was read, backs it
@@ -10,7 +10,7 @@ param([switch]$Apply, [string]$ListPath = 'K:\config\data-dictionary.json')
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\add-names.ps1 [-Apply]
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
-$me = 'av-dome'
+$me = 'coen-dome-decision-making'
 $rigSetup = 'C:\Github\Coen-Lab\rig-setup'
 . "$rigSetup\engine\detect.ps1"
 . "$rigSetup\engine\device-names.ps1"
@@ -31,7 +31,7 @@ foreach ($p in $cols.PSObject.Properties) {
     $tc[$p.Name] = [ordered]@{ type = $p.Value.type; description = $p.Value.description }
     $added += "column $($p.Name)"
 }
-# The lab-wide meaning of the laser columns av-dome shares (audit, 10 Nov 2026): the list said "sham" and
+# The lab-wide meaning of the laser columns this workflow shares (audit, 10 Nov 2026): the list said "sham" and
 # fitted coen-dome-navigation only. Its scripts\add-names.ps1 sets the same text: change both together.
 $labDescriptions = [ordered]@{
     laserCondition = 'The Zapit condition (stimLocations number, from 1) sent to Zapit this trial, 0 when none was sent. Whether the laser was on is laserPowerMw > 0; each workflow''s trial-columns.yml says when a condition goes with the laser off.'
@@ -85,6 +85,6 @@ $body = [ordered]@{ streams = $streams; experimentSettings = $es; trialColumns =
 if ($Apply -and ($added -or $tagged -or $removed -or $described)) {
     $what = @($(if ($added) { "added $($added -join ', ')" }), $(if ($tagged) { "tagged $($tagged -join ', ') with $me" }),
               $(if ($removed) { "removed $($removed -join ', ')" }), $(if ($described) { "described $($described -join ', ')" })) -join '; '
-    $r = Save-NamesDictionary -Path $path -Body $body -Previous $prev -Was $was -By 'PC' -What "$what (av-dome pip/main-switchover)"
+    $r = Save-NamesDictionary -Path $path -Body $body -Previous $prev -Was $was -By 'PC' -What "$what (coen-dome-decision-making)"
     "saved: $($r.Ok) $($r.Detail)"
 }

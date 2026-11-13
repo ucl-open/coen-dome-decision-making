@@ -25,7 +25,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $self = $MyInvocation.MyCommand.Path
 $repo = Split-Path -Parent (Split-Path -Parent $self)
-$bin = Join-Path ([IO.Path]::GetTempPath()) 'av-dome-check'
+$bin = Join-Path ([IO.Path]::GetTempPath()) 'coen-dome-decision-making-check'
 $bonsaiDir = Join-Path $repo '.bonsai'
 $workflows = 'main.bonsai', 'CalibrateValve.bonsai', 'CameraFrameMonitor.bonsai'
 
@@ -239,8 +239,8 @@ if ($Step -eq 'RigDevice') {
     $wait = [System.Reactive.Linq.Observable].GetMethods() | Where-Object { $_.Name -eq 'Wait' -and $_.GetParameters().Count -eq 1 } | Select-Object -First 1
     function New-RigYamlExpression {
         $x = $E::Constant([System.Reactive.Linq.Observable]::Return($yaml), [IObservable[string]])
-        $des = New-Object UclOpenAvDome.DeserializeFromYaml
-        $des.Type = [Activator]::CreateInstance([Bonsai.Expressions.TypeMapping`1].MakeGenericType([UclOpenAvDome.UclOpenAvDomeRig]))
+        $des = New-Object UclOpenCoenDomeDecisionMaking.DeserializeFromYaml
+        $des.Type = [Activator]::CreateInstance([Bonsai.Expressions.TypeMapping`1].MakeGenericType([UclOpenCoenDomeDecisionMaking.UclOpenCoenDomeDecisionMakingRig]))
         return $des.Build([Linq.Expressions.Expression[]]@($x))
     }
     # rig.yml text -> DeserializeFromYaml -> MemberSelector -> RigDevice, as RigSetup chains them.
@@ -249,7 +249,7 @@ if ($Step -eq 'RigDevice') {
         $sel = New-Object Bonsai.Expressions.MemberSelectorBuilder; $sel.Selector = $Member
         $x = $sel.Build([Linq.Expressions.Expression[]]@($x))
         $cb = New-Object Bonsai.Expressions.CombinatorBuilder
-        $rd = New-Object UclOpenAvDome.RigDevice; $rd.Name = $Name; $cb.Combinator = $rd
+        $rd = New-Object UclOpenCoenDomeDecisionMaking.RigDevice; $rd.Name = $Name; $cb.Combinator = $rd
         $x = $cb.Build([Linq.Expressions.Expression[]]@($x))
         $call = $E::Call($wait.MakeGenericMethod($x.Type.GetGenericArguments()[0]), $x)
         return $E::Lambda($E::Convert($call, [object])).Compile().DynamicInvoke()
@@ -278,16 +278,16 @@ if ($Step -eq 'RigDevice') {
     # assumed: swapped in rig.yml, swapped in the workflow; one line for both, the Zapit TTL's line,
     # or no rewardValves at all is refused at startup.
     $x = New-RigYamlExpression
-    $readRig = { $E::Lambda($E::Convert($E::Call($wait.MakeGenericMethod([UclOpenAvDome.UclOpenAvDomeRig]), $x), [object])).Compile().DynamicInvoke() }
+    $readRig = { $E::Lambda($E::Convert($E::Call($wait.MakeGenericMethod([UclOpenCoenDomeDecisionMaking.UclOpenCoenDomeDecisionMakingRig]), $x), [object])).Compile().DynamicInvoke() }
     $sides = { param($r) (@([RewardSide]::Left, [RewardSide]::Right) | ForEach-Object { try { 'DO' + [LoadSideRewardLine]::LineOf($r, $_) } catch { $e = $_.Exception; while ($e.InnerException) { $e = $e.InnerException }; 'refused: ' + $e.Message } }) -join ' / ' }
     $rig = & $readRig
     $got = & $sides $rig
     if ($got -eq 'DO1 / DO2') { "  ok    rewardValves: left DO1, right DO2 as the template says" } else { "  FAIL  rewardValves read as $got"; $failed++ }
-    $rig.RewardValves.Left = [UclOpenAvDome.ValveLine]::DO2; $rig.RewardValves.Right = [UclOpenAvDome.ValveLine]::DO1
+    $rig.RewardValves.Left = [UclOpenCoenDomeDecisionMaking.ValveLine]::DO2; $rig.RewardValves.Right = [UclOpenCoenDomeDecisionMaking.ValveLine]::DO1
     $got = & $sides $rig
     if ($got -eq 'DO2 / DO1') { "  ok    rewardValves swapped: left DO2, right DO1" } else { "  FAIL  swapped rewardValves read as $got"; $failed++ }
-    foreach ($c in @(@('both DO1', { $rig.RewardValves.Right = [UclOpenAvDome.ValveLine]::DO1; $rig.RewardValves.Left = [UclOpenAvDome.ValveLine]::DO1 }, 'to both sides'),
-                     @('left DO3, the Zapit line', { $rig.RewardValves.Left = [UclOpenAvDome.ValveLine]::DO3; $rig.RewardValves.Right = [UclOpenAvDome.ValveLine]::DO2 }, 'zapit.triggerLine'),
+    foreach ($c in @(@('both DO1', { $rig.RewardValves.Right = [UclOpenCoenDomeDecisionMaking.ValveLine]::DO1; $rig.RewardValves.Left = [UclOpenCoenDomeDecisionMaking.ValveLine]::DO1 }, 'to both sides'),
+                     @('left DO3, the Zapit line', { $rig.RewardValves.Left = [UclOpenCoenDomeDecisionMaking.ValveLine]::DO3; $rig.RewardValves.Right = [UclOpenCoenDomeDecisionMaking.ValveLine]::DO2 }, 'zapit.triggerLine'),
                      @('no rewardValves', { $rig.RewardValves = $null }, 'rig.yml has no rewardValves'))) {
         & $c[1]
         $got = & $sides $rig
@@ -305,7 +305,7 @@ if ($Step -eq 'RigDevice') {
     try {
         $x = New-RigYamlExpression
         $cb = New-Object Bonsai.Expressions.CombinatorBuilder
-        $ser = New-Object UclOpenAvDome.SerializeToJson; $ser.Formatting = 'Indented'; $cb.Combinator = $ser
+        $ser = New-Object UclOpenCoenDomeDecisionMaking.SerializeToJson; $ser.Formatting = 'Indented'; $cb.Combinator = $ser
         $x = $cb.Build([Linq.Expressions.Expression[]]@($x))
         $json = $E::Lambda($E::Call($wait.MakeGenericMethod([string]), $x)).Compile().DynamicInvoke()
         $jsonKeys = New-Object System.Collections.Generic.List[string]
@@ -328,7 +328,7 @@ if ($Step -eq 'RigDevice') {
 if ($Step -eq 'Checks') {
     Initialize-Assemblies
     $failed = 0
-    # Each task file as the workflow reads it at Go (UclOpenAvDomeTask's DeserializeFromYaml: no
+    # Each task file as the workflow reads it at Go (UclOpenCoenDomeDecisionMakingTask's DeserializeFromYaml: no
     # unknown key), rig-control's copy of it being the same file with values changed. And TaskPath
     # is the launch property rig-control sets, the task file no parameter.
     $null = [Reflection.Assembly]::LoadFrom($script:resolveMap['YamlDotNet'])
@@ -336,7 +336,7 @@ if ($Step -eq 'Checks') {
         try {
             # The workflow's builder, but for its date converter, which PowerShell cannot construct: a task file holds no dates.
             $d = (New-Object YamlDotNet.Serialization.DeserializerBuilder).Build()
-            $c = $d.Deserialize((New-Object IO.StringReader ([IO.File]::ReadAllText($file.FullName))), [UclOpenAvDomeTask.UclOpenAvDomeTaskLogic])
+            $c = $d.Deserialize((New-Object IO.StringReader ([IO.File]::ReadAllText($file.FullName))), [UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskLogic])
             if ($c.TaskParameters.TrainingStages.Count -gt 0) { "  ok    config\$($file.Name) reads as the workflow reads it at Go" }
             else { "  FAIL  config\$($file.Name) has no trainingStages"; $failed++ }
         } catch { $x = $_.Exception; while ($x.InnerException) { $x = $x.InnerException }; "  FAIL  config\$($file.Name): $($x.Message)"; $failed++ }
@@ -347,7 +347,7 @@ if ($Step -eq 'Checks') {
     Add-Type -ReferencedAssemblies (@($script:resolveMap['Extensions'], 'System.Core') + $rx) -TypeDefinition @'
 using System; using System.Collections.Generic; using System.Linq; using System.Reactive.Linq;
 public static class DrawTrials {
-    public static List<Trial> Draw(UclOpenAvDomeTask.UclOpenAvDomeTaskLogic task, int stage, int count) {
+    public static List<Trial> Draw(UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskLogic task, int stage, int count) {
         var draw = new InitialiseTrial { trainingStageId = stage, TrialType = -1 };
         return draw.Process(Enumerable.Repeat(Tuple.Create("Correct", task), count).ToObservable()).ToEnumerable().ToList();
     }
@@ -355,7 +355,7 @@ public static class DrawTrials {
 '@
     function Read-Task([string]$Name) {
         $d = (New-Object YamlDotNet.Serialization.DeserializerBuilder).Build()
-        $t = $d.Deserialize((New-Object IO.StringReader ([IO.File]::ReadAllText((Join-Path $repo "config\$Name")))), [UclOpenAvDomeTask.UclOpenAvDomeTaskLogic])
+        $t = $d.Deserialize((New-Object IO.StringReader ([IO.File]::ReadAllText((Join-Path $repo "config\$Name")))), [UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskLogic])
         $t.TaskParameters.Optogenetics.UseZapit = $false  # no Zapit config on this machine
         $t
     }
@@ -373,7 +373,7 @@ public static class DrawTrials {
         Test-Trials 'localization: each trial type is logged by its name' $loc { param($t) $t.trialTypeName -ceq $names[$t.trialType] }
         foreach ($modality in 'Visual', 'Auditory') {
             $task = Read-Task 'task-discrimination.yml'
-            $task.TaskParameters.TargetModality = [UclOpenAvDomeTask.Modality]$modality
+            $task.TaskParameters.TargetModality = [UclOpenCoenDomeDecisionMakingTask.Modality]$modality
             $visualTarget = $modality -eq 'Visual'
             $all = [DrawTrials]::Draw($task, 3, 300)
             Test-Trials "discrimination, $($modality.ToLower()) target: target trials answer left, distractors right, by modality" $all {
@@ -499,10 +499,10 @@ if ($Step -eq 'Audio') {
     Write-Filter 'asym' ([double[]](1, 0.5, 0.25)) 48000
     Write-Filter 'rate' $sym 44100
     function New-Speakers([string]$Filter) {
-        $a = New-Object UclOpenAvDome.SpeakerArray; $a.Device.SampleRate = 48000
-        $a.Speakers = New-Object 'System.Collections.Generic.Dictionary[string,UclOpenAvDome.Speaker]'
-        $l = New-Object UclOpenAvDome.Speaker; $l.Channel = 0; $l.Filter = $Filter; $a.Speakers.Add('left', $l)
-        $c = New-Object UclOpenAvDome.Speaker; $c.Channel = 2; $c.Filter = 'calibration/sym.json'; $a.Speakers.Add('centre', $c)
+        $a = New-Object UclOpenCoenDomeDecisionMaking.SpeakerArray; $a.Device.SampleRate = 48000
+        $a.Speakers = New-Object 'System.Collections.Generic.Dictionary[string,UclOpenCoenDomeDecisionMaking.Speaker]'
+        $l = New-Object UclOpenCoenDomeDecisionMaking.Speaker; $l.Channel = 0; $l.Filter = $Filter; $a.Speakers.Add('left', $l)
+        $c = New-Object UclOpenCoenDomeDecisionMaking.Speaker; $c.Channel = 2; $c.Filter = 'calibration/sym.json'; $a.Speakers.Add('centre', $c)
         return $a
     }
     function Get-Refusal([scriptblock]$Run) {

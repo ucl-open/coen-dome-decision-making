@@ -1,6 +1,8 @@
-# av-dome
+# coen-dome-decision-making
 
-The audiovisual dome task, as an open-rigs project: `src\main.bonsai` in the Bonsai environment under `.bonsai\`, C# operators in `src\Extensions\`, the task files in `config\`, and the rig's hardware in `C:\Coen-Lab-Local\RigConfigs\<MACHINE-NAME>\rig.yml` (start from `config\rig-template.yml`).
+The audiovisual dome decision-making tasks (localisation and discrimination), as an open-rigs project. It was `ucl-open/av-dome`'s `pip/main-switchover` branch until 13 Nov 2026, moved here with its history (Pip) so production av-dome is never touched. A mouse's experiments recorded as av-dome before the move count as this workflow's: anything that reads a mouse's history (a stage suggestion, for one) reads both.
+
+The workflow is laid out as: `src\main.bonsai` in the Bonsai environment under `.bonsai\`, C# operators in `src\Extensions\`, the task files in `config\`, and the rig's hardware in `C:\Coen-Lab-Local\RigConfigs\<MACHINE-NAME>\rig.yml` (start from `config\rig-template.yml`).
 
 ## Running an experiment
 
@@ -12,7 +14,7 @@ The workflow has no window of its own. It runs under rig-control (Coen-Lab/rig-c
 | `ManualRewardUl` | 3 | Microlitres `RewardLeft` and `RewardRight` deliver before Go, taken live; after Go a manual reward is the current trial's size |
 | `SpoutStepSize` | 150 | Motor steps per spout nudge, taken live |
 
-The task's own settings (reward sizes, inter-trial intervals, optogenetics and the rest) are the task file's. rig-control writes it (lib-open-rigs settings-files plan): the file chosen at launch from `config\task*.yml`, with the fields edited on the Experiment page and any null `rngSeed` drawn, checked against `src\DataSchemas\ucl_open_av_dome_task.json`, at the path it passes as `TaskPath`, which the workflow reads at Go. From the editor `TaskPath` is `config\task-localization.yml` as it is.
+The task's own settings (reward sizes, inter-trial intervals, optogenetics and the rest) are the task file's. rig-control writes it (lib-open-rigs settings-files plan): the file chosen at launch from `config\task*.yml`, with the fields edited on the Experiment page and any null `rngSeed` drawn, checked against `src\DataSchemas\ucl_open_coen_dome_decision_making_task.json`, at the path it passes as `TaskPath`, which the workflow reads at Go. From the editor `TaskPath` is `config\task-localization.yml` as it is.
 
 Commands, while ready or recording: `RewardLeft` and `RewardRight` (a flush), `SpoutsHome`, `SpoutsIn`, `SpoutsOut`, `SaveSpoutPositions` (to `<rig config>\calibration\LickSpoutPositions\<SubjectId>.csv`), and the nudges `LeftUp`, `LeftDown`, `RightUp`, `RightDown`, `LeftFront`, `LeftBack`, `RightFront`, `RightBack`, `BaseLeft`, `BaseRight`.
 

@@ -438,11 +438,11 @@
       "title": "TrialStructure",
       "type": "object"
     },
-    "UclOpenAvDomeTaskLogic": {
-      "description": "Task logic definition for the av-dome experiment.",
+    "UclOpenCoenDomeDecisionMakingTaskLogic": {
+      "description": "Task logic definition for the coen-dome-decision-making experiment.",
       "properties": {
         "taskParameters": {
-          "$ref": "#/$defs/UclOpenAvDomeTaskParameters",
+          "$ref": "#/$defs/UclOpenCoenDomeDecisionMakingTaskParameters",
           "description": "Parameters of the task logic",
           "title": "TaskParameters"
         },
@@ -453,8 +453,8 @@
           "type": "string"
         },
         "name": {
-          "const": "UclOpenAvDome",
-          "default": "UclOpenAvDome",
+          "const": "UclOpenCoenDomeDecisionMaking",
+          "default": "UclOpenCoenDomeDecisionMaking",
           "description": "Name of the task logic",
           "title": "Name",
           "type": "string"
@@ -463,11 +463,11 @@
       "required": [
         "taskParameters"
       ],
-      "title": "UclOpenAvDomeTaskLogic",
+      "title": "UclOpenCoenDomeDecisionMakingTaskLogic",
       "type": "object"
     },
-    "UclOpenAvDomeTaskParameters": {
-      "description": "Task parameters for the av-dome audiovisual tasks: localization and discrimination.",
+    "UclOpenCoenDomeDecisionMakingTaskParameters": {
+      "description": "Task parameters for the coen-dome-decision-making audiovisual tasks: localization and discrimination.",
       "properties": {
         "rngSeed": {
           "default": null,
@@ -545,7 +545,7 @@
         "optogenetics",
         "trainingStages"
       ],
-      "title": "UclOpenAvDomeTaskParameters",
+      "title": "UclOpenCoenDomeDecisionMakingTaskParameters",
       "type": "object"
     },
     "VisualStimulus": {
@@ -637,6 +637,6 @@
       "type": "object"
     }
   },
-  "$ref": "#/$defs/UclOpenAvDomeTaskLogic",
-  "title": "RootModel[UclOpenAvDomeTaskLogic]"
+  "$ref": "#/$defs/UclOpenCoenDomeDecisionMakingTaskLogic",
+  "title": "RootModel[UclOpenCoenDomeDecisionMakingTaskLogic]"
 }

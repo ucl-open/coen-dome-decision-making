@@ -459,7 +459,7 @@ wheels = [
 ]
 
 [[package]]
-name = "ucl-open-av-dome"
+name = "ucl-open-coen-dome-decision-making"
 version = "0.0.0rc1"
 source = { editable = "." }
 dependencies = [

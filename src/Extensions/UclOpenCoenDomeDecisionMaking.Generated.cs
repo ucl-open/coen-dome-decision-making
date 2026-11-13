@@ -5,12 +5,12 @@
 //----------------------
 
 
-namespace UclOpenAvDome
+namespace UclOpenCoenDomeDecisionMaking
 {
     #pragma warning disable // Disable all warnings
 
     /// <summary>
-    /// Rig configuration for the av-dome experiment.
+    /// Rig configuration for the coen-dome-decision-making experiment.
     ///
     ///Each kind of device is a group of named entries, as the lab's rig.yml (open_rigs.rigs.behaviour_box):
     ///the name in the data is the kind and the entry joined by a hyphen, so behaviorBoard: main: is
@@ -18,7 +18,7 @@ namespace UclOpenAvDome
     ///are named as lib-open-rigs' HarpRig names them, so RecordHarpDevices checks each board's WhoAmI.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"Rig configuration for the av-dome experiment.
+    [System.ComponentModel.DescriptionAttribute(@"Rig configuration for the coen-dome-decision-making experiment.
 
     Each kind of device is a group of named entries, as the lab's rig.yml (open_rigs.rigs.behaviour_box):
     the name in the data is the kind and the entry joined by a hyphen, so behaviorBoard: main: is
@@ -26,7 +26,7 @@ namespace UclOpenAvDome
     are named as lib-open-rigs' HarpRig names them, so RecordHarpDevices checks each board's WhoAmI.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class UclOpenAvDomeRig
+    public partial class UclOpenCoenDomeDecisionMakingRig
     {
     
         private string _rootPath;
@@ -57,7 +57,7 @@ namespace UclOpenAvDome
     
         private int _interPulseInterval;
     
-        public UclOpenAvDomeRig()
+        public UclOpenCoenDomeDecisionMakingRig()
         {
             _version = "0.0.0-rc1";
             _behaviorBoard = new System.Collections.Generic.Dictionary<string, BehaviorBoard>();
@@ -73,7 +73,7 @@ namespace UclOpenAvDome
             _interPulseInterval = 50;
         }
     
-        protected UclOpenAvDomeRig(UclOpenAvDomeRig other)
+        protected UclOpenCoenDomeDecisionMakingRig(UclOpenCoenDomeDecisionMakingRig other)
         {
             _rootPath = other._rootPath;
             _rigId = other._rigId;
@@ -360,14 +360,14 @@ namespace UclOpenAvDome
             }
         }
     
-        public System.IObservable<UclOpenAvDomeRig> Generate()
+        public System.IObservable<UclOpenCoenDomeDecisionMakingRig> Generate()
         {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new UclOpenAvDomeRig(this)));
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new UclOpenCoenDomeDecisionMakingRig(this)));
         }
     
-        public System.IObservable<UclOpenAvDomeRig> Generate<TSource>(System.IObservable<TSource> source)
+        public System.IObservable<UclOpenCoenDomeDecisionMakingRig> Generate<TSource>(System.IObservable<TSource> source)
         {
-            return System.Reactive.Linq.Observable.Select(source, _ => new UclOpenAvDomeRig(this));
+            return System.Reactive.Linq.Observable.Select(source, _ => new UclOpenCoenDomeDecisionMakingRig(this));
         }
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
@@ -4640,9 +4640,9 @@ namespace UclOpenAvDome
             return System.Reactive.Linq.Observable.Select(source, value => Newtonsoft.Json.JsonConvert.SerializeObject(value, formatting));
         }
 
-        public System.IObservable<string> Process(System.IObservable<UclOpenAvDomeRig> source)
+        public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingRig> source)
         {
-            return Process<UclOpenAvDomeRig>(source);
+            return Process<UclOpenCoenDomeDecisionMakingRig>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<AudioDevice> source)
@@ -4784,7 +4784,7 @@ namespace UclOpenAvDome
     [System.ComponentModel.DescriptionAttribute("Deserializes a sequence of JSON strings into data model objects.")]
     [System.ComponentModel.DefaultPropertyAttribute("Type")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Transform)]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenAvDomeRig>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingRig>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioDevice>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BehaviorBoard>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BoardWiring>))]
@@ -4816,7 +4816,7 @@ namespace UclOpenAvDome
     
         public DeserializeFromJson()
         {
-            Type = new Bonsai.Expressions.TypeMapping<UclOpenAvDomeRig>();
+            Type = new Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingRig>();
         }
 
         public Bonsai.Expressions.TypeMapping Type { get; set; }
@@ -4971,9 +4971,9 @@ namespace UclOpenAvDome
             });
         }
 
-        public System.IObservable<string> Process(System.IObservable<UclOpenAvDomeRig> source)
+        public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingRig> source)
         {
-            return Process<UclOpenAvDomeRig>(source);
+            return Process<UclOpenCoenDomeDecisionMakingRig>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<AudioDevice> source)
@@ -5115,7 +5115,7 @@ namespace UclOpenAvDome
     [System.ComponentModel.DescriptionAttribute("Deserializes a sequence of YAML strings into data model objects.")]
     [System.ComponentModel.DefaultPropertyAttribute("Type")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Transform)]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenAvDomeRig>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingRig>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioDevice>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BehaviorBoard>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BoardWiring>))]
@@ -5147,7 +5147,7 @@ namespace UclOpenAvDome
     
         public DeserializeFromYaml()
         {
-            Type = new Bonsai.Expressions.TypeMapping<UclOpenAvDomeRig>();
+            Type = new Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingRig>();
         }
 
         public Bonsai.Expressions.TypeMapping Type { get; set; }

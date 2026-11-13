@@ -9,7 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
-using UclOpenAvDome;
+using UclOpenCoenDomeDecisionMaking;
 
 /// <summary>
 /// The auditory stimuli of an experiment: the rig's set of stimulus waveforms, each already

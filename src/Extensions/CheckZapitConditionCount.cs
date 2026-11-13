@@ -2,7 +2,7 @@ using Bonsai;
 using System;
 using System.ComponentModel;
 using System.Reactive.Linq;
-using UclOpenAvDomeTask;
+using UclOpenCoenDomeDecisionMakingTask;
 
 // Startup check for optogenetics experiments (audit, 10 Nov 2026, round 2; as coen-dome-navigation's). Bonsai sends Zapit
 // condition numbers read from the task's Zapit file (optogenetics.zapitConfigPath), and Zapit presents whatever it has at
@@ -13,7 +13,7 @@ using UclOpenAvDomeTask;
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckZapitConditionCount
 {
-    public IObservable<ZapitReply> Process(IObservable<Tuple<ZapitReply, UclOpenAvDomeTaskLogic>> source)
+    public IObservable<ZapitReply> Process(IObservable<Tuple<ZapitReply, UclOpenCoenDomeDecisionMakingTaskLogic>> source)
     {
         return source.Select(input =>
         {
@@ -22,7 +22,7 @@ public class CheckZapitConditionCount
         });
     }
 
-    public static void Check(ZapitReply reply, UclOpenAvDomeTaskLogic task)
+    public static void Check(ZapitReply reply, UclOpenCoenDomeDecisionMakingTaskLogic task)
     {
         if (reply == null)
         {

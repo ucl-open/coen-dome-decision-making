@@ -5,34 +5,34 @@
 //----------------------
 
 
-namespace UclOpenAvDomeTask
+namespace UclOpenCoenDomeDecisionMakingTask
 {
     #pragma warning disable // Disable all warnings
 
     /// <summary>
-    /// Task logic definition for the av-dome experiment.
+    /// Task logic definition for the coen-dome-decision-making experiment.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Task logic definition for the av-dome experiment.")]
+    [System.ComponentModel.DescriptionAttribute("Task logic definition for the coen-dome-decision-making experiment.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class UclOpenAvDomeTaskLogic
+    public partial class UclOpenCoenDomeDecisionMakingTaskLogic
     {
     
-        private UclOpenAvDomeTaskParameters _taskParameters;
+        private UclOpenCoenDomeDecisionMakingTaskParameters _taskParameters;
     
         private string _version;
     
         private string _name;
     
-        public UclOpenAvDomeTaskLogic()
+        public UclOpenCoenDomeDecisionMakingTaskLogic()
         {
-            _taskParameters = new UclOpenAvDomeTaskParameters();
+            _taskParameters = new UclOpenCoenDomeDecisionMakingTaskParameters();
             _version = "0.0.0-rc1";
-            _name = "UclOpenAvDome";
+            _name = "UclOpenCoenDomeDecisionMaking";
         }
     
-        protected UclOpenAvDomeTaskLogic(UclOpenAvDomeTaskLogic other)
+        protected UclOpenCoenDomeDecisionMakingTaskLogic(UclOpenCoenDomeDecisionMakingTaskLogic other)
         {
             _taskParameters = other._taskParameters;
             _version = other._version;
@@ -46,7 +46,7 @@ namespace UclOpenAvDomeTask
         [Newtonsoft.Json.JsonPropertyAttribute("taskParameters", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskParameters")]
         [System.ComponentModel.DescriptionAttribute("Parameters of the task logic")]
-        public UclOpenAvDomeTaskParameters TaskParameters
+        public UclOpenCoenDomeDecisionMakingTaskParameters TaskParameters
         {
             get
             {
@@ -90,14 +90,14 @@ namespace UclOpenAvDomeTask
             }
         }
     
-        public System.IObservable<UclOpenAvDomeTaskLogic> Generate()
+        public System.IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Generate()
         {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new UclOpenAvDomeTaskLogic(this)));
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new UclOpenCoenDomeDecisionMakingTaskLogic(this)));
         }
     
-        public System.IObservable<UclOpenAvDomeTaskLogic> Generate<TSource>(System.IObservable<TSource> source)
+        public System.IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Generate<TSource>(System.IObservable<TSource> source)
         {
-            return System.Reactive.Linq.Observable.Select(source, _ => new UclOpenAvDomeTaskLogic(this));
+            return System.Reactive.Linq.Observable.Select(source, _ => new UclOpenCoenDomeDecisionMakingTaskLogic(this));
         }
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
@@ -1612,14 +1612,14 @@ namespace UclOpenAvDomeTask
 
 
     /// <summary>
-    /// Task parameters for the av-dome audiovisual tasks: localization and discrimination.
+    /// Task parameters for the coen-dome-decision-making audiovisual tasks: localization and discrimination.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Task parameters for the av-dome audiovisual tasks: localization and discriminatio" +
-        "n.")]
+    [System.ComponentModel.DescriptionAttribute("Task parameters for the coen-dome-decision-making audiovisual tasks: localization" +
+        " and discrimination.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class UclOpenAvDomeTaskParameters
+    public partial class UclOpenCoenDomeDecisionMakingTaskParameters
     {
     
         private double? _rngSeed;
@@ -1646,7 +1646,7 @@ namespace UclOpenAvDomeTask
     
         private System.Collections.Generic.List<TrainingStage> _trainingStages;
     
-        public UclOpenAvDomeTaskParameters()
+        public UclOpenCoenDomeDecisionMakingTaskParameters()
         {
             _taskType = TaskType.Localization;
             _targetModality = Modality.Visual;
@@ -1661,7 +1661,7 @@ namespace UclOpenAvDomeTask
             _trainingStages = new System.Collections.Generic.List<TrainingStage>();
         }
     
-        protected UclOpenAvDomeTaskParameters(UclOpenAvDomeTaskParameters other)
+        protected UclOpenCoenDomeDecisionMakingTaskParameters(UclOpenCoenDomeDecisionMakingTaskParameters other)
         {
             _rngSeed = other._rngSeed;
             _taskType = other._taskType;
@@ -1904,14 +1904,14 @@ namespace UclOpenAvDomeTask
             }
         }
     
-        public System.IObservable<UclOpenAvDomeTaskParameters> Generate()
+        public System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> Generate()
         {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new UclOpenAvDomeTaskParameters(this)));
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new UclOpenCoenDomeDecisionMakingTaskParameters(this)));
         }
     
-        public System.IObservable<UclOpenAvDomeTaskParameters> Generate<TSource>(System.IObservable<TSource> source)
+        public System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> Generate<TSource>(System.IObservable<TSource> source)
         {
-            return System.Reactive.Linq.Observable.Select(source, _ => new UclOpenAvDomeTaskParameters(this));
+            return System.Reactive.Linq.Observable.Select(source, _ => new UclOpenCoenDomeDecisionMakingTaskParameters(this));
         }
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
@@ -2248,9 +2248,9 @@ namespace UclOpenAvDomeTask
             return System.Reactive.Linq.Observable.Select(source, value => Newtonsoft.Json.JsonConvert.SerializeObject(value, formatting));
         }
 
-        public System.IObservable<string> Process(System.IObservable<UclOpenAvDomeTaskLogic> source)
+        public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> source)
         {
-            return Process<UclOpenAvDomeTaskLogic>(source);
+            return Process<UclOpenCoenDomeDecisionMakingTaskLogic>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<AudioStimulus> source)
@@ -2303,9 +2303,9 @@ namespace UclOpenAvDomeTask
             return Process<TrialStructure>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<UclOpenAvDomeTaskParameters> source)
+        public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> source)
         {
-            return Process<UclOpenAvDomeTaskParameters>(source);
+            return Process<UclOpenCoenDomeDecisionMakingTaskParameters>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<VisualStimulus> source)
@@ -2322,7 +2322,7 @@ namespace UclOpenAvDomeTask
     [System.ComponentModel.DescriptionAttribute("Deserializes a sequence of JSON strings into data model objects.")]
     [System.ComponentModel.DefaultPropertyAttribute("Type")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Transform)]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenAvDomeTaskLogic>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Punishment>))]
@@ -2333,14 +2333,14 @@ namespace UclOpenAvDomeTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<SphericalPosition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingStage>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenAvDomeTaskParameters>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<VisualStimulus>))]
     public partial class DeserializeFromJson : Bonsai.Expressions.SingleArgumentExpressionBuilder
     {
     
         public DeserializeFromJson()
         {
-            Type = new Bonsai.Expressions.TypeMapping<UclOpenAvDomeTaskLogic>();
+            Type = new Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>();
         }
 
         public Bonsai.Expressions.TypeMapping Type { get; set; }
@@ -2384,9 +2384,9 @@ namespace UclOpenAvDomeTask
             });
         }
 
-        public System.IObservable<string> Process(System.IObservable<UclOpenAvDomeTaskLogic> source)
+        public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> source)
         {
-            return Process<UclOpenAvDomeTaskLogic>(source);
+            return Process<UclOpenCoenDomeDecisionMakingTaskLogic>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<AudioStimulus> source)
@@ -2439,9 +2439,9 @@ namespace UclOpenAvDomeTask
             return Process<TrialStructure>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<UclOpenAvDomeTaskParameters> source)
+        public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> source)
         {
-            return Process<UclOpenAvDomeTaskParameters>(source);
+            return Process<UclOpenCoenDomeDecisionMakingTaskParameters>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<VisualStimulus> source)
@@ -2458,7 +2458,7 @@ namespace UclOpenAvDomeTask
     [System.ComponentModel.DescriptionAttribute("Deserializes a sequence of YAML strings into data model objects.")]
     [System.ComponentModel.DefaultPropertyAttribute("Type")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Transform)]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenAvDomeTaskLogic>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Punishment>))]
@@ -2469,14 +2469,14 @@ namespace UclOpenAvDomeTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<SphericalPosition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingStage>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenAvDomeTaskParameters>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<VisualStimulus>))]
     public partial class DeserializeFromYaml : Bonsai.Expressions.SingleArgumentExpressionBuilder
     {
     
         public DeserializeFromYaml()
         {
-            Type = new Bonsai.Expressions.TypeMapping<UclOpenAvDomeTaskLogic>();
+            Type = new Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>();
         }
 
         public Bonsai.Expressions.TypeMapping Type { get; set; }

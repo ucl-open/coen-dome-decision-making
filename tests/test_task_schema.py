@@ -4,7 +4,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from ucl_open_av_dome.task import AudioStimulus, UclOpenAvDomeTaskParameters, VisualStimulus
+from ucl_open_coen_dome_decision_making.task import AudioStimulus, UclOpenCoenDomeDecisionMakingTaskParameters, VisualStimulus
 
 CONFIG = Path(__file__).parent.parent / "config"
 TASK_FILES = sorted(CONFIG.glob("task*.yml"))
@@ -13,7 +13,7 @@ TASK_FILES = sorted(CONFIG.glob("task*.yml"))
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
 def test_committed_task_files_validate(path):
     data = yaml.safe_load(path.read_text())
-    UclOpenAvDomeTaskParameters.model_validate(data["taskParameters"])
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data["taskParameters"])
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
@@ -64,7 +64,7 @@ def test_speaker_locations_reject_a_centre_entry():
 
 def _task(name):
     data = yaml.safe_load((CONFIG / name).read_text())
-    return UclOpenAvDomeTaskParameters.model_validate(data["taskParameters"])
+    return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data["taskParameters"])
 
 
 def test_a_task_file_without_task_type_is_localization_with_moving_spouts():
@@ -100,7 +100,7 @@ def test_the_iti_descriptions_say_what_comes_out_of_the_draw():
     # Audit, 10 Nov 2026, round 5: the task fields and the itiSeconds meaning (copied into every manifest) said only
     # "the drawn interval" (the column, "which the drink time comes out of"), while the ITI expression above takes
     # 2 s to drink, 0.1 s to arm and laserToStimulusSeconds out of it and runs a shorter draw as their sum.
-    from ucl_open_av_dome.task import TrialStructure
+    from ucl_open_coen_dome_decision_making.task import TrialStructure
 
     fields = TrialStructure.model_fields
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
@@ -118,17 +118,17 @@ def test_rig_control_keeps_the_zapit_file(path):
 
 
 def test_laser_power_is_required_with_optogenetics_on():
-    # Pip, 10 Nov 2026: av-dome sends and logs laserPowerMw as coen-dome-navigation does, required when on.
+    # Pip, 10 Nov 2026: this workflow sends and logs laserPowerMw as coen-dome-navigation does, required when on.
     data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml"}
     with pytest.raises(ValidationError, match="laser_power_mw is not set"):
-        UclOpenAvDomeTaskParameters.model_validate({**data, "optogenetics": on})
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     with pytest.raises(ValidationError):
-        UclOpenAvDomeTaskParameters.model_validate({**data, "optogenetics": {**on, "laserPowerMw": 0}})
-    UclOpenAvDomeTaskParameters.model_validate({**data, "optogenetics": {**on, "laserPowerMw": 2.0}})
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "laserPowerMw": 0}})
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**on, "laserPowerMw": 2.0}})
     # The same rule in the committed schema, which is what rig-control checks before Go.
     import json
-    schema = json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_av_dome_task.json").read_text(encoding="utf-8"))
+    schema = json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8"))
     rule = schema["$defs"]["OptogeneticsSettings"]
     assert rule["if"]["properties"]["useZapit"] == {"const": True} and rule["then"]["required"] == ["laserPowerMw"]
 
@@ -139,10 +139,10 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "useZapit": True, "laserPowerMw": 2.0, "zapitConfigPath": ""}
     with pytest.raises(ValidationError, match="zapit_config_path is empty"):
-        UclOpenAvDomeTaskParameters.model_validate({**data, "optogenetics": on})
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     jsonschema = pytest.importorskip("jsonschema")
     import json
-    schema = json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_av_dome_task.json").read_text(encoding="utf-8"))
+    schema = json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8"))
     task = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())
     task["taskParameters"]["optogenetics"] = on
     assert not jsonschema.Draft202012Validator(schema).is_valid(task)
@@ -161,7 +161,7 @@ def test_the_trial_row_logs_the_power_sent():
 
 def test_the_laser_delay_is_gone():
     # Pip, 10 Nov 2026: laserDelaySeconds (stimDelay) was 0 in every task file since 24 Sep 2026; dropped.
-    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_av_dome_task.json").read_text(encoding="utf-8")
+    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
     assert "laserDelaySeconds" not in schema and "stimDelay" not in schema
     assert "OptogeneticDelay" not in (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
 
@@ -179,7 +179,7 @@ def test_laser_to_stimulus_is_the_task_s_and_sets_the_wait(path):
 def test_each_laser_on_trial_draws_its_condition_at_random():
     # Pip, 10 Nov 2026: balancedConditions (always true) dropped; a shuffled queue made a site unlikely to follow
     # itself and the end of each cycle predictable, which confounds trial-history analyses.
-    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_av_dome_task.json").read_text(encoding="utf-8")
+    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
     assert "balancedConditions" not in schema and "pseudorandomSelection" not in schema
     source = (CONFIG.parent / "src" / "Extensions" / "InitialiseTrial.cs").read_text(encoding="utf-8-sig")
     assert "_conditionQueue" not in source and "zapitConditions[rand.Next(zapitConditions.Count)]" in source
@@ -187,7 +187,7 @@ def test_each_laser_on_trial_draws_its_condition_at_random():
 
 def test_the_spout_wait_is_named_by_its_ends():
     # Pip's rule (10 Nov 2026): a gap between two moments is named by its ends, as laserToStimulusSeconds.
-    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_av_dome_task.json").read_text(encoding="utf-8")
+    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
     assert '"stimulusToSpoutsInSeconds"' in schema and '"spoutInDelaySeconds"' not in schema
     for path in TASK_FILES:
         assert yaml.safe_load(path.read_text())["taskParameters"]["trialStructure"]["stimulusToSpoutsInSeconds"] == 0.5
@@ -202,12 +202,12 @@ def test_each_trial_type_is_drawn_at_random_by_weight():
 
 def test_target_modality_is_visual_or_auditory():
     data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
-    UclOpenAvDomeTaskParameters.model_validate({**data, "targetModality": "auditory"})
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "targetModality": "auditory"})
     with pytest.raises(ValidationError):
-        UclOpenAvDomeTaskParameters.model_validate({**data, "targetModality": "smell"})
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "targetModality": "smell"})
 
 def test_reward_size_says_a_calibrated_valve_plans_its_pulses():
     # Audit, 10 Nov 2026, round 3: it said every reward is ceil(size/2) pulses, true only of an uncalibrated valve (RewardLine.cs).
-    from ucl_open_av_dome.task import TrainingStage
+    from ucl_open_coen_dome_decision_making.task import TrainingStage
     description = TrainingStage.model_fields["reward_size_ul"].description
     assert "calibration" in description and "uncalibrated" in description
