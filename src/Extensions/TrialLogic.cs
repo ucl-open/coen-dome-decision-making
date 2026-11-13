@@ -454,17 +454,7 @@ public class ZapitTrialCommand
 
     public static ZapitCommand Build(Trial trial, bool hardwareTriggered, double durationSeconds)
     {
-        if (trial.laserCondition < 1) throw new InvalidOperationException("Trial " + trial.trialNumber + " has no Zapit condition.");
-        return new ZapitCommand
-        {
-            Command = ZapitCommandType.StartStimulus,
-            ConditionNumber = trial.laserCondition,
-            LaserOn = trial.laserOn,
-            HardwareTriggered = hardwareTriggered,
-            Logging = true,
-            StimDuration = (float)durationSeconds,
-            LaserPower = (float)trial.laserPowerMw,   // 0 on a laser-off trial, as navigation's
-        };
+        return ZapitTrial.Command(trial.trialNumber, trial.laserCondition, trial.laserOn, trial.laserPowerMw, hardwareTriggered, durationSeconds);
     }
 }
 
@@ -553,22 +543,5 @@ public class SpoutsIn
     {
         if (trial.bothSpouts) return OpenRigs.Devices.LickSpoutCommand.SpoutsIn;
         return trial.target == "Left" ? OpenRigs.Devices.LickSpoutCommand.LeftIn : OpenRigs.Devices.LickSpoutCommand.RightIn;
-    }
-}
-
-[Combinator]
-[Description("A Behavior board write that sets (Set true) or clears the input line, such as ZapitTriggerLine.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class LineMessage
-{
-    [Description("True sets the line high, false clears it.")]
-    public bool Set { get; set; }
-
-    public IObservable<HarpMessage> Process(IObservable<Harp.Behavior.DigitalOutputs> source)
-    {
-        var set = Set;
-        return source.Select(line => set
-            ? Harp.Behavior.OutputSet.FromPayload(MessageType.Write, line)
-            : Harp.Behavior.OutputClear.FromPayload(MessageType.Write, line));
     }
 }

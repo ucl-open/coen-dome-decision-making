@@ -35,7 +35,7 @@ Each lib-open-rigs block the workflow uses, its job here and where it lives. `te
 | `BehaviorBoard.DeliverReward` | Every reward (side, microlitres) on the valve's calibration, fired on the Harp clock, logged as `RewardDelivered` | `OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai` |
 | `ToLickSpoutCommand` | The spouts out after drinking | `OpenRigs.Devices` |
 | `DomeDisplay` | The projector window, mesh mapping and gamma correction | `OpenRigs.Vision:DomeDisplay.bonsai` |
-| `ZapitClient`, `CreateZapitQuery`, `CheckZapitConditionCount`, `ZapitConditionsSnapshot` | Zapit's TCP link, the start-up check of its conditions file, and the file's copy in the experiment (`Settings_ZapitConditions`) | `OpenRigs.Devices` (`OpenRigs.Devices.Zapit`) |
+| `ZapitClient`, `CreateZapitQuery`, `CheckZapitConditionCount`, `ZapitConditionsSnapshot`, `ZapitLineMessage` | Zapit's TCP link, the start-up check of its conditions file, the file's copy in the experiment (`Settings_ZapitConditions`), and the ZapitTrigger line's set and clear | `OpenRigs.Devices` (`OpenRigs.Devices.Zapit`) |
 | `HarpDelay` | Every task wait, on `Timestamp` | `OpenRigs.Core` |
 | `StartupWatchdog` | Names whichever of the spouts' homing and the Harp clock has not come before Ready | `OpenRigs.Core` |
 | `ThrowError` | Stops the workflow on Zapit's refusals | `OpenRigs.Core` |

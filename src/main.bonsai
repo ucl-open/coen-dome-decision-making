@@ -2652,8 +2652,8 @@
                     <Selector>Item2</Selector>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:LineMessage">
-                      <p1:Set>true</p1:Set>
+                    <Combinator xsi:type="zap:ZapitLineMessage">
+                      <zap:Set>true</zap:Set>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
@@ -2679,8 +2679,8 @@
                     <Selector>Value</Selector>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:LineMessage">
-                      <p1:Set>false</p1:Set>
+                    <Combinator xsi:type="zap:ZapitLineMessage">
+                      <zap:Set>false</zap:Set>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">

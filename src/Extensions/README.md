@@ -4,7 +4,7 @@ Bonsai compiles every `*.cs` file here when `src\main.bonsai` loads, as C# 5 (`s
 
 | File | What it holds |
 |---|---|
-| `TrialLogic.cs` | `Trial`; `DrawTrial` and its tested core `TrialDraw` (trial types by the stage's weights, repeats by its rules, stimuli, rig.yml's nearest speaker, the Zapit condition, the interval before and after the trial; refuses a stage past the table, empty contrasts or a side with no azimuth, location or speaker); `StartTrials`, `EndTrial` (the loop); `Consequence`/`TrialConsequence` (reward, spouts, error sound, timeout from the trial's row); `SpoutsIn`; `ZapitTrialCommand`, `CheckZapitArmed`; `LineMessage` (sets or clears the ZapitTrigger line) |
+| `TrialLogic.cs` | `Trial`; `DrawTrial` and its tested core `TrialDraw` (trial types by the stage's weights, repeats by its rules, stimuli, rig.yml's nearest speaker, the Zapit condition, the interval before and after the trial; refuses a stage past the table, empty contrasts or a side with no azimuth, location or speaker); `StartTrials`, `EndTrial` (the loop); `Consequence`/`TrialConsequence` (reward, spouts, error sound, timeout from the trial's row); `SpoutsIn`; `ZapitTrialCommand` (the trial's fields into lib-open-rigs' `ZapitTrial.Command`), `CheckZapitArmed` |
 | `TrialRow.cs` | `TrialRow`, one `BonsaiData_Trial` row, its fields the columns of `schemas\trial-columns.yml` in order (a test holds them equal), and `CreateTrialRow` |
 | `AuditoryStimulusSet.cs` | The stimulus set, each waveform equalised for each speaker by its filter; refuses a speaker with no filter, a filter from another machine or rate, and any missing or malformed file, naming it |
 | `Broadcast.cs`, `ChannelActivation.cs` | A waveform onto the mixer's channels |

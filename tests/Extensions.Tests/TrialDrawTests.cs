@@ -314,7 +314,7 @@ public class ZapitTests
         trial.laserPowerMw = 3;
         Assert.AreEqual(3f, ZapitTrialCommand.Build(trial, false, 1.5).LaserPower);
         trial.laserCondition = 0;
-        StringAssert.Contains(Fixture.Refusal(() => ZapitTrialCommand.Build(trial, false, 1.5)), "no Zapit condition");
+        StringAssert.Contains(Fixture.Refusal(() => ZapitTrialCommand.Build(trial, false, 1.5)), "1 to 254");
     }
 
     [TestMethod]
