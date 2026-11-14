@@ -2178,8 +2178,10 @@
                 <rx:Count>1</rx:Count>
               </Combinator>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
-              <Name>Timestamp</Name>
+            <Expression xsi:type="Combinator">
+              <Name>OnNextTick</Name>
+              <Description>The experiment folder stamped with the next Harp clock tick and given from the clock's thread (OnNextTick, tested C#), so the first draw runs as every later one does. WithLatestTimestamp here ran it under a lock the clock needs, and the clock stopped at trial 1 (BLUE-OPTO-2, 14 Nov 2026).</Description>
+              <Combinator xsi:type="p1:OnNextTick" />
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="p1:StartTrials" />
@@ -3276,6 +3278,9 @@
             <Expression xsi:type="MulticastSubject">
               <Name>LickSpoutStage.Commands</Name>
             </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>Timestamp</Name>
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -3318,6 +3323,7 @@
             <Edge From="38" To="39" Label="Source1" />
             <Edge From="39" To="40" Label="Source1" />
             <Edge From="40" To="41" Label="Source1" />
+            <Edge From="42" To="2" Label="Source2" />
           </Edges>
         </Workflow>
       </Expression>

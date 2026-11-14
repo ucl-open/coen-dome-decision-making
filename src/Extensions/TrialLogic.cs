@@ -109,6 +109,34 @@ public class StartTrials
 }
 
 [Combinator]
+[Description("Each input stamped with the next tick of the Harp clock, and given from the clock's own thread with no lock held, so what follows runs as every later trial does. Inputs: the values, the Harp clock. WithLatestTimestamp ran the first draw under its lock, which the clock's thread needs for every tick, so the clock stopped at the first trial and the workflow hung at Stop (BLUE-OPTO-2, 14 Nov 2026).")]
+[WorkflowElementCategory(ElementCategory.Combinator)]
+public class OnNextTick
+{
+    public IObservable<Timestamped<TSource>> Process<TSource>(IObservable<TSource> source, IObservable<double> clock)
+    {
+        return Observable.Create<Timestamped<TSource>>(observer =>
+        {
+            var gate = new object();
+            var waiting = new List<TSource>();
+            return new System.Reactive.Disposables.CompositeDisposable(
+                source.Subscribe(value => { lock (gate) waiting.Add(value); }, observer.OnError),
+                clock.Subscribe(seconds =>
+                {
+                    TSource[] due;
+                    lock (gate)
+                    {
+                        if (waiting.Count == 0) return;
+                        due = waiting.ToArray();
+                        waiting.Clear();
+                    }
+                    foreach (var value in due) observer.OnNext(Timestamped.Create(value, seconds));
+                }, observer.OnError));
+        });
+    }
+}
+
+[Combinator]
 [Description("Ends a trial at the start of the next interval: its outcome, stamped with the Harp time the interval begins (after any timeout), so the next trial is drawn and Zapit armed while the interval runs.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class EndTrial

@@ -258,3 +258,17 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
     assert len(shapes) == 1
     assert shapes.pop()[:3] == (1, 2, 48000)
     assert r"<p1:Folder>LocalFiles\AuditoryStimuli</p1:Folder>" in TEXT
+
+
+def test_the_trial_loop_starts_on_the_clock_thread():
+    """The first trial starts from OnNextTick (the experiment folder and the Harp clock), not from
+    WithLatestTimestamp, which ran the first draw under a lock the clock's thread needs: the clock
+    stopped at trial 1 and the workflow hung at Stop (BLUE-OPTO-2, 14 Nov 2026)."""
+    task = next(g for g in MAIN.find(f"{W}Workflow/{W}Nodes") if g.findtext(f"{W}Name") == "TaskLogic")
+    nodes = list(task.find(f"{W}Workflow/{W}Nodes"))
+    edges = [(int(e.get("From")), int(e.get("To")), e.get("Label")) for e in task.find(f"{W}Workflow/{W}Edges")]
+    start = next(i for i, n in enumerate(nodes) if (n.find(f"{W}Combinator") is not None and n.find(f"{W}Combinator").get(XSI) == "p1:StartTrials"))
+    (into,) = [f for f, t, _ in edges if t == start]
+    assert nodes[into].find(f"{W}Combinator").get(XSI) == "p1:OnNextTick"
+    clock = [f for f, t, label in edges if t == into and label == "Source2"]
+    assert [nodes[f].findtext(f"{W}Name") for f in clock] == ["Timestamp"]
