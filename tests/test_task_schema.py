@@ -216,13 +216,14 @@ def test_the_constants_are_the_c_sharp_s():
     assert "ZapitTrial.ReplyMarginSeconds" in logic and not re.search(r"const double \w*Margin", logic)
     task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
     # The ramp-down and reward caps are lib-open-rigs' too (audit round 4), each tied there to its C# value.
-    assert "from open_rigs.rigs.dome import MAX_REWARD_UL, ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS" in task_py
+    assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS" in task_py
+    assert "from open_rigs.rigs.lab_rig import MAX_REWARD_UL" in task_py
     assert not re.search(r"(?m)^[A-Z_]+ = [0-9.]+$", task_py)
     assert "ZapitConditions.MaximumRampDownMs / 1000" in logic
 
 
 def test_a_reward_over_the_cap_is_refused():
-    from open_rigs.rigs.dome import MAX_REWARD_UL
+    from open_rigs.rigs.lab_rig import MAX_REWARD_UL
 
     _with(stage={"rewardSizeUl": MAX_REWARD_UL})
     with pytest.raises(ValidationError, match="less than or equal to 20"):

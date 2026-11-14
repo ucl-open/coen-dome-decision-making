@@ -28,7 +28,7 @@
     <Nodes>
       <Expression xsi:type="GroupWorkflow">
         <Name>RigSetup</Name>
-        <Description>Reads this machine's rig.yml (ConfigRoot\MachineName\rig.yml, ReadRigConfig) into RigConfigs, the dome rig model (open_rigs.rigs.dome.DomeRig, generated C#), and publishes RigConfigDirectory. Everything else takes its devices and calibrations from these two.</Description>
+        <Description>Reads this machine's rig.yml (ConfigRoot\MachineName\rig.yml, ReadRigConfig) into RigConfigs, the lab rig model (open_rigs.rigs.lab_rig.LabRig, generated C#), and publishes RigConfigDirectory. Everything else takes its devices and calibrations from these two.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="GroupWorkflow">
@@ -57,7 +57,7 @@
               </Workflow>
             </Expression>
             <Expression xsi:type="p2:DeserializeFromYaml">
-              <p2:Type xsi:type="TypeMapping" TypeArguments="p2:DomeRig" />
+              <p2:Type xsi:type="TypeMapping" TypeArguments="p2:LabRig" />
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Take">
@@ -529,7 +529,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Hardware</Name>
-        <Description>The dome's devices (OpenRigs.Devices DomeHardware: boards, timestamp generator, lick spout stage, Lickety Splits, three cameras), the cameras' trigger, and Ready once the spouts are homed and the Harp clock is set (StartupWatchdog names whichever has not come within 180 s).</Description>
+        <Description>The dome's devices (OpenRigs.Devices RigHardware: boards, timestamp generator, lick spout stage, Lickety Splits, three cameras), the cameras' trigger, and Ready once the spouts are homed and the Harp clock is set (StartupWatchdog names whichever has not come within 180 s).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="PropertyMapping">
@@ -540,7 +540,7 @@
             <Expression xsi:type="SubscribeSubject">
               <Name>SpoutStepSize</Name>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:DomeHardware.bonsai">
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:RigHardware.bonsai">
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="BooleanProperty">
@@ -625,7 +625,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Display</Name>
-        <Description>The dome projection (OpenRigs.Vision DomeDisplay, from rig.yml's projectionCalibration; DisplayDevice a launch property) and each trial's grating.</Description>
+        <Description>The dome projection (OpenRigs.Vision ProjectorDisplay, from rig.yml's projectionCalibration; DisplayDevice a launch property) and each trial's grating.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -634,7 +634,7 @@
             <Expression xsi:type="MemberSelector">
               <Selector>ProjectionCalibration</Selector>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Vision:DomeDisplay.bonsai">
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Vision:ProjectorDisplay.bonsai">
               <DisplayDevice>First</DisplayDevice>
               <WindowState>Fullscreen</WindowState>
               <Width>1920</Width>
@@ -1522,7 +1522,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Logging</Name>
-        <Description>Everything written to the experiment folder: LogControllerLogic makes it at Go and publishes PathPrefix; BonsaiData_Async (LogAsync) takes the controller's events and each reward from Start; DomeHarpLogs logs every Harp device once the folder exists and the Harp clock is set; DeliverReward (OpenRigs.Devices) plans each (side, microlitres) reward on the valve's calibration, fires it on the Harp clock and logs it as RewardDelivered with each calibration as ValveCalibrationDO&lt;n&gt; (MissingCalibration: Refuse, or DeliverNothing, which app-rig-control passes only for test); ExperimentLogs holds the rest; RecordHarpDevices and ExperimentManifest record the devices and the experiment.</Description>
+        <Description>Everything written to the experiment folder: LogControllerLogic makes it at Go and publishes PathPrefix; BonsaiData_Async (LogAsync) takes the controller's events and each reward from Start; HarpLogs logs every Harp device once the folder exists and the Harp clock is set; DeliverReward (OpenRigs.Devices) plans each (side, microlitres) reward on the valve's calibration, fires it on the Harp clock and logs it as RewardDelivered with each calibration as ValveCalibrationDO&lt;n&gt; (MissingCalibration: Refuse, or DeliverNothing, which app-rig-control passes only for test); ExperimentLogs holds the rest; RecordHarpDevices and ExperimentManifest record the devices and the experiment.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="GroupWorkflow">
@@ -1582,7 +1582,7 @@
               </Workflow>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogAsync.bonsai" />
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:DomeHarpLogs.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:HarpLogs.bonsai" />
             <Expression xsi:type="PropertyMapping">
               <PropertyMappings>
                 <Property Name="RigFile" />

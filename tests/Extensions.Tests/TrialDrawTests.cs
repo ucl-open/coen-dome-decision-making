@@ -23,9 +23,9 @@ static class Fixture
         return task;
     }
 
-    public static DomeSpeakerArray Speakers()
+    public static EqualisedSpeakerArray Speakers()
     {
-        var array = new DomeSpeakerArray();
+        var array = new EqualisedSpeakerArray();
         array.Speakers = new Dictionary<string, Speaker>();
         array.Speakers.Add("left", Speaker(-90, 15, 0));
         array.Speakers.Add("right", Speaker(90, 15, 1));

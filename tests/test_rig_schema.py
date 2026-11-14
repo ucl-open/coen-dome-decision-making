@@ -16,10 +16,10 @@ def template() -> dict:
     return yaml.safe_load(TEMPLATE.read_text(encoding="utf-8"))
 
 
-def test_rig_py_is_the_dome_rig_model():
-    from open_rigs.rigs.dome import DomeRig
+def test_rig_py_is_the_lab_rig_model():
+    from open_rigs.rigs.lab_rig import LabRig
 
-    assert UclOpenCoenDomeDecisionMakingRig is DomeRig
+    assert UclOpenCoenDomeDecisionMakingRig is LabRig
 
 
 def test_the_template_validates_with_a_reward_valve_per_side_and_the_zapit_trigger():
@@ -36,10 +36,11 @@ def test_the_old_keys_are_refused(key):
     assert key not in json.dumps(committed)
 
 
-def test_a_side_without_its_valve_is_refused_naming_the_rule():
+def test_a_valve_without_its_side_is_refused_naming_the_rule():
+    # A side with no valve is LoadRewardLine's to refuse, at Start: the lab rig model takes a rig with one.
     data = template()
-    del data["behaviorBoard"]["main"]["wiring"]["DO2"]
-    with pytest.raises(ValidationError, match=r"right RewardValve.*dome rig model, open_rigs.rigs.dome"):
+    del data["behaviorBoard"]["main"]["wiring"]["DO2"]["side"]
+    with pytest.raises(ValidationError, match=r"RewardValve on DO2 has no side.*lab rig model, open_rigs.rigs.lab_rig"):
         UclOpenCoenDomeDecisionMakingRig.model_validate(data)
 
 

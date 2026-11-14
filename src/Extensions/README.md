@@ -9,4 +9,4 @@ Bonsai compiles every `*.cs` file here when `src\main.bonsai` loads, as C# 5 (`s
 | `AuditoryStimulusSet.cs` | The stimulus set, each waveform equalised for each speaker by its filter; refuses a speaker with no filter, a filter from another machine or rate, and any missing or malformed file, naming it |
 | `Broadcast.cs`, `ChannelActivation.cs` | A waveform onto the mixer's channels |
 | `ReadTextFile.cs` | Reads the task file named at Go |
-| `*.Generated.cs` | Bonsai.Sgen 0.9.0 classes for rig.yml (`DomeRig`) and the task file; regenerate with `uv run python -m ucl_open_coen_dome_decision_making.regenerate`, never edit |
+| `*.Generated.cs` | Bonsai.Sgen 0.9.0 classes for rig.yml (`LabRig`) and the task file; regenerate with `uv run python -m ucl_open_coen_dome_decision_making.regenerate`, never edit |

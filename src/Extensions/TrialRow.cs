@@ -7,8 +7,8 @@ using System.Reactive.Linq;
 // One row of BonsaiData_Trial. Each field is a column, named and typed as the lab's list
 // (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
 // means, lists it; the order is the file's. The row travels Timestamped at its outcome, which the
-// lab's CsvWriter writes first as harpTime. The columns up to laserTriggerTime are the dome tasks'
-// shared block, in coen-dome-navigation's order and words (Pip, 14 Nov 2026); this task's own follow.
+// lab's CsvWriter writes first as harpTime. The columns up to laserTriggerTime are the lab's
+// shared block (its core, opto and quietWait), in coen-dome-navigation's order and words (Pip, 14 Nov 2026); this task's own follow.
 public class TrialRow
 {
     public int trialNumber;

@@ -167,7 +167,7 @@ public class DrawTrial
     [Description("The task file's trainingStages row; a row past the end stops the workflow.")]
     public int TrainingStage { get; set; }
 
-    public IObservable<Trial> Process(IObservable<Tuple<TrialEnd, UclOpenCoenDomeDecisionMakingTaskLogic, DomeSpeakerArray>> source)
+    public IObservable<Trial> Process(IObservable<Tuple<TrialEnd, UclOpenCoenDomeDecisionMakingTaskLogic, EqualisedSpeakerArray>> source)
     {
         return Observable.Defer(() =>
         {
@@ -186,7 +186,7 @@ public class DrawTrial
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
-    public IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Process(IObservable<Tuple<UclOpenCoenDomeDecisionMakingTaskLogic, int, DomeSpeakerArray>> source)
+    public IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Process(IObservable<Tuple<UclOpenCoenDomeDecisionMakingTaskLogic, int, EqualisedSpeakerArray>> source)
     {
         return source.Select(input =>
         {
@@ -203,7 +203,7 @@ public class TrialDraw
     const double CentreAzimuth = 0, CentreElevation = 15;  // the sound of visual and neutral trials in localization
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
-    readonly DomeSpeakerArray speakers;
+    readonly EqualisedSpeakerArray speakers;
     readonly TrainingStage stage;
     readonly Random random;
     readonly int conditionCount;
@@ -213,7 +213,7 @@ public class TrialDraw
     /// <summary>The seed the random stream started from: the task's rngSeed, or one drawn when it is null.</summary>
     public int Seed { get; private set; }
 
-    public TrialDraw(UclOpenCoenDomeDecisionMakingTaskParameters task, DomeSpeakerArray speakers, int stage, Func<string, int> zapitConditionCount)
+    public TrialDraw(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers, int stage, Func<string, int> zapitConditionCount)
     {
         this.task = task;
         this.speakers = speakers;
@@ -234,7 +234,7 @@ public class TrialDraw
 
     /// <summary>The stage's row, once the stage is in the table and the task can be run on these speakers (CheckTask
     /// at Go, and the draw again at the first trial); throws naming every problem.</summary>
-    public static TrainingStage CheckTask(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, DomeSpeakerArray speakers)
+    public static TrainingStage CheckTask(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, EqualisedSpeakerArray speakers)
     {
         if (stage < 0 || stage >= task.TrainingStages.Count)
         {
@@ -247,7 +247,7 @@ public class TrialDraw
     }
 
     // Bonsai reads the task file without pydantic, so the rules the draw needs are checked again here.
-    static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage, DomeSpeakerArray speakers)
+    static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage, EqualisedSpeakerArray speakers)
     {
         var problems = new List<string>();
         var weights = Weights(stage);
@@ -337,7 +337,7 @@ public class TrialDraw
     }
 
     /// <summary>The speaker in rig.yml at the smallest angle from the location.</summary>
-    public static KeyValuePair<string, Speaker> NearestSpeaker(DomeSpeakerArray speakers, double azimuth, double elevation)
+    public static KeyValuePair<string, Speaker> NearestSpeaker(EqualisedSpeakerArray speakers, double azimuth, double elevation)
     {
         if (speakers == null || speakers.Speakers == null || speakers.Speakers.Count == 0)
         {

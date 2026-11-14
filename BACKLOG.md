@@ -54,7 +54,7 @@ The first runs on a dome found three faults that stopped or emptied every experi
 
 ## 2026-11-14 Pip's Zapit line decision
 
-- **Pip, 14 Nov 2026: the ZapitTrigger line (DO3) is a held level, never a board-timed pulse.** It goes high at the trigger and stays high until the workflow clears it `laserDurationSeconds` later, so the masking light on it lasts as long as the laser. lib-open-rigs `DomeRig` (954353d) refuses a rig.yml whose `outputPulseEnable` lists the Zapit line (the board would end it after its `PulseDO3` width: 5 ms, or 3000 ms on BLUE-OPTO-2); `config\rig-template.yml` has `"DO1, DO2"`. DomeHardware's `WithoutPulseLine` already dropped the line at run time. Every dome's rig.yml needs `outputPulseEnable: "DO1, DO2"`.
+- **Pip, 14 Nov 2026: the ZapitTrigger line (DO3) is a held level, never a board-timed pulse.** It goes high at the trigger and stays high until the workflow clears it `laserDurationSeconds` later, so the masking light on it lasts as long as the laser. lib-open-rigs `LabRig` (954353d) refuses a rig.yml whose `outputPulseEnable` lists the Zapit line (the board would end it after its `PulseDO3` width: 5 ms, or 3000 ms on BLUE-OPTO-2); `config\rig-template.yml` has `"DO1, DO2"`. RigHardware's `WithoutPulseLine` already dropped the line at run time. Every dome's rig.yml needs `outputPulseEnable: "DO1, DO2"`.
 - **Open: check on the first test run** (BLUE-OPTO-2, `test` mouse): on the scope, or in Zapit's log and the Behavior board log, DO3 rises at the trigger and falls `laserDurationSeconds` later, with the masking light lit for all of it and Zapit started on the rising edge.
 
 ## 2026-11-13 Pip's timing decisions
@@ -78,7 +78,7 @@ The first runs on a dome found three faults that stopped or emptied every experi
 - Zapit's connection, its start checks and the refusal of a real mouse on a rig without hardware triggering are lib-open-rigs' `Zapit.ConnectZapit` (Devices coen-lab.8), shared with coen-dome-navigation; the 0.2 s reply margin is its `ZapitTrial.ReplyMarginSeconds` and `ZAPIT_REPLY_MARGIN_SECONDS`.
 - On a rig without hardware triggering (test mouse only) Zapit gets the StartStimulus at the trigger, not at the interval's start: Zapit starts the laser on receipt, so it came 3.4 to 4.4 s early.
 - A trial records whether its trigger or its outcome came first, and both `UnlessAnswered` and the row's `laserPowerMw` read that record, so a row no longer logs 0 mW when the laser fired.
-- Every rig.yml speaker needs a filter (`DomeSpeakers.RequireFilters`, as coen-dome-navigation); the manual reward's subject is `ManualRewardUl`. Unit-tested and build-checked only.
+- Every rig.yml speaker needs a filter (OpenRigs.Audio `SpeakerSet.RequireFilters`, as coen-dome-navigation); the manual reward's subject is `ManualRewardUl`. Unit-tested and build-checked only.
 
 ## 2026-11-13 Audit round 5: changed
 
@@ -127,11 +127,11 @@ The first runs on a dome found three faults that stopped or emptied every experi
 
 ## 2026-11-13 Rebuilt on the shared dome blocks (plan v11, W2)
 
-`src\main.bonsai` was rebuilt on lib-open-rigs' dome blocks (README, Shared Blocks): DomeHardware, DomeHarpLogs, DeliverReward, DomeDisplay, Core HarpDelay on `Timestamp` for every task wait, the trial draw, row and consequences in tested C# (`tests\Extensions.Tests`). Entries below this one describe the graph before the rebuild; node names and files they cite may be gone.
+`src\main.bonsai` was rebuilt on lib-open-rigs' dome blocks (README, Shared Blocks): RigHardware, HarpLogs, DeliverReward, ProjectorDisplay, Core HarpDelay on `Timestamp` for every task wait, the trial draw, row and consequences in tested C# (`tests\Extensions.Tests`). Entries below this one describe the graph before the rebuild; node names and files they cite may be gone.
 
 ### Not yet tried
 
-- **Nothing has run.** Checked by `check-workflow.ps1` (C# 5 compile, Extensions.Tests, Bonsai's build against the filled template, the task files) and the Python tests only; no headless run (DomeDisplay opens a full-screen window) and no rig. First: a `test` run on one dome (uncalibrated line delivers 0 and says so; ITI on Harp time within 2 ms of the drawn value; trial rows against what was shown), then Zapit on BLUE-OPTO-2.
+- **Nothing has run.** Checked by `check-workflow.ps1` (C# 5 compile, Extensions.Tests, Bonsai's build against the filled template, the task files) and the Python tests only; no headless run (ProjectorDisplay opens a full-screen window) and no rig. First: a `test` run on one dome (uncalibrated line delivers 0 and says so; ITI on Harp time within 2 ms of the drawn value; trial rows against what was shown), then Zapit on BLUE-OPTO-2.
 - **The laser-off Zapit command** (condition sent with the laser off at 0 mW, as navigation's) and the ZapitTrigger line held for `laserDurationSeconds` as the masking light: untried against Zapit.
 - **`config\main.layout` is empty** (audit round 5): `Setup.ps1` replaces any machine-local `Settings\src\main.layout` with it; the real layout is still to be saved on a dome.
 - **No `Finished` phase**, as before.
