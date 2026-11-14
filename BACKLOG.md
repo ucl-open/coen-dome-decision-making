@@ -1,5 +1,10 @@
 # Backlog
 
+## 2026-11-14 Pip's Zapit line decision
+
+- **Pip, 14 Nov 2026: the ZapitTrigger line (DO3) is a held level, never a board-timed pulse.** It goes high at the trigger and stays high until the workflow clears it `laserDurationSeconds` later, so the masking light on it lasts as long as the laser. lib-open-rigs `DomeRig` (954353d) refuses a rig.yml whose `outputPulseEnable` lists the Zapit line (the board would end it after its `PulseDO3` width: 5 ms, or 3000 ms on BLUE-OPTO-2); `config\rig-template.yml` has `"DO1, DO2"`. DomeHardware's `WithoutPulseLine` already dropped the line at run time. Every dome's rig.yml needs `outputPulseEnable: "DO1, DO2"`.
+- **Open: check on the first test run** (BLUE-OPTO-2, `test` mouse): on the scope, or in Zapit's log and the Behavior board log, DO3 rises at the trigger and falls `laserDurationSeconds` later, with the masking light lit for all of it and Zapit started on the rising edge.
+
 ## 2026-11-13 Pip's timing decisions
 
 - **Pip, 13 Nov 2026: Zapit adds no time; laserToStimulusSeconds is signed (before/after the stimulus).** `armToTriggerSeconds` is gone. Each trial is drawn at the start of its interval (the outcome, after any timeout) and, with optogenetics, Zapit is sent its StartStimulus then (`Laser`); the stimulus comes at the interval's end whether optogenetics is on or off, and the trigger at the stimulus less `laserToStimulusSeconds`. A Zapit reply not in by the trigger stops the workflow (`RequireZapitArmed`); the trigger is never moved.
