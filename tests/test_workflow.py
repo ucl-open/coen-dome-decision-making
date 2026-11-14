@@ -192,7 +192,8 @@ def test_the_shared_blocks_replace_the_local_copies():
 
 def test_video_is_logged_after_the_experiment_folder():
     logs = ET.tostring(_named("ExperimentLogs"), encoding="unicode")
-    assert logs.count("OpenRigs.Logging:LogVideo.bonsai") == 3
+    assert logs.count("OpenRigs.Logging:LogVideoFfmpeg.bonsai") == 3
+    assert "OpenRigs.Logging:LogVideo.bonsai" not in logs
 
 
 def test_missing_calibration_is_a_launch_property():

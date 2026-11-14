@@ -1615,7 +1615,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ExperimentLogs</Name>
-              <Description>Every log that waits for the experiment folder (PathPrefix): BonsaiData_Trial (LogTrial of TrialRow), each camera's video (LogVideo at the trigger's rate), the settings files, the Zapit conditions file (Settings_ZapitConditions), and Zapit's replies (the RngSeed event is TaskLogic's, at trial 1's Go).</Description>
+              <Description>Every log that waits for the experiment folder (PathPrefix): BonsaiData_Trial (LogTrial of TrialRow), each camera's video (LogVideoFfmpeg at the trigger's rate), the settings files, the Zapit conditions file (Settings_ZapitConditions), and Zapit's replies (the RngSeed event is TaskLogic's, at trial 1's Go).</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="SubscribeSubject">
@@ -1630,7 +1630,7 @@
                   <Expression xsi:type="SubscribeSubject">
                     <Name>BehaviorBoard-Main</Name>
                   </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideo.bonsai">
+                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideoFfmpeg.bonsai">
                     <LogName>Camera-Face</LogName>
                     <FrameRate>50</FrameRate>
                   </Expression>
@@ -1650,7 +1650,7 @@
                   <Expression xsi:type="SubscribeSubject">
                     <Name>BehaviorBoard-Main</Name>
                   </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideo.bonsai">
+                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideoFfmpeg.bonsai">
                     <LogName>Camera-Pupil</LogName>
                     <FrameRate>50</FrameRate>
                   </Expression>
@@ -1670,7 +1670,7 @@
                   <Expression xsi:type="SubscribeSubject">
                     <Name>BehaviorBoard-Main</Name>
                   </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideo.bonsai">
+                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideoFfmpeg.bonsai">
                     <LogName>Camera-Body</LogName>
                     <FrameRate>50</FrameRate>
                   </Expression>
