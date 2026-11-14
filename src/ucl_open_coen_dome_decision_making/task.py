@@ -115,9 +115,9 @@ class ResponseSettings(BaseSchema):
 
 
 class PunishmentSound(BaseSchema):
-    """The error sound played on an incorrect response, on rig.yml's speakerArray.errorSoundChannel."""
+    """The error sound, played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel."""
 
-    enabled: Bool = Field(default=False, description="Whether the error sound plays on incorrect responses")
+    enabled: Bool = Field(default=False, description="Whether the error sound plays with every timeout: an incorrect response or a miss not auto-rewarded")
     path: String = Field(default="LocalFiles\\error_tone.wav", description="Wav file of the error sound, from the workflow's folder")
     gain: Double = Field(default=1.0, ge=0, description="Playback gain of the error sound")
 
@@ -125,10 +125,10 @@ class PunishmentSound(BaseSchema):
 class Punishment(BaseSchema):
     """What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):
     the timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and
-    the error sound on an incorrect response."""
+    the error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026)."""
 
     timeout_seconds: Double = Field(default=4.0, ge=0, description="Timeout after an incorrect response or a miss, in seconds")
-    sound: PunishmentSound = Field(default=PunishmentSound(), description="The error sound on an incorrect response")
+    sound: PunishmentSound = Field(default=PunishmentSound(), description="The error sound, with every timeout")
 
 
 class TaskType(StrEnum):

@@ -137,13 +137,13 @@ public class OnNextTick
 }
 
 [Combinator]
-[Description("Ends a trial at the start of the next interval: its outcome, stamped with the Harp time the interval begins (after any timeout), so the next trial is drawn and Zapit armed while the interval runs.")]
+[Description("Ends a trial once its timeout is over: its outcome, and the Harp time the next interval began, exactly the outcome plus the timeout (Consequence.ItiStartTime), not the clock tick the delay ended on. So the next trial is drawn and Zapit armed while the interval runs, and its Go and stimulus are timed from the exact start.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class EndTrial
 {
-    public IObservable<TrialEnd> Process(IObservable<Timestamped<string>> source)
+    public IObservable<TrialEnd> Process(IObservable<Timestamped<Consequence>> source)
     {
-        return source.Select(value => new TrialEnd { Outcome = value.Value, ItiStartTime = value.Seconds });
+        return source.Select(value => new TrialEnd { Outcome = value.Value.Outcome, ItiStartTime = value.Value.ItiStartTime });
     }
 }
 
@@ -601,69 +601,6 @@ public class CheckZapitArmed
     }
 }
 
-/// <summary>
-/// A trial's quiet waits (Pip, 13 Nov 2026), on the Harp clock, counted from the interval's start: Go needs every
-/// spout released for lickSeconds (a held contact blocks Go), and the wheel's distance (forward and back added)
-/// within wheelCm over the last wheelSeconds; Go is the first moment at or after earliest at which both hold. With both
-/// off Go is earliest. coen-dome-navigation's Corridor.cs has the same class: change both together.
-/// </summary>
-public class QuietWait
-{
-    readonly double earliest, lickSeconds, wheelSeconds, wheelCm;
-    readonly Queue<KeyValuePair<double, double>> moves = new Queue<KeyValuePair<double, double>>();  // (Harp time, cm) in the window
-    double lickSince, wheelSince, lastWheel, recentCm;
-    bool held;
-
-    public QuietWait(double intervalStart, double earliest, double lickSeconds, double wheelSeconds, double wheelCm, double wheelAtStart, bool lickHeld)
-    {
-        this.earliest = earliest;
-        this.lickSeconds = lickSeconds;
-        this.wheelSeconds = wheelSeconds;
-        this.wheelCm = wheelCm;
-        lickSince = wheelSince = intervalStart;
-        lastWheel = wheelAtStart;
-        held = lickHeld;
-    }
-
-    /// <summary>A spout touched or released at Harp time now (held: any spout still touched) restarts the lick wait.</summary>
-    public void Lick(bool anyHeld, double now)
-    {
-        held = anyHeld;
-        lickSince = Math.Max(lickSince, now);
-    }
-
-    /// <summary>The wheel's distance in cm at Harp time now: once the travel within the last wheelSeconds passes wheelCm,
-    /// the wait restarts at the latest move that still takes it past.</summary>
-    public void Wheel(double cm, double now)
-    {
-        var moved = double.IsNaN(lastWheel) ? 0 : Math.Abs(cm - lastWheel);
-        lastWheel = cm;
-        if (!(wheelSeconds > 0)) return;
-        while (moves.Count > 0 && moves.Peek().Key <= now - wheelSeconds) recentCm -= moves.Dequeue().Value;
-        if (moved == 0) return;
-        moves.Enqueue(new KeyValuePair<double, double>(now, moved));
-        recentCm += moved;
-        while (recentCm > wheelCm)
-        {
-            var oldest = moves.Dequeue();
-            recentCm -= oldest.Value;
-            wheelSince = Math.Max(wheelSince, oldest.Key);
-        }
-    }
-
-    /// <summary>When Go falls if nothing more restarts a wait (infinity while a spout is held): exact, not rounded to a clock tick.</summary>
-    public double GoTime
-    {
-        get
-        {
-            if (lickSeconds > 0 && held) return double.PositiveInfinity;
-            return Math.Max(earliest, Math.Max(lickSeconds > 0 ? lickSince + lickSeconds : 0, wheelSince + wheelSeconds));
-        }
-    }
-
-    public double Earliest { get { return earliest; } }
-}
-
 /// <summary>Holds one trial at a time until its Go; apart from Bonsai so a test can run it.</summary>
 public class GoWaiter
 {
@@ -853,6 +790,7 @@ public class Consequence
     public OpenRigs.Devices.LickSpoutCommand SpoutCommand;
     public bool ErrorSound;
     public double TimeoutSeconds;
+    public double ItiStartTime;           // the outcome's Harp time plus the timeout: when the next interval begins, exactly
     public bool WithdrawAfterDrink;       // the stage moves the spouts: they go out once the mouse has drunk
 
     /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target, the other spout drawn back; an
@@ -861,6 +799,9 @@ public class Consequence
     public static Consequence Of(TrialRow row, Trial trial)
     {
         var c = new Consequence { Outcome = row.outcome, ErrorSound = row.punishSound, TimeoutSeconds = row.punishTimeoutSeconds };
+        // Timed from the outcome's own Harp time, as coen-dome-navigation's are: the timeout's HarpDelay counts from the
+        // tick the outcome reached it on, 0 to 14 ms after a lick (BLUE-OPTO-2, 14 Nov 2026).
+        c.ItiStartTime = row.outcomeTime + row.punishTimeoutSeconds;
         c.Rewarded = row.outcome == "Correct" || row.autoRewarded;
         c.Reward = c.Rewarded ? Tuple.Create(trial.target, trial.rewardSizeUl) : null;
         c.MoveSpouts = trial.spoutMovements;

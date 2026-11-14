@@ -46,7 +46,8 @@ $streams = @($prev.streams)
 $ownStreams = @('BonsaiData_ZapitReplies', 'Settings_ZapitConditions')
 # Names this workflow wrote once and no longer does (Pip, 9 Nov 2026): optoStimulated and optoCondition became
 # laserCondition (and laserPowerMw); the angle columns end in their unit; Zapit's replies moved into BonsaiData.
-$retired = @{ trialColumns = @('optoStimulated', 'optoCondition', 'visualAzimuth', 'visualElevation', 'visualPhase', 'audioAzimuth', 'audioElevation'); streams = @('Zapit') }
+# choiceTime is outcomeTime from 14 Nov 2026 (Pip: the dome tasks' shared block).
+$retired = @{ trialColumns = @('optoStimulated', 'optoCondition', 'visualAzimuth', 'visualElevation', 'visualPhase', 'audioAzimuth', 'audioElevation', 'choiceTime', 'Seconds'); streams = @('Zapit') }
 foreach ($s in $ownStreams) { if ($streams -notcontains $s) { $streams += $s; $added += "stream $s" } }
 $es = [ordered]@{}; foreach ($p in $prev.experimentSettings.PSObject.Properties) { $es[$p.Name] = $p.Value }
 # The lab's names this workflow also uses: tagged here too, so none leaves the list while this workflow needs it.

@@ -121,7 +121,7 @@
       "type": "object"
     },
     "Punishment": {
-      "description": "What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):\nthe timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and\nthe error sound on an incorrect response.",
+      "description": "What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):\nthe timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and\nthe error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026).",
       "properties": {
         "timeoutSeconds": {
           "default": 4.0,
@@ -137,7 +137,7 @@
             "path": "LocalFiles\\error_tone.wav",
             "gain": 1.0
           },
-          "description": "The error sound on an incorrect response",
+          "description": "The error sound, with every timeout",
           "title": "Sound"
         }
       },
@@ -145,11 +145,11 @@
       "type": "object"
     },
     "PunishmentSound": {
-      "description": "The error sound played on an incorrect response, on rig.yml's speakerArray.errorSoundChannel.",
+      "description": "The error sound, played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel.",
       "properties": {
         "enabled": {
           "default": false,
-          "description": "Whether the error sound plays on incorrect responses",
+          "description": "Whether the error sound plays with every timeout: an incorrect response or a miss not auto-rewarded",
           "title": "Enabled",
           "type": "boolean"
         },

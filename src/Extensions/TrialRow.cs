@@ -5,26 +5,31 @@ using System.ComponentModel;
 using System.Reactive.Linq;
 
 // One row of BonsaiData_Trial. Each field is a column, named and typed as the lab's list
-// (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
-// means, lists it; the order is the file's. The row travels Timestamped, and its Seconds (the Harp
-// time the outcome was known: the choice, or the end of the response window) is the first column.
+// (K:\config\data-dictionary.json) allows and as schemas	rial-columns.yml, which says what each
+// means, lists it; the order is the file's. The row travels Timestamped at its outcome, which the
+// lab's CsvWriter writes first as harpTime. The columns up to laserPowerMw are the dome tasks'
+// shared block, in coen-dome-navigation's order and words (Pip, 14 Nov 2026); this task's own follow.
 public class TrialRow
 {
     public int trialNumber;
     public string trialType;
-    public string target;
-    public string choice;
     public string outcome;
-    public double stimulusOnsetTime;
-    public double choiceTime;
-    public double rewardSizeUl;
-    public bool bothSpouts;
-    public int repeatCount;
-    public double itiSeconds;
     public double itiStartTime;
+    public double itiSeconds;
     public double quietWaitSeconds;
+    public double trialStartTime;
+    public double stimulusOnsetTime;
+    public double outcomeTime;
+    public double rewardSizeUl;
     public bool punishSound;
     public double punishTimeoutSeconds;
+    public int laserCondition;
+    public double laserPowerMw;
+    public string target;
+    public string choice;
+    public int repeatCount;
+    public bool autoRewarded;
+    public bool bothSpouts;
     public double visualAzimuthDeg;
     public double visualElevationDeg;
     public double visualContrast;
@@ -32,9 +37,6 @@ public class TrialRow
     public double audioAzimuthDeg;
     public double audioElevationDeg;
     public int audioWaveformIndex;
-    public int laserCondition;
-    public double laserPowerMw;
-    public bool autoRewarded;
 }
 
 [Combinator]
@@ -45,7 +47,7 @@ public class CreateTrialRow
     [Description("The timeout after an incorrect choice or a miss not auto-rewarded, in seconds (punishment.timeoutSeconds).")]
     public double TimeoutSeconds { get; set; }
 
-    [Description("Whether the error sound plays on an incorrect choice (punishment.sound.enabled).")]
+    [Description("Whether the error sound plays with every timeout: an incorrect choice or a miss not auto-rewarded (punishment.sound.enabled).")]
     public bool PunishSound { get; set; }
 
     public IObservable<Timestamped<TrialRow>> Process(IObservable<Tuple<Timestamped<string>, Trial, double>> source)
@@ -64,26 +66,32 @@ public class CreateTrialRow
         return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward);
     }
 
-    public static TrialRow Build(string choice, double choiceTime, Trial trial, double stimulusOnsetTime, double timeoutSeconds, bool punishSound)
+    // outcomeTime is the choice's Harp time (the lick, or the end of the response window), the row's own time too.
+    public static TrialRow Build(string choice, double outcomeTime, Trial trial, double stimulusOnsetTime, double timeoutSeconds, bool punishSound)
     {
         var outcome = Outcome(choice, trial);
+        var timedOut = TimedOut(outcome, trial);
         return new TrialRow
         {
             trialNumber = trial.trialNumber,
             trialType = trial.trialType,
+            outcome = outcome,
+            itiStartTime = trial.itiStartTime,
+            itiSeconds = trial.itiSeconds,
+            quietWaitSeconds = trial.quietWaitSeconds,
+            trialStartTime = trial.goTime,
+            stimulusOnsetTime = stimulusOnsetTime,
+            outcomeTime = outcomeTime,
+            rewardSizeUl = trial.rewardSizeUl,
+            punishSound = timedOut && punishSound,  // the sound comes with every timeout, as in coen-dome-navigation (Pip, 14 Nov 2026)
+            punishTimeoutSeconds = timedOut ? timeoutSeconds : 0.0,
+            laserCondition = trial.laserCondition,
+            laserPowerMw = trial.LaserFiredByOutcome() ? trial.laserPowerMw : 0,  // answered before its trigger: no laser
             target = trial.target,
             choice = choice,
-            outcome = outcome,
-            stimulusOnsetTime = stimulusOnsetTime,
-            choiceTime = choice == "NoResponse" ? double.NaN : choiceTime,
-            rewardSizeUl = trial.rewardSizeUl,
-            bothSpouts = trial.bothSpouts,
             repeatCount = trial.repeatCount,
-            itiSeconds = trial.itiSeconds,
-            itiStartTime = trial.itiStartTime,
-            quietWaitSeconds = trial.quietWaitSeconds,
-            punishSound = outcome == "Incorrect" && punishSound,
-            punishTimeoutSeconds = TimedOut(outcome, trial) ? timeoutSeconds : 0.0,
+            autoRewarded = trial.autoReward && choice == "NoResponse",
+            bothSpouts = trial.bothSpouts,
             visualAzimuthDeg = trial.visualAzimuthDeg,
             visualElevationDeg = trial.visualElevationDeg,
             visualContrast = trial.visualContrast,
@@ -91,9 +99,6 @@ public class CreateTrialRow
             audioAzimuthDeg = trial.audioAzimuthDeg,
             audioElevationDeg = trial.audioElevationDeg,
             audioWaveformIndex = trial.audioWaveformIndex,
-            laserCondition = trial.laserCondition,
-            laserPowerMw = trial.LaserFiredByOutcome() ? trial.laserPowerMw : 0,  // answered before its trigger: no laser
-            autoRewarded = trial.autoReward && choice == "NoResponse",
         };
     }
 }

@@ -458,13 +458,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// <summary>
     /// What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):
     ///the timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and
-    ///the error sound on an incorrect response.
+    ///the error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("What an error costs, as the lab\'s tasks name it (the trial log\'s punishSound and " +
-        "punishTimeoutSeconds):\nthe timeout after an incorrect response or a miss (a miss" +
-        " on an auto-reward trial is rewarded instead), and\nthe error sound on an incorre" +
-        "ct response.")]
+    [System.ComponentModel.DescriptionAttribute(@"What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):
+    the timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and
+    the error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026).")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class Punishment
@@ -505,12 +504,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The error sound on an incorrect response
+        /// The error sound, with every timeout
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("sound")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="sound")]
-        [System.ComponentModel.DescriptionAttribute("The error sound on an incorrect response")]
+        [System.ComponentModel.DescriptionAttribute("The error sound, with every timeout")]
         public PunishmentSound Sound
         {
             get
@@ -556,11 +555,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The error sound played on an incorrect response, on rig.yml's speakerArray.errorSoundChannel.
+    /// The error sound, played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The error sound played on an incorrect response, on rig.yml\'s speakerArray.errorS" +
-        "oundChannel.")]
+    [System.ComponentModel.DescriptionAttribute("The error sound, played with every timeout (an incorrect response or a miss not a" +
+        "uto-rewarded), on rig.yml\'s speakerArray.errorSoundChannel.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class PunishmentSound
@@ -587,11 +586,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Whether the error sound plays on incorrect responses
+        /// Whether the error sound plays with every timeout: an incorrect response or a miss not auto-rewarded
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("enabled")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="enabled")]
-        [System.ComponentModel.DescriptionAttribute("Whether the error sound plays on incorrect responses")]
+        [System.ComponentModel.DescriptionAttribute("Whether the error sound plays with every timeout: an incorrect response or a miss" +
+            " not auto-rewarded")]
         public bool Enabled
         {
             get

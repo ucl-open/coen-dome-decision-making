@@ -2807,7 +2807,7 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="MemberSelector">
-                    <Selector>Value.Outcome</Selector>
+                    <Selector>Value</Selector>
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
                     <Name>Timestamp</Name>

@@ -100,7 +100,9 @@ def test_the_iti_descriptions_say_the_drink_is_in_the_interval():
     from ucl_open_coen_dome_decision_making.task import TrialStructure
 
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
-    for text in (TrialStructure.model_fields["iti_min_seconds"].description, columns["itiSeconds"]["description"]):
+    # The column's description is the dome tasks' shared one; this task's detail is its note.
+    column = columns["itiSeconds"]["description"] + " " + columns["itiSeconds"]["note"]
+    for text in (TrialStructure.model_fields["iti_min_seconds"].description, column):
         assert "drinkSeconds" in text and "timeout" in text
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda p: p.name)
