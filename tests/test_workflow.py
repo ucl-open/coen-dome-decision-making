@@ -272,3 +272,50 @@ def test_the_trial_loop_starts_on_the_clock_thread():
     assert nodes[into].find(f"{W}Combinator").get(XSI) == "p1:OnNextTick"
     clock = [f for f, t, label in edges if t == into and label == "Source2"]
     assert [nodes[f].findtext(f"{W}Name") for f in clock] == ["Timestamp"]
+
+
+PER_ELEMENT = {"rx:SelectMany", "rx:CreateObservable", "rx:Concat", "rx:Switch"}
+
+
+def _subjects_closed_by_a_nested_multicast(top):
+    """Each MulticastSubject inside a per-element nested graph whose subject is not a BehaviorSubject declared in this
+    workflow or inside that graph. Bonsai 2.9 passes a multicast source's completion to a PublishSubject or
+    ReplaySubject, so the first trial's graph closes it for good; a declared BehaviorSubject ignores it."""
+    declared = {}
+
+    def declare(wf):
+        for n in wf.find(f"{W}Nodes"):
+            if (n.get(XSI) or "").startswith("rx:") and (n.get(XSI) or "").endswith("Subject"):
+                declared[n.findtext("{clr-namespace:Bonsai.Reactive;assembly=Bonsai.Core}Name")] = n.get(XSI)
+            inner = n.find(f"{W}Workflow")
+            if inner is not None:
+                declare(inner)
+
+    declare(top)
+    found = []
+
+    def walk(wf, nested, local):
+        local = local | {n.findtext("{clr-namespace:Bonsai.Reactive;assembly=Bonsai.Core}Name") for n in wf.find(f"{W}Nodes")
+                         if (n.get(XSI) or "").endswith("Subject") and (n.get(XSI) or "").startswith("rx:")}
+        for n in wf.find(f"{W}Nodes"):
+            if n.get(XSI) == "MulticastSubject" and nested:
+                name = n.findtext(f"{W}Name")
+                if name not in local and declared.get(name) != "rx:BehaviorSubject":
+                    found.append(name)
+            inner = n.find(f"{W}Workflow")
+            if inner is not None:
+                per = n.get(XSI) in PER_ELEMENT
+                walk(inner, nested or per, local if not per else set())
+
+    walk(top, False, set())
+    return found
+
+
+def test_no_trial_graph_closes_a_shared_subject():
+    """Before 14 Nov 2026 the grating, the sound, the spouts and every board command after the first laser trial ran on
+    trial 1 only, the trial rows giving no sign (BLUE-OPTO-2, counted live): a per-trial graph multicast into
+    PublishSubjects. Shared event subjects are BehaviorSubjects or, where another graph subscribes per trial or the
+    subject is a block's, fed through a BehaviorSubject feed relayed once at TaskLogic's top level."""
+    # AsyncEvents (OpenRigs.Logging's) is multicast in ExperimentLogs, run once per experiment, from Trial, which never
+    # completes, so nothing closes it before the workflow ends.
+    assert _subjects_closed_by_a_nested_multicast(MAIN.find(f"{W}Workflow")) == ["AsyncEvents"]

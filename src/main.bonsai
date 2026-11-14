@@ -462,7 +462,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. Trial (each trial as drawn), TrialNumber (from 1), TrialOutcome, StimulusOnsetTime (Harp seconds; these three are the plan's shared names, published for any reader and read by none here yet) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and ErrorSound start the stimuli; Zapit's commands and replies; DeliverRewardCommand, each (side, microlitres) reward.</Description>
+        <Description>Subjects the groups share. Trial (each trial as drawn), TrialNumber (from 1), TrialOutcome, StimulusOnsetTime (Harp seconds; these three are the plan's shared names, published for any reader and read by none here yet) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and ErrorSound start the stimuli; Zapit's commands and replies; DeliverRewardCommand, each (side, microlitres) reward. Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
@@ -492,26 +492,35 @@
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Double">
               <rx:Name>GratingAzimuthDeg</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="p1:Trial">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
               <rx:Name>VisualStimulus</rx:Name>
             </Expression>
             <Expression xsi:type="rx:PublishSubject" TypeArguments="harp:Timestamped(sys:Double)">
               <rx:Name>VisualStimulusOff</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="p1:Trial">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
               <rx:Name>AuditoryStimulus</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="sys:String">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:String">
               <rx:Name>ErrorSound</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="zap:ZapitCommand">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="zap:ZapitCommand">
               <rx:Name>ZapitCommands</rx:Name>
             </Expression>
             <Expression xsi:type="rx:PublishSubject" TypeArguments="zap:ZapitReply">
               <rx:Name>ZapitReplies</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="sys:Tuple(sys:String,sys:Double)">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Tuple(sys:String,sys:Double)">
               <rx:Name>DeliverRewardCommand</rx:Name>
+            </Expression>
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:Timestamped(sys:Double)">
+              <rx:Name>VisualStimulusOffFeed</rx:Name>
+            </Expression>
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="dev:LickSpoutCommand">
+              <rx:Name>LickSpoutStageFeed</rx:Name>
+            </Expression>
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:HarpMessage">
+              <rx:Name>BehaviorBoardFeed</rx:Name>
             </Expression>
           </Nodes>
           <Edges />
@@ -2353,7 +2362,7 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>VisualStimulusOff</Name>
+                    <Name>VisualStimulusOffFeed</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>Onset</Name>
@@ -2388,7 +2397,7 @@
                     <Selector>Item2</Selector>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>LickSpoutStage.Commands</Name>
+                    <Name>LickSpoutStageFeed</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>Onset</Name>
@@ -2748,7 +2757,7 @@
                     <Selector>SpoutCommand</Selector>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>LickSpoutStage.Commands</Name>
+                    <Name>LickSpoutStageFeed</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>Outcome</Name>
@@ -2856,7 +2865,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>LickSpoutStage.Commands</Name>
+                    <Name>LickSpoutStageFeed</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>ItiStart</Name>
@@ -3111,7 +3120,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>BehaviorBoard-Main.Commands</Name>
+                    <Name>BehaviorBoardFeed</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>LaserDuration</Name>
@@ -3145,7 +3154,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>BehaviorBoard-Main.Commands</Name>
+                    <Name>BehaviorBoardFeed</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>RampDown</Name>
@@ -3276,10 +3285,28 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage.Commands</Name>
+              <Name>LickSpoutStageFeed</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>Timestamp</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>VisualStimulusOffFeed</Name>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>VisualStimulusOff</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>LickSpoutStageFeed</Name>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>LickSpoutStage.Commands</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>BehaviorBoardFeed</Name>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>BehaviorBoard-Main.Commands</Name>
             </Expression>
           </Nodes>
           <Edges>
@@ -3324,6 +3351,9 @@
             <Edge From="39" To="40" Label="Source1" />
             <Edge From="40" To="41" Label="Source1" />
             <Edge From="42" To="2" Label="Source2" />
+            <Edge From="43" To="44" Label="Source1" />
+            <Edge From="45" To="46" Label="Source1" />
+            <Edge From="47" To="48" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

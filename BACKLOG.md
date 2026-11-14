@@ -1,5 +1,28 @@
 # Backlog
 
+## 2026-11-14 First runs on hardware (BLUE-OPTO-2, test mouse, unattended)
+
+The first runs on a dome found three faults that stopped or emptied every experiment; each is fixed with a test and re-run on the rig. The log is `K:\config\machines\BLUE-OPTO-2\switch\iterate-log.md`.
+
+- **The auditory stimuli were in no rig's calibration folder**, so the workflow stopped at Start on every rig. They are the task's own files now, `src\LocalFiles\AuditoryStimuli`, the same 100 WAVs as production av-dome's LocalFiles.
+- **The Harp clock stopped at trial 1.** TaskLogic started the trial loop with `PathPrefix` into `WithLatestTimestamp`, which ran the first draw from the control thread under the lock the clock's thread needs for every tick. Trial 1 never reached Go, no Harp board was logged and Bonsai hung at Stop until the agent killed it. `OnNextTick` (tested C#) now gives the folder on the next tick from the clock's thread.
+- **The grating, the sound and the spouts ran on trial 1 only.** In Bonsai 2.9 a MulticastSubject inside a per-trial nested graph passes the graph's completion to a PublishSubject, closing it; a declared BehaviorSubject ignores it (a 5-node test, and live counts on the rig). Trial rows looked right throughout. The shared event subjects are BehaviorSubjects, or fed through BehaviorSubject feeds relayed once at TaskLogic's top level; `test_no_trial_graph_closes_a_shared_subject` holds the rule.
+- **A lick that ends a trial can freeze the workflow** (found with scripted licks, about 1 in 30 Correct trials): the lick's thread, holding a lib-open-rigs `HarpDelay`'s lock (the response window's `OpenLoop`), ends the trial's graph and waits for the `Timestamp` subject's lock to unsubscribe, while the Harp clock's thread holds that lock (Bonsai's BehaviorSubject calls subscribers under it) and waits for the HarpDelay's. The trial loop, the control port and Stop all freeze; the agent kills Bonsai. Real licks come on the Lickety Split's thread, so a real mouse hits it too. Fixed in lib-open-rigs (`HarpDelay` sends outside its lock, with a test that deadlocks on the old code); on the rig, 120 scripted Correct trials with the fix, no hang (before: 2 hangs in 4 runs). **Not yet in this workflow: it needs the lib-open-rigs commit, a package build and the package bump here.** Do not run a mouse on decision-making before then.
+- Measured on the rig after the fixes (localization stage 4, 100 trials): stimulus onset 0.49 ms after its scheduled time (sd 0.28, max 0.98), outcome 1.500 s after onset on every miss, timeout 4.000 s, drift 0.6 ms an hour, no dropped camera frame, Stop to idle 2 s.
+
+### Not changed
+
+- `useZapit: true` with 3 mW stays the localization file's default (set for BLUE-OPTO-2 on 10 Nov 2026); a decision for Pip, since discrimination and navigation default to off.
+- One camera frame at the start of a run carries a timestamp 12 ms early (frame 40 of 46896, when the clock settles); every later frame is within 1.5 ms of its trigger.
+- **A rare hang at Stop** (1 of 9 sweep runs, after 100 trials; the agent killed Bonsai 30 s later and the kill cut the camera CSVs mid-line). Not caught again in 31 start/stop cycles. A Stop while the cameras open takes 8-9 s instead of 1-3 s; its stacks show one camera's thread in SpinnakerNET's native `ManagedCamera.Dispose` while the finalizer disposes another camera wrapper: Bonsai.Spinnaker 0.9.1's `SpinnakerCapture` leaves the cameras it did not pick to the finalizer. A possible cause, unproved; the HarpDelay deadlock above (the same lock pair, with Stop's dispose as the other thread) is another. Re-check once the HarpDelay fix is in.
+- **After a lick ends a trial, the next interval starts 0 to 14 ms late** (mean 3 ms; scripted licks, 46 trials): the timeout and interval are timed from when their HarpDelay receives the outcome, after the lick's thread has done the outcome's other work, not from the outcome's time. `itiStartTime` records the real start and the next stimulus is exact from it (under 1 ms); after a miss (the clock's thread) it is exact. Fix if it matters: time the delay from the outcome's own timestamp.
+- Scripted licks (`_diag.bonsai`, not committed; the method is in claude-tools `/lab:bonsai-workflows`' rig-testing notes) gave the predicted outcome on all 46 trials of localization stage 4 and discrimination stages 0 and 3: correct, wrong, miss, a late lick and a lick before the stimulus both ignored, wrong then right (the first lick decides), auto-reward on every discrimination stage 0 miss. Response window exact; choice to outcome 0 ms; outcome to reward event 0 to 12 ms.
+
+### Still untried
+
+- Zapit: the simulated run stopped on the per-trial ZapitCommands closure (fixed since); not re-run, as the rig's presence check asks for an Override while app-zapit runs and an unattended session does not override it.
+- Licks, choices, rewards and the wheel need a mouse; the valves need a calibration (a person, the USB balance camera, about 35 ml).
+
 ## 2026-11-14 Pip's Zapit line decision
 
 - **Pip, 14 Nov 2026: the ZapitTrigger line (DO3) is a held level, never a board-timed pulse.** It goes high at the trigger and stays high until the workflow clears it `laserDurationSeconds` later, so the masking light on it lasts as long as the laser. lib-open-rigs `DomeRig` (954353d) refuses a rig.yml whose `outputPulseEnable` lists the Zapit line (the board would end it after its `PulseDO3` width: 5 ms, or 3000 ms on BLUE-OPTO-2); `config\rig-template.yml` has `"DO1, DO2"`. DomeHardware's `WithoutPulseLine` already dropped the line at run time. Every dome's rig.yml needs `outputPulseEnable: "DO1, DO2"`.
