@@ -242,3 +242,19 @@ def test_the_layout_is_tracked():
     # Audit round 5: a tracked layout replaces a stale per-machine one at Setup, as coen-dome-navigation's.
     assert (ROOT / "config" / "main.layout").read_text(encoding="utf-8").count("<VisualizerLayout") == 1
     assert "..\\config\\main.layout" in (ROOT / ".bonsai" / "Setup.ps1").read_text(encoding="utf-8-sig")
+
+
+def test_the_auditory_stimuli_are_the_tasks_own_files():
+    """The 100 stimuli are in the repo (production av-dome keeps them in its LocalFiles), mono 16-bit
+    at the mixer's 48 kHz and one length for the sync gate: nothing put them in each rig's
+    calibration folder, so the workflow stopped at Start on every rig (BLUE-OPTO-2, 14 Nov 2026)."""
+    import wave
+
+    folder = ROOT / "src" / "LocalFiles" / "AuditoryStimuli"
+    shapes = set()
+    for i in range(100):
+        with wave.open(str(folder / f"filtered_pink_pulse_train_{i}.wav")) as w:
+            shapes.add((w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()))
+    assert len(shapes) == 1
+    assert shapes.pop()[:3] == (1, 2, 48000)
+    assert r"<p1:Folder>LocalFiles\AuditoryStimuli</p1:Folder>" in TEXT

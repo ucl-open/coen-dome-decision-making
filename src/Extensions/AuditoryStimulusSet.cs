@@ -106,10 +106,11 @@ public class AuditoryStimulusSet
     public static string MachineName = Environment.MachineName;
 
     /// <summary>
-    /// Reads the set and the speakers' filters, failing with a message naming every file that is
-    /// missing or unusable; public so a check can run it without a workflow.
+    /// Reads the set from stimulusDirectory (a full path) and the speakers' filters (relative to
+    /// rigDirectory), failing with a message naming every file that is missing or unusable; public
+    /// so a check can run it without a workflow.
     /// </summary>
-    public static AuditoryStimulusSet Load(DomeSpeakerArray speakerArray, string rigDirectory, string folder, string filePrefix)
+    public static AuditoryStimulusSet Load(DomeSpeakerArray speakerArray, string rigDirectory, string stimulusDirectory, string filePrefix)
     {
         if (speakerArray == null || speakerArray.Speakers == null || speakerArray.Speakers.Count == 0)
         {
@@ -166,7 +167,8 @@ public class AuditoryStimulusSet
             kernels[speaker.Channel] = kernel;
         }
 
-        string directory = Path.GetFullPath(Path.IsPathRooted(folder) ? folder : Path.Combine(rigDirectory, folder));
+        if (!Path.IsPathRooted(stimulusDirectory)) throw new ArgumentException("The auditory stimuli's folder must be a full path: " + stimulusDirectory);
+        string directory = Path.GetFullPath(stimulusDirectory);
         var files = Enumerable.Range(0, WaveformCount).Select(i => Path.Combine(directory, filePrefix + i + ".wav")).ToArray();
         var missing = files.Where(file => !File.Exists(file)).ToArray();
         if (missing.Length > 0)
@@ -301,17 +303,17 @@ public class AuditoryStimulusSet
 }
 
 [Combinator]
-[Description("Loads the rig's auditory stimulus set at Start: the 100 waveforms in <RigConfigDirectory>\\<Folder>, each equalised for every speaker with a filter (a SpeakerFilter artefact) in rig.yml. Stops the workflow, naming each file, if rig.yml has no syncChannel, a speaker has no filter, any waveform or filter is missing, is not mono 16-bit PCM at the audio device's rate, or a filter was designed for another rate or measured on another machine. Input is a Zip of RigConfigs.SpeakerArray and RigConfigDirectory.")]
+[Description("Loads the auditory stimulus set at Start: the 100 waveforms in <Folder>, the task's own and the same on every rig (src\\LocalFiles\\AuditoryStimuli, as production av-dome keeps them in its LocalFiles), each equalised for every speaker with a filter (a SpeakerFilter artefact) in rig.yml. Stops the workflow, naming each file, if rig.yml has no syncChannel, a speaker has no filter, any waveform or filter is missing, is not mono 16-bit PCM at the audio device's rate, or a filter was designed for another rate or measured on another machine. Input is a Zip of RigConfigs.SpeakerArray and RigConfigDirectory.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LoadAuditoryStimulusSet
 {
     public LoadAuditoryStimulusSet()
     {
-        Folder = "calibration\\AuditoryStimuli";
+        Folder = "LocalFiles\\AuditoryStimuli";
         FilePrefix = "filtered_pink_pulse_train_";
     }
 
-    [Description("The folder of the stimulus waveforms, relative to the rig configuration directory.")]
+    [Description("The folder of the stimulus waveforms, relative to the workflow's folder (src), where Bonsai also resolves LocalFiles\\error_tone.wav.")]
     public string Folder { get; set; }
 
     [Description("The waveforms' file name before their index: <FilePrefix>0.wav and on.")]
@@ -319,7 +321,7 @@ public class LoadAuditoryStimulusSet
 
     public IObservable<AuditoryStimulusSet> Process(IObservable<Tuple<DomeSpeakerArray, string>> source)
     {
-        return source.Select(input => AuditoryStimulusSet.Load(input.Item1, input.Item2, Folder, FilePrefix));
+        return source.Select(input => AuditoryStimulusSet.Load(input.Item1, input.Item2, Path.GetFullPath(Folder), FilePrefix));
     }
 }
 

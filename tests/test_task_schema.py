@@ -276,3 +276,14 @@ def test_weights_and_repeat_rules_are_keyed_by_trial_type_name():
         assert all(set(stage["trialWeights"]) == names for stage in task["trainingStages"])
 
 
+
+
+def test_every_task_file_states_its_task_type():
+    """app-rig-control's stage suggestion reads taskParameters.taskType from the task file itself (its
+    view's [task.suggest]); a file leaving it to the schema's default got "taskType is not a field of
+    the task file" and no suggestion on every localization launch (BLUE-OPTO-2, 14 Nov 2026)."""
+    import yaml
+
+    for path in sorted((Path(__file__).parents[1] / "config").glob("task*.yml")):
+        task = yaml.safe_load(path.read_text(encoding="utf-8"))["taskParameters"]
+        assert task.get("taskType") in ("localization", "discrimination"), path.name

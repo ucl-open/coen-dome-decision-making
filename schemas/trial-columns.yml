@@ -110,7 +110,7 @@ audioElevationDeg:
   description: Elevation of the speaker that played; NaN when none played.
 audioWaveformIndex:
   type: int
-  description: Index into the auditory stimulus set (calibration\AuditoryStimuli).
+  description: Index into the auditory stimulus set (src\LocalFiles\AuditoryStimuli\filtered_pink_pulse_train_<index>.wav).
 laserCondition:
   type: int
   formerly: [optoCondition]

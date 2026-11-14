@@ -71,7 +71,27 @@ public class AuditoryStimulusSetTests
 
     AuditoryStimulusSet Load(DomeSpeakerArray speakers)
     {
-        return AuditoryStimulusSet.Load(speakers, rig, "calibration\\AuditoryStimuli", "filtered_pink_pulse_train_");
+        return AuditoryStimulusSet.Load(speakers, rig, Path.Combine(rig, "calibration", "AuditoryStimuli"), "filtered_pink_pulse_train_");
+    }
+
+    [TestMethod]
+    public void A_relative_stimulus_folder_is_refused()
+    {
+        try
+        {
+            AuditoryStimulusSet.Load(Speakers("calibration/sym.json"), rig, "calibration\\AuditoryStimuli", "filtered_pink_pulse_train_");
+            Assert.Fail("a relative folder was taken");
+        }
+        catch (ArgumentException ex)
+        {
+            StringAssert.Contains(ex.Message, "full path");
+        }
+    }
+
+    [TestMethod]
+    public void The_workflow_reads_the_stimuli_from_its_own_LocalFiles()
+    {
+        Assert.AreEqual("LocalFiles\\AuditoryStimuli", new LoadAuditoryStimulusSet().Folder);
     }
 
     static float[] Samples(OpenCV.Net.Mat m)
