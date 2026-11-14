@@ -555,11 +555,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The error sound, played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel.
+    /// The lab's error sound (OpenRigs.Audio, the same in every task), played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel alone, equalised for that speaker.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The error sound, played with every timeout (an incorrect response or a miss not a" +
-        "uto-rewarded), on rig.yml\'s speakerArray.errorSoundChannel.")]
+    [System.ComponentModel.DescriptionAttribute("The lab\'s error sound (OpenRigs.Audio, the same in every task), played with every" +
+        " timeout (an incorrect response or a miss not auto-rewarded), on rig.yml\'s speak" +
+        "erArray.errorSoundChannel alone, equalised for that speaker.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class PunishmentSound
@@ -567,21 +568,17 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private bool _enabled;
     
-        private string _path;
-    
         private double _gain;
     
         public PunishmentSound()
         {
             _enabled = false;
-            _path = "LocalFiles\\error_tone.wav";
             _gain = 1D;
         }
     
         protected PunishmentSound(PunishmentSound other)
         {
             _enabled = other._enabled;
-            _path = other._path;
             _gain = other._gain;
         }
     
@@ -605,29 +602,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Wav file of the error sound, from the workflow's folder
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("path")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="path")]
-        [System.ComponentModel.DescriptionAttribute("Wav file of the error sound, from the workflow\'s folder")]
-        public string Path
-        {
-            get
-            {
-                return _path;
-            }
-            set
-            {
-                _path = value;
-            }
-        }
-    
-        /// <summary>
-        /// Playback gain of the error sound
+        /// Gain on the lab's error sound, 1 for its level
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("gain")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="gain")]
-        [System.ComponentModel.DescriptionAttribute("Playback gain of the error sound")]
+        [System.ComponentModel.DescriptionAttribute("Gain on the lab\'s error sound, 1 for its level")]
         public double Gain
         {
             get
@@ -653,7 +632,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
             stringBuilder.Append("Enabled = " + _enabled + ", ");
-            stringBuilder.Append("Path = " + _path + ", ");
             stringBuilder.Append("Gain = " + _gain);
             return true;
         }

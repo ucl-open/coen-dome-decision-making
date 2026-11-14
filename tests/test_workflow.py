@@ -316,6 +316,29 @@ def test_no_trial_graph_closes_a_shared_subject():
     trial 1 only, the trial rows giving no sign (BLUE-OPTO-2, counted live): a per-trial graph multicast into
     PublishSubjects. Shared event subjects are BehaviorSubjects or, where another graph subscribes per trial or the
     subject is a block's, fed through a BehaviorSubject feed relayed once at TaskLogic's top level."""
-    # AsyncEvents (OpenRigs.Logging's) is multicast in ExperimentLogs, run once per experiment, from Trial, which never
-    # completes, so nothing closes it before the workflow ends.
-    assert _subjects_closed_by_a_nested_multicast(MAIN.find(f"{W}Workflow")) == ["AsyncEvents"]
+    # RngSeed's AsyncEvents multicast is at TaskLogic's top level since 14 Nov 2026 (it was in ExperimentLogs).
+    assert _subjects_closed_by_a_nested_multicast(MAIN.find(f"{W}Workflow")) == []
+
+
+def test_the_rng_seed_is_logged_at_trial_1s_go():
+    # Audit, 14 Nov 2026: at trial 1's Go, as coen-dome-navigation (was at trial 1's draw); the Take after the multicast.
+    nodes, edges = _scope(_named("TaskLogic"))
+    seed = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "RngSeed")
+    source = [a for a, b, _ in edges if b == seed]
+    assert len(source) == 1 and nodes[source[0]].findtext(W + "Name") == "TrialGo" and nodes[source[0]].get(XSI) == "SubscribeSubject"
+    assert not [n for n in _scope(_named("ExperimentLogs"))[0] if n.findtext(W + "Name") == "RngSeed"]
+
+
+def test_the_error_sound_is_the_labs_at_the_tasks_gain():
+    # Audit, 14 Nov 2026: OpenRigs.Audio's error sound, made once the task file's gain is in (Zip, InputMapping), never
+    # at the default gain from the speakers alone.
+    nodes, edges = _scope(_named("LoadAudioFiles"))
+    error = next(i for i, n in enumerate(nodes) if _kind(n) == "aud:ErrorSoundBuffer")
+    (mapping,) = [a for a, b, _ in edges if b == error]
+    assert nodes[mapping].get(XSI) == "InputMapping"
+    assert 'Name="Gain" Selector="Item1"' in ET.tostring(nodes[mapping], encoding="unicode")
+    (zip_,) = [a for a, b, _ in edges if b == mapping]
+    inputs = sorted((label, nodes[a]) for a, b, label in edges if b == zip_)
+    assert "TaskParameters.Punishment.Sound.Gain" in inputs[0][1].findtext(W + "Selector")
+    assert inputs[1][1].findtext(W + "Name") == "Speakers"
+    assert "error_tone" not in TEXT and "Punishment.Sound.Path" not in TEXT

@@ -5,9 +5,9 @@ using System.ComponentModel;
 using System.Reactive.Linq;
 
 // One row of BonsaiData_Trial. Each field is a column, named and typed as the lab's list
-// (K:\config\data-dictionary.json) allows and as schemas	rial-columns.yml, which says what each
+// (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
 // means, lists it; the order is the file's. The row travels Timestamped at its outcome, which the
-// lab's CsvWriter writes first as harpTime. The columns up to laserPowerMw are the dome tasks'
+// lab's CsvWriter writes first as harpTime. The columns up to laserTriggerTime are the dome tasks'
 // shared block, in coen-dome-navigation's order and words (Pip, 14 Nov 2026); this task's own follow.
 public class TrialRow
 {
@@ -25,6 +25,7 @@ public class TrialRow
     public double punishTimeoutSeconds;
     public int laserCondition;
     public double laserPowerMw;
+    public double laserTriggerTime;
     public string target;
     public string choice;
     public int repeatCount;
@@ -87,6 +88,7 @@ public class CreateTrialRow
             punishTimeoutSeconds = timedOut ? timeoutSeconds : 0.0,
             laserCondition = trial.laserCondition,
             laserPowerMw = trial.LaserFiredByOutcome() ? trial.laserPowerMw : 0,  // answered before its trigger: no laser
+            laserTriggerTime = trial.LaserFiredByOutcome() ? trial.laserTriggerTime : double.NaN,
             target = trial.target,
             choice = choice,
             repeatCount = trial.repeatCount,

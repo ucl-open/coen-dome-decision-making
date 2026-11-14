@@ -35,7 +35,6 @@ taskParameters:
     timeoutSeconds: 4.0   # s, after an incorrect choice or a miss (not after an auto-rewarded miss)
     sound:               # the error sound, on an incorrect choice
       enabled: true
-      path: LocalFiles\error_tone.wav
       gain: 1.0
   reward:
     largeRewardMultiplier: 1

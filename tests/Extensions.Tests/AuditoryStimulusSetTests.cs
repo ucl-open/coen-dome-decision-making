@@ -1,12 +1,13 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenRigs.Audio;
 using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using UclOpenCoenDomeDecisionMaking;
 
+// The speakers' filters are loaded and checked by OpenRigs.Audio (its own tests); these cover the stimulus set.
 [TestClass]
 public class AuditoryStimulusSetTests
 {
@@ -17,7 +18,6 @@ public class AuditoryStimulusSetTests
     [TestInitialize]
     public void Write()
     {
-        AuditoryStimulusSet.MachineName = "THIS-RIG";
         rig = Path.Combine(Path.GetTempPath(), "dome-decision-making-audio-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(rig, "calibration", "AuditoryStimuli"));
         var random = new Random(1);
@@ -27,10 +27,9 @@ public class AuditoryStimulusSetTests
             waves[i] = Enumerable.Range(0, 480).Select(_ => (short)random.Next(short.MinValue, short.MaxValue + 1)).ToArray();
             Wave(i, waves[i], 48000);
         }
-        Filter("sym", Symmetric, 48000, "THIS-RIG");
-        Filter("asym", new[] { 1, 0.5, 0.25 }, 48000, "THIS-RIG");
-        Filter("rate", Symmetric, 44100, "THIS-RIG");
-        Filter("other", Symmetric, 48000, "OTHER-RIG");
+        File.WriteAllText(Path.Combine(rig, "calibration", "sym.json"),
+            "{\"calibratedAt\":\"2026-11-04T00:00:00Z\",\"calibratedBy\":\"test\",\"machineName\":\"THIS-RIG\",\"notes\":\"\",\"sampleRate\":48000,\"taps\":[" +
+            string.Join(",", Symmetric.Select(t => t.ToString("R", CultureInfo.InvariantCulture))) + "]}");
     }
 
     [TestCleanup]
@@ -50,28 +49,23 @@ public class AuditoryStimulusSetTests
         }
     }
 
-    void Filter(string name, double[] taps, double rate, string machine)
+    SpeakerSet Speakers(bool sync = true)
     {
-        var json = "{\"calibratedAt\":\"2026-11-04T00:00:00Z\",\"calibratedBy\":\"test\",\"machineName\":\"" + machine + "\",\"notes\":\"\",\"sampleRate\":" +
-            rate.ToString(CultureInfo.InvariantCulture) + ",\"taps\":[" + string.Join(",", taps.Select(t => t.ToString("R", CultureInfo.InvariantCulture))) + "]}";
-        File.WriteAllText(Path.Combine(rig, "calibration", name + ".json"), json);
+        var speakers = "";
+        foreach (var s in new[] { Tuple.Create("left", -90, 0), Tuple.Create("right", 90, 1), Tuple.Create("centre", 0, 2) })
+        {
+            speakers += "    " + s.Item1 + ":\n      position: {azimuth: " + s.Item2 + ", elevation: 15.0, radius: 1.0}\n      channel: " + s.Item3 +
+                "\n      filter: calibration/sym.json\n";
+        }
+        var path = Path.Combine(rig, "rig.yml");
+        File.WriteAllText(path, "speakerArray:\n  device:\n    sampleRate: 48000\n    channelCount: 32\n  speakers:\n" + speakers +
+            (sync ? "  syncChannel: 31\n" : "") + "  errorSoundChannel: 2\n");
+        return SpeakerSet.Load(path, "THIS-RIG");
     }
 
-    static DomeSpeakerArray Speakers(string leftFilter)
+    AuditoryStimulusSet Load(SpeakerSet speakers)
     {
-        var array = Fixture.Speakers();
-        array.Device = new AudioDevice();
-        array.Device.SampleRate = 48000;
-        array.SyncChannel = 31;
-        array.Speakers["left"].Filter = leftFilter;
-        array.Speakers["right"].Filter = "calibration/sym.json";
-        array.Speakers["centre"].Filter = "calibration/sym.json";
-        return array;
-    }
-
-    AuditoryStimulusSet Load(DomeSpeakerArray speakers)
-    {
-        return AuditoryStimulusSet.Load(speakers, rig, Path.Combine(rig, "calibration", "AuditoryStimuli"), "filtered_pink_pulse_train_");
+        return AuditoryStimulusSet.Load(speakers, Path.Combine(rig, "calibration", "AuditoryStimuli"), "filtered_pink_pulse_train_");
     }
 
     [TestMethod]
@@ -79,7 +73,7 @@ public class AuditoryStimulusSetTests
     {
         try
         {
-            AuditoryStimulusSet.Load(Speakers("calibration/sym.json"), rig, "calibration\\AuditoryStimuli", "filtered_pink_pulse_train_");
+            AuditoryStimulusSet.Load(Speakers(), "calibration\\AuditoryStimuli", "filtered_pink_pulse_train_");
             Assert.Fail("a relative folder was taken");
         }
         catch (ArgumentException ex)
@@ -104,8 +98,9 @@ public class AuditoryStimulusSetTests
     [TestMethod]
     public void EqualisingIsTheFiltersCentredConvolution()
     {
-        var set = Load(Speakers("calibration/sym.json"));
+        var set = Load(Speakers());
         Assert.AreEqual(480, set.WaveformLength);
+        CollectionAssert.AreEqual(new[] { 0, 1, 2 }, set.SpeakerChannels);
         var x = waves[7].Select(s => (s + 32768.0) * (2.0 / 65535.0) - 1.0).ToArray();
         var got = Samples(set.Stimulus(7, 2));
         for (int n = 0; n < x.Length; n++)
@@ -121,32 +116,21 @@ public class AuditoryStimulusSetTests
     }
 
     [TestMethod]
-    public void EveryUnusableFileIsRefusedByName()
+    public void EveryUnusableStimulusIsRefusedByName()
     {
         Func<Action, string> refusal = Fixture.Refusal;
-        StringAssert.Contains(refusal(() => Load(Speakers(null))), "speaker 'left' has no filter");
-        StringAssert.Contains(refusal(() => Load(Speakers("calibration/asym.json"))), "not symmetric");
-        StringAssert.Contains(refusal(() => Load(Speakers("calibration/rate.json"))), "designed for 44100 Hz");
-        StringAssert.Contains(refusal(() => Load(Speakers("calibration/none.json"))), "filter not found");
-        StringAssert.Contains(refusal(() => Load(Speakers("calibration/other.json"))), "measured on 'OTHER-RIG'");
-        var noSync = Speakers("calibration/sym.json");
-        noSync.SyncChannel = null;
-        StringAssert.Contains(refusal(() => Load(noSync)), "no syncChannel");
+        StringAssert.Contains(refusal(() => Load(Speakers(false))), "no syncChannel");
         Wave(5, waves[5], 44100);
-        StringAssert.Contains(refusal(() => Load(Speakers("calibration/sym.json"))), "filtered_pink_pulse_train_5.wav");
+        StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_train_5.wav");
         File.Delete(Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_42.wav"));
-        StringAssert.Contains(refusal(() => Load(Speakers("calibration/sym.json"))), "filtered_pink_pulse_train_42.wav");
+        StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_train_42.wav");
     }
 
     [TestMethod]
-    public void AWaveTheMixerPlaysAtAnotherRateIsRefused()
+    public void TheBackgroundNoiseIsAtTheMixersRateAndTheErrorSoundIsTheLabs()
     {
-        foreach (var name in new[] { "error_tone.wav", "background_white_noise.wav" })
-        {
-            CheckWaveRate.Check(Path.Combine(Fixture.Repo(), "src", "LocalFiles", name), 48000);
-        }
-        Wave(3, waves[3], 44100);
-        var wave = Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_3.wav");
-        StringAssert.Contains(Fixture.Refusal(() => CheckWaveRate.Check(wave, 48000)), "is 44100 Hz, but the audio device runs at 48000 Hz");
+        CheckWaveRate.Check(Path.Combine(Fixture.Repo(), "src", "LocalFiles", "background_white_noise.wav"), 48000);
+        Assert.IsFalse(File.Exists(Path.Combine(Fixture.Repo(), "src", "LocalFiles", "error_tone.wav")), "the error sound is OpenRigs.Audio's, not a task file");
+        Assert.AreEqual(32, ErrorSound.Buffer(Speakers(), 1).Rows);
     }
 }

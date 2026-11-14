@@ -1,5 +1,26 @@
 # Backlog
 
+## 2026-11-14 Dome-task alignment audit: changed
+
+- `RngSeed` is logged at trial 1's Go, as coen-dome-navigation does (was at trial 1's draw).
+- The error sound is the lab's (lib-open-rigs OpenRigs.Audio `ErrorSoundBuffer`, the same file as before, now shared by every task): rig.yml's `errorSoundChannel` alone, equalised, at `punishment.sound.gain`, made once at load. `punishment.sound.path` and `src\LocalFiles\error_tone.wav` are gone. The speakers load once (`LoadSpeakers`, which checks the filters) and the background noise plays through `SpeakerBuffer`, not equalised, on every speaker.
+- New shared column `laserTriggerTime` (16 shared columns): the trigger's Harp time, NaN without optogenetics or when the trial was answered first, so a laser-off trial and one answered first no longer look alike.
+- Zapit's armed-reply check is lib-open-rigs' `ZapitTrial.CheckArmed`, shared with coen-dome-navigation.
+- `punishSound`'s description says it sounds on every punished trial whatever the timeout's length; `outcomeTime`'s note says it is when the workflow saw the lick.
+
+## Dome-task alignment audit (14 Nov 2026): not changed
+
+- `outcomeTime` duplicates `harpTime` by choice, so every moment of a trial is named.
+- coen-dome-navigation's `audiovisual` and this task's `audiovisualCoherent` are different tasks' trial types, so their names stay.
+- The rig C# generated in both tasks is identical; generating it once in a lab package is a larger change than it saves.
+- `rngSeed` is both in the task file and an `RngSeed` event: the file's is what was asked (null draws one), the event's what ran.
+- The response window, spouts in and stimulus off are not columns: each follows from the task file and the trial's columns.
+- A trial cut by Stop gets no row; its Go is in `BonsaiData_Async`.
+- Trial 1 starts about 1.2 s after Go here and 2.3 s in coen-dome-navigation: each task's own start-up, neither a bug.
+- `formerly` and `history` stay in trial-columns.yml until the old data's refactor.
+- `ReadTextFile.cs` is duplicated in both dome workflows (as round 4).
+- Trial 1's consequence (reward, error sound, spouts) comes 8 to 20 ms after its outcome; from trial 2 on, 0 to 2 ms. The choice, row and consequence nodes run for the first time at trial 1's outcome and pay .NET's first-run compile then; no single node is slow. Measured on BLUE-OPTO-2 (scripted test mouse, 2 runs each, trial 1 rewarded): as now +10 and +12 ms; the trial log moved to its own thread +8 to +12 ms (dropped: no gain beyond run-to-run spread, and a row sent just before Stop could be lost); every method of the task's C# and the lab's packages compiled at Start +9 and +16 ms (the cost is not there); one earlier outcome through the same nodes +1 and +2 ms. The fix, if needed: this task's outcome logic in one C# operator that runs on every tick, as coen-dome-navigation's `CorridorState` (whose trial 1 is on time), or a hidden warm-up outcome after Go, wired by hand.
+
 ## 2026-11-14 First runs on hardware (BLUE-OPTO-2, test mouse, unattended)
 
 The first runs on a dome found three faults that stopped or emptied every experiment; each is fixed with a test and re-run on the rig. The log is `K:\config\machines\BLUE-OPTO-2\switch\iterate-log.md`.
@@ -73,12 +94,12 @@ The first runs on a dome found three faults that stopped or emptied every experi
 - coen-qc-calibrate-valve and the domes pace pulses on different Harp-synced devices, about 1 ms apart.
 - `ReadTextFile.cs` is duplicated in both dome workflows; moving it to a lab package costs a package bump.
 - No trigger or Go time column; both follow from `itiStartTime`, `itiSeconds`, the lead and `quietWaitSeconds`.
-- `choiceTime` is the latest Harp tick when the choice is read, not the deciding lick's own timestamp.
+- `outcomeTime` (then `choiceTime`) is the latest Harp tick when the choice is read, not the deciding lick's own timestamp.
 - A skipped trial leaves Zapit armed; the next trial disarms it.
 
 ## Audit round 3 (13 Nov 2026): not changed
 
-- coen-dome-decision-making: a laser-off control trial and a laser trial skipped because it was answered first look alike in the row (`laserPowerMw` 0); which one follows from `choiceTime` and the lead.
+- coen-dome-decision-making: a laser-off control trial and a laser trial skipped because it was answered first look alike in the row (`laserPowerMw` 0); which one followed from `choiceTime` and the lead, and from 14 Nov 2026 `laserTriggerTime` says (a time, or NaN).
 - coen-dome-decision-making: discrimination's minimum interval equals its `drinkSeconds`; both are Gerion's measured values.
 - jsonschema accepts K:'s old rig.yml keys, but the generated deserializer and app-rig-control's key walk refuse them.
 - `usedBy` stays incomplete until `add-names.ps1` runs at switch step 8.

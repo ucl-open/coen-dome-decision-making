@@ -41,6 +41,7 @@ public class Trial
     public int laserCondition;         // 0 without optogenetics; on every optogenetics trial, laser on or off
     public bool laserOn;
     public double laserPowerMw;        // 0 with the laser off
+    public double laserTriggerTime = double.NaN; // Harp time the trigger line rose (FireLaser); NaN until then
     public bool autoReward;
     public bool spoutMovements;
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
@@ -50,10 +51,15 @@ public class Trial
     object laserGate = new object();
     bool laserDecided, laserFired;
 
-    /// <summary>At the trigger: fires the laser unless the outcome came first. Returns whether it fires.</summary>
-    public bool FireLaser()
+    /// <summary>At the trigger (its Harp time): fires the laser unless the outcome came first, recording the time. Returns whether it fires.</summary>
+    public bool FireLaser(double seconds)
     {
-        return DecideLaser(true);
+        lock (laserGate)
+        {
+            var fired = DecideLaser(true);
+            if (fired) laserTriggerTime = seconds;
+            return fired;
+        }
     }
 
     /// <summary>At the outcome: whether the trigger came first and fired the laser; if not, it never will.</summary>
@@ -81,6 +87,7 @@ public class Trial
         trial.laserGate = new object();
         trial.laserDecided = false;
         trial.laserFired = false;
+        trial.laserTriggerTime = double.NaN;
         return trial;
     }
 }
@@ -585,19 +592,7 @@ public class CheckZapitArmed
 
     public static void Check(ZapitReply reply, Trial trial)
     {
-        if (reply.IsError)
-        {
-            throw new InvalidOperationException(string.Format(
-                "Zapit refused trial {0}'s StartStimulus (condition {1}): {2}. Is the conditions file the task names loaded, is Zapit calibrated, and is the DAQ working?",
-                trial.trialNumber, trial.laserCondition, reply));
-        }
-        int laserOn = trial.laserOn ? 1 : 0;
-        if (reply.Value != trial.laserCondition || reply.LaserOn != laserOn)
-        {
-            throw new InvalidOperationException(string.Format(
-                "Zapit armed condition {0} with laserOn {1}, but trial {2} asked for condition {3} with laserOn {4}.",
-                reply.Value, reply.LaserOn, trial.trialNumber, trial.laserCondition, laserOn));
-        }
+        ZapitTrial.CheckArmed(reply, trial.trialNumber, trial.laserCondition, trial.laserOn);
     }
 }
 
@@ -770,13 +765,13 @@ public class RequireZapitArmed
 }
 
 [Combinator]
-[Description("Passes the trial on at its laser trigger unless its outcome came first: a trial answered before a trigger after its stimulus gets no laser (Pip, 13 Nov 2026), as in coen-dome-navigation. The trial records which came first (Trial.FireLaser), and its row's laserPowerMw reads the same record. Completes with the trigger.")]
+[Description("Passes the trial on at its laser trigger unless its outcome came first: a trial answered before a trigger after its stimulus gets no laser (Pip, 13 Nov 2026), as in coen-dome-navigation. The trial records which came first and the trigger's Harp time (Trial.FireLaser), and its row's laserPowerMw and laserTriggerTime read the same record. Completes with the trigger.")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
 public class UnlessAnswered
 {
     public IObservable<Timestamped<Trial>> Process(IObservable<Timestamped<Trial>> trigger)
     {
-        return trigger.Where(value => value.Value.FireLaser());
+        return trigger.Where(value => value.Value.FireLaser(value.Seconds));
     }
 }
 

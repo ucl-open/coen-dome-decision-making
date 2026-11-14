@@ -115,11 +115,10 @@ class ResponseSettings(BaseSchema):
 
 
 class PunishmentSound(BaseSchema):
-    """The error sound, played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel."""
+    """The lab's error sound (OpenRigs.Audio, the same in every task), played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel alone, equalised for that speaker."""
 
     enabled: Bool = Field(default=False, description="Whether the error sound plays with every timeout: an incorrect response or a miss not auto-rewarded")
-    path: String = Field(default="LocalFiles\\error_tone.wav", description="Wav file of the error sound, from the workflow's folder")
-    gain: Double = Field(default=1.0, ge=0, description="Playback gain of the error sound")
+    gain: Double = Field(default=1.0, ge=0, description="Gain on the lab's error sound, 1 for its level")
 
 
 class Punishment(BaseSchema):

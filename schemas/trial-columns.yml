@@ -5,13 +5,13 @@
 # Each column: type (int, double, bool or string), and where they apply values (the strings it may hold),
 # unit, formerly (names it was recorded under before, newest first), description (what it is), note (this
 # task's detail) and history (what it was before, dated). The names and types must also be on the lab's
-# list (K:\config\data-dictionary.json, edited from rig-setup's Repos page): rig-control checks both
+# list (K:\config\data-dictionary.json, edited in Rig Control's Settings menu, Lab Names): Rig Control checks both
 # before it launches the workflow.
 #
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
 # unit (itiSeconds, rewardSizeUl); never a stored latency.
 #
-# The first 15 columns, harpTime to laserPowerMw, are the dome tasks' shared block (Pip, 14 Nov 2026):
+# The first 16 columns, harpTime to laserTriggerTime, are the dome tasks' shared block (Pip, 14 Nov 2026):
 # coen-dome-decision-making and coen-dome-navigation list them in this order with these types, units and
 # descriptions, word for word (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
 # trialType, outcome, rewardSizeUl and punishSound are described per task. This task's own columns follow.
@@ -44,7 +44,7 @@ itiSeconds:
   type: double
   unit: s
   formerly: [itiDuration]
-  description: "The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial's stimulus with a quiet mouse, the time to drink included. The stage's quiet waits add quietWaitSeconds, so the stimulus was commanded at itiStartTime + itiSeconds + quietWaitSeconds."
+  description: "The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial's stimulus with a quiet mouse, the time to drink included. The stage's quiet waits add quietWaitSeconds, so the stimulus was due at itiStartTime + itiSeconds + quietWaitSeconds (stimulusOnsetTime)."
   note: The time to drink is trialStructure.drinkSeconds, and the interval starts after any timeout (punishTimeoutSeconds).
   history: What ran from 13 Nov 2026 (Pip), trial 1 included. Before, it was the draw before the trial (NaN on the first), ran to the trial's start (the Zapit arm), and a draw shorter than drinkSeconds ran as drinkSeconds plus 0.1 s to arm and laserToStimulusSeconds; until 9 Nov 2026 it was the interval after the trial.
 quietWaitSeconds:
@@ -55,18 +55,18 @@ quietWaitSeconds:
 trialStartTime:
   type: double
   unit: s
-  description: "Harp time the trial started (Go): the end of its interval less the lead, max(laserToStimulusSeconds, 0) in the task file (in the manifest), or later by quietWaitSeconds."
+  description: "Harp time the trial started (Go): the end of its interval less the lead, max(laserToStimulusSeconds, 0) in the task file (Settings_Task), plus quietWaitSeconds."
   history: From 14 Nov 2026.
 stimulusOnsetTime:
   type: double
   unit: s
   formerly: [stimulusOnsetSeconds]
-  description: "Harp time the workflow commanded the stimulus on, NaN if it never was: trialStartTime plus the lead in every experiment; with optogenetics the laser trigger was laserToStimulusSeconds before it. The physical onset is in the hardware logs."
+  description: "Harp time the workflow commanded the stimulus on, NaN if it never was: the first tick of the 1 ms Harp clock at or after trialStartTime plus the lead, in every experiment. The physical onset is in the hardware logs."
 outcomeTime:
   type: double
   unit: s
-  description: Harp time the outcome was known, the same time as harpTime, as its own column so that every moment of a trial is named.
-  note: The lick the workflow counted as the choice, or the end of the response window on NoResponse.
+  description: Harp time the workflow knew the outcome, the same time as harpTime, as its own column so that every moment of a trial is named; the reward, the error sound and the timeout are timed from it. On a lick it is the Harp clock's latest tick when the workflow saw the lick, a few ms after it; each lick's own Harp time is in the lick detectors' logs.
+  note: When the workflow saw the lick it counted as the choice, or the end of the response window on NoResponse.
   history: From 14 Nov 2026; until then choiceTime held it on a choice, NaN on NoResponse.
 rewardSizeUl:
   type: double
@@ -76,7 +76,7 @@ rewardSizeUl:
   history: largeReward said which trials were large until 9 Nov 2026.
 punishSound:
   type: bool
-  description: True when the error sound played - with every timeout (punishTimeoutSeconds above 0), the task's punishment.sound enabled.
+  description: "True when the error sound played: on every punished trial (an incorrect choice, or a miss that was not auto-rewarded) with the task's punishment.sound enabled, whatever punishment.timeoutSeconds is. The sound is the lab's (OpenRigs.Audio), on rig.yml's errorSoundChannel."
   history: Until 14 Nov 2026 only after an incorrect choice.
 punishTimeoutSeconds:
   type: double
@@ -93,6 +93,11 @@ laserPowerMw:
   unit: mW
   description: Laser power sent to Zapit for this trial (the task's optogenetics.laserPowerMw), as commanded, not measured. 0 on laser-off trials, without optogenetics, and on a trial answered before its trigger.
   history: From 10 Nov 2026 (before, Zapit's config file set the power); no laser after an answer from 13 Nov 2026.
+laserTriggerTime:
+  type: double
+  unit: s
+  description: "Harp time the workflow raised the Zapit trigger line (the laser, or at 0 mW the galvos and masking light alone): the first tick of the 1 ms Harp clock at or after laserToStimulusSeconds before the stimulus was due. NaN without optogenetics and on a trial that ended before its trigger, so a laser-off trial (a time, laserPowerMw 0) and one answered first (NaN) differ."
+  history: From 14 Nov 2026.
 target:
   type: string
   values: [Left, Right]

@@ -455,16 +455,20 @@ public class GoTests
         trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(triggered, 20.4));
         Assert.AreEqual(1, passed.Count, "not answered: the laser fires");
         Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserPowerMw);
+        Assert.AreEqual(20.4, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserTriggerTime, "the trigger's Harp time");
 
         // The outcome first: the row logs 0 mW and the trigger after it is dropped, whatever the Harp times (audit round 3).
         var answered = go();
         Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserPowerMw);
+        Assert.IsTrue(double.IsNaN(CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserTriggerTime), "no trigger: NaN");
         trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(answered, 20.4));
         Assert.AreEqual(1, passed.Count, "answered before its trigger arrived: no laser");
+        Assert.IsTrue(double.IsNaN(CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserTriggerTime), "a trigger after the answer is not logged");
 
         // A repeat is a clone, and decides afresh.
         var repeat = triggered.Clone();
         Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.3, repeat, 20, 0, false).laserPowerMw);
+        Assert.IsTrue(double.IsNaN(repeat.laserTriggerTime), "a clone forgets the trigger");
         Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserPowerMw);
     }
 
@@ -598,9 +602,11 @@ public class ZapitTests
     {
         var trial = new Trial { trialNumber = 21, laserCondition = 2, laserOn = true };
         CheckZapitArmed.Check(Reply(2, 1, false), trial);
-        StringAssert.Contains(Fixture.Refusal(() => CheckZapitArmed.Check(Reply(1, 1, false), trial)), "armed condition 1");
-        StringAssert.Contains(Fixture.Refusal(() => CheckZapitArmed.Check(Reply(2, 0, false), trial)), "laserOn 0");
-        StringAssert.Contains(Fixture.Refusal(() => CheckZapitArmed.Check(Reply(2, 1, true), trial)), "refused");
+        // The refusal is OpenRigs.Devices' ZapitTrial.CheckArmed, naming the trial and Zapit's reply.
+        StringAssert.Contains(Fixture.Refusal(() => CheckZapitArmed.Check(Reply(1, 1, false), trial)), "trial 21's StartStimulus (condition 2, laserOn 1)");
+        StringAssert.Contains(Fixture.Refusal(() => CheckZapitArmed.Check(Reply(1, 1, false), trial)), "value=1");
+        StringAssert.Contains(Fixture.Refusal(() => CheckZapitArmed.Check(Reply(2, 0, false), trial)), "laserOn=0");
+        StringAssert.Contains(Fixture.Refusal(() => CheckZapitArmed.Check(Reply(2, 1, true), trial)), "error=True");
         trial.laserOn = false;
         CheckZapitArmed.Check(Reply(2, 0, false), trial);
     }
@@ -631,9 +637,10 @@ public class TrialRowTests
     public void TheRowLogsTheConditionAndPowerSent()
     {
         var trial = new Trial { target = "Left", laserCondition = 2, laserOn = true, laserPowerMw = 3 };
-        Assert.IsTrue(trial.FireLaser(), "its trigger came first");
+        Assert.IsTrue(trial.FireLaser(9.25), "its trigger came first");
         var row = CreateTrialRow.Build("Left", 10, trial, 9, 4, true);
         Assert.IsTrue(row.laserCondition == 2 && row.laserPowerMw == 3);
+        Assert.AreEqual(9.25, row.laserTriggerTime, "the trigger's Harp time");
         trial.laserOn = false;
         trial.laserPowerMw = 0;
         Assert.AreEqual(0, CreateTrialRow.Build("Left", 10, trial, 9, 4, true).laserPowerMw);
