@@ -1,8 +1,16 @@
 {
   "$defs": {
     "AudioStimulus": {
-      "description": "Auditory stimulus parameters common to all trials.",
+      "description": "Auditory stimulus parameters common to all trials: every waveform of the set (src/LocalFiles/AuditoryStimuli)\nplays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound).",
       "properties": {
+        "levelDbfs": {
+          "default": -30.0,
+          "description": "Each stimulus sound's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -30. The workflow stops when the task file is read at Go if any peak would reach -1 dBFS after equalisation",
+          "maximum": -1.0,
+          "minimum": -120.0,
+          "title": "LevelDbfs",
+          "type": "number"
+        },
         "speakerLocations": {
           "description": "Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker",
           "items": {
@@ -16,6 +24,27 @@
         "speakerLocations"
       ],
       "title": "AudioStimulus",
+      "type": "object"
+    },
+    "BackgroundNoise": {
+      "description": "The background noise, one level for the experiment: looped on every speaker unequalised, faded in over 2 s once\nthe task file is read at Go (OpenRigs.Audio SpeakerMixer).",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Whether the background noise plays",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "levelDbfs": {
+          "default": -50.0,
+          "description": "The background noise's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -50. The workflow stops when the task file is read at Go if any peak would reach -1 dBFS after equalisation",
+          "maximum": -1.0,
+          "minimum": -120.0,
+          "title": "LevelDbfs",
+          "type": "number"
+        }
+      },
+      "title": "BackgroundNoise",
       "type": "object"
     },
     "Modality": {
@@ -134,7 +163,7 @@
           "$ref": "#/$defs/PenaltySound",
           "default": {
             "enabled": true,
-            "gain": 1.0
+            "levelDbfs": -30.0
           },
           "description": "The penalty sound, with every timeout",
           "title": "Sound"
@@ -155,11 +184,12 @@
           "title": "Enabled",
           "type": "boolean"
         },
-        "gain": {
-          "default": 1.0,
-          "description": "Gain on the lab's penalty sound, 1 for its level",
-          "minimum": 0,
-          "title": "Gain",
+        "levelDbfs": {
+          "default": -30.0,
+          "description": "The penalty sound's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -30. The workflow stops when the task file is read at Go if any peak would reach -1 dBFS after equalisation",
+          "maximum": -1.0,
+          "minimum": -120.0,
+          "title": "LevelDbfs",
           "type": "number"
         }
       },
@@ -584,6 +614,14 @@
           "$ref": "#/$defs/ResponseSettings",
           "description": "Lick-accumulation response rule",
           "title": "Response"
+        },
+        "backgroundNoise": {
+          "$ref": "#/$defs/BackgroundNoise",
+          "default": {
+            "enabled": true,
+            "levelDbfs": -50.0
+          },
+          "description": "The background white noise (src/LocalFiles/background_white_noise.wav) on every speaker, from Go (open_rigs.core.task BackgroundNoise)"
         },
         "penalty": {
           "$ref": "#/$defs/Penalty",

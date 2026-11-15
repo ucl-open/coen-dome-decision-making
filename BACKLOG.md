@@ -1,9 +1,16 @@
 # Backlog
 
+## 2026-11-15 One speaker mixer and sound levels (lib-open-rigs OpenRigs.Audio)
+
+- The mixer, its 3 s boot delay and the speakers (`Speakers`) are lib-open-rigs' `SpeakerMixer`, shared with coen-dome-navigation; Ready, its 180 s `StartupWatchdog` and the cameras' start 2 s after Start are `RigHardware`'s. This repo keeps none of them.
+- Every sound's level is the task file's `levelDbfs`, in dBFS RMS of the sound as stored, before equalisation: `audioStimulus.levelDbfs` -47.2, `backgroundNoise.levelDbfs` -60.1, `penalty.sound.levelDbfs` -44.6, the levels played until now (the lab's defaults are -30, -50 and -30). The stimuli's level is set at Go (`LevelAuditoryStimulusSet`), which stops the workflow naming any waveform and speaker that would peak at -1 dBFS or more after equalisation.
+- **Changed for the mice:** the background noise starts at Go, faded in over 2 s, where it played from about 5 s after Start (it needs the task file's level, read at Go). As played it sits 12.9 dB below the stimuli (white noise at 0.05 of the file's -34.1 dBFS RMS against the pulse trains' -47.2, each over the file's whole length), not 3.5 dB above as an earlier estimate said; kept as it was.
+- Unit-tested and build-checked only: the mixer's start, and every sound at the same loudness as before, need a rig run (Pip's yes).
+
 ## 2026-11-14 Dome-task alignment audit: changed
 
 - `RngSeed` is logged at trial 1's Go, as coen-dome-navigation does (was at trial 1's draw).
-- The penalty sound is the lab's (lib-open-rigs OpenRigs.Audio `PenaltySoundBuffer`, the same sound as before, now shared by every task): rig.yml's `penaltySoundChannel` alone, equalised, at `penalty.sound.gain`, made once at load. The task file names no sound file and this repo keeps none. The speakers load once (`LoadSpeakers`, which checks the filters) and the background noise plays through `SpeakerBuffer`, not equalised, on every speaker.
+- The penalty sound is the lab's (lib-open-rigs OpenRigs.Audio `PenaltySoundBuffer`, the same sound as before, now shared by every task): rig.yml's `penaltySoundChannel` alone, equalised, at the task file's level (`penalty.sound.levelDbfs` from 15 Nov 2026). The task file names no sound file and this repo keeps none. The speakers load once (`LoadSpeakers`, which checks the filters) and the background noise plays through `SpeakerBuffer`, not equalised, on every speaker.
 - New shared column `laserTriggerTime` (16 shared columns): the trigger's Harp time, NaN without optogenetics or when the trial was answered first, so a laser-off trial and one answered first no longer look alike.
 - Zapit's armed-reply check is lib-open-rigs' `ZapitTrial.CheckArmed`, shared with coen-dome-navigation.
 - `penaltySound`'s description says it sounds on every penalised trial whatever the timeout's length; `outcomeTime`'s note says it is when the workflow saw the lick.

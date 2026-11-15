@@ -3,7 +3,7 @@ from typing import Literal
 
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
-from open_rigs.core.task import Optogenetics, Penalty, QuietWait, Task, TaskParameters
+from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskParameters
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
 from open_rigs.rigs.lab_rig import MAX_REWARD_UL
 from pydantic import Field, field_validator, model_validator
@@ -84,8 +84,9 @@ class VisualStimulus(BaseSchema):
         return self
 
 
-class AudioStimulus(BaseSchema):
-    """Auditory stimulus parameters common to all trials."""
+class AudioStimulus(StimulusSound):
+    """Auditory stimulus parameters common to all trials: every waveform of the set (src/LocalFiles/AuditoryStimuli)
+    plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound)."""
 
     speaker_locations: list[SphericalPosition] = Field(
         description="Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker"
@@ -220,6 +221,9 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     visual_stimulus: VisualStimulus = Field(description="Grating stimulus parameters")
     audio_stimulus: AudioStimulus = Field(description="Auditory stimulus parameters")
     response: ResponseSettings = Field(description="Lick-accumulation response rule")
+    background_noise: BackgroundNoise = Field(
+        default=BackgroundNoise(), description="The background white noise (src/LocalFiles/background_white_noise.wav) on every speaker, from Go (open_rigs.core.task BackgroundNoise)"
+    )
     penalty: Penalty = Field(
         description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty"
     )

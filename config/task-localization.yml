@@ -25,17 +25,21 @@ taskParameters:
     spatialFrequencyCpd: 0.066666667   # cycles/deg
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   audioStimulus:
+    levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level played until 15 Nov 2026 (the lab's default is -30)
     speakerLocations:      # lateral positions, one drawn per audio trial; no centre entry (fixed in code); playback uses the nearest wired speaker
       - { azimuth: -60, elevation: 15 }
       - { azimuth: 60, elevation: 15 }
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first-lick 2AFC
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
+  backgroundNoise:         # white noise on every speaker, unequalised, faded in at Go
+    enabled: true
+    levelDbfs: -60.1       # dBFS RMS: the level played until 15 Nov 2026 (the lab's default is -50)
   penalty:
     timeoutSeconds: 4.0   # s, after an incorrect choice or a miss (not after an auto-rewarded miss)
     sound:               # the penalty sound, on an incorrect choice
       enabled: true
-      gain: 1.0
+      levelDbfs: -44.6   # dBFS RMS: the level played until 15 Nov 2026 (the lab's default is -30)
   reward:
     largeRewardMultiplier: 1
     largeRewardProbability: 0.0

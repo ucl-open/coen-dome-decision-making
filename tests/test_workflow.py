@@ -185,8 +185,20 @@ def test_nothing_reads_a_startup_watchdog_s_output():
     assert lint.startup_watchdog_readers(WORKFLOW) == 0
 
 
-def test_the_mixer_never_starts_sooner_than_3_s():
-    assert lint.mixer_boot_delay_problems(WORKFLOW) == []
+def test_the_speakers_and_the_mixer_are_the_shared_block_s():
+    # OpenRigs.Audio's SpeakerMixer loads the speakers and starts the mixer no sooner than 3 s after Start.
+    assert lint.speaker_mixer_problems(WORKFLOW) == []
+
+
+def test_every_sound_plays_at_the_task_file_s_level():
+    assert lint.sound_level_problems(WORKFLOW) == []
+    nodes, edges = _scope(_named("LoadAudioFiles"))
+    level = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:LevelAuditoryStimulusSet")
+    assert any(nodes[a].findtext(W + "Selector") == "TaskParameters.AudioStimulus.LevelDbfs" for a in _upstream(edges, level))
+
+
+def test_ready_the_cameras_and_the_watchdog_are_rig_hardware_s():
+    assert lint.rig_hardware_problems(WORKFLOW) == []
 
 
 def test_zapit_is_the_shared_include_given_the_conditions_file():
@@ -197,7 +209,7 @@ def test_the_manual_reward_is_the_fixed_drop():
     assert lint.manual_reward_problems(WORKFLOW) == []
 
 
-def test_the_penalty_sound_is_the_lab_s_at_the_task_s_gain():
+def test_the_penalty_sound_is_the_lab_s_at_the_task_s_level():
     assert lint.penalty_sound_problems(WORKFLOW) == []
 
 
@@ -226,8 +238,9 @@ def test_the_rng_seed_is_logged_at_trial_1s_go():
 
 
 def test_each_trial_s_sound_carries_its_sync_copy():
-    # SelectAuditoryStimulus gives the mixer's buffer, sync copy and all (OpenRigs.Audio SpeakerSet.Buffer), straight to MixerBuffer.
+    # SelectAuditoryStimulus gives the mixer's buffer at the task's level, sync copy and all (OpenRigs.Audio SpeakerSet.Layout),
+    # straight to the mixer's StimulusSounds.
     nodes, edges = _scope(_named("PlayStim"))
     select = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:SelectAuditoryStimulus")
-    assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == select] == ["MixerBuffer"]
+    assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == select] == ["StimulusSounds"]
     assert "Broadcast" not in TEXT and "ChannelActivation" not in TEXT and "PinkNoiseSync" not in TEXT

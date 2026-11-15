@@ -129,6 +129,27 @@ public class AuditoryStimulusSetTests
     public void TheBackgroundNoiseIsAtTheMixersRateAndThePenaltySoundIsTheLabs()
     {
         CheckWaveRate.Check(Path.Combine(Fixture.Repo(), "src", "LocalFiles", "background_white_noise.wav"), 48000);
-        Assert.AreEqual(32, PenaltySound.Buffer(Speakers(), 1).Rows);
+        Assert.AreEqual(32, PenaltySound.Buffer(Speakers(), -44.6).Rows);
+    }
+
+    [TestMethod]
+    public void EachStimulusPlaysAtTheTasksLevelOfItsUnequalisedSelf()
+    {
+        var set = Load(Speakers());
+        Func<Action, string> refusal = Fixture.Refusal;
+        StringAssert.Contains(refusal(() => set.Buffer(7, 2)), "no level yet");
+        var levelled = set.AtLevel(-47.2);
+        var buffer = levelled.Buffer(7, 2);
+        var gain = SoundLevel.Gain(set.Stimulus(7, 99), -47.2);  // channel 99 has no speaker: the unequalised waveform
+        var equalised = Samples(set.Stimulus(7, 2));
+        using (var row = buffer.GetRow(2))
+        using (var copy = new OpenCV.Net.Mat(1, buffer.Cols, OpenCV.Net.Depth.F32, 1))
+        {
+            OpenCV.Net.CV.Copy(row, copy);
+            var played = Samples(copy);
+            for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(equalised[n] * gain, played[n], 1e-6);
+        }
+        Assert.AreEqual(-47.2, SoundLevel.RmsDbfs(set.Stimulus(7, 99)) + 20 * Math.Log10(gain), 1e-9);
+        StringAssert.Contains(refusal(() => set.AtLevel(-3)), "on speaker 'left' at -3 dBFS RMS (audioStimulus.levelDbfs) peaks at");
     }
 }
