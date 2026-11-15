@@ -21,8 +21,8 @@ public class TrialRow
     public double stimulusOnsetTime;
     public double outcomeTime;
     public double rewardSizeUl;
-    public bool punishSound;
-    public double punishTimeoutSeconds;
+    public bool penaltySound;
+    public double penaltyTimeoutSeconds;
     public int laserCondition;
     public double laserPowerMw;
     public double laserTriggerTime;
@@ -45,15 +45,15 @@ public class TrialRow
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CreateTrialRow
 {
-    [Description("The timeout after an incorrect choice or a miss not auto-rewarded, in seconds (punishment.timeoutSeconds).")]
+    [Description("The timeout after an incorrect choice or a miss not auto-rewarded, in seconds (penalty.timeoutSeconds).")]
     public double TimeoutSeconds { get; set; }
 
-    [Description("Whether the error sound plays with every timeout: an incorrect choice or a miss not auto-rewarded (punishment.sound.enabled).")]
-    public bool PunishSound { get; set; }
+    [Description("Whether the penalty sound plays with every timeout: an incorrect choice or a miss not auto-rewarded (penalty.sound.enabled).")]
+    public bool PenaltySound { get; set; }
 
     public IObservable<Timestamped<TrialRow>> Process(IObservable<Tuple<Timestamped<string>, Trial, double>> source)
     {
-        return source.Select(value => new Timestamped<TrialRow>(Build(value.Item1.Value, value.Item1.Seconds, value.Item2, value.Item3, TimeoutSeconds, PunishSound), value.Item1.Seconds));
+        return source.Select(value => new Timestamped<TrialRow>(Build(value.Item1.Value, value.Item1.Seconds, value.Item2, value.Item3, TimeoutSeconds, PenaltySound), value.Item1.Seconds));
     }
 
     public static string Outcome(string choice, Trial trial)
@@ -68,7 +68,7 @@ public class CreateTrialRow
     }
 
     // outcomeTime is the choice's Harp time (the lick, or the end of the response window), the row's own time too.
-    public static TrialRow Build(string choice, double outcomeTime, Trial trial, double stimulusOnsetTime, double timeoutSeconds, bool punishSound)
+    public static TrialRow Build(string choice, double outcomeTime, Trial trial, double stimulusOnsetTime, double timeoutSeconds, bool penaltySound)
     {
         var outcome = Outcome(choice, trial);
         var timedOut = TimedOut(outcome, trial);
@@ -84,8 +84,8 @@ public class CreateTrialRow
             stimulusOnsetTime = stimulusOnsetTime,
             outcomeTime = outcomeTime,
             rewardSizeUl = trial.rewardSizeUl,
-            punishSound = timedOut && punishSound,  // the sound comes with every timeout, as in coen-dome-navigation (Pip, 14 Nov 2026)
-            punishTimeoutSeconds = timedOut ? timeoutSeconds : 0.0,
+            penaltySound = timedOut && penaltySound,  // the sound comes with every timeout, as in coen-dome-navigation (Pip, 14 Nov 2026)
+            penaltyTimeoutSeconds = timedOut ? timeoutSeconds : 0.0,
             laserCondition = trial.laserCondition,
             laserPowerMw = trial.LaserFiredByOutcome() ? trial.laserPowerMw : 0,  // answered before its trigger: no laser
             laserTriggerTime = trial.LaserFiredByOutcome() ? trial.laserTriggerTime : double.NaN,

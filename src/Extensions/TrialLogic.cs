@@ -775,7 +775,7 @@ public class UnlessAnswered
     }
 }
 
-/// <summary>What a trial's outcome sets off: the reward, the spouts, the error sound and the timeout.</summary>
+/// <summary>What a trial's outcome sets off: the reward, the spouts, the penalty sound and the timeout.</summary>
 public class Consequence
 {
     public string Outcome;
@@ -783,20 +783,20 @@ public class Consequence
     public Tuple<string, double> Reward;   // (side, microlitres) for DeliverReward, the side as rig.yml's wiring names it (left, right); null without a reward
     public bool MoveSpouts;
     public OpenRigs.Devices.LickSpoutCommand SpoutCommand;
-    public bool ErrorSound;
+    public bool PenaltySound;
     public double TimeoutSeconds;
     public double ItiStartTime;           // the outcome's Harp time plus the timeout: when the next interval begins, exactly
     public bool WithdrawAfterDrink;       // the stage moves the spouts: they go out once the mouse has drunk
 
     /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target, the other spout drawn back; an
-    /// error or a plain miss draws both back, with the row's error sound and timeout. A stage without spout
+    /// error or a plain miss draws both back, with the row's penalty sound and timeout. A stage without spout
     /// movements leaves the spouts where they are.</summary>
     public static Consequence Of(TrialRow row, Trial trial)
     {
-        var c = new Consequence { Outcome = row.outcome, ErrorSound = row.punishSound, TimeoutSeconds = row.punishTimeoutSeconds };
+        var c = new Consequence { Outcome = row.outcome, PenaltySound = row.penaltySound, TimeoutSeconds = row.penaltyTimeoutSeconds };
         // Timed from the outcome's own Harp time, as coen-dome-navigation's are: the timeout's HarpDelay counts from the
         // tick the outcome reached it on, 0 to 14 ms after a lick (BLUE-OPTO-2, 14 Nov 2026).
-        c.ItiStartTime = row.outcomeTime + row.punishTimeoutSeconds;
+        c.ItiStartTime = row.outcomeTime + row.penaltyTimeoutSeconds;
         c.Rewarded = row.outcome == "Correct" || row.autoRewarded;
         c.Reward = c.Rewarded ? Tuple.Create(trial.target.ToLowerInvariant(), trial.rewardSizeUl) : null;
         c.MoveSpouts = trial.spoutMovements;

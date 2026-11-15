@@ -116,7 +116,7 @@ speakerArray:
     bootDelay: 3.0          # s before the mixer starts: a fault while the sound card boots can blue-screen the PC
   syncChannel: 31           # the sync copy of each stimulus
   syncGain: 0.2
-  errorSoundChannel: 2      # the error sound's channel
+  penaltySoundChannel: 2    # the penalty sound's channel
   unusedChannels: [30]      # not connected
   # Speakers currently wired on this rig. Position is relative to the subject:
   # azimuth 0 = straight ahead, positive to the right; elevation 0 = horizontal.

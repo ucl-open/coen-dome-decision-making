@@ -121,47 +121,49 @@
       "title": "OptogeneticsSettings",
       "type": "object"
     },
-    "Punishment": {
-      "description": "What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):\nthe timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and\nthe error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026).",
+    "Penalty": {
+      "description": "What a wrong or missed trial costs: a timeout, and the penalty sound with it (the trial log's penaltySound and\npenaltyTimeoutSeconds). Each task says which trials are penalised; timeoutSeconds has no lab default: each task file gives it.",
       "properties": {
         "timeoutSeconds": {
-          "default": 4.0,
-          "description": "Timeout after an incorrect response or a miss, in seconds",
+          "description": "Timeout after a penalised trial, in seconds; the next interval starts after it",
           "minimum": 0,
           "title": "TimeoutSeconds",
           "type": "number"
         },
         "sound": {
-          "$ref": "#/$defs/PunishmentSound",
+          "$ref": "#/$defs/PenaltySound",
           "default": {
-            "enabled": false,
+            "enabled": true,
             "gain": 1.0
           },
-          "description": "The error sound, with every timeout",
+          "description": "The penalty sound, with every timeout",
           "title": "Sound"
         }
       },
-      "title": "Punishment",
+      "required": [
+        "timeoutSeconds"
+      ],
+      "title": "Penalty",
       "type": "object"
     },
-    "PunishmentSound": {
-      "description": "The lab's error sound (OpenRigs.Audio, the same in every task), played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel alone, equalised for that speaker.",
+    "PenaltySound": {
+      "description": "The lab's penalty sound (OpenRigs.Audio PenaltySoundBuffer, the same in every task), on rig.yml's speakerArray.penaltySoundChannel alone, equalised for that speaker.",
       "properties": {
         "enabled": {
-          "default": false,
-          "description": "Whether the error sound plays with every timeout: an incorrect response or a miss not auto-rewarded",
+          "default": true,
+          "description": "Whether the penalty sound plays with every timeout",
           "title": "Enabled",
           "type": "boolean"
         },
         "gain": {
           "default": 1.0,
-          "description": "Gain on the lab's error sound, 1 for its level",
+          "description": "Gain on the lab's penalty sound, 1 for its level",
           "minimum": 0,
           "title": "Gain",
           "type": "number"
         }
       },
-      "title": "PunishmentSound",
+      "title": "PenaltySound",
       "type": "object"
     },
     "RepeatRule": {
@@ -583,9 +585,9 @@
           "description": "Lick-accumulation response rule",
           "title": "Response"
         },
-        "punishment": {
-          "$ref": "#/$defs/Punishment",
-          "description": "The timeout and error sound an error costs"
+        "penalty": {
+          "$ref": "#/$defs/Penalty",
+          "description": "The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty"
         },
         "reward": {
           "$ref": "#/$defs/RewardSettings",
@@ -617,7 +619,7 @@
         "visualStimulus",
         "audioStimulus",
         "response",
-        "punishment",
+        "penalty",
         "reward",
         "repeats",
         "optogenetics",

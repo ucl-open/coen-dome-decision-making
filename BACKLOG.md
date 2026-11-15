@@ -3,10 +3,10 @@
 ## 2026-11-14 Dome-task alignment audit: changed
 
 - `RngSeed` is logged at trial 1's Go, as coen-dome-navigation does (was at trial 1's draw).
-- The error sound is the lab's (lib-open-rigs OpenRigs.Audio `ErrorSoundBuffer`, the same file as before, now shared by every task): rig.yml's `errorSoundChannel` alone, equalised, at `punishment.sound.gain`, made once at load. `punishment.sound.path` and `src\LocalFiles\error_tone.wav` are gone. The speakers load once (`LoadSpeakers`, which checks the filters) and the background noise plays through `SpeakerBuffer`, not equalised, on every speaker.
+- The penalty sound is the lab's (lib-open-rigs OpenRigs.Audio `PenaltySoundBuffer`, the same sound as before, now shared by every task): rig.yml's `penaltySoundChannel` alone, equalised, at `penalty.sound.gain`, made once at load. The task file names no sound file and this repo keeps none. The speakers load once (`LoadSpeakers`, which checks the filters) and the background noise plays through `SpeakerBuffer`, not equalised, on every speaker.
 - New shared column `laserTriggerTime` (16 shared columns): the trigger's Harp time, NaN without optogenetics or when the trial was answered first, so a laser-off trial and one answered first no longer look alike.
 - Zapit's armed-reply check is lib-open-rigs' `ZapitTrial.CheckArmed`, shared with coen-dome-navigation.
-- `punishSound`'s description says it sounds on every punished trial whatever the timeout's length; `outcomeTime`'s note says it is when the workflow saw the lick.
+- `penaltySound`'s description says it sounds on every penalised trial whatever the timeout's length; `outcomeTime`'s note says it is when the workflow saw the lick.
 
 ## Dome-task alignment audit (14 Nov 2026): not changed
 
@@ -17,9 +17,9 @@
 - The response window, spouts in and stimulus off are not columns: each follows from the task file and the trial's columns.
 - A trial cut by Stop gets no row; its Go is in `BonsaiData_Async`.
 - Trial 1 starts about 1.2 s after Go here and 2.3 s in coen-dome-navigation: each task's own start-up, neither a bug.
-- `formerly` and `history` stay in trial-columns.yml until the old data's refactor.
+- `history` stays in trial-columns.yml until the old data's refactor.
 - `ReadTextFile.cs` is duplicated in both dome workflows (as round 4).
-- Trial 1's consequence (reward, error sound, spouts) comes 8 to 20 ms after its outcome; from trial 2 on, 0 to 2 ms. The choice, row and consequence nodes run for the first time at trial 1's outcome and pay .NET's first-run compile then; no single node is slow. Measured on BLUE-OPTO-2 (scripted test mouse, 2 runs each, trial 1 rewarded): as now +10 and +12 ms; the trial log moved to its own thread +8 to +12 ms (dropped: no gain beyond run-to-run spread, and a row sent just before Stop could be lost); every method of the task's C# and the lab's packages compiled at Start +9 and +16 ms (the cost is not there); one earlier outcome through the same nodes +1 and +2 ms. The fix, if needed: this task's outcome logic in one C# operator that runs on every tick, as coen-dome-navigation's `CorridorState` (whose trial 1 is on time), or a hidden warm-up outcome after Go, wired by hand.
+- Trial 1's consequence (reward, penalty sound, spouts) comes 8 to 20 ms after its outcome; from trial 2 on, 0 to 2 ms. The choice, row and consequence nodes run for the first time at trial 1's outcome and pay .NET's first-run compile then; no single node is slow. Measured on BLUE-OPTO-2 (scripted test mouse, 2 runs each, trial 1 rewarded): as now +10 and +12 ms; the trial log moved to its own thread +8 to +12 ms (dropped: no gain beyond run-to-run spread, and a row sent just before Stop could be lost); every method of the task's C# and the lab's packages compiled at Start +9 and +16 ms (the cost is not there); one earlier outcome through the same nodes +1 and +2 ms. The fix, if needed: this task's outcome logic in one C# operator that runs on every tick, as coen-dome-navigation's `CorridorState` (whose trial 1 is on time), or a hidden warm-up outcome after Go, wired by hand.
 ## 2026-11-14 Camera video on GREEN-DOME-2 (test mouse, open)
 
 The log is `K:\config\machines\GREEN-DOME-2\switch\iterate-log.md` (round 3).
@@ -27,7 +27,8 @@ The log is `K:\config\machines\GREEN-DOME-2\switch\iterate-log.md` (round 3).
 - **The last video file of a run loses the frames still queued at Stop.** LogVideo (lib-open-rigs OpenRigs.Logging) uses Bonsai.Vision's `VideoWriter` with `Buffered` true: frames wait on Rx's EventLoopScheduler, whose thread is a background thread, and headless Bonsai exits within 1 s of the workflow ending, so the queue and the file's closing are cut off. The last AVI's final RIFF AVIX and LIST movi declare size 0 and the OpenDML total is 0; readers that trust the index see only up to the last 1 GB boundary. Measured: 7 to 1,231 Pupil frames lost per run (1,231 with 1,067 queued at Stop, reproduced on demand under CPU load); files closed by the hourly roll-over are complete; the camera CSVs list the lost frames, so they do not show the loss. Being replaced by the ffmpeg recording (another session, 14 Nov 2026); whatever writes video must finish its queue and close its file before Bonsai exits, with a bounded wait that fails loudly (a test writer whose thread kept Bonsai alive hung at Stop until the agent killed it at 30 s, leaving every file unfinished).
 - **Add a check that each video holds every frame its CSV lists** (count the frames in the file, not the index), after every run.
 - **The Pupil camera's noise makes its video expensive.** rig.yml `cameras.pupil.gain: 20` (Body and Face 0): frame-to-frame noise 3.7 grey levels, 139 KB a frame (Body 11, Face 6), about 6.4 GB per 15 min, and its writer thread near a full core; when it falls behind, queued 1440x1080 frames hold 1 to 4 GB of memory until written. Proven by a gain-0 copy: 2 KB a frame, noise 0.01, but the image 6.5 times darker. Pip, 14 Nov 2026: camera settings stay as they are until a better lens arrives; re-measure frame size and writer load then.
-- The stage suggestion is None for the test mouse on every launch: `stage.py` reads 18 test folders of 5-6 Nov in `\128.40.51.157igs\staging\GREEN-DOME-1\sub-test` that have no manifest.json as production sessions, which fail, and any unreadable folder stops the suggestion. Fails loudly as designed; moving those folders out of staging clears it.
+- The stage suggestion is None for the test mouse on every launch: `stage.py` reads 18 test folders of 5-6 Nov in `\128.40.51.157
+igs\staging\GREEN-DOME-1\sub-test` that have no manifest.json as production sessions, which fail, and any unreadable folder stops the suggestion. Fails loudly as designed; moving those folders out of staging clears it.
 
 ## 2026-11-14 First runs on hardware (BLUE-OPTO-2, test mouse, unattended)
 
@@ -67,7 +68,7 @@ The first runs on a dome found three faults that stopped or emptied every experi
 
 ## 2026-11-13 Audit round 1: what the mice hear changes
 
-- **The error tone and the background noise are resampled to 48 kHz** (Pip's default, taken during the audit): `src\LocalFiles\error_tone.wav` was 50 kHz and `background_white_noise.wav` 44.1 kHz, and nothing converts a WAV's rate, so on the 48 kHz mixer they played 4% low and 9% high in pitch and speed. Both are now 48 kHz, each file's duration and RMS kept (the error tone loses the 4% of its energy above 24 kHz, which 48 kHz cannot carry). This changes what the mice hear against production av-dome and every earlier experiment. Each is checked at its load (`CheckWaveRate`, as the stimulus WAVs are), so a file at another rate stops the workflow.
+- **The penalty sound and the background noise are resampled to 48 kHz** (Pip's default, taken during the audit): the penalty sound's file was 50 kHz and `background_white_noise.wav` 44.1 kHz, and nothing converts a WAV's rate, so on the 48 kHz mixer they played 4% low and 9% high in pitch and speed. Both are now 48 kHz, each file's duration and RMS kept (the penalty sound loses the 4% of its energy above 24 kHz, which 48 kHz cannot carry). This changes what the mice hear against production av-dome and every earlier experiment. Each is checked at its load (`CheckWaveRate`, as the stimulus WAVs are), so a file at another rate stops the workflow.
 
 ## 2026-11-13 Audit round 2: Pip's quiet-wait and laser decisions
 

@@ -3,8 +3,8 @@
 # own trial log; open_rigs.trials reads it from there.
 #
 # Each column: type (int, double, bool or string), and where they apply values (the strings it may hold),
-# unit, formerly (names it was recorded under before, newest first), description (what it is), note (this
-# task's detail) and history (what it was before, dated). The names and types must also be on the lab's
+# unit, description (what it is), note (this task's detail) and history (what it was before, dated). The
+# names and types must also be on the lab's
 # list (K:\config\data-dictionary.json, edited in Rig Control's Settings menu, Lab Names): Rig Control checks both
 # before it launches the workflow.
 #
@@ -14,17 +14,14 @@
 # The first 16 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the opto and quietWait blocks (Pip, 14 Nov 2026):
 # coen-dome-decision-making and coen-dome-navigation list them in this order with these types, units and
 # descriptions, word for word (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
-# trialType, outcome, rewardSizeUl and punishSound are described per task. This task's own columns follow.
+# trialType, outcome, rewardSizeUl and penaltySound are described per task. This task's own columns follow.
 
 harpTime:
   type: double
   unit: s
-  formerly: [Seconds]
   description: Harp time the row was complete, when the outcome was known (outcomeTime). The lab's time column, first in every log (lib-open-rigs specs/logging.md, section 4); a trial's moments are read from their own columns.
-  history: Seconds until 14 Nov 2026.
 trialNumber:
   type: int
-  formerly: [TrialCnt]
   description: The trial's number in the experiment, from 1.
 trialType:
   type: string
@@ -38,14 +35,13 @@ outcome:
 itiStartTime:
   type: double
   unit: s
-  description: "Harp time the inter-trial interval before this trial began: the last trial's outcomeTime plus its punishTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started."
+  description: "Harp time the inter-trial interval before this trial began: the last trial's outcomeTime plus its penaltyTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started."
   history: NaN on trial 1 until 13 Nov 2026. Until 14 Nov 2026 it was 0 to 14 ms late after a trial a lick ended, timed from the clock tick the timeout's delay received the outcome on.
 itiSeconds:
   type: double
   unit: s
-  formerly: [itiDuration]
   description: "The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial's stimulus with a quiet mouse, the time to drink included. A task's quiet waits add quietWaitSeconds, so the stimulus was due at itiStartTime + itiSeconds + quietWaitSeconds (stimulusOnsetTime)."
-  note: The time to drink is trialStructure.drinkSeconds, and the interval starts after any timeout (punishTimeoutSeconds).
+  note: The time to drink is trialStructure.drinkSeconds, and the interval starts after any timeout (penaltyTimeoutSeconds).
   history: What ran from 13 Nov 2026 (Pip), trial 1 included. Before, it was the draw before the trial (NaN on the first), ran to the trial's start (the Zapit arm), and a draw shorter than drinkSeconds ran as drinkSeconds plus 0.1 s to arm and laserToStimulusSeconds; until 9 Nov 2026 it was the interval after the trial.
 quietWaitSeconds:
   type: double
@@ -60,32 +56,29 @@ trialStartTime:
 stimulusOnsetTime:
   type: double
   unit: s
-  formerly: [stimulusOnsetSeconds]
   description: "Harp time the workflow commanded the stimulus on, NaN if it never was: the first tick of the 1 ms Harp clock at or after trialStartTime plus the lead, in every experiment. The physical onset is in the hardware logs."
 outcomeTime:
   type: double
   unit: s
-  description: Harp time the workflow knew the outcome, the same time as harpTime, as its own column so that every moment of a trial is named; the reward, the error sound and the timeout are timed from it. On a lick it is the Harp clock's latest tick when the workflow saw the lick, a few ms after it; each lick's own Harp time is in the lick detectors' logs.
+  description: Harp time the workflow knew the outcome, the same time as harpTime, as its own column so that every moment of a trial is named; the reward, the penalty sound and the timeout are timed from it. On a lick it is the Harp clock's latest tick when the workflow saw the lick, a few ms after it; each lick's own Harp time is in the lick detectors' logs.
   note: When the workflow saw the lick it counted as the choice, or the end of the response window on NoResponse.
   history: From 14 Nov 2026; until then choiceTime held it on a choice, NaN on NoResponse.
 rewardSizeUl:
   type: double
   unit: ul
-  formerly: [rewardSize]
   description: Microlitres a reward on this trial gives, the stage's rewardSizeUl times reward.largeRewardMultiplier on a large-reward trial. What was delivered is RewardDelivered in BonsaiData_Async.
   history: largeReward said which trials were large until 9 Nov 2026.
-punishSound:
+penaltySound:
   type: bool
-  description: "True when the error sound played: on every punished trial (an incorrect choice, or a miss that was not auto-rewarded) with the task's punishment.sound enabled, whatever punishment.timeoutSeconds is. The sound is the lab's (OpenRigs.Audio), on rig.yml's errorSoundChannel."
+  description: "True when the penalty sound played: on every penalised trial (an incorrect choice, or a miss that was not auto-rewarded) with the task's penalty.sound enabled, whatever penalty.timeoutSeconds is. The sound is the lab's (OpenRigs.Audio), on rig.yml's penaltySoundChannel."
   history: Until 14 Nov 2026 only after an incorrect choice.
-punishTimeoutSeconds:
+penaltyTimeoutSeconds:
   type: double
   unit: s
-  description: "The timeout after this trial: the task's punishment.timeoutSeconds when the trial was punished, else 0. The next interval starts after it (itiStartTime)."
-  note: Punished - an incorrect choice, or a miss that was not auto-rewarded.
+  description: "The timeout after this trial: the task's penalty.timeoutSeconds when the trial was penalised, else 0. The next interval starts after it (itiStartTime)."
+  note: Penalised - an incorrect choice, or a miss that was not auto-rewarded.
 laserCondition:
   type: int
-  formerly: [optoCondition]
   description: "The Zapit condition sent to Zapit this trial (its conditions file's number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics."
   history: From 13 Nov 2026 every optogenetics trial sends one; before, a condition was sent only with the laser on. Until 9 Nov 2026 optoStimulated also said whether there was stimulation.
 laserPowerMw:
@@ -101,12 +94,10 @@ laserTriggerTime:
 target:
   type: string
   values: [Left, Right]
-  formerly: [targetSide]
   description: The side that was right.
 choice:
   type: string
   values: [Left, Right, NoResponse]
-  formerly: [response]
   description: The side the mouse chose.
 repeatCount:
   type: int
@@ -116,17 +107,14 @@ autoRewarded:
   description: True when a miss on an auto-reward trial was rewarded at the target spout.
 bothSpouts:
   type: bool
-  formerly: [BothSpouts]
   description: True when both spouts were offered (otherwise only the correct one).
 visualAzimuthDeg:
   type: double
   unit: deg
-  formerly: [visualAzimuth]
   description: Grating azimuth.
 visualElevationDeg:
   type: double
   unit: deg
-  formerly: [visualElevation]
   description: Grating elevation.
 visualContrast:
   type: double
@@ -134,17 +122,14 @@ visualContrast:
 visualPhaseRad:
   type: double
   unit: rad
-  formerly: [visualPhase]
   description: Grating phase.
 audioAzimuthDeg:
   type: double
   unit: deg
-  formerly: [audioAzimuth]
   description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played.
 audioElevationDeg:
   type: double
   unit: deg
-  formerly: [audioElevation]
   description: Elevation of the speaker that played; NaN when none played.
 audioWaveformIndex:
   type: int

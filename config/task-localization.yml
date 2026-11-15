@@ -31,9 +31,9 @@ taskParameters:
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first-lick 2AFC
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
-  punishment:
+  penalty:
     timeoutSeconds: 4.0   # s, after an incorrect choice or a miss (not after an auto-rewarded miss)
-    sound:               # the error sound, on an incorrect choice
+    sound:               # the penalty sound, on an incorrect choice
       enabled: true
       gain: 1.0
   reward:

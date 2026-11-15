@@ -91,7 +91,7 @@ def test_the_discrimination_iti_is_what_gerion_s_mice_got():
     task = _task("task-discrimination.yml")
     trial = task.trial_structure
     assert (trial.iti_min_seconds, trial.iti_max_seconds, trial.drink_seconds) == (1.5, 2.0, 1.5)
-    assert task.punishment.timeout_seconds == 4.0
+    assert task.penalty.timeout_seconds == 4.0
     # The localization file keeps its interval.
     local = _task("task-localization.yml").trial_structure
     assert (local.iti_min_seconds, local.iti_max_seconds, local.drink_seconds) == (3.4, 4.4, 2.0)

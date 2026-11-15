@@ -59,7 +59,7 @@ public class AuditoryStimulusSetTests
         }
         var path = Path.Combine(rig, "rig.yml");
         File.WriteAllText(path, "speakerArray:\n  device:\n    sampleRate: 48000\n    channelCount: 32\n  speakers:\n" + speakers +
-            (sync ? "  syncChannel: 31\n" : "") + "  errorSoundChannel: 2\n");
+            (sync ? "  syncChannel: 31\n" : "") + "  penaltySoundChannel: 2\n");
         return SpeakerSet.Load(path, "THIS-RIG");
     }
 
@@ -127,10 +127,9 @@ public class AuditoryStimulusSetTests
     }
 
     [TestMethod]
-    public void TheBackgroundNoiseIsAtTheMixersRateAndTheErrorSoundIsTheLabs()
+    public void TheBackgroundNoiseIsAtTheMixersRateAndThePenaltySoundIsTheLabs()
     {
         CheckWaveRate.Check(Path.Combine(Fixture.Repo(), "src", "LocalFiles", "background_white_noise.wav"), 48000);
-        Assert.IsFalse(File.Exists(Path.Combine(Fixture.Repo(), "src", "LocalFiles", "error_tone.wav")), "the error sound is OpenRigs.Audio's, not a task file");
-        Assert.AreEqual(32, ErrorSound.Buffer(Speakers(), 1).Rows);
+        Assert.AreEqual(32, PenaltySound.Buffer(Speakers(), 1).Rows);
     }
 }

@@ -3,7 +3,7 @@ from typing import Literal
 
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
-from open_rigs.core.task import Optogenetics, QuietWait, Task, TaskParameters
+from open_rigs.core.task import Optogenetics, Penalty, QuietWait, Task, TaskParameters
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
 from open_rigs.rigs.lab_rig import MAX_REWARD_UL
 from pydantic import Field, field_validator, model_validator
@@ -115,22 +115,6 @@ class ResponseSettings(BaseSchema):
     degrees_per_lick: Double = Field(default=0.0, description="Degrees the grating azimuth moves per net lick difference; 0 keeps the stimulus fixed")
 
 
-class PunishmentSound(BaseSchema):
-    """The lab's error sound (OpenRigs.Audio, the same in every task), played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel alone, equalised for that speaker."""
-
-    enabled: Bool = Field(default=False, description="Whether the error sound plays with every timeout: an incorrect response or a miss not auto-rewarded")
-    gain: Double = Field(default=1.0, ge=0, description="Gain on the lab's error sound, 1 for its level")
-
-
-class Punishment(BaseSchema):
-    """What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):
-    the timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and
-    the error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026)."""
-
-    timeout_seconds: Double = Field(default=4.0, ge=0, description="Timeout after an incorrect response or a miss, in seconds")
-    sound: PunishmentSound = Field(default=PunishmentSound(), description="The error sound, with every timeout")
-
-
 class TaskType(StrEnum):
     """What the mouse answers."""
 
@@ -236,7 +220,9 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     visual_stimulus: VisualStimulus = Field(description="Grating stimulus parameters")
     audio_stimulus: AudioStimulus = Field(description="Auditory stimulus parameters")
     response: ResponseSettings = Field(description="Lick-accumulation response rule")
-    punishment: Punishment = Field(description="The timeout and error sound an error costs")
+    penalty: Penalty = Field(
+        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty"
+    )
     reward: RewardSettings = Field(description="Reward delivery parameters")
     repeats: RepeatSettings = Field(description="Trial repetition policy")
     optogenetics: OptogeneticsSettings = Field(description="Zapit optogenetic stimulation parameters")

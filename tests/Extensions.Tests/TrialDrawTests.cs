@@ -194,7 +194,7 @@ public class TrialDrawTests
         Assert.AreEqual(1.5, s.TrialStructure.ItiMinSeconds);
         Assert.AreEqual(2.0, s.TrialStructure.ItiMaxSeconds);
         Assert.AreEqual(1.5, s.TrialStructure.DrinkSeconds);
-        Assert.AreEqual(4.0, s.Punishment.TimeoutSeconds);   // incorrect or a miss: 5.5 to 6.0 s outcome to stimulus
+        Assert.AreEqual(4.0, s.Penalty.TimeoutSeconds);   // incorrect or a miss: 5.5 to 6.0 s outcome to stimulus
     }
 
     [TestMethod]
@@ -620,17 +620,17 @@ public class TrialRowTests
     {
         var trial = new Trial { target = "Left", autoReward = false, itiSeconds = 3, itiStartTime = 50, goTime = 8.5 };
         var incorrect = CreateTrialRow.Build("Right", 10, trial, 9, 4, true);
-        Assert.IsTrue(incorrect.outcome == "Incorrect" && incorrect.punishSound && incorrect.punishTimeoutSeconds == 4 && incorrect.outcomeTime == 10);
+        Assert.IsTrue(incorrect.outcome == "Incorrect" && incorrect.penaltySound && incorrect.penaltyTimeoutSeconds == 4 && incorrect.outcomeTime == 10);
         Assert.IsTrue(incorrect.itiSeconds == 3 && incorrect.itiStartTime == 50 && incorrect.trialStartTime == 8.5 && incorrect.stimulusOnsetTime == 9);
-        // A miss: the outcome at the end of the response window, and the error sound with its timeout (Pip, 14 Nov 2026).
+        // A miss: the outcome at the end of the response window, and the penalty sound with its timeout (Pip, 14 Nov 2026).
         var miss = CreateTrialRow.Build("NoResponse", 10, trial, 9, 4, true);
-        Assert.IsTrue(miss.outcome == "NoResponse" && miss.punishSound && miss.punishTimeoutSeconds == 4 && miss.outcomeTime == 10 && !miss.autoRewarded);
+        Assert.IsTrue(miss.outcome == "NoResponse" && miss.penaltySound && miss.penaltyTimeoutSeconds == 4 && miss.outcomeTime == 10 && !miss.autoRewarded);
         trial.autoReward = true;
         var rewardedMiss = CreateTrialRow.Build("NoResponse", 10, trial, 9, 4, true);
-        Assert.IsTrue(rewardedMiss.autoRewarded && rewardedMiss.punishTimeoutSeconds == 0 && !rewardedMiss.punishSound);
+        Assert.IsTrue(rewardedMiss.autoRewarded && rewardedMiss.penaltyTimeoutSeconds == 0 && !rewardedMiss.penaltySound);
         var correct = CreateTrialRow.Build("Left", 10, trial, 9, 4, true);
-        Assert.IsTrue(correct.outcome == "Correct" && !correct.punishSound && correct.punishTimeoutSeconds == 0 && !correct.autoRewarded);
-        Assert.IsFalse(CreateTrialRow.Build("Right", 10, trial, 9, 4, false).punishSound);
+        Assert.IsTrue(correct.outcome == "Correct" && !correct.penaltySound && correct.penaltyTimeoutSeconds == 0 && !correct.autoRewarded);
+        Assert.IsFalse(CreateTrialRow.Build("Right", 10, trial, 9, 4, false).penaltySound);
     }
 
     [TestMethod]
@@ -692,18 +692,18 @@ public class ConsequenceTests
     {
         var c = Of("Right", false, true);
         Assert.IsTrue(c.Rewarded && c.Reward.Item1 == "right" && c.Reward.Item2 == 3 && c.SpoutCommand == OpenRigs.Devices.LickSpoutCommand.RightIn);
-        Assert.IsTrue(c.MoveSpouts && c.WithdrawAfterDrink && !c.ErrorSound && c.TimeoutSeconds == 0);
+        Assert.IsTrue(c.MoveSpouts && c.WithdrawAfterDrink && !c.PenaltySound && c.TimeoutSeconds == 0);
     }
 
     [TestMethod]
     public void AnErrorDrawsBothSpoutsBackWithTheSoundAndTimeout()
     {
         var c = Of("Left", false, true);
-        Assert.IsTrue(!c.Rewarded && c.Reward == null && c.SpoutCommand == OpenRigs.Devices.LickSpoutCommand.SpoutsOut && c.ErrorSound && c.TimeoutSeconds == 4);
+        Assert.IsTrue(!c.Rewarded && c.Reward == null && c.SpoutCommand == OpenRigs.Devices.LickSpoutCommand.SpoutsOut && c.PenaltySound && c.TimeoutSeconds == 4);
         var miss = Of("NoResponse", false, true);  // the sound comes with every timeout (Pip, 14 Nov 2026)
-        Assert.IsTrue(!miss.Rewarded && miss.ErrorSound && miss.TimeoutSeconds == 4);
+        Assert.IsTrue(!miss.Rewarded && miss.PenaltySound && miss.TimeoutSeconds == 4);
         var auto = Of("NoResponse", true, false);
-        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.TimeoutSeconds == 0 && !auto.ErrorSound && !auto.MoveSpouts && !auto.WithdrawAfterDrink);
+        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.TimeoutSeconds == 0 && !auto.PenaltySound && !auto.MoveSpouts && !auto.WithdrawAfterDrink);
     }
 
     [TestMethod]

@@ -396,7 +396,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. Trial (each trial as drawn) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and ErrorSound start the stimuli; Zapit's commands and replies; RewardRequests, each (side, microlitres) reward, the side as rig.yml's wiring names it (left, right). Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
+        <Description>Subjects the groups share. Trial (each trial as drawn) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and PenaltySound start the stimuli; Zapit's commands and replies; RewardRequests, each (side, microlitres) reward, the side as rig.yml's wiring names it (left, right). Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
@@ -427,7 +427,7 @@
               <rx:Name>AuditoryStimulus</rx:Name>
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:String">
-              <rx:Name>ErrorSound</rx:Name>
+              <rx:Name>PenaltySound</rx:Name>
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="zap:ZapitCommand">
               <rx:Name>ZapitCommands</rx:Name>
@@ -797,12 +797,12 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The speaker mixer (rig.yml's speakerArray.device), started at least 3 s after Start, never sooner (a fault while the sound card boots can blue-screen the PC); each trial's sound, the error sound and the background noise.</Description>
+        <Description>The speaker mixer (rig.yml's speakerArray.device), started at least 3 s after Start, never sooner (a fault while the sound card boots can blue-screen the PC); each trial's sound, the penalty sound and the background noise.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="GroupWorkflow">
               <Name>LoadAudioFiles</Name>
-              <Description>rig.yml's speakers and their filters (OpenRigs.Audio LoadSpeakers stops the workflow naming any speaker unfiltered, a filter missing, at another rate or from another machine), the auditory stimulus set equalised for them, the sync gate, the lab's error sound on errorSoundChannel at the task's gain, and the background noise, checked to be at the mixer's rate.</Description>
+              <Description>rig.yml's speakers and their filters (OpenRigs.Audio LoadSpeakers stops the workflow naming any speaker unfiltered, a filter missing, at another rate or from another machine), the auditory stimulus set equalised for them, the sync gate, the lab's penalty sound on penaltySoundChannel at the task's gain, and the background noise, checked to be at the mixer's rate.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="SubscribeSubject">
@@ -872,7 +872,7 @@
                     <Name>TaskConfig</Name>
                   </Expression>
                   <Expression xsi:type="MemberSelector">
-                    <Selector>TaskParameters.Punishment.Sound.Gain</Selector>
+                    <Selector>TaskParameters.Penalty.Sound.Gain</Selector>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>Speakers</Name>
@@ -887,7 +887,7 @@
                     <Selector>Item2</Selector>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="aud:ErrorSoundBuffer">
+                    <Combinator xsi:type="aud:PenaltySoundBuffer">
                       <aud:Gain>1</aud:Gain>
                     </Combinator>
                   </Expression>
@@ -941,7 +941,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="rx:AsyncSubject">
-                    <Name>ErrorSoundBuffer</Name>
+                    <Name>PenaltySoundBuffer</Name>
                   </Expression>
                 </Nodes>
                 <Edges>
@@ -1032,16 +1032,16 @@
                           </Combinator>
                         </Expression>
                         <Expression xsi:type="MulticastSubject">
-                          <Name>MixerErrorSoundSource</Name>
+                          <Name>MixerPenaltySoundSource</Name>
                         </Expression>
                         <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p4:MixerSourceContext">
-                          <rx:Name>MixerErrorSoundSource</rx:Name>
+                          <rx:Name>MixerPenaltySoundSource</rx:Name>
                         </Expression>
                         <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p5:Mat">
-                          <rx:Name>MixerBufferErrorSound</rx:Name>
+                          <rx:Name>MixerBufferPenaltySound</rx:Name>
                         </Expression>
                         <Expression xsi:type="SubscribeSubject">
-                          <Name>MixerErrorSoundSource</Name>
+                          <Name>MixerPenaltySoundSource</Name>
                         </Expression>
                         <Expression xsi:type="Combinator">
                           <Combinator xsi:type="p4:AppendBuffer" />
@@ -1317,15 +1317,15 @@
               </Workflow>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>ErrorSound</Name>
+              <Name>PenaltySound</Name>
             </Expression>
             <Expression xsi:type="rx:SelectMany">
-              <Name>PlayErrorSound</Name>
-              <Description>Plays the lab's error sound (OpenRigs.Audio ErrorSoundBuffer, made at load): rig.yml's errorSoundChannel alone, equalised for that speaker, at the task's gain.</Description>
+              <Name>PlayPenaltySound</Name>
+              <Description>Plays the lab's penalty sound (OpenRigs.Audio PenaltySoundBuffer, made at load): rig.yml's penaltySoundChannel alone, equalised for that speaker, at the task's gain.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>ErrorSoundBuffer</Name>
+                    <Name>PenaltySoundBuffer</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:Take">
@@ -1333,7 +1333,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>MixerBufferErrorSound</Name>
+                    <Name>MixerBufferPenaltySound</Name>
                   </Expression>
                 </Nodes>
                 <Edges>
@@ -2017,7 +2017,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ExecuteTrial</Name>
-              <Description>One trial on the Harp clock: the stimulus (VisualStimulus, AuditoryStimulus, its onset stamped as it is commanded; the grating off after stimulusSeconds), the spouts in after stimulusToSpoutsInSeconds, the response window after openLoopSeconds; at the outcome, the trial's row (TrialRow) and what the outcome sets off (TrialConsequence: the reward, the spouts, the error sound); then the timeout; at its end the TrialEnd leaves, stamped with the interval's start, so the next trial is drawn and Zapit armed while the interval runs; drinkSeconds into the interval the spouts go out, and the trial ends.</Description>
+              <Description>One trial on the Harp clock: the stimulus (VisualStimulus, AuditoryStimulus, its onset stamped as it is commanded; the grating off after stimulusSeconds), the spouts in after stimulusToSpoutsInSeconds, the response window after openLoopSeconds; at the outcome, the trial's row (TrialRow) and what the outcome sets off (TrialConsequence: the reward, the spouts, the penalty sound); then the timeout; at its end the TrialEnd leaves, stamped with the interval's start, so the next trial is drawn and Zapit armed while the interval runs; drinkSeconds into the interval the spouts go out, and the trial ends.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -2395,8 +2395,8 @@
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
-                      <Property Name="TimeoutSeconds" Selector="TaskParameters.Punishment.TimeoutSeconds" />
-                      <Property Name="PunishSound" Selector="TaskParameters.Punishment.Sound.Enabled" />
+                      <Property Name="TimeoutSeconds" Selector="TaskParameters.Penalty.TimeoutSeconds" />
+                      <Property Name="PenaltySound" Selector="TaskParameters.Penalty.Sound.Enabled" />
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
@@ -2406,7 +2406,7 @@
                     <Name>BuildTrialRow</Name>
                     <Combinator xsi:type="p1:CreateTrialRow">
                       <p1:TimeoutSeconds>0</p1:TimeoutSeconds>
-                      <p1:PunishSound>false</p1:PunishSound>
+                      <p1:PenaltySound>false</p1:PenaltySound>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
@@ -2488,14 +2488,14 @@
                     <Name>Outcome</Name>
                   </Expression>
                   <Expression xsi:type="rx:Condition">
-                    <Name>ErrorSound?</Name>
+                    <Name>PenaltySound?</Name>
                     <Workflow>
                       <Nodes>
                         <Expression xsi:type="WorkflowInput">
                           <Name>Source1</Name>
                         </Expression>
                         <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>ErrorSound</scr:Expression>
+                          <scr:Expression>PenaltySound</scr:Expression>
                         </Expression>
                         <Expression xsi:type="WorkflowOutput" />
                       </Nodes>
@@ -2509,7 +2509,7 @@
                     <Selector>Outcome</Selector>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
-                    <Name>ErrorSound</Name>
+                    <Name>PenaltySound</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>Outcome</Name>

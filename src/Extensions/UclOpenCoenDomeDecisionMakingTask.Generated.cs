@@ -455,41 +455,39 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):
-    ///the timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and
-    ///the error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026).
+    /// What a wrong or missed trial costs: a timeout, and the penalty sound with it (the trial log's penaltySound and
+    ///penaltyTimeoutSeconds). Each task says which trials are penalised; timeoutSeconds has no lab default: each task file gives it.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"What an error costs, as the lab's tasks name it (the trial log's punishSound and punishTimeoutSeconds):
-    the timeout after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and
-    the error sound with it, as in coen-dome-navigation (Pip, 14 Nov 2026).")]
+    [System.ComponentModel.DescriptionAttribute("What a wrong or missed trial costs: a timeout, and the penalty sound with it (the" +
+        " trial log\'s penaltySound and\npenaltyTimeoutSeconds). Each task says which trial" +
+        "s are penalised; timeoutSeconds has no lab default: each task file gives it.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class Punishment
+    public partial class Penalty
     {
     
         private double _timeoutSeconds;
     
-        private PunishmentSound _sound;
+        private PenaltySound _sound;
     
-        public Punishment()
+        public Penalty()
         {
-            _timeoutSeconds = 4D;
-            _sound = new PunishmentSound();
+            _sound = new PenaltySound();
         }
     
-        protected Punishment(Punishment other)
+        protected Penalty(Penalty other)
         {
             _timeoutSeconds = other._timeoutSeconds;
             _sound = other._sound;
         }
     
         /// <summary>
-        /// Timeout after an incorrect response or a miss, in seconds
+        /// Timeout after a penalised trial, in seconds; the next interval starts after it
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("timeoutSeconds")]
+        [Newtonsoft.Json.JsonPropertyAttribute("timeoutSeconds", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="timeoutSeconds")]
-        [System.ComponentModel.DescriptionAttribute("Timeout after an incorrect response or a miss, in seconds")]
+        [System.ComponentModel.DescriptionAttribute("Timeout after a penalised trial, in seconds; the next interval starts after it")]
         public double TimeoutSeconds
         {
             get
@@ -503,13 +501,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The error sound, with every timeout
+        /// The penalty sound, with every timeout
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("sound")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="sound")]
-        [System.ComponentModel.DescriptionAttribute("The error sound, with every timeout")]
-        public PunishmentSound Sound
+        [System.ComponentModel.DescriptionAttribute("The penalty sound, with every timeout")]
+        public PenaltySound Sound
         {
             get
             {
@@ -521,14 +519,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
             }
         }
     
-        public System.IObservable<Punishment> Generate()
+        public System.IObservable<Penalty> Generate()
         {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new Punishment(this)));
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new Penalty(this)));
         }
     
-        public System.IObservable<Punishment> Generate<TSource>(System.IObservable<TSource> source)
+        public System.IObservable<Penalty> Generate<TSource>(System.IObservable<TSource> source)
         {
-            return System.Reactive.Linq.Observable.Select(source, _ => new Punishment(this));
+            return System.Reactive.Linq.Observable.Select(source, _ => new Penalty(this));
         }
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
@@ -554,40 +552,39 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The lab's error sound (OpenRigs.Audio, the same in every task), played with every timeout (an incorrect response or a miss not auto-rewarded), on rig.yml's speakerArray.errorSoundChannel alone, equalised for that speaker.
+    /// The lab's penalty sound (OpenRigs.Audio PenaltySoundBuffer, the same in every task), on rig.yml's speakerArray.penaltySoundChannel alone, equalised for that speaker.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The lab\'s error sound (OpenRigs.Audio, the same in every task), played with every" +
-        " timeout (an incorrect response or a miss not auto-rewarded), on rig.yml\'s speak" +
-        "erArray.errorSoundChannel alone, equalised for that speaker.")]
+    [System.ComponentModel.DescriptionAttribute("The lab\'s penalty sound (OpenRigs.Audio PenaltySoundBuffer, the same in every tas" +
+        "k), on rig.yml\'s speakerArray.penaltySoundChannel alone, equalised for that spea" +
+        "ker.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class PunishmentSound
+    public partial class PenaltySound
     {
     
         private bool _enabled;
     
         private double _gain;
     
-        public PunishmentSound()
+        public PenaltySound()
         {
-            _enabled = false;
+            _enabled = true;
             _gain = 1D;
         }
     
-        protected PunishmentSound(PunishmentSound other)
+        protected PenaltySound(PenaltySound other)
         {
             _enabled = other._enabled;
             _gain = other._gain;
         }
     
         /// <summary>
-        /// Whether the error sound plays with every timeout: an incorrect response or a miss not auto-rewarded
+        /// Whether the penalty sound plays with every timeout
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("enabled")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="enabled")]
-        [System.ComponentModel.DescriptionAttribute("Whether the error sound plays with every timeout: an incorrect response or a miss" +
-            " not auto-rewarded")]
+        [System.ComponentModel.DescriptionAttribute("Whether the penalty sound plays with every timeout")]
         public bool Enabled
         {
             get
@@ -601,11 +598,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Gain on the lab's error sound, 1 for its level
+        /// Gain on the lab's penalty sound, 1 for its level
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("gain")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="gain")]
-        [System.ComponentModel.DescriptionAttribute("Gain on the lab\'s error sound, 1 for its level")]
+        [System.ComponentModel.DescriptionAttribute("Gain on the lab\'s penalty sound, 1 for its level")]
         public double Gain
         {
             get
@@ -618,14 +615,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
             }
         }
     
-        public System.IObservable<PunishmentSound> Generate()
+        public System.IObservable<PenaltySound> Generate()
         {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new PunishmentSound(this)));
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new PenaltySound(this)));
         }
     
-        public System.IObservable<PunishmentSound> Generate<TSource>(System.IObservable<TSource> source)
+        public System.IObservable<PenaltySound> Generate<TSource>(System.IObservable<TSource> source)
         {
-            return System.Reactive.Linq.Observable.Select(source, _ => new PunishmentSound(this));
+            return System.Reactive.Linq.Observable.Select(source, _ => new PenaltySound(this));
         }
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
@@ -1959,7 +1956,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private ResponseSettings _response;
     
-        private Punishment _punishment;
+        private Penalty _penalty;
     
         private RewardSettings _reward;
     
@@ -1977,7 +1974,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _visualStimulus = new VisualStimulus();
             _audioStimulus = new AudioStimulus();
             _response = new ResponseSettings();
-            _punishment = new Punishment();
+            _penalty = new Penalty();
             _reward = new RewardSettings();
             _repeats = new RepeatSettings();
             _optogenetics = new OptogeneticsSettings();
@@ -1993,7 +1990,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _visualStimulus = other._visualStimulus;
             _audioStimulus = other._audioStimulus;
             _response = other._response;
-            _punishment = other._punishment;
+            _penalty = other._penalty;
             _reward = other._reward;
             _repeats = other._repeats;
             _optogenetics = other._optogenetics;
@@ -2133,21 +2130,22 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The timeout and error sound an error costs
+        /// The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("punishment", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="punishment")]
-        [System.ComponentModel.DescriptionAttribute("The timeout and error sound an error costs")]
-        public Punishment Punishment
+        [Newtonsoft.Json.JsonPropertyAttribute("penalty", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penalty")]
+        [System.ComponentModel.DescriptionAttribute("The timeout and penalty sound after an incorrect response or a miss (a miss on an" +
+            " auto-reward trial is rewarded instead), open_rigs.core.task Penalty")]
+        public Penalty Penalty
         {
             get
             {
-                return _punishment;
+                return _penalty;
             }
             set
             {
-                _punishment = value;
+                _penalty = value;
             }
         }
     
@@ -2247,7 +2245,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("VisualStimulus = " + _visualStimulus + ", ");
             stringBuilder.Append("AudioStimulus = " + _audioStimulus + ", ");
             stringBuilder.Append("Response = " + _response + ", ");
-            stringBuilder.Append("Punishment = " + _punishment + ", ");
+            stringBuilder.Append("Penalty = " + _penalty + ", ");
             stringBuilder.Append("Reward = " + _reward + ", ");
             stringBuilder.Append("Repeats = " + _repeats + ", ");
             stringBuilder.Append("Optogenetics = " + _optogenetics + ", ");
@@ -2587,14 +2585,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<OptogeneticsSettings>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<Punishment> source)
+        public System.IObservable<string> Process(System.IObservable<Penalty> source)
         {
-            return Process<Punishment>(source);
+            return Process<Penalty>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<PunishmentSound> source)
+        public System.IObservable<string> Process(System.IObservable<PenaltySound> source)
         {
-            return Process<PunishmentSound>(source);
+            return Process<PenaltySound>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<RepeatSettings> source)
@@ -2659,8 +2657,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Punishment>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<PunishmentSound>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Penalty>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<PenaltySound>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RepeatSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]
@@ -2735,14 +2733,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<OptogeneticsSettings>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<Punishment> source)
+        public System.IObservable<string> Process(System.IObservable<Penalty> source)
         {
-            return Process<Punishment>(source);
+            return Process<Penalty>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<PunishmentSound> source)
+        public System.IObservable<string> Process(System.IObservable<PenaltySound> source)
         {
-            return Process<PunishmentSound>(source);
+            return Process<PenaltySound>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<RepeatSettings> source)
@@ -2807,8 +2805,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Punishment>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<PunishmentSound>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Penalty>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<PenaltySound>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RepeatSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]

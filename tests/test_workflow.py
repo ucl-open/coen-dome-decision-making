@@ -337,16 +337,16 @@ def test_the_rng_seed_is_logged_at_trial_1s_go():
     assert not [n for n in _scope(_named("ExperimentLogs"))[0] if n.findtext(W + "Name") == "RngSeed"]
 
 
-def test_the_error_sound_is_the_labs_at_the_tasks_gain():
-    # Audit, 14 Nov 2026: OpenRigs.Audio's error sound, made once the task file's gain is in (Zip, InputMapping), never
+def test_the_penalty_sound_is_the_labs_at_the_tasks_gain():
+    # Audit, 14 Nov 2026: OpenRigs.Audio's penalty sound, made once the task file's gain is in (Zip, InputMapping), never
     # at the default gain from the speakers alone.
     nodes, edges = _scope(_named("LoadAudioFiles"))
-    error = next(i for i, n in enumerate(nodes) if _kind(n) == "aud:ErrorSoundBuffer")
-    (mapping,) = [a for a, b, _ in edges if b == error]
+    penalty = next(i for i, n in enumerate(nodes) if _kind(n) == "aud:PenaltySoundBuffer")
+    (mapping,) = [a for a, b, _ in edges if b == penalty]
     assert nodes[mapping].get(XSI) == "InputMapping"
     assert 'Name="Gain" Selector="Item1"' in ET.tostring(nodes[mapping], encoding="unicode")
     (zip_,) = [a for a, b, _ in edges if b == mapping]
     inputs = sorted((label, nodes[a]) for a, b, label in edges if b == zip_)
-    assert "TaskParameters.Punishment.Sound.Gain" in inputs[0][1].findtext(W + "Selector")
+    assert "TaskParameters.Penalty.Sound.Gain" in inputs[0][1].findtext(W + "Selector")
     assert inputs[1][1].findtext(W + "Name") == "Speakers"
-    assert "error_tone" not in TEXT and "Punishment.Sound.Path" not in TEXT
+    assert "Penalty.Sound.Path" not in TEXT
