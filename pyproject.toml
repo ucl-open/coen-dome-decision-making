@@ -6,7 +6,7 @@ build-backend = "uv_build"
 name = "ucl-open-coen-dome-decision-making"
 description = "The coen-dome-decision-making experiment's task schema and shaping-stage choice."
 authors = [ {name = "NeuroThom", email = "t.ryan@neurogears.org"}]
-license = "MIT"
+license = "BSD-3-Clause"
 requires-python = ">=3.11, <3.12"
 classifiers = [
     "Programming Language :: Python :: 3.11",
