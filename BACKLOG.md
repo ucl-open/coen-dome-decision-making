@@ -7,6 +7,7 @@
 - The quiet waits have a maximum, in task.py and at Go (`TrialDraw.CheckTask`): `lickQuietSeconds` and `wheelQuietSeconds` 10 s (a longer wait and a licking mouse would hold Go with no message), `wheelQuietCm` 20 cm (under one turn of the 75 mm wheel, 23.6 cm: a whole turn within the wait is running, not stillness). Every stage of both task files has them at 0, so nothing changes for the mice.
 - The WAVs' sample rate is already checked against rig.yml's `speakerArray.device.sampleRate` at Start (`CheckWaveRate` for the background noise, `Wave.Read` with the speakers' rate for the stimuli and the lab's penalty sound); coen-dome-navigation's waveforms are now checked the same way.
 - "Go" is only the experimenter's (app-rig-control's button, `ExperimentGo`, `CheckTaskAtGo`); each trial's start after its interval and quiet waits is "the trial start": `WaitForTrialStart`, `TrialStartWaiter`, `TrialStartFor`, the `TrialStart` subject, `Trial.startTime` and `triggerAfterStartSeconds` (were `WaitForGo`, `GoWaiter`, `TrialGoFor`, `TrialGo`, `goTime`, `triggerAfterGoSeconds`). Nothing on disk changed: the column is still `trialStartTime`, task files and schema as before. The quiet waits' schema descriptions and `QuietWait.GoTime` are lib-open-rigs'.
+- `THIRD-PARTY-NOTICES.md` is coen-behaviour-box's: one section, every `local_packages\OpenRigs.*` package (the 11 in `.bonsai\Bonsai.config`) carries lib-open-rigs' BSD 3-Clause `LICENSE`, which it quotes (there was none, though it carries the same packages).
 
 ## 2026-11-15 The background noise from Ready (Pip)
 
