@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-# Where a mouse's experiments are: on the rig until rig-sync copies them, then in the server's staging, then
+# Where a mouse's experiments are: on the rig, copied by the overnight copy (jacuzzi-ingest's ingest-rig), then in the server's staging, then
 # filed in Live-Data.
 LIVE_DATA = Path(r"\\rdp.arc.ucl.ac.uk\ritd-ag-project-rd01n9-pcoen00")
 ROOTS = [Path(r"C:\Coen-Lab-Local\Acquired-Data"), Path(r"\\128.40.51.157\rigs\staging"), LIVE_DATA]
