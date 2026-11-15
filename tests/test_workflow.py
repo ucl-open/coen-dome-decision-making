@@ -120,8 +120,10 @@ def test_the_shared_blocks_replace_the_local_copies():
     for block in ("OpenRigs.Devices:ReadLabRig.bonsai", "OpenRigs.Devices:DomeHardware.bonsai",
                   "OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai", "OpenRigs.Devices:BehaviorBoard.ManualRewards.bonsai",
                   "OpenRigs.Devices:Zapit.ConnectForTask.bonsai", "OpenRigs.Logging:LogLabExperiment.bonsai",
-                  "OpenRigs.Logging:LogControlEvents.bonsai", "OpenRigs.Vision:ProjectorDisplay.bonsai"):
+                  "OpenRigs.Logging:LogControlEvents.bonsai"):
         assert f'Path="{block}"' in TEXT
+    # The speakers and the projector are DomeHardware's (Pip, 15 Nov 2026: every task has background noise and a screen).
+    assert lint.SPEAKER_MIXER not in TEXT and lint.PROJECTOR_DISPLAY not in TEXT
     assert not re.search(r'Path="Extensions\\', TEXT)
     assert not list((ROOT / "src" / "Extensions").glob("*.bonsai"))
 

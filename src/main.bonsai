@@ -487,7 +487,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Hardware</Name>
-        <Description>The dome's devices (OpenRigs.Devices DomeHardware: every device as a piece, each logging itself; the cameras triggered once all three acquire), with Ready once the Harp clock is set, the spouts are homed, each camera has sent a frame and the mixer has started (ReadyWaitsFor), and a stop naming what never came after 180 s.</Description>
+        <Description>The dome's devices (OpenRigs.Devices DomeHardware: every device as a piece, each logging itself; the cameras triggered once all three acquire; the speakers and their mixer; the projector, DisplayDevice a launch property), with Ready once the Harp clock is set, the spouts are homed, each camera has sent a frame and the mixer has started (ReadyWaitsFor), and a stop naming what never came after 180 s.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="PropertyMapping">
@@ -499,12 +499,15 @@
               <Name>SpoutStepSize</Name>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:DomeHardware.bonsai">
-              <ReadyWaitsFor>HarpClockSet, SpoutsHomed, Camera-Face, Camera-Pupil, Camera-Body, MixerStarted</ReadyWaitsFor>
+            </Expression>
+            <Expression xsi:type="ExternalizedMapping">
+              <Property Name="DisplayDevice" />
             </Expression>
           </Nodes>
           <Edges>
             <Edge From="1" To="0" Label="Source1" />
             <Edge From="0" To="2" Label="Source1" />
+            <Edge From="3" To="2" Label="Source2" />
           </Edges>
         </Workflow>
       </Expression>
@@ -513,24 +516,9 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Display</Name>
-        <Description>The dome projection (OpenRigs.Vision ProjectorDisplay, from rig.yml's projectionCalibration; DisplayDevice a launch property) and each trial's grating.</Description>
+        <Description>Each trial's grating, drawn on DomeHardware's projector (DrawStimuli).</Description>
         <Workflow>
           <Nodes>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>RigConfigs</Name>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>ProjectionCalibration</Selector>
-            </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Vision:ProjectorDisplay.bonsai">
-              <DisplayDevice>First</DisplayDevice>
-              <WindowState>Fullscreen</WindowState>
-              <Width>1920</Width>
-              <Height>1080</Height>
-            </Expression>
-            <Expression xsi:type="ExternalizedMapping">
-              <Property Name="DisplayDevice" />
-            </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>VisualStimulus</Name>
             </Expression>
@@ -753,18 +741,14 @@
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
-            <Edge From="1" To="2" Label="Source1" />
-            <Edge From="3" To="2" Label="Source2" />
-            <Edge From="4" To="5" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The speakers and their mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound and the penalty sound at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound and the penalty sound at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready.</Description>
         <Workflow>
           <Nodes>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:SpeakerMixer.bonsai" />
             <Expression xsi:type="GroupWorkflow">
               <Name>LoadAudioFiles</Name>
               <Description>The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound on penaltySoundChannel at penalty.sound.levelDbfs; the background noise, checked to be at the mixer's rate, on every speaker unequalised at the launch's task file's backgroundNoise.levelDbfs (LaunchTaskConfig), laid out at Start and sent to the mixer at Ready, which fades it in over 2 s.</Description>
@@ -1058,9 +1042,9 @@
             </Expression>
           </Nodes>
           <Edges>
+            <Edge From="1" To="2" Label="Source1" />
             <Edge From="2" To="3" Label="Source1" />
-            <Edge From="3" To="4" Label="Source1" />
-            <Edge From="5" To="6" Label="Source1" />
+            <Edge From="4" To="5" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -2437,7 +2421,7 @@
     </Nodes>
     <Edges>
       <Edge From="1" To="2" Label="Source1" />
-      <Edge From="7" To="8" Label="Source1" />
+      <Edge From="7" To="6" Label="Source1" />
     </Edges>
   </Workflow>
 </WorkflowBuilder>
