@@ -21,6 +21,12 @@ dependencies = [
   "pydantic-settings"
 ]
 
+[dependency-groups]
+dev = [
+    "jsonschema>=4.26.0",
+    "pytest",
+]
+
 # [project.urls]
 # Documentation = "https://ucl-open.github.io/Ucl.Open.CoenDomeDecisionMaking/"
 # Repository = "https://github.com/UclOpen/Ucl.Open.CoenDomeDecisionMaking/"
