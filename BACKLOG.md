@@ -17,6 +17,7 @@
 ## Audit cycle 3 (15 Nov 2026)
 
 - RigSetup reads rig.yml with lib-open-rigs' `ReadLabRig` include (OpenRigs.Devices), the same steps the hand-built `ReadRigConfig` group, `DeserializeFromYaml`, `Take` and `RigConfigs` ran (proved headless: `RigConfigDirectory` and `RigConfigs` reach a sibling group, and a wrong `ConfigRoot` stops at Start naming it); a test holds its `ConfigRoot` to the other nodes', as check-workflow does not look inside an include.
+- Go refuses a NaN or infinite time (YAML `.nan`, `.inf`), as coen-dome-navigation's does since its cycle 2: the interval, drink, response window, stimulus and spout times, `penalty.timeoutSeconds`, the stage's quiet waits, `laserToStimulusSeconds` and, with Zapit, `laserDurationSeconds` (`TrialDraw.CheckTask`, test). An infinite `lickQuietSeconds` or a NaN `wheelQuietSeconds` held Go for ever with no error; the others stopped mid-run at their `HarpDelay`.
 
 ## Open
 

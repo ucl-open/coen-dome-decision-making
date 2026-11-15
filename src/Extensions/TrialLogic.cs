@@ -282,10 +282,27 @@ public class TrialDraw
         }
         if (task.AudioStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("audioStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
         var structure = task.TrialStructure;
+        // A NaN or infinite time (YAML's .nan or .inf) would hold Go for ever, with no error (as coen-dome-navigation's CorridorSetup).
+        Action<string, double> finite = (name, value) =>
+        {
+            if (!(value >= 0) || double.IsInfinity(value)) problems.Add(name + " must be a finite number, 0 or more");
+        };
+        finite("trialStructure.itiMinSeconds", structure.ItiMinSeconds);
+        finite("trialStructure.itiMaxSeconds", structure.ItiMaxSeconds);
+        finite("trialStructure.drinkSeconds", structure.DrinkSeconds);
+        finite("trialStructure.openLoopSeconds", structure.OpenLoopSeconds);
+        finite("trialStructure.closedLoopSeconds", structure.ClosedLoopSeconds);
+        finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
+        finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
+        finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
+        finite("stage '" + stage.Label + "''s lickQuietSeconds", stage.LickQuietSeconds);
+        finite("stage '" + stage.Label + "''s wheelQuietSeconds", stage.WheelQuietSeconds);
+        finite("stage '" + stage.Label + "''s wheelQuietCm", stage.WheelQuietCm);
+        if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
+        if (task.Optogenetics.UseZapit) finite("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.OpenLoopSeconds + structure.ClosedLoopSeconds) problems.Add("trialStructure.stimulusSeconds is longer than openLoopSeconds plus closedLoopSeconds");
         if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
         if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts go out drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
-        if (stage.LickQuietSeconds < 0 || stage.WheelQuietSeconds < 0 || stage.WheelQuietCm < 0) problems.Add("stage '" + stage.Label + "' has a negative lickQuietSeconds, wheelQuietSeconds or wheelQuietCm");
         if ((stage.WheelQuietSeconds > 0) != (stage.WheelQuietCm > 0)) problems.Add("stage '" + stage.Label + "' needs wheelQuietSeconds and wheelQuietCm both above 0 (the wheel's quiet wait) or both 0 (off)");
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;

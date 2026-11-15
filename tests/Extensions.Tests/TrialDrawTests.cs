@@ -341,7 +341,22 @@ public class TrialDrawTests
         task.TrainingStages[4].WheelQuietCm = 2;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
         task.TrainingStages[4].LickQuietSeconds = -1;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "negative");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds must be a finite number, 0 or more");
+        // A NaN or infinite time would hold Go for ever, with no error.
+        task.TrainingStages[4].LickQuietSeconds = double.PositiveInfinity;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds must be a finite number, 0 or more");
+        task = Fixture.Task("task-localization.yml");
+        task.TrainingStages[4].WheelQuietSeconds = double.NaN;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "wheelQuietSeconds must be a finite number, 0 or more");
+        task = Fixture.Task("task-localization.yml");
+        task.TrialStructure.ItiMaxSeconds = double.PositiveInfinity;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "itiMaxSeconds must be a finite number, 0 or more");
+        task = Fixture.Task("task-localization.yml");
+        task.Penalty.TimeoutSeconds = double.NaN;
+        task.Optogenetics.LaserToStimulusSeconds = double.NaN;
+        var refusal = Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers()));
+        StringAssert.Contains(refusal, "penalty.timeoutSeconds must be a finite number, 0 or more");
+        StringAssert.Contains(refusal, "laserToStimulusSeconds must be a finite number");
         task = Fixture.Task("task-localization.yml");
         task.TrialStructure.DrinkSeconds = 3.5;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "below drinkSeconds");
