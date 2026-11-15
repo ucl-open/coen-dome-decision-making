@@ -46,12 +46,6 @@ public class AuditoryStimulusSet
         get { return Speakers.SpeakerChannels; }
     }
 
-    /// <summary>Samples in every waveform of the set (they are checked to be equal), for the sync channel's gate.</summary>
-    public int WaveformLength
-    {
-        get { return raw[0].Cols; }
-    }
-
     /// <summary>The waveform a trial plays on a channel, equalised for that speaker.</summary>
     public Mat Stimulus(int index, int channel)
     {
@@ -99,16 +93,6 @@ public class AuditoryStimulusSet
             }
         }
 
-        if (problems.Count == 0)
-        {
-            var lengths = raw.Select(waveform => waveform.Cols).Distinct().ToArray();
-            if (lengths.Length > 1)
-            {
-                problems.Add("the waveforms in " + directory + " differ in length (" + string.Join(", ", lengths) +
-                    " samples); the sync channel's gate needs them all the same length");
-            }
-        }
-
         if (problems.Count > 0)
         {
             throw new InvalidOperationException("The auditory stimuli cannot be loaded: " + string.Join("; ", problems) + ".");
@@ -141,12 +125,13 @@ public class LoadAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The waveform a trial plays: the stimulus set's waveform at the trial's audioWaveformIndex, equalised for its speaker. Input is the stimulus set and the trial.")]
+[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's audioWaveformIndex, equalised for its speaker, on that speaker's channel, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Buffer). Input is the stimulus set and the trial.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {
     public IObservable<Mat> Process(IObservable<Tuple<AuditoryStimulusSet, Trial>> source)
     {
-        return source.Select(input => input.Item1.Stimulus(input.Item2.audioWaveformIndex, input.Item2.speakerChannel));
+        return source.Select(input => input.Item1.Speakers.Buffer(
+            input.Item1.Stimulus(input.Item2.audioWaveformIndex, input.Item2.speakerChannel), new[] { input.Item2.speakerChannel }, 1, false, true));
     }
 }

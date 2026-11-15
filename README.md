@@ -33,14 +33,14 @@ Each lib-open-rigs block the workflow uses, its job here and where it lives. `te
 |---|---|---|
 | `RigHardware` | Every dome device from rig.yml, the three cameras, the lick spout stage, `Timestamp`, `HarpClockSet`, `ZapitTriggerLine`, the lick states | `OpenRigs.Devices:RigHardware.bonsai` |
 | `HarpLogs` | Each Harp device's log, once the experiment folder exists and the clock is set | `OpenRigs.Devices:HarpLogs.bonsai` |
-| `BehaviorBoard.DeliverReward` | Every reward (side, microlitres) on the valve's calibration, fired on the Harp clock, logged as `RewardDelivered`; a reward over `MaxRewardUl` (20 µl, `LoadRewardLine`) stops the workflow | `OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai` |
+| `DeliverReward` | Every reward (side, microlitres) on the valve's calibration, fired on the Harp clock, logged as `RewardDelivered`; a reward over `MaxRewardUl` (20 µl, `LoadRewardLine`) stops the workflow | `OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai` |
 | `ToLickSpoutCommand` | The spouts out after drinking | `OpenRigs.Devices` |
 | `ProjectorDisplay` | The projector window, mesh mapping and gamma correction | `OpenRigs.Vision:ProjectorDisplay.bonsai` |
-| `Zapit.ConnectZapit` | Zapit's TCP link (`ZapitCommands` out, `ZapitReplies` back) once the task uses it, and the stops at start: an error reply, no conditions file loaded, a conditions count other than the task's file, a real mouse on a rig without hardware triggering | `OpenRigs.Devices:Zapit.ConnectZapit.bonsai` |
+| `ConnectZapit`, `ZapitLogs` | Zapit's TCP link (`ZapitCommands`, which it declares, out; `ZapitReplies` back), its replies and conditions file logged (`ZapitLogs`) once the task uses it, and the stops at start: an error reply, no conditions file loaded, a conditions count other than the task's file, a real mouse on a rig without hardware triggering | `OpenRigs.Devices:Zapit.ConnectZapit.bonsai` |
 | `ZapitConditionsSnapshot`, `ZapitLineMessage`, `ZapitTrial.ReplyMarginSeconds`, `ZapitTrial.CheckArmed` | The conditions file's copy in the experiment (`Settings_ZapitConditions`), the ZapitTrigger line's set and clear, the 0.2 s Zapit reply margin the task's checks use, and the check of Zapit's armed reply (`CheckZapitArmed` in `TrialLogic.cs`) | `OpenRigs.Devices` (`OpenRigs.Devices.Zapit`) |
 | `LoadSpeakers` | rig.yml's speakers and their filters, loaded once into `Speakers`; a speaker without a filter, or a filter missing, not symmetric, at another rate or from another machine stops the workflow at Start, naming it | `OpenRigs.Audio` |
 | `PenaltySoundBuffer` | The lab's penalty sound (the same in every task) on rig.yml's `penaltySoundChannel` alone, equalised, at `penalty.sound.gain`, made once at load | `OpenRigs.Audio` |
-| `SpeakerBuffer` | The background noise on every rig.yml speaker, not equalised | `OpenRigs.Audio` |
+| `SpeakerBuffer`, `SpeakerSet.Buffer` | The background noise on every rig.yml speaker, not equalised; each trial's stimulus on its speaker's channel with its sync copy on rig.yml's `syncChannel` at `syncGain` (`SelectAuditoryStimulus`) | `OpenRigs.Audio` |
 | `CheckWaveRate` | The background noise WAV must be at the mixer's rate, or the workflow stops at Start | `OpenRigs.Audio` |
 | `HarpDelay` | Every task wait, on `Timestamp` | `OpenRigs.Core` |
 | `StartupWatchdog` | Names whichever of the spouts' homing and the Harp clock has not come before Ready | `OpenRigs.Core` |
@@ -51,7 +51,9 @@ Each lib-open-rigs block the workflow uses, its job here and where it lives. `te
 | `StreamDevices` | The live view (the last node) | `OpenRigs.LiveView` |
 | `ReadRigConfig`, `ResolveRigConfigDirectory` | Reads this machine's rig.yml | `OpenRigs.Core:ReadRigConfig.bonsai` |
 | `ExperimentControl` | Parameters, commands, Go and phases for app-rig-control | `OpenRigs.Control:ExperimentControl.bonsai` |
-| `LogController`, `LogAsync`, `LogTrial`, `LogVideoFfmpeg`, `LogData`, `LogDataSchema` | The experiment folder and its files | `OpenRigs.Logging` |
+| `LogController`, `LogAsync`, `LogTrial`, `LogCameras`, `LogData`, `LogDataSchema` | The experiment folder and its files, every camera's video among them | `OpenRigs.Logging` |
+| `LabRig`, `DeserializeFromYaml`, `SerializeToJson` | rig.yml read as the lab rig model, as every lab workflow reads it (its template is open-rigs' `rigs\rig-template.yml`), and logged as `Settings_Rig` | `OpenRigs.Devices` (`OpenRigs.Devices.Rigs`) |
+| `ReadTextFile` | The task file read when its path arrives at Go | `OpenRigs.Core` |
 
 ## Checking a change
 

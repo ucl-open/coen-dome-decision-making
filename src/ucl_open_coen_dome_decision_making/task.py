@@ -232,12 +232,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     def _timing_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.Check's same rules (Pip, 13 Nov 2026).
         opto, s = self.optogenetics, self.trial_structure
+        opto.check_lead_fits(s.iti_min_seconds)
         lead = opto.laser_to_stimulus_seconds
-        if lead + ZAPIT_REPLY_MARGIN_SECONDS > s.iti_min_seconds + 1e-9:
-            raise ValueError(
-                f"optogenetics.laser_to_stimulus_seconds ({lead} s) plus Zapit's {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin must be at most "
-                f"trial_structure.iti_min_seconds ({s.iti_min_seconds} s), the shortest interval"
-            )
         if -lead > s.open_loop_seconds + s.closed_loop_seconds + 1e-9:
             raise ValueError(
                 f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "

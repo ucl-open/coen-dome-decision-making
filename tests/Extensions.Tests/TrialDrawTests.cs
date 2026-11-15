@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using UclOpenCoenDomeDecisionMaking;
+using OpenRigs.Devices.Rigs;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.Serialization;
 
@@ -35,7 +35,7 @@ static class Fixture
 
     public static Speaker Speaker(double azimuth, double elevation, int channel)
     {
-        var position = new UclOpenCoenDomeDecisionMaking.SphericalPosition();
+        var position = new OpenRigs.Devices.Rigs.SphericalPosition();
         position.Azimuth = azimuth;
         position.Elevation = elevation;
         var speaker = new Speaker();

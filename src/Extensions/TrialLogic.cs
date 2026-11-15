@@ -8,7 +8,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Xml.Serialization;
-using UclOpenCoenDomeDecisionMaking;
+using OpenRigs.Devices.Rigs;
 using UclOpenCoenDomeDecisionMakingTask;
 
 /// <summary>One trial as drawn: its fields are named as the trial log's columns where they are one.</summary>
@@ -228,7 +228,7 @@ public class TrialDraw
             var path = optogenetics.ZapitConfigPath;
             conditionCount = zapitConditionCount != null ? zapitConditionCount(path) : ZapitConditions.Check(path);
         }
-        Seed = task.RngSeed.HasValue ? (int)task.RngSeed.Value : Guid.NewGuid().GetHashCode();
+        Seed = RngSeed.Resolve(task.RngSeed);
         random = new Random(Seed);
     }
 
@@ -289,10 +289,8 @@ public class TrialDraw
         if ((stage.WheelQuietSeconds > 0) != (stage.WheelQuietCm > 0)) problems.Add("stage '" + stage.Label + "' needs wheelQuietSeconds and wheelQuietCm both above 0 (the wheel's quiet wait) or both 0 (off)");
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
-        if (lead + ZapitTrial.ReplyMarginSeconds > structure.ItiMinSeconds + 1e-9)
-        {
-            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) plus Zapit's {1} s reply margin must be at most trialStructure.itiMinSeconds ({2} s), the shortest interval", lead, ZapitTrial.ReplyMarginSeconds, structure.ItiMinSeconds));
-        }
+        var leadProblem = ZapitTrial.LeadProblem(lead, structure.ItiMinSeconds);
+        if (leadProblem != null) problems.Add(leadProblem);
         if (-lead > structure.OpenLoopSeconds + structure.ClosedLoopSeconds + 1e-9)
         {
             problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (openLoopSeconds + closedLoopSeconds, {1} s)", lead, structure.OpenLoopSeconds + structure.ClosedLoopSeconds));
@@ -474,9 +472,9 @@ public class TrialDraw
         var optogenetics = task.Optogenetics;
         if (optogenetics.UseZapit)
         {
-            trial.laserCondition = random.Next(conditionCount) + 1;
-            trial.laserOn = drawn >= optogenetics.TrialsBeforeLaser && random.NextDouble() < optogenetics.LaserOnProbability;
-            trial.laserPowerMw = trial.laserOn ? optogenetics.LaserPowerMw.Value : 0;
+            // drawn + 1: this trial's number, which Next sets once it is drawn.
+            ZapitTrial.Draw(random, drawn + 1, conditionCount, optogenetics.TrialsBeforeLaser, optogenetics.LaserOnProbability, optogenetics.LaserPowerMw.Value,
+                out trial.laserCondition, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
         trial.audioWaveformIndex = random.Next(AuditoryStimulusSet.WaveformCount);
@@ -750,9 +748,7 @@ public class RequireZapitArmed
                 {
                     if (hardwareTriggered && !isArmed)
                     {
-                        observer.OnError(new InvalidOperationException(string.Format(
-                            "Zapit had not answered trial {0}'s StartStimulus by its trigger at {1} s on the Harp clock, so the workflow stopped rather than move the trigger. Is Zapit running and answering quickly?",
-                            value.Value.trialNumber, value.Seconds)));
+                        observer.OnError(ZapitTrial.NotArmedByTrigger(value.Value.trialNumber, value.Seconds));
                         return;
                     }
                     passed = true;

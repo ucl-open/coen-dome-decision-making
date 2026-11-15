@@ -99,7 +99,6 @@ public class AuditoryStimulusSetTests
     public void EqualisingIsTheFiltersCentredConvolution()
     {
         var set = Load(Speakers());
-        Assert.AreEqual(480, set.WaveformLength);
         CollectionAssert.AreEqual(new[] { 0, 1, 2 }, set.SpeakerChannels);
         var x = waves[7].Select(s => (s + 32768.0) * (2.0 / 65535.0) - 1.0).ToArray();
         var got = Samples(set.Stimulus(7, 2));

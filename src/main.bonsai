@@ -18,7 +18,7 @@
                  xmlns:dsp="clr-namespace:Bonsai.Dsp;assembly=Bonsai.Dsp"
                  xmlns:aud="clr-namespace:OpenRigs.Audio;assembly=OpenRigs.Audio"
                  xmlns:p1="clr-namespace:;assembly=Extensions"
-                 xmlns:p2="clr-namespace:UclOpenCoenDomeDecisionMaking;assembly=Extensions"
+                 xmlns:p2="clr-namespace:OpenRigs.Devices.Rigs;assembly=OpenRigs.Devices"
                  xmlns:p4="clr-namespace:Bonsai.Mixer;assembly=Bonsai.Mixer"
                  xmlns:p5="clr-namespace:OpenCV.Net;assembly=OpenCV.Net"
                  xmlns:p6="clr-namespace:UclOpenCoenDomeDecisionMakingTask;assembly=Extensions"
@@ -378,7 +378,7 @@
               <Name>TaskFilePath</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="p2:ReadTextFile" />
+              <Combinator xsi:type="core:ReadTextFile" />
             </Expression>
             <Expression xsi:type="p6:DeserializeFromYaml">
               <p6:Type xsi:type="TypeMapping" TypeArguments="p6:UclOpenCoenDomeDecisionMakingTaskLogic" />
@@ -429,9 +429,6 @@
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:String">
               <rx:Name>PenaltySound</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="zap:ZapitCommand">
-              <rx:Name>ZapitCommands</rx:Name>
-            </Expression>
             <Expression xsi:type="rx:PublishSubject" TypeArguments="zap:ZapitReply">
               <rx:Name>ZapitReplies</rx:Name>
             </Expression>
@@ -448,7 +445,8 @@
               <rx:Name>BehaviorBoardFeed</rx:Name>
             </Expression>
           </Nodes>
-          <Edges />
+          <Edges>
+          </Edges>
         </Workflow>
       </Expression>
       <Expression xsi:type="GroupWorkflow">
@@ -838,36 +836,6 @@
                   <Expression xsi:type="rx:AsyncSubject">
                     <Name>AuditoryStimulusSet</Name>
                   </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="BufferLength" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>AuditoryStimulusSet</Name>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>WaveformLength</Selector>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="dsp:FunctionGenerator">
-                      <dsp:BufferLength>72000</dsp:BufferLength>
-                      <dsp:Frequency>0</dsp:Frequency>
-                      <dsp:Waveform>Square</dsp:Waveform>
-                      <dsp:SampleRate>48000</dsp:SampleRate>
-                      <dsp:Amplitude>0</dsp:Amplitude>
-                      <dsp:Offset>1</dsp:Offset>
-                      <dsp:Phase>0</dsp:Phase>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Take">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>PinkNoiseSync</Name>
-                  </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>TaskConfig</Name>
                   </Expression>
@@ -951,24 +919,19 @@
                   <Edge From="4" To="5" Label="Source1" />
                   <Edge From="5" To="6" Label="Source1" />
                   <Edge From="6" To="7" Label="Source1" />
-                  <Edge From="9" To="10" Label="Source1" />
-                  <Edge From="10" To="8" Label="Source1" />
-                  <Edge From="8" To="11" Label="Source1" />
+                  <Edge From="14" To="15" Label="Source1" />
+                  <Edge From="15" To="16" Label="Source1" />
+                  <Edge From="16" To="17" Label="Source1" />
+                  <Edge From="17" To="18" Label="Source1" />
+                  <Edge From="19" To="20" Label="Source1" />
+                  <Edge From="20" To="21" Label="Source1" />
+                  <Edge From="8" To="9" Label="Source1" />
+                  <Edge From="9" To="11" Label="Source1" />
+                  <Edge From="10" To="11" Label="Source2" />
                   <Edge From="11" To="12" Label="Source1" />
                   <Edge From="12" To="13" Label="Source1" />
-                  <Edge From="20" To="21" Label="Source1" />
-                  <Edge From="21" To="22" Label="Source1" />
+                  <Edge From="13" To="22" Label="Source1" />
                   <Edge From="22" To="23" Label="Source1" />
-                  <Edge From="23" To="24" Label="Source1" />
-                  <Edge From="25" To="26" Label="Source1" />
-                  <Edge From="26" To="27" Label="Source1" />
-                  <Edge From="14" To="15" Label="Source1" />
-                  <Edge From="15" To="17" Label="Source1" />
-                  <Edge From="16" To="17" Label="Source2" />
-                  <Edge From="17" To="18" Label="Source1" />
-                  <Edge From="18" To="19" Label="Source1" />
-                  <Edge From="19" To="28" Label="Source1" />
-                  <Edge From="28" To="29" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
@@ -1178,103 +1141,9 @@
                   <Expression xsi:type="SubscribeSubject">
                     <Name>SoundTrial</Name>
                   </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="ChannelCount" Selector="SpeakerArray.Device.ChannelCount" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>RigConfigs</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:Broadcast">
-                      <p1:ChannelCount>32</p1:ChannelCount>
-                    </Combinator>
-                  </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="p1:SelectAuditoryStimulus" />
                   </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="Channels" Selector="it" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>SoundTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>speakerChannel</Selector>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:ToArray" />
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:ChannelActivation">
-                      <p1:Channels>
-                        <p1:int>0</p1:int>
-                      </p1:Channels>
-                      <p1:Gain>
-                        <p1:double>1</p1:double>
-                      </p1:Gain>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="ChannelCount" Selector="SpeakerArray.Device.ChannelCount" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>RigConfigs</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:Broadcast">
-                      <p1:ChannelCount>32</p1:ChannelCount>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>PinkNoiseSync</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>RigConfigs</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="Channels" Selector="it" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Name>SyncChannel</scr:Name>
-                    <scr:Description>rig.yml's speakerArray.syncChannel; a rig.yml without one has already stopped the workflow at Start (LoadAuditoryStimulusSet).</scr:Description>
-                    <scr:Expression>SpeakerArray.SyncChannel.Value</scr:Expression>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:ToArray" />
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="Gain" Selector="it" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>SpeakerArray.SyncGain</Selector>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:ToArray" />
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:ChannelActivation">
-                      <p1:Channels>
-                        <p1:int>31</p1:int>
-                      </p1:Channels>
-                      <p1:Gain>
-                        <p1:double>0.2</p1:double>
-                      </p1:Gain>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Zip" />
-                  </Expression>
-                  <Expression xsi:type="Add" />
                   <Expression xsi:type="MulticastSubject">
                     <Name>MixerBuffer</Name>
                   </Expression>
@@ -1287,32 +1156,9 @@
                   <Edge From="1" To="2" Label="Source1" />
                   <Edge From="4" To="3" Label="Source1" />
                   <Edge From="5" To="3" Label="Source2" />
-                  <Edge From="7" To="6" Label="Source1" />
-                  <Edge From="3" To="9" Label="Source1" />
-                  <Edge From="9" To="8" Label="Source1" />
-                  <Edge From="6" To="8" Label="Source2" />
-                  <Edge From="11" To="12" Label="Source1" />
-                  <Edge From="12" To="13" Label="Source1" />
-                  <Edge From="13" To="10" Label="Source1" />
-                  <Edge From="8" To="14" Label="Source1" />
-                  <Edge From="10" To="14" Label="Source2" />
-                  <Edge From="16" To="15" Label="Source1" />
-                  <Edge From="18" To="17" Label="Source1" />
-                  <Edge From="15" To="17" Label="Source2" />
-                  <Edge From="19" To="21" Label="Source1" />
-                  <Edge From="21" To="22" Label="Source1" />
-                  <Edge From="22" To="20" Label="Source1" />
-                  <Edge From="19" To="24" Label="Source1" />
-                  <Edge From="24" To="25" Label="Source1" />
-                  <Edge From="25" To="23" Label="Source1" />
-                  <Edge From="17" To="26" Label="Source1" />
-                  <Edge From="20" To="26" Label="Source2" />
-                  <Edge From="23" To="26" Label="Source3" />
-                  <Edge From="14" To="27" Label="Source1" />
-                  <Edge From="26" To="27" Label="Source2" />
-                  <Edge From="27" To="28" Label="Source1" />
-                  <Edge From="28" To="29" Label="Source1" />
-                  <Edge From="2" To="30" Label="Source1" />
+                  <Edge From="3" To="6" Label="Source1" />
+                  <Edge From="2" To="8" Label="Source1" />
+                  <Edge From="6" To="7" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
@@ -1524,73 +1370,13 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ExperimentLogs</Name>
-              <Description>Every log that waits for the experiment folder (PathPrefix): BonsaiData_Trial (LogTrial of TrialRow), each camera's video (LogVideoFfmpeg at the trigger's rate), the settings files, the Zapit conditions file (Settings_ZapitConditions), and Zapit's replies (the RngSeed event is TaskLogic's, at trial 1's Go).</Description>
+              <Description>Every log that waits for the experiment folder (PathPrefix): BonsaiData_Trial (LogTrial of TrialRow), the cameras (OpenRigs.Logging LogCameras), the settings files and Zapit's logs (OpenRigs.Devices Zapit.ZapitLogs: its replies and Settings_ZapitConditions). The RngSeed event is TaskLogic's, at trial 1's Go.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>TrialRow</Name>
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogTrial.bonsai" />
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="FrameRate" Selector="Settings.CameraTriggerController.Trigger0Frequency" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>BehaviorBoard-Main</Name>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideoFfmpeg.bonsai">
-                    <LogName>Camera-Face</LogName>
-                    <FrameRate>50</FrameRate>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Camera-Face.Data</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Skip">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="FrameRate" Selector="Settings.CameraTriggerController.Trigger0Frequency" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>BehaviorBoard-Main</Name>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideoFfmpeg.bonsai">
-                    <LogName>Camera-Pupil</LogName>
-                    <FrameRate>50</FrameRate>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Camera-Pupil.Data</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Skip">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="FrameRate" Selector="Settings.CameraTriggerController.Trigger0Frequency" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>BehaviorBoard-Main</Name>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogVideoFfmpeg.bonsai">
-                    <LogName>Camera-Body</LogName>
-                    <FrameRate>50</FrameRate>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Camera-Body.Data</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Skip">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>RigConfigs</Name>
                   </Expression>
@@ -1616,50 +1402,6 @@
                     <Extension>json</Extension>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>ZapitReplies</Name>
-                  </Expression>
-                  <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>new(CommandCode as command, Value as value, LaserOn as laserOn, IsError as isError, ServerDatenum as serverDatenum)</scr:Expression>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogData.bonsai">
-                    <LogName>BonsaiData_ZapitReplies</LogName>
-                    <Selector />
-                    <Extension>csv</Extension>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:Condition">
-                    <Name>OptogeneticsExperiment?</Name>
-                    <Workflow>
-                      <Nodes>
-                        <Expression xsi:type="WorkflowInput">
-                          <Name>Source1</Name>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>TaskParameters.Optogenetics.UseZapit</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="WorkflowOutput" />
-                      </Nodes>
-                      <Edges>
-                        <Edge From="0" To="1" Label="Source1" />
-                        <Edge From="1" To="2" Label="Source1" />
-                      </Edges>
-                    </Workflow>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>TaskParameters.Optogenetics.ZapitConfigPath</Selector>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="zap:ZapitConditionsSnapshot" />
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogDataSchema.bonsai">
-                    <Name>Settings_ZapitConditions</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
                     <Name>ExperimentGo</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
@@ -1669,34 +1411,17 @@
                     <Name>Settings_Experiment</Name>
                     <Extension>json</Extension>
                   </Expression>
+                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogCameras.bonsai" />
+                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:Zapit.ZapitLogs.bonsai" />
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="3" To="2" Label="Source1" />
+                  <Edge From="2" To="3" Label="Source1" />
+                  <Edge From="3" To="4" Label="Source1" />
                   <Edge From="5" To="6" Label="Source1" />
-                  <Edge From="6" To="4" Label="Source1" />
-                  <Edge From="2" To="4" Label="Source2" />
-                  <Edge From="8" To="7" Label="Source1" />
-                  <Edge From="10" To="11" Label="Source1" />
-                  <Edge From="11" To="9" Label="Source1" />
-                  <Edge From="7" To="9" Label="Source2" />
-                  <Edge From="13" To="12" Label="Source1" />
-                  <Edge From="15" To="16" Label="Source1" />
-                  <Edge From="16" To="14" Label="Source1" />
-                  <Edge From="12" To="14" Label="Source2" />
-                  <Edge From="17" To="18" Label="Source1" />
-                  <Edge From="18" To="19" Label="Source1" />
-                  <Edge From="20" To="21" Label="Source1" />
-                  <Edge From="21" To="22" Label="Source1" />
-                  <Edge From="23" To="24" Label="Source1" />
-                  <Edge From="24" To="25" Label="Source1" />
-                  <Edge From="25" To="26" Label="Source1" />
-                  <Edge From="27" To="28" Label="Source1" />
-                  <Edge From="28" To="29" Label="Source1" />
-                  <Edge From="29" To="30" Label="Source1" />
-                  <Edge From="30" To="31" Label="Source1" />
-                  <Edge From="32" To="33" Label="Source1" />
-                  <Edge From="33" To="34" Label="Source1" />
+                  <Edge From="6" To="7" Label="Source1" />
+                  <Edge From="8" To="9" Label="Source1" />
+                  <Edge From="9" To="10" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
