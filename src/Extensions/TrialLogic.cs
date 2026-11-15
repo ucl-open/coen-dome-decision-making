@@ -201,6 +201,8 @@ public class TrialDraw
 {
     public static readonly string[] TypeNames = { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral" };
     const double CentreAzimuth = 0, CentreElevation = 15;  // the sound of visual and neutral trials in localization
+    public const double MaxQuietSeconds = 10.0;  // task.py MAX_QUIET_SECONDS: the longest lickQuietSeconds or wheelQuietSeconds
+    public const double MaxWheelQuietCm = 20.0;  // task.py MAX_WHEEL_QUIET_CM: under one turn of the 75 mm wheel
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly EqualisedSpeakerArray speakers;
@@ -298,6 +300,14 @@ public class TrialDraw
         finite("stage '" + stage.Label + "''s lickQuietSeconds", stage.LickQuietSeconds);
         finite("stage '" + stage.Label + "''s wheelQuietSeconds", stage.WheelQuietSeconds);
         finite("stage '" + stage.Label + "''s wheelQuietCm", stage.WheelQuietCm);
+        // A long quiet wait and a licking mouse would hold Go with no message (Pip, 15 Nov 2026).
+        Action<string, double, double, string> atMost = (name, value, max, unit) =>
+        {
+            if (value > max) problems.Add(string.Format("stage '{0}''s {1} ({2} {3}) must be at most {4} {3}", stage.Label, name, value, unit, max));
+        };
+        atMost("lickQuietSeconds", stage.LickQuietSeconds, MaxQuietSeconds, "s");
+        atMost("wheelQuietSeconds", stage.WheelQuietSeconds, MaxQuietSeconds, "s");
+        atMost("wheelQuietCm", stage.WheelQuietCm, MaxWheelQuietCm, "cm");
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.UseZapit) finite("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.OpenLoopSeconds + structure.ClosedLoopSeconds) problems.Add("trialStructure.stimulusSeconds is longer than openLoopSeconds plus closedLoopSeconds");

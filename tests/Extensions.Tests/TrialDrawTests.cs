@@ -363,6 +363,28 @@ public class TrialDrawTests
     }
 
     [TestMethod]
+    public void AQuietWaitAboveItsMaximumIsRefusedAtGo()
+    {
+        var cases = new Dictionary<string, Action<TrainingStage>>
+        {
+            { "lickQuietSeconds (10.5 s) must be at most 10 s", s => s.LickQuietSeconds = 10.5 },
+            { "wheelQuietSeconds (11 s) must be at most 10 s", s => { s.WheelQuietSeconds = 11; s.WheelQuietCm = 1; } },
+            { "wheelQuietCm (21 cm) must be at most 20 cm", s => { s.WheelQuietSeconds = 1; s.WheelQuietCm = 21; } },
+        };
+        foreach (var c in cases)
+        {
+            var task = Fixture.Task("task-localization.yml");
+            c.Value(task.TrainingStages[4]);
+            StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), c.Key);
+        }
+        var atMax = Fixture.Task("task-localization.yml");
+        atMax.TrainingStages[4].LickQuietSeconds = 10;
+        atMax.TrainingStages[4].WheelQuietSeconds = 10;
+        atMax.TrainingStages[4].WheelQuietCm = 20;
+        Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(atMax, 4, Fixture.Speakers())));
+    }
+
+    [TestMethod]
     public void AStageWithNoWeightANegativeWeightOrAReversedIntervalIsRefused()
     {
         // Bonsai reads the task file without pydantic: a stage of zero weights would draw no type at the first trial.

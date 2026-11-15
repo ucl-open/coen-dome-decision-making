@@ -227,6 +227,14 @@ def test_the_quiet_waits_are_per_stage_off_by_default_and_refused_negative_or_ha
             _with(stage=bad)
 
 
+@pytest.mark.parametrize("stage", [{"lickQuietSeconds": 10.5}, {"wheelQuietSeconds": 10.5, "wheelQuietCm": 1.0}, {"wheelQuietSeconds": 1.0, "wheelQuietCm": 20.5}])
+def test_a_quiet_wait_above_its_maximum_is_refused(stage):
+    # Pip, 15 Nov 2026: a long wait and a licking mouse would hold Go with no message. TrialDraw.CheckTask refuses it at Go too.
+    _with(stage={"lickQuietSeconds": 10.0, "wheelQuietSeconds": 10.0, "wheelQuietCm": 20.0})
+    with pytest.raises(ValidationError, match="less than or equal to"):
+        _with(stage=stage)
+
+
 def test_the_constants_are_the_c_sharp_s():
     import re
     logic = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
@@ -236,7 +244,12 @@ def test_the_constants_are_the_c_sharp_s():
     # The ramp-down and reward caps are lib-open-rigs' too (audit round 4), each tied there to its C# value.
     assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS" in task_py
     assert "from open_rigs.rigs.lab_rig import MAX_REWARD_UL" in task_py
-    assert not re.search(r"(?m)^[A-Z_]+ = [0-9.]+$", task_py)
+    # The only constants of its own are the quiet waits' caps (Pip, 15 Nov 2026), each the C#'s.
+    from ucl_open_coen_dome_decision_making import task
+
+    assert set(re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py)) == {"MAX_QUIET_SECONDS", "MAX_WHEEL_QUIET_CM"}
+    for py, cs in (("MAX_QUIET_SECONDS", "MaxQuietSeconds"), ("MAX_WHEEL_QUIET_CM", "MaxWheelQuietCm")):
+        assert float(re.search(rf"const double {cs} = ([\d.]+);", logic).group(1)) == getattr(task, py)
     assert "ZapitConditions.MaximumRampDownMs / 1000" in logic
 
 

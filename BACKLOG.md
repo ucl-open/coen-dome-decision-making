@@ -1,5 +1,12 @@
 # Backlog
 
+## 15 Nov 2026: Pip's decisions after the audit cycles
+
+- swc-aeon is pinned to the commit uv.lock held (`rev = "af0d7a7..."`), not aeon_api's `main` branch.
+- The repo is BSD 3-Clause, as lib-open-rigs (`LICENSE`, "Coen Lab, University College London", as coen-behaviour-box's; lib's names upstream's holder).
+- The quiet waits have a maximum, in task.py and at Go (`TrialDraw.CheckTask`): `lickQuietSeconds` and `wheelQuietSeconds` 10 s (a longer wait and a licking mouse would hold Go with no message), `wheelQuietCm` 20 cm (under one turn of the 75 mm wheel, 23.6 cm: a whole turn within the wait is running, not stillness). Every stage of both task files has them at 0, so nothing changes for the mice.
+- The WAVs' sample rate is already checked against rig.yml's `speakerArray.device.sampleRate` at Start (`CheckWaveRate` for the background noise, `Wave.Read` with the speakers' rate for the stimuli and the lab's penalty sound); coen-dome-navigation's waveforms are now checked the same way.
+
 ## 2026-11-15 The background noise from Ready (Pip)
 
 - **Changed for the mice:** the background noise starts at Ready, not Go, faded in over 2 s. Ready waits for the mixer (RigHardware's `ReadyWaitsFor`: `HarpClockSet, SpoutsHomed, MixerStarted`), so the noise never reaches the mixer before it starts. Its level is the task file's as rig-control wrote it at launch, read at Start (`LaunchTaskConfig`) and checked then to peak under -1 dBFS; the stimuli and penalty sound still take theirs at Go.
