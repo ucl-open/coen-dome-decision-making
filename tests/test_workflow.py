@@ -252,6 +252,10 @@ def test_the_cameras_are_logged_by_log_cameras():
     assert lint.camera_log_problems(WORKFLOW) == []
 
 
+def test_every_file_the_workflow_writes_is_in_the_manifest_s_expected_files():
+    assert lint.expected_files_problems(WORKFLOW) == []
+
+
 def test_no_wall_clock_wait_inside_task_logic():
     assert lint.wall_clock_waits(WORKFLOW) == []
 
