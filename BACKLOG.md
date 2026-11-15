@@ -118,7 +118,7 @@ The first runs on a dome found three faults that stopped or emptied every experi
 - coen-dome-decision-making: a laser-off control trial and a laser trial skipped because it was answered first look alike in the row (`laserPowerMw` 0); which one followed from `choiceTime` and the lead, and from 14 Nov 2026 `laserTriggerTime` says (a time, or NaN).
 - coen-dome-decision-making: discrimination's minimum interval equals its `drinkSeconds`; both are Gerion's measured values.
 - jsonschema accepts K:'s old rig.yml keys, but the generated deserializer and app-rig-control's key walk refuse them.
-- `usedBy` stays incomplete until `add-names.ps1` runs at switch step 8.
+- `usedBy` is filled by app-rig-control's `python -m app_rig_control.names add <clone> --apply` at switch step 8.
 - A skipped trial leaves Zapit armed; app-zapit disarms it.
 - coen-dome-navigation arms the next trial during the last one's ramp-down; the trigger hold is at least the longest ramp-down.
 - coen-dome-decision-making has no `goTime` column; it is `itiStartTime + itiSeconds - lead + quietWaitSeconds`.
@@ -199,7 +199,7 @@ Not recommended, each kept on its merits:
 - **`laserToStimulusSeconds` in the optogenetics block though it times every trial, Zapit or not**: Pip's word (10 Nov 2026); it keeps production's 0.5 s, and its description now says so.
 - **Random trial types can leave a short experiment without a rare type** (neutral, 1 in 31 at stage 4): Pip chose independent draws.
 - **The disabled `HardwareTriggeredOptoTrial?` in StartLaser**: Bonsai passes values through a disabled node (probed), so every trial pulses the line, as its description says.
-- **Two `add-names.ps1` copies and the Zapit C# in both repos**: one shared script or a lab package is a platform decision for Pip.
+- **The Zapit C# in both repos**: one shared script or a lab package is a platform decision for Pip.
 
 ## 2026-11-10 Independent audit of the 9 Nov naming pass
 
