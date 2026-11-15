@@ -1,5 +1,15 @@
 # Backlog
 
+## Audit round 3 of 3 (15 Nov 2026)
+
+- The README says what `scripts\deploy.ps1` and `.bonsai\Setup.ps1` do; the FixedPulse water tile entry (2026-11-04, Decisions for Pip) says what holds now.
+
+## Audit round 3 of 3 (15 Nov 2026): items not changed
+
+- `stage.py`'s search of a mouse's experiments (`unanswered`, `ours`, the subject folders, `experiments`) stays a copy of lib-open-rigs' `open_rigs.rigs.experiments` (`unanswered`, `written_by`, `subject_folders`, `find`): app-rig-control runs `stage.py` with its own Python, `-I`, outside this project (`[task.suggest]`, standard library only), where `open_rigs` cannot be imported.
+- `regenerate.py` is the same in coen-dome-navigation and coen-dome-decision-making but for the package name: it is tiny, and each repo owns its schemas.
+- `.bonsai\Setup.ps1` is the same 15 lines in five task repos (coen-dome-navigation, coen-dome-decision-making, coen-behaviour-box, coen-qc-calibrate-valve, coen-qc-preflight-rig): each repo needs its own bootstrap.
+
 ## Audit round 2 of 3 (15 Nov 2026, stage C)
 
 - Nothing changed beyond the fixes: `scripts\deploy.ps1` uses `uv sync --locked` and exits 1 naming a failing uv step; the README says shared blocks.
@@ -268,7 +278,7 @@ The certain findings were fixed in 0078311, 97358e6, 1234f38 and d565649. NoResp
 ### Decisions for Pip
 
 - **Analysis by task, not by folder.** Sessions no longer have a project folder (no `datasetName`): closed-loop and 4 Hz sessions sit beside the others under `sub-<mouse>`, told apart by each session's `TaskSchema`. `analysis\analysis.ipynb` still reads `Z:\AV_Dome`, `Z:\AV_Dome_4Hz_movingStim` and `Z:\AV_Dome_ClosedLoop` (production's layout).
-- **Water tile on FixedPulse lines** is nominal: ceil(µl / 2) pulses of 2 µl (`src\Extensions\RewardLine.cs`). Add a line to rig-control's water help, or calibrate the dome valves from rig-control's Calibrations page (ucl-open/coen-qc-calibrate-valve).
+- **Water tile on FixedPulse lines**: settled. `src\Extensions\RewardLine.cs` is gone; every reward goes through lib-open-rigs' `DeliverReward`, whose `LoadRewardLine` stops the workflow on a reward line that is a FixedPulse or has no valve calibration, so the water tile is always from a calibration. Calibrate the dome valves from rig-control's Calibrations page (ucl-open/coen-qc-calibrate-valve).
 
 ### Lab standard (coen-behaviour-box as the reference)
 

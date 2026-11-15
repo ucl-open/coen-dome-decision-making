@@ -54,6 +54,10 @@ Each lib-open-rigs block the workflow uses, its job here and where it lives. `te
 | `LabRig`, `DeserializeFromYaml`, `SerializeToJson` | rig.yml read as the lab rig model, as every lab workflow reads it (its template is open-rigs' `rigs\rig-template.yml`), and logged as `Settings_Rig` | `OpenRigs.Devices` (`OpenRigs.Devices.Rigs`) |
 | `ReadTextFile` | The task file read when its path arrives at Go | `OpenRigs.Core` |
 
+## Setup
+
+`scripts\deploy.ps1` makes the Python environment (`uv sync --locked`); Bonsai and its packages come from `.bonsai\Setup.ps1`, which app-rig-setup runs when packages are missing.
+
 ## Checking a change
 
 `scripts\check-workflow.ps1` compiles the Extensions under C# 5, runs `tests\Extensions.Tests`, builds `src\main.bonsai` with Bonsai's own builders against the template filled in as a rig's (no window, no device), and reads each task file as at Go. `uv run --frozen --with pytest --with pyyaml --with jsonschema python -m pytest -q` runs the model and workflow tests.
