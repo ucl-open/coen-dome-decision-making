@@ -18,7 +18,7 @@
                  xmlns:dsp="clr-namespace:Bonsai.Dsp;assembly=Bonsai.Dsp"
                  xmlns:aud="clr-namespace:OpenRigs.Audio;assembly=OpenRigs.Audio"
                  xmlns:p1="clr-namespace:;assembly=Extensions"
-                 xmlns:p2="clr-namespace:OpenRigs.Devices.Rigs;assembly=OpenRigs.Devices"
+                 xmlns:rig="clr-namespace:OpenRigs.Devices.Rigs;assembly=OpenRigs.Devices"
                  xmlns:p6="clr-namespace:UclOpenCoenDomeDecisionMakingTask;assembly=Extensions"
                  xmlns="https://bonsai-rx.org/2018/workflow">
   <Workflow>
@@ -53,8 +53,8 @@
                 </Edges>
               </Workflow>
             </Expression>
-            <Expression xsi:type="p2:DeserializeFromYaml">
-              <p2:Type xsi:type="TypeMapping" TypeArguments="p2:LabRig" />
+            <Expression xsi:type="rig:DeserializeFromYaml">
+              <rig:Type xsi:type="TypeMapping" TypeArguments="rig:LabRig" />
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Take">
@@ -1287,8 +1287,8 @@
                     <Name>RigConfigs</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p2:SerializeToJson">
-                      <p2:Formatting>Indented</p2:Formatting>
+                    <Combinator xsi:type="rig:SerializeToJson">
+                      <rig:Formatting>Indented</rig:Formatting>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogDataSchema.bonsai">
