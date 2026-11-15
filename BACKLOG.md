@@ -14,6 +14,10 @@
 
 - Deleted what nothing used: the `pydantic-settings` dependency, the unused `dsp` xmlns, `.gitignore`'s line for the Zapit demo's output, the CI's `--with` packages the dev group already has, and BACKLOG history (sections before the rebuild of 13 Nov 2026 are one line each; their decisions and not-changed reasons stay). The task's own blocks (`TrialStructure`, `VisualStimulus`, `RewardSettings`, `ResponseSettings`, the trial-type weights and rules, `RepeatSettings`) are lib-open-rigs `TaskBlock`s, so the task file refuses inf and NaN in them (the schema is unchanged; test). A test runs lib-open-rigs' `fixed_width_pulses_on_reward_valves` against the lab's rig template.
 
+## Audit cycle 5 (15 Nov 2026)
+
+- Tests now fail when the model changes without `regenerate-schemas` (the committed schema is the model's, as coen-dome-navigation's; `Generated.cs` names every schema field) and when a `trainingStages` row is added without raising TrainingStage's `Maximum`. check-workflow sees ReadLabRig's `ConfigRoot` again (lib-open-rigs bb1b388, 4 nodes), so the test of it holds only the root's value to the lab's.
+
 ## Open
 
 - Old log readers deleted 15 Nov 2026 (Pip); migrating every mouse's past sessions into the current format is planned in its own session.

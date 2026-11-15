@@ -1,17 +1,22 @@
+import json
+import re
 from pathlib import Path
 
+import pydantic
 import pytest
 import yaml
 from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
     AudioStimulus,
+    UclOpenCoenDomeDecisionMakingTaskLogic,
     UclOpenCoenDomeDecisionMakingTaskParameters,
     VisualStimulus,
 )
 
 CONFIG = Path(__file__).parent.parent / "config"
 TASK_FILES = sorted(CONFIG.glob("task*.yml"))
+SCHEMA = CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json"
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
@@ -303,3 +308,31 @@ def test_every_task_file_states_its_task_type():
     for path in sorted((Path(__file__).parents[1] / "config").glob("task*.yml")):
         task = yaml.safe_load(path.read_text(encoding="utf-8"))["taskParameters"]
         assert task.get("taskType") in ("localization", "discrimination"), path.name
+
+
+def test_the_committed_task_schema_is_the_model_s():
+    # app-rig-control checks the form against this file: a model change not regenerated (regenerate-schemas) fails here.
+    model = pydantic.RootModel[UclOpenCoenDomeDecisionMakingTaskLogic].model_json_schema(
+        by_alias=True, mode="serialization", union_format="primitive_type_array"
+    )
+    assert json.loads(SCHEMA.read_text(encoding="utf-8")) == json.loads(json.dumps(model))
+
+
+def _property_names(node) -> set[str]:
+    if isinstance(node, dict):
+        return set(node.get("properties", {})) | {n for v in node.values() for n in _property_names(v)}
+    return {n for v in node for n in _property_names(v)} if isinstance(node, list) else set()
+
+
+def test_the_generated_csharp_has_every_schema_field():
+    # A field added to the model and schema but not regenerated into C# stops the workflow at Go: run regenerate-schemas.
+    generated = (CONFIG.parent / "src" / "Extensions" / "UclOpenCoenDomeDecisionMakingTask.Generated.cs").read_text(encoding="utf-8")
+    names = set(re.findall(r'JsonPropertyAttribute\("([^"]+)"', generated))
+    assert names == _property_names(json.loads(SCHEMA.read_text(encoding="utf-8")))
+
+
+@pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
+def test_training_stage_s_maximum_is_the_task_file_s_last_row(path):
+    # A row added to trainingStages is reachable only once ExperimentControl's TrainingStage Maximum (main.bonsai) says so.
+    declared = re.search(r"<Name>TrainingStage</Name>.*?<Maximum>(\d+)</Maximum>", (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig"), re.S)
+    assert int(declared.group(1)) == len(yaml.safe_load(path.read_text(encoding="utf-8"))["taskParameters"]["trainingStages"]) - 1
