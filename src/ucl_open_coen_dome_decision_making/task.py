@@ -10,7 +10,7 @@ from pydantic import Field, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
 
-MAX_QUIET_SECONDS = 10.0  # the longest quiet wait (Pip, 15 Nov 2026): a longer one and a licking mouse would hold Go with no message (TrialLogic.cs TrialDraw.MaxQuietSeconds)
+MAX_QUIET_SECONDS = 10.0  # the longest quiet wait (Pip, 15 Nov 2026): a longer one and a licking mouse would hold the trial start with no message (TrialLogic.cs TrialDraw.MaxQuietSeconds)
 MAX_WHEEL_QUIET_CM = 20.0  # under one turn of the 75 mm wheel (23.6 cm): a full turn within the wait is running, not stillness (TrialDraw.MaxWheelQuietCm)
 
 

@@ -184,7 +184,7 @@ public class TrialDrawTests
         Assert.IsTrue(trials.Max(t => t.itiSeconds) > 1.95 && trials.Min(t => t.itiSeconds) < 1.55);
         var repeats = Fixture.Draw(Fixture.Task("task-localization.yml"), 4, 300, t => "Incorrect").Where(t => t.repeatCount > 0).ToList();
         Assert.IsTrue(repeats.Count > 10 && repeats.Select(t => t.itiSeconds).Distinct().Count() == repeats.Count, "a repeat draws its own");
-        Assert.IsTrue(trials.All(t => t.leadSeconds == 0.5 && t.triggerAfterGoSeconds == 0 && double.IsNaN(t.goTime)));
+        Assert.IsTrue(trials.All(t => t.leadSeconds == 0.5 && t.triggerAfterStartSeconds == 0 && double.IsNaN(t.startTime)));
     }
 
     [TestMethod]
@@ -342,7 +342,7 @@ public class TrialDrawTests
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
         task.TrainingStages[4].LickQuietSeconds = -1;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds must be a finite number, 0 or more");
-        // A NaN or infinite time would hold Go for ever, with no error.
+        // A NaN or infinite time would hold the trial start for ever, with no error.
         task.TrainingStages[4].LickQuietSeconds = double.PositiveInfinity;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds must be a finite number, 0 or more");
         task = Fixture.Task("task-localization.yml");
@@ -401,32 +401,32 @@ public class TrialDrawTests
     }
 }
 
-/// <summary>Go and the stimulus and trigger timed from it (Pip, 13 Nov 2026), on a stand-in Harp clock of 1 ms ticks.</summary>
+/// <summary>The trial start and the stimulus and trigger timed from it (Pip, 13 Nov 2026), on a stand-in Harp clock of 1 ms ticks.</summary>
 [TestClass]
-public class GoTests
+public class TrialStartTests
 {
     static Trial Trial(double lead, double lick = 0, double wheelSeconds = 0, double wheelCm = 0)
     {
-        return new Trial { trialNumber = 1, itiStartTime = 10, itiSeconds = 2, leadSeconds = Math.Max(lead, 0), triggerAfterGoSeconds = Math.Max(-lead, 0),
+        return new Trial { trialNumber = 1, itiStartTime = 10, itiSeconds = 2, leadSeconds = Math.Max(lead, 0), triggerAfterStartSeconds = Math.Max(-lead, 0),
                            lickQuietSeconds = lick, wheelQuietSeconds = wheelSeconds, wheelQuietCm = wheelCm };
     }
 
-    // Ticks the clock from 10 s; each step's action runs at its time. Returns the trial at Go.
-    static Trial Run(Trial trial, Dictionary<double, Action<GoWaiter>> steps = null)
+    // Ticks the clock from 10 s; each step's action runs at its time. Returns the trial at its start.
+    static Trial Run(Trial trial, Dictionary<double, Action<TrialStartWaiter>> steps = null)
     {
-        var waiter = new GoWaiter();
+        var waiter = new TrialStartWaiter();
         waiter.Wheel(0);
         waiter.Clock(10);
         waiter.Start(trial);
         for (int ms = 10001; ms < 30000; ms++)
         {
             var now = ms / 1000.0;
-            var go = waiter.Clock(now);
-            if (go != null) return go;
-            Action<GoWaiter> step;
+            var started = waiter.Clock(now);
+            if (started != null) return started;
+            Action<TrialStartWaiter> step;
             if (steps != null && steps.TryGetValue(now, out step)) step(waiter);   // a lick or wheel sample stamped with this tick
         }
-        throw new AssertFailedException("no Go");
+        throw new AssertFailedException("no trial start");
     }
 
     [TestMethod]
@@ -434,84 +434,84 @@ public class GoTests
     {
         foreach (var lead in new[] { 0.5, 0.0, -0.5 })
         {
-            var go = Run(Trial(lead));
-            Assert.AreEqual(12 - Math.Max(lead, 0), go.goTime, 1e-12);
-            Assert.AreEqual(0, go.quietWaitSeconds, 1e-12);
-            Assert.AreEqual(12, go.goTime + go.leadSeconds, 1e-12, "the stimulus: no time added by Zapit or the waits");
-            Assert.AreEqual(12, SecondsUntil.Seconds(go, TrialMoment.Stimulus, go.goTime) + go.goTime, 1e-12);
+            var started = Run(Trial(lead));
+            Assert.AreEqual(12 - Math.Max(lead, 0), started.startTime, 1e-12);
+            Assert.AreEqual(0, started.quietWaitSeconds, 1e-12);
+            Assert.AreEqual(12, started.startTime + started.leadSeconds, 1e-12, "the stimulus: no time added by Zapit or the waits");
+            Assert.AreEqual(12, SecondsUntil.Seconds(started, TrialMoment.Stimulus, started.startTime) + started.startTime, 1e-12);
             // The trigger: stimulus - laserToStimulusSeconds, before, with or after it.
-            Assert.AreEqual(12 - lead, SecondsUntil.Seconds(go, TrialMoment.LaserTrigger, go.goTime) + go.goTime, 1e-12);
+            Assert.AreEqual(12 - lead, SecondsUntil.Seconds(started, TrialMoment.LaserTrigger, started.startTime) + started.startTime, 1e-12);
         }
     }
 
     [TestMethod]
     public void ALickRestartsTheLickWaitAndTheLeadStaysExact()
     {
-        var steps = new Dictionary<double, Action<GoWaiter>> { { 11.0, w => w.Lick(0, true) }, { 11.2, w => w.Lick(0, false) } };
-        var quiet = Run(Trial(0.5, 1.0));                // quiet from 10 s: Go at 11.5, the interval's end less the lead
-        Assert.AreEqual(11.5, quiet.goTime, 1e-12);
-        var licked = Run(Trial(0.5, 1.0), steps);         // touched at 11.0, released at 11.2: Go a second after the release
-        Assert.AreEqual(12.2, licked.goTime, 1e-9);
+        var steps = new Dictionary<double, Action<TrialStartWaiter>> { { 11.0, w => w.Lick(0, true) }, { 11.2, w => w.Lick(0, false) } };
+        var quiet = Run(Trial(0.5, 1.0));                // quiet from 10 s: the start at 11.5, the interval's end less the lead
+        Assert.AreEqual(11.5, quiet.startTime, 1e-12);
+        var licked = Run(Trial(0.5, 1.0), steps);         // touched at 11.0, released at 11.2: the start a second after the release
+        Assert.AreEqual(12.2, licked.startTime, 1e-9);
         Assert.AreEqual(0.7, licked.quietWaitSeconds, 1e-9);
-        Assert.AreEqual(12.7, licked.goTime + licked.leadSeconds, 1e-9);
+        Assert.AreEqual(12.7, licked.startTime + licked.leadSeconds, 1e-9);
         steps[11.4] = w => w.Lick(1, true);               // a later lick on the other spout restarts it again
         steps[11.45] = w => w.Lick(1, false);
-        Assert.AreEqual(12.45, Run(Trial(0.5, 1.0), steps).goTime, 1e-9);
+        Assert.AreEqual(12.45, Run(Trial(0.5, 1.0), steps).startTime, 1e-9);
     }
 
     [TestMethod]
-    public void AHeldContactHoldsGoUntilReleased()
+    public void AHeldContactHoldsTheTrialStartUntilReleased()
     {
-        // A paw on the left spout from 10.5 s to 13 s: no Go while it is held, then a second after the release.
-        var steps = new Dictionary<double, Action<GoWaiter>> { { 10.5, w => w.Lick(0, true) }, { 13.0, w => w.Lick(0, false) } };
-        Assert.AreEqual(14.0, Run(Trial(0.5, 1.0), steps).goTime, 1e-9);
+        // A paw on the left spout from 10.5 s to 13 s: no start while it is held, then a second after the release.
+        var steps = new Dictionary<double, Action<TrialStartWaiter>> { { 10.5, w => w.Lick(0, true) }, { 13.0, w => w.Lick(0, false) } };
+        Assert.AreEqual(14.0, Run(Trial(0.5, 1.0), steps).startTime, 1e-9);
         // With the lick wait off, a held contact does not matter.
-        Assert.AreEqual(11.5, Run(Trial(0.5), steps).goTime, 1e-9);
+        Assert.AreEqual(11.5, Run(Trial(0.5), steps).startTime, 1e-9);
     }
 
     [TestMethod]
     public void TheWheelWaitCountsTheLastWheelQuietSeconds()
     {
-        // Rocking forward and back 0.6 cm a time: net distance 0, 1.2 cm within a second, so Go a second after the first swing.
-        var steps = new Dictionary<double, Action<GoWaiter>> { { 11.0, w => w.Wheel(0.6) }, { 11.3, w => w.Wheel(0.0) } };
+        // Rocking forward and back 0.6 cm a time: net distance 0, 1.2 cm within a second, so the start a second after the first swing.
+        var steps = new Dictionary<double, Action<TrialStartWaiter>> { { 11.0, w => w.Wheel(0.6) }, { 11.3, w => w.Wheel(0.0) } };
         var rocked = Run(Trial(0.5, 0, 1.0, 1.0), steps);
-        Assert.AreEqual(12.0, rocked.goTime, 1e-9);
+        Assert.AreEqual(12.0, rocked.startTime, 1e-9);
         Assert.AreEqual(0.5, rocked.quietWaitSeconds, 1e-9);
         steps.Remove(11.3);                               // 0.6 cm alone stays within 1 cm
-        Assert.AreEqual(11.5, Run(Trial(0.5, 0, 1.0, 1.0), steps).goTime, 1e-9);
-        // Each wait restarts on its own; Go needs both.
+        Assert.AreEqual(11.5, Run(Trial(0.5, 0, 1.0, 1.0), steps).startTime, 1e-9);
+        // Each wait restarts on its own; the start needs both.
         steps[11.3] = w => w.Wheel(0.0);
         steps[11.8] = w => w.Lick(0, true);
         steps[11.85] = w => w.Lick(0, false);
-        Assert.AreEqual(12.85, Run(Trial(0.5, 1.0, 1.0, 1.0), steps).goTime, 1e-9);
+        Assert.AreEqual(12.85, Run(Trial(0.5, 1.0, 1.0, 1.0), steps).startTime, 1e-9);
     }
 
     [TestMethod]
-    public void SlowFidgetingWithinTheThresholdNeverDelaysGo()
+    public void SlowFidgetingWithinTheThresholdNeverDelaysTheTrialStart()
     {
         // 0.3 cm every 0.4 s through the interval: 1.2 cm in all, past 1 cm, but never more than 0.9 cm within a second.
-        var steps = new Dictionary<double, Action<GoWaiter>>();
+        var steps = new Dictionary<double, Action<TrialStartWaiter>>();
         for (int i = 1; i <= 4; i++) { var cm = 0.3 * i; steps[Math.Round(9.8 + 0.4 * i, 3)] = w => w.Wheel(cm); }
-        Assert.AreEqual(11.5, Run(Trial(0.5, 0, 1.0, 1.0), steps).goTime, 1e-9);
+        Assert.AreEqual(11.5, Run(Trial(0.5, 0, 1.0, 1.0), steps).startTime, 1e-9);
     }
 
     [TestMethod]
     public void ATrialAnsweredBeforeItsTriggerHasNoLaserAndItsRowSaysSo()
     {
-        Func<Trial> go = () => new Trial { trialNumber = 5, goTime = 20, triggerAfterGoSeconds = 0.4, laserCondition = 1, laserOn = true, laserPowerMw = 3 };
+        Func<Trial> started = () => new Trial { trialNumber = 5, startTime = 20, triggerAfterStartSeconds = 0.4, laserCondition = 1, laserOn = true, laserPowerMw = 3 };
         var trigger = new System.Reactive.Subjects.Subject<Bonsai.Harp.Timestamped<Trial>>();
         var passed = new List<Trial>();
         new UnlessAnswered().Process(trigger).Subscribe(t => passed.Add(t.Value));
 
         // The trigger first: the laser fires and the row, built after, logs the power.
-        var triggered = go();
+        var triggered = started();
         trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(triggered, 20.4));
         Assert.AreEqual(1, passed.Count, "not answered: the laser fires");
         Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserPowerMw);
         Assert.AreEqual(20.4, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserTriggerTime, "the trigger's Harp time");
 
         // The outcome first: the row logs 0 mW and the trigger after it is dropped, whatever the Harp times (audit round 3).
-        var answered = go();
+        var answered = started();
         Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserPowerMw);
         Assert.IsTrue(double.IsNaN(CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserTriggerTime), "no trigger: NaN");
         trigger.OnNext(new Bonsai.Harp.Timestamped<Trial>(answered, 20.4));
@@ -526,25 +526,25 @@ public class GoTests
     }
 
     [TestMethod]
-    public void AMomentAtGoComesAtOnceThoughGoIsSeenOnTheNextTick()
+    public void AMomentAtTheTrialStartComesAtOnceThoughItIsSeenOnTheNextTick()
     {
-        // A drawn interval is never a whole number of ticks: Go (11.5004 s) is seen on the 11.501 s tick.
+        // A drawn interval is never a whole number of ticks: the start (11.5004 s) is seen on the 11.501 s tick.
         foreach (var lead in new[] { 0.5, 0.0 })
         {
             var trial = Trial(lead);
             trial.itiSeconds = 2.0004;
-            var go = Run(trial);
-            Assert.AreEqual(11.5004 - lead + 0.5, go.goTime, 1e-9);
+            var started = Run(trial);
+            Assert.AreEqual(11.5004 - lead + 0.5, started.startTime, 1e-9);
             var moment = lead > 0 ? TrialMoment.LaserTrigger : TrialMoment.Stimulus;
-            Assert.AreEqual(0, SecondsUntil.Seconds(go, moment, Math.Ceiling(go.goTime * 1000) / 1000), 1e-12);
+            Assert.AreEqual(0, SecondsUntil.Seconds(started, moment, Math.Ceiling(started.startTime * 1000) / 1000), 1e-12);
         }
     }
 
     [TestMethod]
     public void AMomentAlreadyPastStopsTheWorkflow()
     {
-        var go = Run(Trial(-0.5));
-        StringAssert.Contains(Fixture.Refusal(() => SecondsUntil.Seconds(go, TrialMoment.LaserTrigger, go.goTime + 0.6)), "laser trigger was due");
+        var started = Run(Trial(-0.5));
+        StringAssert.Contains(Fixture.Refusal(() => SecondsUntil.Seconds(started, TrialMoment.LaserTrigger, started.startTime + 0.6)), "laser trigger was due");
     }
 
     [TestMethod]
@@ -603,21 +603,21 @@ public class GoTests
     }
 
     [TestMethod]
-    public void TheLaserWaitsForItsOwnTrialsGo()
+    public void TheLaserWaitsForItsOwnTrialsStart()
     {
-        var goes = new System.Reactive.Subjects.BehaviorSubject<Trial>(new Trial { trialNumber = 3 });
+        var starts = new System.Reactive.Subjects.BehaviorSubject<Trial>(new Trial { trialNumber = 3 });
         var found = new List<Trial>();
-        new TrialGoFor().Process(System.Reactive.Linq.Observable.Return(new Trial { trialNumber = 4 }), goes).Subscribe(found.Add);
+        new TrialStartFor().Process(System.Reactive.Linq.Observable.Return(new Trial { trialNumber = 4 }), starts).Subscribe(found.Add);
         Assert.AreEqual(0, found.Count);
-        goes.OnNext(new Trial { trialNumber = 4 });
-        goes.OnNext(new Trial { trialNumber = 4 });
+        starts.OnNext(new Trial { trialNumber = 4 });
+        starts.OnNext(new Trial { trialNumber = 4 });
         Assert.AreEqual(1, found.Count);
     }
 
     [TestMethod]
     public void ATrialDrawnWhileAnotherWaitsStopsTheWorkflow()
     {
-        var waiter = new GoWaiter();
+        var waiter = new TrialStartWaiter();
         waiter.Clock(10);
         waiter.Start(Trial(0.5));
         StringAssert.Contains(Fixture.Refusal(() => waiter.Start(new Trial { trialNumber = 2 })), "still waited");
@@ -671,7 +671,7 @@ public class TrialRowTests
     [TestMethod]
     public void TheRowSaysWhatTheOutcomeCost()
     {
-        var trial = new Trial { target = "Left", autoReward = false, itiSeconds = 3, itiStartTime = 50, goTime = 8.5 };
+        var trial = new Trial { target = "Left", autoReward = false, itiSeconds = 3, itiStartTime = 50, startTime = 8.5 };
         var incorrect = CreateTrialRow.Build("Right", 10, trial, 9, 4, true);
         Assert.IsTrue(incorrect.outcome == "Incorrect" && incorrect.penaltySound && incorrect.penaltyTimeoutSeconds == 4 && incorrect.outcomeTime == 10);
         Assert.IsTrue(incorrect.itiSeconds == 3 && incorrect.itiStartTime == 50 && incorrect.trialStartTime == 8.5 && incorrect.stimulusOnsetTime == 9);

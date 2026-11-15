@@ -80,7 +80,7 @@ public class CreateTrialRow
             itiStartTime = trial.itiStartTime,
             itiSeconds = trial.itiSeconds,
             quietWaitSeconds = trial.quietWaitSeconds,
-            trialStartTime = trial.goTime,
+            trialStartTime = trial.startTime,
             stimulusOnsetTime = stimulusOnsetTime,
             outcomeTime = outcomeTime,
             rewardSizeUl = trial.rewardSizeUl,

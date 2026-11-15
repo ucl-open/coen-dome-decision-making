@@ -229,7 +229,7 @@ def test_the_quiet_waits_are_per_stage_off_by_default_and_refused_negative_or_ha
 
 @pytest.mark.parametrize("stage", [{"lickQuietSeconds": 10.5}, {"wheelQuietSeconds": 10.5, "wheelQuietCm": 1.0}, {"wheelQuietSeconds": 1.0, "wheelQuietCm": 20.5}])
 def test_a_quiet_wait_above_its_maximum_is_refused(stage):
-    # Pip, 15 Nov 2026: a long wait and a licking mouse would hold Go with no message. TrialDraw.CheckTask refuses it at Go too.
+    # Pip, 15 Nov 2026: a long wait and a licking mouse would hold the trial start with no message. TrialDraw.CheckTask refuses it at Go too.
     _with(stage={"lickQuietSeconds": 10.0, "wheelQuietSeconds": 10.0, "wheelQuietCm": 20.0})
     with pytest.raises(ValidationError, match="less than or equal to"):
         _with(stage=stage)

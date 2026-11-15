@@ -1239,7 +1239,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ExperimentLogs</Name>
-              <Description>Every log that waits for the experiment folder (PathPrefix): BonsaiData_Trial (LogTrial of TrialRow), the cameras (OpenRigs.Logging LogCameras), the settings files and Zapit's logs (OpenRigs.Devices Zapit.ZapitLogs: its replies and Settings_ZapitConditions). The RngSeed event is TaskLogic's, at trial 1's Go.</Description>
+              <Description>Every log that waits for the experiment folder (PathPrefix): BonsaiData_Trial (LogTrial of TrialRow), the cameras (OpenRigs.Logging LogCameras), the settings files and Zapit's logs (OpenRigs.Devices Zapit.ZapitLogs: its replies and Settings_ZapitConditions). The RngSeed event is TaskLogic's, at trial 1's start.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="SubscribeSubject">
@@ -1510,7 +1510,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trial loop, every wait on the Harp clock (Core HarpDelay on Timestamp): the task checked at Go (CheckTaskAtGo); once the experiment folder exists, the spouts out (on a stage with spout movements) and the first trial drawn, its interval starting then. Each trial is drawn at the start of its interval (the last outcome, after any timeout); WaitForGo holds it until the interval's end less the lead (max(laserToStimulusSeconds, 0)) and the stage's quiet waits; the stimulus comes the lead after Go (LeadToStimulus) in every experiment; with optogenetics, Laser arms Zapit during the interval and raises the ZapitTrigger line at laserToStimulusSeconds before the stimulus (after it if negative), stopping the workflow if Zapit has not answered by then. Zapit adds no time.</Description>
+        <Description>The trial loop, every wait on the Harp clock (Core HarpDelay on Timestamp): the task checked at Go (CheckTaskAtGo); once the experiment folder exists, the spouts out (on a stage with spout movements) and the first trial drawn, its interval starting then. Each trial is drawn at the start of its interval (the last outcome, after any timeout); WaitForTrialStart holds it until the interval's end less the lead (max(laserToStimulusSeconds, 0)) and the stage's quiet waits; the stimulus comes the lead after the trial start (LeadToStimulus) in every experiment; with optogenetics, Laser arms Zapit during the interval and raises the ZapitTrigger line at laserToStimulusSeconds before the stimulus (after it if negative), stopping the workflow if Zapit has not answered by then. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -1578,12 +1578,12 @@
               <Name>WheelDistanceCm</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Name>WaitForGo</Name>
-              <Description>Each trial's Go (tested C#), on the Harp clock: the end of its interval less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds, a held contact blocking Go; the wheel within wheelQuietCm, forward and back added, over the last wheelQuietSeconds; each counted from the interval's start). Sets goTime and quietWaitSeconds.</Description>
-              <Combinator xsi:type="p1:WaitForGo" />
+              <Name>WaitForTrialStart</Name>
+              <Description>Each trial's start (tested C#), on the Harp clock: the end of its interval less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds, a held contact blocking the start; the wheel within wheelQuietCm, forward and back added, over the last wheelQuietSeconds; each counted from the interval's start). Sets startTime and quietWaitSeconds.</Description>
+              <Combinator xsi:type="p1:WaitForTrialStart" />
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject">
-              <Name>TrialGo</Name>
+              <Name>TrialStart</Name>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
               <Name>Timestamp</Name>
@@ -1604,7 +1604,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>LeadToStimulus</Name>
-              <Description>The stimulus the lead (max(laserToStimulusSeconds, 0)) after Go, in every experiment, optogenetics on or off, so timing never reveals Zapit.</Description>
+              <Description>The stimulus the lead (max(laserToStimulusSeconds, 0)) after the trial start, in every experiment, optogenetics on or off, so timing never reveals Zapit.</Description>
               <Combinator xsi:type="core:HarpDelay">
                 <core:DueSeconds>0.0</core:DueSeconds>
               </Combinator>
@@ -2305,7 +2305,7 @@
             </Expression>
             <Expression xsi:type="rx:CreateObservable">
               <Name>Laser</Name>
-              <Description>One optogenetics trial's laser, the trials one after another (Concat), so the next is armed only once this one ends: Zapit sent the trial's StartStimulus (ArmZapit) and its reply checked (CheckZapitArmed: a refusal or the wrong condition stops the workflow); at the trial's trigger (its Go, or -laserToStimulusSeconds after it; SecondsUntil on the Harp clock) the ZapitTrigger line rises, unless the trial was answered first (UnlessAnswered: no laser, and the row logs laserPowerMw 0), and on a hardware-triggered rig only if Zapit has answered by then (RequireZapitArmed stops the workflow otherwise, never moving the trigger); the line falls laserDurationSeconds later, and the laser ends after the longest ramp-down (RampDown).</Description>
+              <Description>One optogenetics trial's laser, the trials one after another (Concat), so the next is armed only once this one ends: Zapit sent the trial's StartStimulus (ArmZapit) and its reply checked (CheckZapitArmed: a refusal or the wrong condition stops the workflow); at the trial's trigger (its start, or -laserToStimulusSeconds after it; SecondsUntil on the Harp clock) the ZapitTrigger line rises, unless the trial was answered first (UnlessAnswered: no laser, and the row logs laserPowerMw 0), and on a hardware-triggered rig only if Zapit has answered by then (RequireZapitArmed stops the workflow otherwise, never moving the trigger); the line falls laserDurationSeconds later, and the laser ends after the longest ramp-down (RampDown).</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -2388,10 +2388,10 @@
                     <Name>LaserTrial</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>TrialGo</Name>
+                    <Name>TrialStart</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:TrialGoFor" />
+                    <Combinator xsi:type="p1:TrialStartFor" />
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
                     <Name>Timestamp</Name>
@@ -2625,11 +2625,11 @@
               <Name>BehaviorBoard-Main.Commands</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>TrialGo</Name>
+              <Name>TrialStart</Name>
             </Expression>
             <Expression xsi:type="MemberSelector">
               <Name>RngSeed</Name>
-              <Description>The seed the trials are drawn with (the task file's rngSeed, or one drawn when it is null), once, at trial 1's Go, as a BonsaiData_Async event.</Description>
+              <Description>The seed the trials are drawn with (the task file's rngSeed, or one drawn when it is null), once, at trial 1's start, as a BonsaiData_Async event.</Description>
               <Selector>rngSeed</Selector>
             </Expression>
             <Expression xsi:type="Combinator">

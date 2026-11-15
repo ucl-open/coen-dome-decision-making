@@ -74,9 +74,9 @@ def test_the_trigger_rises_only_once_zapit_armed_the_trial():
         mappings = [a for a, b, _ in edges if b == target and nodes[a].get(XSI) == "PropertyMapping"]
         assert any("Zapit.HardwareTriggered" in ET.tostring(nodes[a], encoding="unicode") for a in mappings)
     assert any(nodes[i].findtext(W + "Name") == "ZapitReplies" for i in _upstream(edges, check))
-    # The trigger is timed from the trial's Go, never from Zapit's reply.
+    # The trigger is timed from the trial start, never from Zapit's reply.
     assert check not in _upstream(edges, trigger)
-    assert any(_kind(nodes[i]) == "p1:TrialGoFor" for i in _upstream(edges, trigger))
+    assert any(_kind(nodes[i]) == "p1:TrialStartFor" for i in _upstream(edges, trigger))
     zap = "{clr-namespace:OpenRigs.Devices.Zapit;assembly=OpenRigs.Devices}Set"
     line = next(i for i, n in enumerate(nodes) if _kind(n) == "zap:ZapitLineMessage" and n.find(W + "Combinator").findtext(zap) == "true")
     assert require in _upstream(edges, line)
@@ -96,12 +96,12 @@ def test_each_laser_runs_after_the_last_and_its_ramp_down():
 
 
 def test_zapit_adds_no_time_to_the_stimulus():
-    # Pip, 13 Nov 2026: the stimulus comes the lead after Go whether optogenetics is on or off; nothing of Zapit's is on its path.
+    # Pip, 13 Nov 2026: the stimulus comes the lead after the trial start whether optogenetics is on or off; nothing of Zapit's is on its path.
     nodes, edges = _scope(_named("TaskLogic"))
     execute = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "ExecuteTrial")
     path = _upstream(edges, execute)
     names = {nodes[i].findtext(W + "Name") for i in path}
-    assert {"WaitForGo", "LeadToStimulus", "DrawTrial"} <= names and "Laser" not in names
+    assert {"WaitForTrialStart", "LeadToStimulus", "DrawTrial"} <= names and "Laser" not in names
     assert [nodes[i].findtext(W + "Name") for i in path if _kind(nodes[i]) == "core:HarpDelay"] == ["LeadToStimulus"]
     assert "ZapitReplies" not in ET.tostring(_named("ExecuteTrial"), encoding="unicode")
 
@@ -274,8 +274,13 @@ def test_no_wall_clock_wait_inside_task_logic():
     assert lint.wall_clock_waits(WORKFLOW) == []
 
 
-def test_the_rng_seed_is_logged_at_trial_1s_go():
-    assert lint.rng_seed_problems(WORKFLOW) == []
+def test_the_rng_seed_is_logged_at_trial_1s_start():
+    # Once, at TaskLogic's top level from the first trial's start (TrialStart), as coen-dome-navigation; the Take after the multicast.
+    nodes, edges = lint.scope(WORKFLOW.named("TaskLogic"))
+    (seed,) = [i for i, n in enumerate(nodes) if n.findtext(lint.W + "Name") == "RngSeed"]
+    (start,) = [a for a, b, _ in edges if b == seed]
+    assert nodes[start].get(lint.XSI) == "SubscribeSubject" and nodes[start].findtext(lint.W + "Name") == "TrialStart"
+    assert WORKFLOW.text.count("<Name>RngSeed</Name>") == 1
 
 
 def test_each_trial_s_sound_carries_its_sync_copy():

@@ -22,13 +22,13 @@ public class Trial
     public int repeatCount;            // 0 for a new draw
     public double itiSeconds;          // the interval drawn for this trial: its start to the stimulus, with a quiet mouse
     public double itiStartTime;        // Harp time that interval began: the last outcome after any timeout (trial 1: the first draw)
-    public double leadSeconds;         // Go to the stimulus: max(laserToStimulusSeconds, 0), in every experiment
-    public double triggerAfterGoSeconds; // Go to the trigger: max(-laserToStimulusSeconds, 0); read only with optogenetics
+    public double leadSeconds;         // the trial start to the stimulus: max(laserToStimulusSeconds, 0), in every experiment
+    public double triggerAfterStartSeconds; // the trial start to the trigger: max(-laserToStimulusSeconds, 0); read only with optogenetics
     public double lickQuietSeconds;    // the stage's quiet waits (TrainingStage), 0: off
     public double wheelQuietSeconds;
     public double wheelQuietCm;
-    public double goTime;              // Harp time of Go (WaitForGo): the trigger with a lead, the stimulus without; NaN before
-    public double quietWaitSeconds;    // how long the quiet waits put Go after the interval allowed it; NaN before Go
+    public double startTime;           // Harp time of the trial start (WaitForTrialStart): the trigger with a lead, the stimulus without; NaN before
+    public double quietWaitSeconds;    // how long the quiet waits put the trial start after the interval allowed it; NaN before it
     public double visualAzimuthDeg;
     public double visualElevationDeg;
     public double visualContrast;      // 0: grey screen
@@ -144,7 +144,7 @@ public class OnNextTick
 }
 
 [Combinator]
-[Description("Ends a trial once its timeout is over: its outcome, and the Harp time the next interval began, exactly the outcome plus the timeout (Consequence.ItiStartTime), not the clock tick the delay ended on. So the next trial is drawn and Zapit armed while the interval runs, and its Go and stimulus are timed from the exact start.")]
+[Description("Ends a trial once its timeout is over: its outcome, and the Harp time the next interval began, exactly the outcome plus the timeout (Consequence.ItiStartTime), not the clock tick the delay ended on. So the next trial is drawn and Zapit armed while the interval runs, and its start and stimulus are timed from the exact start.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class EndTrial
 {
@@ -284,7 +284,7 @@ public class TrialDraw
         }
         if (task.AudioStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("audioStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
         var structure = task.TrialStructure;
-        // A NaN or infinite time (YAML's .nan or .inf) would hold Go for ever, with no error (as coen-dome-navigation's CorridorSetup).
+        // A NaN or infinite time (YAML's .nan or .inf) would hold the trial start for ever, with no error (as coen-dome-navigation's CorridorSetup).
         Action<string, double> finite = (name, value) =>
         {
             if (!(value >= 0) || double.IsInfinity(value)) problems.Add(name + " must be a finite number, 0 or more");
@@ -300,7 +300,7 @@ public class TrialDraw
         finite("stage '" + stage.Label + "''s lickQuietSeconds", stage.LickQuietSeconds);
         finite("stage '" + stage.Label + "''s wheelQuietSeconds", stage.WheelQuietSeconds);
         finite("stage '" + stage.Label + "''s wheelQuietCm", stage.WheelQuietCm);
-        // A long quiet wait and a licking mouse would hold Go with no message (Pip, 15 Nov 2026).
+        // A long quiet wait and a licking mouse would hold the trial start with no message (Pip, 15 Nov 2026).
         Action<string, double, double, string> atMost = (name, value, max, unit) =>
         {
             if (value > max) problems.Add(string.Format("stage '{0}''s {1} ({2} {3}) must be at most {4} {3}", stage.Label, name, value, unit, max));
@@ -404,11 +404,11 @@ public class TrialDraw
         trial.itiStartTime = end.ItiStartTime;
         var lead = task.Optogenetics.LaserToStimulusSeconds;
         trial.leadSeconds = Math.Max(lead, 0);
-        trial.triggerAfterGoSeconds = Math.Max(-lead, 0);
+        trial.triggerAfterStartSeconds = Math.Max(-lead, 0);
         trial.lickQuietSeconds = stage.LickQuietSeconds;
         trial.wheelQuietSeconds = stage.WheelQuietSeconds;
         trial.wheelQuietCm = stage.WheelQuietCm;
-        trial.goTime = double.NaN;
+        trial.startTime = double.NaN;
         trial.quietWaitSeconds = double.NaN;
         last = trial;
         return trial;
@@ -621,20 +621,20 @@ public class CheckZapitArmed
     }
 }
 
-/// <summary>Holds one trial at a time until its Go; apart from Bonsai so a test can run it.</summary>
-public class GoWaiter
+/// <summary>Holds one trial at a time until its start; apart from Bonsai so a test can run it.</summary>
+public class TrialStartWaiter
 {
     Trial trial;
     QuietWait wait;
     double now = double.NaN, wheel = double.NaN;
     readonly bool[] touched = new bool[2];   // each spout's lick detector: touched now
 
-    /// <summary>A trial drawn at its interval's start begins waiting: Go no sooner than the interval's end less its lead.</summary>
+    /// <summary>A trial drawn at its interval's start begins waiting: its start no sooner than the interval's end less its lead.</summary>
     public void Start(Trial next)
     {
         if (trial != null)
         {
-            throw new InvalidOperationException(string.Format("Trial {0} was drawn while trial {1} still waited for its Go.", next.trialNumber, trial.trialNumber));
+            throw new InvalidOperationException(string.Format("Trial {0} was drawn while trial {1} still waited for its start.", next.trialNumber, trial.trialNumber));
         }
         trial = next;
         wait = new QuietWait(next.itiStartTime, next.itiStartTime + next.itiSeconds - next.leadSeconds, next.lickQuietSeconds, next.wheelQuietSeconds, next.wheelQuietCm, wheel, touched.Any(t => t));
@@ -654,30 +654,30 @@ public class GoWaiter
         if (trial != null && !double.IsNaN(now)) wait.Wheel(cm, now);
     }
 
-    /// <summary>The Harp clock: the trial once its Go has come, with goTime and quietWaitSeconds set; else null.</summary>
+    /// <summary>The Harp clock: the trial once its start has come, with startTime and quietWaitSeconds set; else null.</summary>
     public Trial Clock(double seconds)
     {
         now = seconds;
         if (trial == null || seconds < wait.GoTime - 1e-9) return null;
-        var go = trial;
-        go.goTime = wait.GoTime;
-        go.quietWaitSeconds = wait.GoTime - wait.Earliest;
+        var started = trial;
+        started.startTime = wait.GoTime;
+        started.quietWaitSeconds = wait.GoTime - wait.Earliest;
         trial = null;
-        return go;
+        return started;
     }
 }
 
 [Combinator]
-[Description("Each trial at its Go: the interval's end less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds). Inputs: the trials, the Harp clock, the left and right lick states, the wheel's distance in cm. Sets the trial's goTime and quietWaitSeconds.")]
+[Description("Each trial at its start: the interval's end less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds). Inputs: the trials, the Harp clock, the left and right lick states, the wheel's distance in cm. Sets the trial's startTime and quietWaitSeconds.")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
-public class WaitForGo
+public class WaitForTrialStart
 {
     public IObservable<Trial> Process(IObservable<Trial> trials, IObservable<double> clock, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<double> wheelCm)
     {
         return Observable.Create<Trial>(observer =>
         {
             var gate = new object();
-            var waiter = new GoWaiter();
+            var waiter = new TrialStartWaiter();
             Action<Action> run = step =>
             {
                 lock (gate)
@@ -693,27 +693,27 @@ public class WaitForGo
                 trials.Subscribe(trial => run(() => waiter.Start(trial)), observer.OnError),
                 clock.Subscribe(seconds => run(() =>
                 {
-                    var go = waiter.Clock(seconds);
-                    if (go != null) observer.OnNext(go);
+                    var started = waiter.Clock(seconds);
+                    if (started != null) observer.OnNext(started);
                 }), observer.OnError));
         });
     }
 }
 
-/// <summary>A moment of a trial timed from its Go.</summary>
+/// <summary>A moment of a trial timed from its start.</summary>
 public enum TrialMoment
 {
-    Stimulus,       // goTime + leadSeconds
-    LaserTrigger    // goTime + triggerAfterGoSeconds
+    Stimulus,       // startTime + leadSeconds
+    LaserTrigger    // startTime + triggerAfterStartSeconds
 }
 
 [Combinator]
-[Description("The seconds from now (the input's Harp time) to the trial's stimulus or laser trigger, for a HarpDelay's DueSeconds: (trial, seconds). A moment up to ClockStepSeconds past (Go is seen on the first clock tick after it) comes at once; one further past stops the workflow, rather than shift it.")]
+[Description("The seconds from now (the input's Harp time) to the trial's stimulus or laser trigger, for a HarpDelay's DueSeconds: (trial, seconds). A moment up to ClockStepSeconds past (the trial start is seen on the first clock tick after it) comes at once; one further past stops the workflow, rather than shift it.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SecondsUntil
 {
-    /// <summary>How far past a moment may be and still come at once: Go is exact, but is seen on a tick of the 1 kHz
-    /// Harp clock after it, and the timestamp generator's messages reach Bonsai with USB lag, so a moment at Go (the
+    /// <summary>How far past a moment may be and still come at once: the trial start is exact, but is seen on a tick of the 1 kHz
+    /// Harp clock after it, and the timestamp generator's messages reach Bonsai with USB lag, so a moment at the trial start (the
     /// trigger with a lead, the stimulus without) comes a few ms late. 10 ms covers both; a tighter bound would stop
     /// experiments on trial 1 (audit round 2's bug).</summary>
     public const double ClockStepSeconds = 0.01;
@@ -728,7 +728,7 @@ public class SecondsUntil
 
     public static double Seconds(Trial trial, TrialMoment moment, double now)
     {
-        var due = trial.goTime + (moment == TrialMoment.Stimulus ? trial.leadSeconds : trial.triggerAfterGoSeconds);
+        var due = trial.startTime + (moment == TrialMoment.Stimulus ? trial.leadSeconds : trial.triggerAfterStartSeconds);
         if (double.IsNaN(due) || due < now - ClockStepSeconds)
         {
             throw new InvalidOperationException(string.Format("Trial {0}'s {1} was due at {2} s on the Harp clock, but its wait began at {3} s.", trial.trialNumber, moment == TrialMoment.Stimulus ? "stimulus" : "laser trigger", due, now));
@@ -738,13 +738,13 @@ public class SecondsUntil
 }
 
 [Combinator]
-[Description("The Go of the input trial (first input, one trial) from the trials' Gos (second input, a subject that replays the latest): the one with its trialNumber, once.")]
+[Description("The start of the input trial (first input, one trial) from the trial starts (second input, a subject that replays the latest): the one with its trialNumber, once.")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
-public class TrialGoFor
+public class TrialStartFor
 {
-    public IObservable<Trial> Process(IObservable<Trial> trial, IObservable<Trial> goes)
+    public IObservable<Trial> Process(IObservable<Trial> trial, IObservable<Trial> starts)
     {
-        return trial.Take(1).SelectMany(t => goes.Where(go => go.trialNumber == t.trialNumber).Take(1));
+        return trial.Take(1).SelectMany(t => starts.Where(started => started.trialNumber == t.trialNumber).Take(1));
     }
 }
 
