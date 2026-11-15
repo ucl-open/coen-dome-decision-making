@@ -461,6 +461,7 @@
               <Name>SpoutStepSize</Name>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:RigHardware.bonsai">
+              <ReadyWaitsFor>HarpClockSet, SpoutsHomed, MixerStarted</ReadyWaitsFor>
             </Expression>
           </Nodes>
           <Edges>

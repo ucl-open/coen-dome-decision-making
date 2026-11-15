@@ -25,6 +25,7 @@ dependencies = [
 dev = [
     "jsonschema>=4.26.0",
     "pytest",
+    "pyyaml>=6.0.3",
 ]
 
 # [project.urls]
