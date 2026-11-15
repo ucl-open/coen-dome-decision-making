@@ -1,6 +1,6 @@
 # coen-dome-decision-making
 
-The audiovisual dome decision-making tasks (localisation and discrimination), as an open-rigs project on the lab's shared dome blocks (lib-open-rigs, [Building Blocks](https://github.com/Coen-Lab/lib-open-rigs/blob/main/docs/articles/building-blocks.md)). It was `ucl-open/av-dome`'s `pip/main-switchover` branch until 13 Nov 2026, moved here with its history (Pip) so production av-dome is never touched. A mouse's experiments recorded as av-dome before the move count as this workflow's: anything that reads a mouse's history (a stage suggestion, for one) reads both.
+The audiovisual dome decision-making tasks (localisation and discrimination), as an open-rigs project on the lab's shared blocks (lib-open-rigs, [Building Blocks](https://github.com/Coen-Lab/lib-open-rigs/blob/main/docs/articles/building-blocks.md)). It was `ucl-open/av-dome`'s `pip/main-switchover` branch until 13 Nov 2026, moved here with its history (Pip) so production av-dome is never touched. A mouse's experiments recorded as av-dome before the move count as this workflow's: anything that reads a mouse's history (a stage suggestion, for one) reads both.
 
 The workflow is `src\main.bonsai` in the Bonsai environment under `.bonsai\`, the task's C# in `src\Extensions\` (tested in `tests\Extensions.Tests`), the task files in `config\`, and the rig's hardware in `C:\Coen-Lab-Local\RigConfigs\<MACHINE-NAME>\rig.yml`, the lab rig model `open_rigs.rigs.lab_rig.LabRig` (start from open-rigs' `rigs\rig-template.yml`).
 
