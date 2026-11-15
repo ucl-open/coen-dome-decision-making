@@ -79,7 +79,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
-        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test) and SessionId are the launch's; the parameters a controller may change until Go (TrainingStage, SpoutStepSize; the task's own settings are the task file's, which rig-control writes at Go and names in TaskPath) and the commands it may send while ready or recording. The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. Go publishes RunSettings (SubjectId, SessionId, TrainingStage) and TaskFilePath. SpoutStepSize follows the controller live, its one default its subject's, shown to the controller by ParameterDefault a second after Start. ManualRewardDropUl is the 2.5 ul every RewardLeft and RewardRight gives before and during a run through the valve's calibration (Pip's fixed manual drop, 15 Nov 2026).</Description>
+        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test) and SessionId are the launch's; the parameters a controller may change until Go (TrainingStage, SpoutStepSize; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath) and the commands it may send while ready or recording. The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. TaskFilePath (TaskPath) is published at Start; Go publishes RunSettings (SubjectId, SessionId, TrainingStage). SpoutStepSize follows the controller live, its one default its subject's, shown to the controller by ParameterDefault a second after Start. ManualRewardDropUl is the 2.5 ul every RewardLeft and RewardRight gives before and during a run through the valve's calibration (Pip's fixed manual drop, 15 Nov 2026).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="ExternalizedMapping">
@@ -268,9 +268,6 @@
                 <Value>..\config\task-localization.yml</Value>
               </Combinator>
             </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>ExperimentGo</Name>
-            </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Take">
                 <rx:Count>1</rx:Count>
@@ -280,7 +277,7 @@
               <Name>TaskFilePath</Name>
             </Expression>
             <Expression xsi:type="ExternalizedMapping">
-              <Property Name="Value" DisplayName="TaskPath" Description="The task file read at Go: rig-control's copy of the one chosen at launch, with the form's edits; from the editor, config\task-localization.yml." />
+              <Property Name="Value" DisplayName="TaskPath" Description="The task file: rig-control's copy of the one chosen at launch, read at Start for the background noise and again at Go with the form's edits; from the editor, config\task-localization.yml." />
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="IntProperty">
@@ -352,28 +349,41 @@
             <Edge From="18" To="19" Label="Source1" />
             <Edge From="20" To="21" Label="Source1" />
             <Edge From="21" To="22" Label="Source1" />
-            <Edge From="24" To="23" Label="Source1" />
-            <Edge From="23" To="25" Label="Source1" />
-            <Edge From="25" To="26" Label="Source1" />
-            <Edge From="27" To="23" Label="Source1" />
-            <Edge From="28" To="29" Label="Source1" />
+            <Edge From="23" To="24" Label="Source1" />
+            <Edge From="24" To="25" Label="Source1" />
+            <Edge From="26" To="23" Label="Source1" />
+            <Edge From="27" To="28" Label="Source1" />
+            <Edge From="29" To="30" Label="Source1" />
             <Edge From="30" To="31" Label="Source1" />
             <Edge From="31" To="32" Label="Source1" />
-            <Edge From="32" To="33" Label="Source1" />
-            <Edge From="34" To="35" Label="Source1" />
+            <Edge From="33" To="34" Label="Source1" />
+            <Edge From="35" To="36" Label="Source1" />
             <Edge From="36" To="37" Label="Source1" />
             <Edge From="37" To="38" Label="Source1" />
-            <Edge From="38" To="39" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskFile</Name>
-        <Description>Reads the task file named at Go (TaskPath) into TaskConfig.</Description>
+        <Description>Reads the task file (TaskPath) at Start into LaunchTaskConfig, as rig-control wrote it at launch, for the background noise, which plays from Ready; and at Go, with the form's edits, into TaskConfig. Go stops the workflow if backgroundNoise was changed after launch, as the noise already plays at the launch's level.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
+              <Name>ExperimentGo</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Take">
+                <rx:Count>1</rx:Count>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
               <Name>TaskFilePath</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Zip" />
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Item2</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="core:ReadTextFile" />
@@ -384,11 +394,70 @@
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TaskConfig</Name>
             </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TaskFilePath</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="core:ReadTextFile" />
+            </Expression>
+            <Expression xsi:type="p6:DeserializeFromYaml">
+              <p6:Type xsi:type="TypeMapping" TypeArguments="p6:UclOpenCoenDomeDecisionMakingTaskLogic" />
+            </Expression>
+            <Expression xsi:type="rx:AsyncSubject">
+              <Name>LaunchTaskConfig</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TaskConfig</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>LaunchTaskConfig</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Zip" />
+            </Expression>
+            <Expression xsi:type="rx:Condition">
+              <Name>BackgroundNoiseChanged?</Name>
+              <Workflow>
+                <Nodes>
+                  <Expression xsi:type="WorkflowInput">
+                    <Name>Source1</Name>
+                  </Expression>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Expression>Item1.TaskParameters.BackgroundNoise.Enabled != Item2.TaskParameters.BackgroundNoise.Enabled || Item1.TaskParameters.BackgroundNoise.LevelDbfs != Item2.TaskParameters.BackgroundNoise.LevelDbfs</scr:Expression>
+                  </Expression>
+                  <Expression xsi:type="WorkflowOutput" />
+                </Nodes>
+                <Edges>
+                  <Edge From="0" To="1" Label="Source1" />
+                  <Edge From="1" To="2" Label="Source1" />
+                </Edges>
+              </Workflow>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="StringProperty">
+                <Value>The background noise plays from Ready at the task file's backgroundNoise as launched, so it cannot be changed before Go: launch again to play it at another level.</Value>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="core:ThrowError" />
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
-            <Edge From="1" To="2" Label="Source1" />
-            <Edge From="2" To="3" Label="Source1" />
+            <Edge From="1" To="3" Label="Source1" />
+            <Edge From="2" To="3" Label="Source2" />
+            <Edge From="3" To="4" Label="Source1" />
+            <Edge From="4" To="5" Label="Source1" />
+            <Edge From="5" To="6" Label="Source1" />
+            <Edge From="6" To="7" Label="Source1" />
+            <Edge From="8" To="9" Label="Source1" />
+            <Edge From="9" To="10" Label="Source1" />
+            <Edge From="10" To="11" Label="Source1" />
+            <Edge From="12" To="14" Label="Source1" />
+            <Edge From="13" To="14" Label="Source2" />
+            <Edge From="14" To="15" Label="Source1" />
+            <Edge From="15" To="16" Label="Source1" />
+            <Edge From="16" To="17" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -723,13 +792,13 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The speakers and their mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound, the penalty sound and the background noise, each at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go.</Description>
+        <Description>The speakers and their mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound and the penalty sound at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:SpeakerMixer.bonsai" />
             <Expression xsi:type="GroupWorkflow">
               <Name>LoadAudioFiles</Name>
-              <Description>The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound on penaltySoundChannel at penalty.sound.levelDbfs; the background noise, checked to be at the mixer's rate, on every speaker unequalised at backgroundNoise.levelDbfs, sent to the mixer at Go.</Description>
+              <Description>The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound on penaltySoundChannel at penalty.sound.levelDbfs; the background noise, checked to be at the mixer's rate, on every speaker unequalised at the launch's task file's backgroundNoise.levelDbfs (LaunchTaskConfig), laid out at Start and sent to the mixer at Ready, which fades it in over 2 s.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="SubscribeSubject">
@@ -827,7 +896,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
+                    <Name>LaunchTaskConfig</Name>
                   </Expression>
                   <Expression xsi:type="rx:Condition">
                     <Name>BackgroundNoiseEnabled?</Name>
@@ -879,6 +948,57 @@
                   <Expression xsi:type="MulticastSubject">
                     <Name>BackgroundNoise</Name>
                   </Expression>
+                  <Expression xsi:type="GroupWorkflow">
+                    <Name>Ready</Name>
+                    <Description>Passes on once every stage RigHardware's ReadyWaitsFor names has come, the moment RigHardware reports Ready: HarpClockSet, the spouts homed (LickSpoutStage.Homed) and the mixer started (MixerStarted, SpeakerMixer's one stage on ReadyStages), so the background noise starts at Ready.</Description>
+                    <Workflow>
+                      <Nodes>
+                        <Expression xsi:type="SubscribeSubject">
+                          <Name>HarpClockSet</Name>
+                        </Expression>
+                        <Expression xsi:type="Combinator">
+                          <Combinator xsi:type="rx:Take">
+                            <rx:Count>1</rx:Count>
+                          </Combinator>
+                        </Expression>
+                        <Expression xsi:type="SubscribeSubject">
+                          <Name>LickSpoutStage.Homed</Name>
+                        </Expression>
+                        <Expression xsi:type="Combinator">
+                          <Combinator xsi:type="rx:Take">
+                            <rx:Count>1</rx:Count>
+                          </Combinator>
+                        </Expression>
+                        <Expression xsi:type="SubscribeSubject">
+                          <Name>ReadyStages</Name>
+                        </Expression>
+                        <Expression xsi:type="Combinator">
+                          <Combinator xsi:type="rx:Take">
+                            <rx:Count>1</rx:Count>
+                          </Combinator>
+                        </Expression>
+                        <Expression xsi:type="Combinator">
+                          <Combinator xsi:type="rx:Zip" />
+                        </Expression>
+                        <Expression xsi:type="WorkflowOutput" />
+                      </Nodes>
+                      <Edges>
+                        <Edge From="0" To="1" Label="Source1" />
+                        <Edge From="2" To="3" Label="Source1" />
+                        <Edge From="4" To="5" Label="Source1" />
+                        <Edge From="1" To="6" Label="Source1" />
+                        <Edge From="3" To="6" Label="Source2" />
+                        <Edge From="5" To="6" Label="Source3" />
+                        <Edge From="6" To="7" Label="Source1" />
+                      </Edges>
+                    </Workflow>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Combinator xsi:type="rx:Zip" />
+                  </Expression>
+                  <Expression xsi:type="MemberSelector">
+                    <Selector>Item1</Selector>
+                  </Expression>
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
@@ -908,7 +1028,10 @@
                   <Edge From="29" To="30" Label="Source2" />
                   <Edge From="30" To="31" Label="Source1" />
                   <Edge From="31" To="32" Label="Source1" />
-                  <Edge From="32" To="33" Label="Source1" />
+                  <Edge From="32" To="35" Label="Source1" />
+                  <Edge From="34" To="35" Label="Source2" />
+                  <Edge From="35" To="36" Label="Source1" />
+                  <Edge From="36" To="33" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>

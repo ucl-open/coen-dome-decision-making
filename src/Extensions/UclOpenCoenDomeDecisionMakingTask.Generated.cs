@@ -2257,13 +2257,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The background white noise (src/LocalFiles/background_white_noise.wav) on every speaker, from Go (open_rigs.core.task BackgroundNoise)
+        /// The background white noise (src/LocalFiles/background_white_noise.wav) on every speaker, from Ready at the level of the task file as launched (open_rigs.core.task BackgroundNoise)
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("backgroundNoise")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="backgroundNoise")]
         [System.ComponentModel.DescriptionAttribute("The background white noise (src/LocalFiles/background_white_noise.wav) on every s" +
-            "peaker, from Go (open_rigs.core.task BackgroundNoise)")]
+            "peaker, from Ready at the level of the task file as launched (open_rigs.core.tas" +
+            "k BackgroundNoise)")]
         public BackgroundNoise BackgroundNoise
         {
             get

@@ -36,7 +36,7 @@ taskParameters:
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
-  backgroundNoise:         # white noise on every speaker, unequalised, faded in at Go
+  backgroundNoise:         # white noise on every speaker, unequalised, faded in at Ready at the level launched
     enabled: true
     levelDbfs: -60.1       # dBFS RMS: the level played until 15 Nov 2026 (the lab's default is -50)
   penalty:

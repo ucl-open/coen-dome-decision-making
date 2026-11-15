@@ -193,6 +193,33 @@ def test_every_sound_plays_at_the_task_file_s_level():
     assert any(nodes[a].findtext(W + "Selector") == "TaskParameters.AudioStimulus.LevelDbfs" for a in _upstream(edges, level))
 
 
+def test_the_background_noise_starts_at_ready_at_the_launch_s_level():
+    # Pip, 15 Nov 2026: the noise starts at Ready, not Go, at the level of the task file as launched (LaunchTaskConfig);
+    # its Ready is RigHardware's, the stages its ReadyWaitsFor names. The mixer fades it in over 2 s.
+    nodes, edges = _scope(_named("LoadAudioFiles"))
+    sent = next(i for i, n in enumerate(nodes) if n.get(XSI) == "MulticastSubject" and n.findtext(W + "Name") == "BackgroundNoise")
+    upstream = _upstream(edges, sent)
+    names = {nodes[i].findtext(W + "Name") for i in upstream}
+    assert {"LaunchTaskConfig", "Ready", "BackgroundNoiseEnabled?"} <= names and "TaskConfig" not in names
+    # Ready's stages: HarpClockSet, SpoutsHomed (LickSpoutStage.Homed) and MixerStarted (SpeakerMixer's on ReadyStages).
+    (ready,) = [nodes[i] for i in upstream if nodes[i].findtext(W + "Name") == "Ready"]
+    ready_nodes, ready_edges = _scope(ready)
+    zip_ = next(i for i, n in enumerate(ready_nodes) if _kind(n) == "rx:Zip")
+    subjects = {ready_nodes[i].findtext(W + "Name") for i in _upstream(ready_edges, zip_) if ready_nodes[i].get(XSI) == "SubscribeSubject"}
+    assert subjects == {"HarpClockSet", "LickSpoutStage.Homed", "ReadyStages"}
+    hardware = next(e for e in MAIN.iter(W + "Expression") if e.get("Path") == "OpenRigs.Devices:RigHardware.bonsai")
+    assert hardware.findtext(W + "ReadyWaitsFor") == ", ".join(lint.READY_STAGES_WITH_MIXER) == "HarpClockSet, SpoutsHomed, MixerStarted"
+
+
+def test_go_stops_on_a_background_noise_changed_after_launch():
+    nodes, edges = _scope(_named("TaskFile"))
+    (stop,) = [i for i, n in enumerate(nodes) if _kind(n) == "core:ThrowError"]
+    names = {nodes[i].findtext(W + "Name") for i in _upstream(edges, stop)}
+    assert {"TaskConfig", "LaunchTaskConfig", "BackgroundNoiseChanged?"} <= names
+    read_at_go = next(i for i, n in enumerate(nodes) if n.get(XSI) == "rx:AsyncSubject" and n.findtext(W + "Name") == "TaskConfig")
+    assert "ExperimentGo" in {nodes[i].findtext(W + "Name") for i in _upstream(edges, read_at_go)}
+
+
 def test_ready_the_cameras_and_the_watchdog_are_rig_hardware_s():
     assert lint.rig_hardware_problems(WORKFLOW) == []
 

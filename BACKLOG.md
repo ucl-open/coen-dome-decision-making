@@ -1,5 +1,15 @@
 # Backlog
 
+## 2026-11-15 The background noise from Ready (Pip)
+
+- **Changed for the mice:** the background noise starts at Ready, not Go, faded in over 2 s. Ready waits for the mixer (RigHardware's `ReadyWaitsFor`: `HarpClockSet, SpoutsHomed, MixerStarted`), so the noise never reaches the mixer before it starts. Its level is the task file's as rig-control wrote it at launch, read at Start (`LaunchTaskConfig`) and checked then to peak under -1 dBFS; the stimuli and penalty sound still take theirs at Go.
+- Go stops the workflow, saying so, if the form changed `backgroundNoise` (`enabled` or `levelDbfs`) after launch: the noise already plays at the launch's level. To play it at another level, launch again with a task file that has it.
+- `TaskFilePath` is published at Start (it was at Go); `TaskConfig` is still read at Go.
+
+## Open
+
+- Migrate mice's stage history from the old av-dome / auditory-vr-corridor logs into current-format files once, then delete stage.py's old readers, the eartag-folder fallback, taskType's 'localization' fallback and the view's older_logs (Pip, 15 Nov 2026).
+
 ## Audit round 3 of 3 (15 Nov 2026)
 
 - The README says what `scripts\deploy.ps1` and `.bonsai\Setup.ps1` do; the FixedPulse water tile entry (2026-11-04, Decisions for Pip) says what holds now.
