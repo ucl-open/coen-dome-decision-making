@@ -6,6 +6,10 @@
 - Go stops the workflow, saying so, if the form changed `backgroundNoise` (`enabled` or `levelDbfs`) after launch: the noise already plays at the launch's level. To play it at another level, launch again with a task file that has it.
 - `TaskFilePath` is published at Start (it was at Go); `TaskConfig` is still read at Go.
 
+## Audit cycle 1 (15 Nov 2026)
+
+- Names and descriptions say what the code does: the README (localization, a nudge kept only by `SaveSpoutPositions`, Zapit's stops as it connects at Go, `uv run pytest -q`), main.bonsai (the manual drop, Ready waiting for the mixer, Zapit from Go), the task files (the penalty sound with every timeout), `src\Extensions\README.md` (`QuietWait` is OpenRigs.Core's; `CheckTaskAtGo`, `OnNextTick`, `UnlessAnswered` listed), `TrialDraw.CheckTask` in task.py; the template's commented `project.urls` deleted.
+
 ## Open
 
 - Old log readers deleted 15 Nov 2026 (Pip); migrating every mouse's past sessions into the current format is planned in its own session.

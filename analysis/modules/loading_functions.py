@@ -6,9 +6,9 @@ from open_rigs import trials
 
 
 def load_experiment_trials(experiment_folder):
-    """An open-rigs experiment's BonsaiData_Trial as one DataFrame: hour files joined, older column
-    names renamed, each column typed and trialType decoded, by lib-open-rigs' data dictionary.
-    load_sessions below reads production's TrialSettings layout."""
+    """An open-rigs experiment's BonsaiData_Trial as one DataFrame: hour files joined, each column typed
+    and trialType decoded, by the trial columns its manifest.json carries (lib-open-rigs open_rigs.trials).
+    load_sessions below reads production av-dome's TrialSettings layout."""
     return pd.DataFrame(trials.read(experiment_folder))
 
 

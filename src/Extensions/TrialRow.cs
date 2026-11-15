@@ -61,7 +61,7 @@ public class CreateTrialRow
         return choice == "NoResponse" ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
     }
 
-    // ApplyConsequences: the timeout follows an incorrect choice or a miss that was not auto-rewarded.
+    // The timeout follows an incorrect choice or a miss that was not auto-rewarded.
     public static bool TimedOut(string outcome, Trial trial)
     {
         return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward);

@@ -41,7 +41,7 @@ taskParameters:
     levelDbfs: -60.1       # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
   penalty:
     timeoutSeconds: 4.0   # s, after an incorrect choice or a miss (not after an auto-rewarded miss)
-    sound:               # the penalty sound, on an incorrect choice
+    sound:               # the penalty sound, with every timeout
       enabled: true
       levelDbfs: -44.6   # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
   reward:
@@ -59,7 +59,7 @@ taskParameters:
     laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
-  trainingStages:          # row index = stage id selected in the GUI; a stage past the end stops the workflow at Go
+  trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
     - label: Stage 0       # habituation: target trials only, every miss auto-rewarded, spouts stay in
       trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0

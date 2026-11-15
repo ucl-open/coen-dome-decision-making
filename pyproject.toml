@@ -28,11 +28,6 @@ dev = [
     "pyyaml>=6.0.3",
 ]
 
-# [project.urls]
-# Documentation = "https://ucl-open.github.io/Ucl.Open.CoenDomeDecisionMaking/"
-# Repository = "https://github.com/UclOpen/Ucl.Open.CoenDomeDecisionMaking/"
-# Issues = "https://github.com/UclOpen/Ucl.Open.CoenDomeDecisionMaking/issues"
-# Changelog = "https://github.com/UclOpen/Ucl.Open.CoenDomeDecisionMaking/releases"
 [project.scripts]
 regenerate-schemas = "ucl_open_coen_dome_decision_making.regenerate:main"
 suggest-stage = "ucl_open_coen_dome_decision_making.stage:main"

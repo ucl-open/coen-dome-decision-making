@@ -133,11 +133,11 @@
               <Commands>
                 <Command>
                   <Name>RewardLeft</Name>
-                  <Description>Deliver one reward on the left spout (flush).</Description>
+                  <Description>Deliver ManualRewardDropUl (2.5 ul) on the left spout.</Description>
                 </Command>
                 <Command>
                   <Name>RewardRight</Name>
-                  <Description>Deliver one reward on the right spout (flush).</Description>
+                  <Description>Deliver ManualRewardDropUl (2.5 ul) on the right spout.</Description>
                 </Command>
                 <Command>
                   <Name>SpoutsHome</Name>
@@ -530,7 +530,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Hardware</Name>
-        <Description>The dome's devices (OpenRigs.Devices RigHardware: boards, timestamp generator, lick spout stage, Lickety Splits, three cameras and their trigger, started 2 s after Start), which reports Ready once the spouts are homed and the Harp clock is set, and stops the workflow, naming what never came, if that takes longer than 180 s.</Description>
+        <Description>The dome's devices (OpenRigs.Devices RigHardware: boards, timestamp generator, lick spout stage, Lickety Splits, three cameras and their trigger, started 2 s after Start), which reports Ready once the spouts are homed, the Harp clock is set and the mixer has started (ReadyStages), and stops the workflow, naming what never came, if that takes longer than 180 s.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="PropertyMapping">
@@ -1151,7 +1151,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Zapit</Name>
-        <Description>Zapit, only when the task sets optogenetics.useZapit: OpenRigs.Devices Zapit.ConnectZapit, given the task's conditions file, connects to rig.yml's Zapit, carries ZapitCommands and ZapitReplies, and stops the workflow on an error reply, no conditions file loaded, a conditions count other than the file's, or a real mouse on a rig without hardware triggering.</Description>
+        <Description>Zapit, from Go and only when the task sets optogenetics.useZapit: OpenRigs.Devices Zapit.ConnectZapit, given the task's conditions file, connects to rig.yml's Zapit, carries ZapitCommands and ZapitReplies, and stops the workflow on an error reply, no conditions file loaded, a conditions count other than the file's, or a real mouse on a rig without hardware triggering.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">

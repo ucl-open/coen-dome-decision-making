@@ -59,7 +59,7 @@ class VisualStimulus(BaseSchema):
 
     @model_validator(mode="after")
     def _each_side_has_a_range(self) -> "VisualStimulus":
-        # Side-restricted trials draw from one side each; TrialDraw.Check refuses the same at Go,
+        # Side-restricted trials draw from one side each; TrialDraw.CheckTask refuses the same at Go,
         # since Bonsai reads the YAML without pydantic.
         if self.azimuth_max_deg < self.azimuth_min_deg:
             raise ValueError("azimuth_max_deg must be >= azimuth_min_deg")
@@ -234,7 +234,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
 
     @model_validator(mode="after")
     def _timing_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # TrialDraw.Check's same rules (Pip, 13 Nov 2026).
+        # TrialDraw.CheckTask's same rules (Pip, 13 Nov 2026).
         opto, s = self.optogenetics, self.trial_structure
         opto.check_lead_fits(s.iti_min_seconds)
         lead = opto.laser_to_stimulus_seconds
