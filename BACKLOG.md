@@ -278,3 +278,12 @@ The certain findings were fixed in 0078311, 97358e6, 1234f38 and d565649. NoResp
 ### Waiting on others
 
 - `IngestScript coen-dome-decision-making` names a jacuzzi-ingest registry entry; the registry does not exist on jacuzzi until the ingest daemon is deployed.
+
+
+### Audit round 1 of 3 (15 Nov 2026, stage C): not changed
+
+Do not raise again without new information:
+
+- The background noise starts at Go with a 2 s fade, not at mixer start: its level comes from the task file read at Go, as navigation's; trial 1's stimulus comes after the fade.
+- A task file that leaves out a sound's `levelDbfs` plays at lib's default: Pip chose defaults in lib (15 Nov 2026); see coen-dome-navigation's BACKLOG.
+- The noise and penalty chains duplicate navigation's: the noise sources differ and lib's lint forces the mapping.
