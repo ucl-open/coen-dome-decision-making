@@ -691,7 +691,7 @@ public class ConsequenceTests
     public void ACorrectChoiceIsRewardedAtTheTargetWithTheOtherSpoutDrawnBack()
     {
         var c = Of("Right", false, true);
-        Assert.IsTrue(c.Rewarded && c.Reward.Item1 == "Right" && c.Reward.Item2 == 3 && c.SpoutCommand == OpenRigs.Devices.LickSpoutCommand.RightIn);
+        Assert.IsTrue(c.Rewarded && c.Reward.Item1 == "right" && c.Reward.Item2 == 3 && c.SpoutCommand == OpenRigs.Devices.LickSpoutCommand.RightIn);
         Assert.IsTrue(c.MoveSpouts && c.WithdrawAfterDrink && !c.ErrorSound && c.TimeoutSeconds == 0);
     }
 
@@ -703,7 +703,7 @@ public class ConsequenceTests
         var miss = Of("NoResponse", false, true);  // the sound comes with every timeout (Pip, 14 Nov 2026)
         Assert.IsTrue(!miss.Rewarded && miss.ErrorSound && miss.TimeoutSeconds == 4);
         var auto = Of("NoResponse", true, false);
-        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "Right" && auto.TimeoutSeconds == 0 && !auto.ErrorSound && !auto.MoveSpouts && !auto.WithdrawAfterDrink);
+        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.TimeoutSeconds == 0 && !auto.ErrorSound && !auto.MoveSpouts && !auto.WithdrawAfterDrink);
     }
 
     [TestMethod]

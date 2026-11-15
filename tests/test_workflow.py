@@ -131,11 +131,17 @@ def test_each_laser_runs_after_the_last_and_its_ramp_down():
     assert float(nodes[ramp].find(W + "Combinator").findtext("{clr-namespace:OpenRigs.Core;assembly=OpenRigs.Core}DueSeconds")) == ZAPIT_MAX_RAMP_DOWN_SECONDS
 
 
-def test_the_manual_reward_is_capped_as_every_reward():
-    # Audit round 4: ManualRewardUl's Maximum is the lib's MAX_REWARD_UL (DeliverReward's MaxRewardUl).
-    from open_rigs.rigs.lab_rig import MAX_REWARD_UL
-    parameter = next(p for p in MAIN.iter() if p.tag.endswith("Parameter") and p.findtext(W + "Name") == "ManualRewardUl")
-    assert float(parameter.findtext(W + "Maximum")) == MAX_REWARD_UL
+def test_the_manual_reward_is_pip_s_fixed_drop():
+    # Pip, 15 Nov 2026: RewardLeft and RewardRight each give 2.5 ul, before and during a run, at the side rig.yml names; no setting.
+    assert not any(p.tag.endswith("Parameter") and p.findtext(W + "Name") == "ManualRewardUl" for p in MAIN.iter())
+    nodes, edges = _scope(_named("Initialization"))
+    subject = next(i for i, n in enumerate(nodes) if n.get(XSI) == "rx:BehaviorSubject" and n.findtext(W + "Name") == "ManualRewardDropUl")
+    (source,) = [a for a, b, _ in edges if b == subject]
+    assert float(next(nodes[source].iter(W + "Value")).text) == 2.5
+    commands = _named("Commands")
+    assert [n.findtext(W + "Name") for n in commands.iter(W + "Expression") if n.get(XSI) == "SubscribeSubject"].count("ManualRewardDropUl") == 2
+    assert sorted(v.text for v in commands.iter(W + "Value")) == ["left", "right"]
+    assert TEXT.count("<Name>ManualRewardDropUl</Name>") == 3 and "ManualRewardUl" not in TEXT
 
 
 def test_zapit_adds_no_time_to_the_stimulus():
@@ -196,10 +202,11 @@ def test_video_is_logged_after_the_experiment_folder():
     assert "OpenRigs.Logging:LogVideo.bonsai" not in logs
 
 
-def test_missing_calibration_is_a_launch_property():
+def test_the_launch_properties():
+    # No MissingCalibration: a reward valve without a calibration always stops the workflow (Pip, 15 Nov 2026).
     top = list(MAIN.find(W + "Workflow").find(W + "Nodes"))
     exposed = {p.get("Name") for n in top if n.get(XSI) == "ExternalizedMapping" for p in n.iter(W + "Property")}
-    assert {"SubjectId", "SessionId", "TaskPath", "MissingCalibration", "DisplayDevice"} <= exposed
+    assert {"SubjectId", "SessionId", "TaskPath", "DisplayDevice"} <= exposed and "MissingCalibration" not in exposed
 
 
 def _declared_commands():
@@ -234,9 +241,9 @@ def test_the_readme_lists_every_shared_block():
     assert not missing, f"not in the README's Shared Blocks table: {missing}"
 
 
-def test_manual_rewards_use_their_own_subject_name():
-    # Audit round 3: the subject a manual reward reads is ManualRewardUl, as the controller's parameter; no RewardUl.
-    assert "<Name>RewardUl</Name>" not in TEXT and TEXT.count("<Name>ManualRewardUl</Name>") >= 4
+def test_rewards_go_to_reward_requests():
+    # One name for the reward request in both dome tasks (Pip, 15 Nov 2026), as coen-dome-navigation's.
+    assert "DeliverRewardCommand" not in TEXT and TEXT.count("<Name>RewardRequests</Name>") == 4
 
 
 def test_the_layout_is_tracked():

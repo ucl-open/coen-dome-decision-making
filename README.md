@@ -6,17 +6,16 @@ The workflow is `src\main.bonsai` in the Bonsai environment under `.bonsai\`, th
 
 ## Running an experiment
 
-The workflow has no window of its own. app-rig-control launches it with `--property:SubjectId=<lab ID> --property:SessionId=<n>` (and `MissingCalibration=DeliverNothing` for the `test` mouse only), and it starts into ready mode: the boards connected, the spouts homed and at that mouse's saved positions, the cameras streaming to the live view, nothing recorded. Set the parameters, send commands, then Go.
+The workflow has no window of its own. app-rig-control launches it with `--property:SubjectId=<lab ID> --property:SessionId=<n>`, and it starts into ready mode: the boards connected, the spouts homed and at that mouse's saved positions, the cameras streaming to the live view, nothing recorded. Set the parameters, send commands, then Go.
 
 | Parameter | Default | |
 |-----------|---------|-|
 | `TrainingStage` | 4 | Row of the task file's `trainingStages`, 0 to 4; a row past the end of the file's table stops the workflow at Go |
-| `ManualRewardUl` | 3 | Microlitres `RewardLeft` and `RewardRight` deliver, taken live before Go; from the first trial a manual reward is that trial's size |
 | `SpoutStepSize` | 150 | Motor steps per spout nudge, taken live |
 
 The task's own settings are the task file's: app-rig-control writes the file chosen at launch from `config\task*.yml`, with the Experiment page's edits, checked against `src\DataSchemas\ucl_open_coen_dome_decision_making_task.json`, at the path it passes as `TaskPath`, read at Go. From the editor `TaskPath` is `config\task-localization.yml`. `trialWeights` and `repeats.rulesPerType` name each trial type by what it shows (`visual`, `auditory`, `audiovisualCoherent`, `audiovisualConflict`, `neutral`). In discrimination the task files' rows are written for a visual-target mouse (visual trials are the target trials): for an auditory-target mouse, swap the stage's `visual` and `auditory` weights on the form. A discrimination stage that gives the target modality no trials while the other has some is refused at Go, saying so.
 
-Commands, while ready or recording: `RewardLeft` and `RewardRight`, and the stage's own (`HarpLickSpoutStage`): `SpoutsHome`, `SpoutsIn`, `SpoutsOut`, `SaveSpoutPositions` (to `<rig config>\calibration\LickSpoutPositions\<SubjectId>.csv`) and the nudges `LeftUp`, `LeftDown`, `RightUp`, `RightDown`, `LeftFront`, `LeftBack`, `RightFront`, `RightBack`, `BaseLeft`, `BaseRight`; a nudge moves the spouts at once and is saved for that mouse.
+Commands, while ready or recording: `RewardLeft` and `RewardRight`, each 2.5 µl on that spout through the valve's calibration (Pip's fixed manual drop), and the stage's own (`HarpLickSpoutStage`): `SpoutsHome`, `SpoutsIn`, `SpoutsOut`, `SaveSpoutPositions` (to `<rig config>\calibration\LickSpoutPositions\<SubjectId>.csv`) and the nudges `LeftUp`, `LeftDown`, `RightUp`, `RightDown`, `LeftFront`, `LeftBack`, `RightFront`, `RightBack`, `BaseLeft`, `BaseRight`; a nudge moves the spouts at once and is saved for that mouse.
 
 ## A trial
 

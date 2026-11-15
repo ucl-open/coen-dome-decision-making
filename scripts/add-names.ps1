@@ -52,7 +52,7 @@ foreach ($s in $ownStreams) { if ($streams -notcontains $s) { $streams += $s; $a
 $es = [ordered]@{}; foreach ($p in $prev.experimentSettings.PSObject.Properties) { $es[$p.Name] = $p.Value }
 # The lab's names this workflow also uses: tagged here too, so none leaves the list while this workflow needs it.
 $sharedStreams = @('Settings_Rig', 'Settings_Task', 'Settings_Experiment', 'ValveCalibrationDO1', 'ValveCalibrationDO2')
-$settings = @('TrainingStage', 'ManualRewardUl', 'SpoutStepSize')
+$settings = @('TrainingStage', 'SpoutStepSize')
 # usedBy as it was, with this repo on each of its names.
 $usedBy = [ordered]@{}
 foreach ($section in 'streams', 'experimentSettings', 'trialColumns') {

@@ -780,7 +780,7 @@ public class Consequence
 {
     public string Outcome;
     public bool Rewarded;
-    public Tuple<string, double> Reward;   // (side, microlitres) for DeliverReward; null without a reward
+    public Tuple<string, double> Reward;   // (side, microlitres) for DeliverReward, the side as rig.yml's wiring names it (left, right); null without a reward
     public bool MoveSpouts;
     public OpenRigs.Devices.LickSpoutCommand SpoutCommand;
     public bool ErrorSound;
@@ -798,7 +798,7 @@ public class Consequence
         // tick the outcome reached it on, 0 to 14 ms after a lick (BLUE-OPTO-2, 14 Nov 2026).
         c.ItiStartTime = row.outcomeTime + row.punishTimeoutSeconds;
         c.Rewarded = row.outcome == "Correct" || row.autoRewarded;
-        c.Reward = c.Rewarded ? Tuple.Create(trial.target, trial.rewardSizeUl) : null;
+        c.Reward = c.Rewarded ? Tuple.Create(trial.target.ToLowerInvariant(), trial.rewardSizeUl) : null;
         c.MoveSpouts = trial.spoutMovements;
         c.SpoutCommand = !c.Rewarded ? OpenRigs.Devices.LickSpoutCommand.SpoutsOut
             : trial.target == "Left" ? OpenRigs.Devices.LickSpoutCommand.LeftIn : OpenRigs.Devices.LickSpoutCommand.RightIn;

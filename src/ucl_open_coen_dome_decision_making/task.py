@@ -3,10 +3,10 @@ from typing import Literal
 
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
-from open_rigs.core.task import Task, TaskParameters
+from open_rigs.core.task import Optogenetics, QuietWait, Task, TaskParameters
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
 from open_rigs.rigs.lab_rig import MAX_REWARD_UL
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from swc.aeon.schema import BaseSchema
 
 from ucl_open_coen_dome_decision_making import __semver__
@@ -186,58 +186,20 @@ class RepeatSettings(BaseSchema):
     rules_per_type: TrialTypeRules = Field(default=TrialTypeRules(), description="Repeat rule per trial type")
 
 
-class OptogeneticsSettings(BaseSchema):
-    """Zapit optogenetic stimulation parameters, named as coen-dome-navigation's where they mean the same;
-    laserDurationSeconds is a timed stimulus here, where the corridor's laserMaxSeconds is a cap."""
+class OptogeneticsSettings(Optogenetics):
+    """Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
+    laserDurationSeconds is a timed stimulus here, where coen-dome-navigation's laserMaxSeconds is a cap."""
 
-    # Required with optogenetics on, in the JSON schema too: rig-control checks the task file against the
-    # schema, not this model. additionalProperties is spelt out because rig-control closes every object
-    # that lists properties.
-    model_config = ConfigDict(
-        json_schema_extra={
-            "if": {"properties": {"useZapit": {"const": True}}, "required": ["useZapit"], "additionalProperties": True},
-            "then": {
-                "properties": {"zapitConfigPath": {"minLength": 1}, "laserPowerMw": {"type": "number"}},
-                "required": ["laserPowerMw"],
-                "additionalProperties": True,
-            },
-        }
-    )
-
-    use_zapit: Bool = Field(
-        default=False,
-        description="Whether Zapit runs this experiment: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and rig-control checks Zapit is answering before Go",
-    )
-    zapit_config_path: String = Field(default="", description="Path to the Zapit conditions file (the one loaded in Zapit). Named ...ConfigPath so rig-control keeps a copy beside the task file at Go")
-    laser_power_mw: Double | None = Field(
-        default=None,
-        gt=0,
-        description="Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
-    )
-    laser_on_probability: Double = Field(default=0.75, ge=0, le=1, description="Probability that a trial after trialsBeforeLaser is a laser-on trial")
     laser_duration_seconds: Double = Field(
         default=1.5,
         gt=0,
         description="How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
     )
-    laser_to_stimulus_seconds: Double = Field(
-        default=0.5,
-        description="Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. Every trial waits for its Go (the end of the interval less the lead max(this, 0), once the stage's quiet waits hold); the trigger rises at Go and the stimulus comes the lead after it, or with a negative value the stimulus comes at Go and the trigger this long after. The lead applies in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin) and below -(openLoopSeconds + closedLoopSeconds). stimulusOnsetTime is commanded within a few ms; the screen and sound card add their own latency",
-    )
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
-    trials_before_laser: Int = Field(default=0, ge=0, description="Trials at the experiment's start with the laser off (repeats included, as in trialNumber)")
-
-    @model_validator(mode="after")
-    def _power_when_on(self) -> "OptogeneticsSettings":
-        if self.use_zapit and self.laser_power_mw is None:
-            raise ValueError("use_zapit is on but laser_power_mw is not set")
-        if self.use_zapit and not self.zapit_config_path:
-            raise ValueError("use_zapit is on but zapit_config_path is empty")
-        return self
 
 
-class TrainingStage(BaseSchema):
-    """One row of the training stage table, chosen by the TrainingStage parameter."""
+class TrainingStage(QuietWait):
+    """One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits the lab's (open_rigs.core.task QuietWait)."""
 
     label: String = Field(description="Human-readable stage name, for documentation and logs")
     trial_weights: TrialTypeWeights = Field(
@@ -254,26 +216,6 @@ class TrainingStage(BaseSchema):
         default=True,
         description="Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
     )
-    lick_quiet_seconds: Double = Field(
-        default=0.0,
-        ge=0,
-        description="Quiet wait: Go needs this long with both spouts released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds Go until released; 0: off. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
-    )
-    wheel_quiet_seconds: Double = Field(
-        default=0.0,
-        ge=0,
-        description="Quiet wait: Go needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0)",
-    )
-    wheel_quiet_cm: Double = Field(
-        default=0.0, ge=0, description="The most the wheel may move, forward and back added, within the last wheelQuietSeconds before Go, in cm; 0: off (with wheelQuietSeconds 0)"
-    )
-
-    @model_validator(mode="after")
-    def _wheel_quiet_pair(self) -> "TrainingStage":
-        if (self.wheel_quiet_seconds > 0) != (self.wheel_quiet_cm > 0):
-            raise ValueError("wheel_quiet_seconds and wheel_quiet_cm must both be above 0 (the wheel's quiet wait) or both 0 (off)")
-        return self
-
     @field_validator("contrasts")
     @classmethod
     def _positive(cls, value: list[float]) -> list[float]:
