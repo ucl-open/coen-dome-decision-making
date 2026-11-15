@@ -117,8 +117,10 @@ def test_the_next_trial_is_drawn_at_the_start_of_the_interval():
 
 
 def test_the_shared_blocks_replace_the_local_copies():
-    for block in ("OpenRigs.Devices:RigHardware.bonsai", "OpenRigs.Devices:HarpLogs.bonsai",
-                  "OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai", "OpenRigs.Vision:ProjectorDisplay.bonsai"):
+    for block in ("OpenRigs.Devices:ReadLabRig.bonsai", "OpenRigs.Devices:DomeHardware.bonsai",
+                  "OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai", "OpenRigs.Devices:BehaviorBoard.ManualRewards.bonsai",
+                  "OpenRigs.Devices:Zapit.ConnectForTask.bonsai", "OpenRigs.Logging:LogLabExperiment.bonsai",
+                  "OpenRigs.Logging:LogControlEvents.bonsai", "OpenRigs.Vision:ProjectorDisplay.bonsai"):
         assert f'Path="{block}"' in TEXT
     assert not re.search(r'Path="Extensions\\', TEXT)
     assert not list((ROOT / "src" / "Extensions").glob("*.bonsai"))
@@ -138,7 +140,8 @@ def test_the_launch_properties():
 
 def test_rewards_go_to_reward_requests():
     # One name for the reward request in both dome tasks (Pip, 15 Nov 2026), as coen-dome-navigation's.
-    assert "DeliverRewardCommand" not in TEXT and TEXT.count("<Name>RewardRequests</Name>") == 4
+    # The manual rewards' two are BehaviorBoard.ManualRewards'.
+    assert "DeliverRewardCommand" not in TEXT and TEXT.count("<Name>RewardRequests</Name>") == 2
 
 
 def test_the_auditory_stimuli_are_the_tasks_own_files():
@@ -188,7 +191,7 @@ def test_every_harp_delay_runs_on_the_timestamp_clock():
 
 def test_no_async_event_sender_completes_async_events():
     senders, finite = lint.finite_async_event_senders(WORKFLOW)
-    assert senders == 2 and finite == []  # RngSeed and Control; DeliverReward sends RewardDelivered itself
+    assert senders == 1 and finite == []  # RngSeed; LogControlEvents sends Control and DeliverReward RewardDelivered
 
 
 def test_no_trial_graph_closes_a_shared_subject():
@@ -209,20 +212,14 @@ def test_every_sound_plays_at_the_task_file_s_level():
 
 def test_the_background_noise_starts_at_ready_at_the_launch_s_level():
     # Pip, 15 Nov 2026: the noise starts at Ready, not Go, at the level of the task file as launched (LaunchTaskConfig);
-    # its Ready is RigHardware's, the stages its ReadyWaitsFor names. The mixer fades it in over 2 s.
+    # its Ready is ReadyGate's (DomeHardware), the stages its ReadyWaitsFor names (hardware_problems). The mixer fades it in over 2 s.
     nodes, edges = _scope(_named("LoadAudioFiles"))
     sent = next(i for i, n in enumerate(nodes) if n.get(XSI) == "MulticastSubject" and n.findtext(W + "Name") == "BackgroundNoise")
     upstream = _upstream(edges, sent)
     names = {nodes[i].findtext(W + "Name") for i in upstream}
     assert {"LaunchTaskConfig", "Ready", "BackgroundNoiseEnabled?"} <= names and "TaskConfig" not in names
-    # Ready's stages: HarpClockSet, SpoutsHomed (LickSpoutStage.Homed) and MixerStarted (SpeakerMixer's on ReadyStages).
     (ready,) = [nodes[i] for i in upstream if nodes[i].findtext(W + "Name") == "Ready"]
-    ready_nodes, ready_edges = _scope(ready)
-    zip_ = next(i for i, n in enumerate(ready_nodes) if _kind(n) == "rx:Zip")
-    subjects = {ready_nodes[i].findtext(W + "Name") for i in _upstream(ready_edges, zip_) if ready_nodes[i].get(XSI) == "SubscribeSubject"}
-    assert subjects == {"HarpClockSet", "LickSpoutStage.Homed", "ReadyStages"}
-    hardware = next(e for e in MAIN.iter(W + "Expression") if e.get("Path") == "OpenRigs.Devices:RigHardware.bonsai")
-    assert hardware.findtext(W + "ReadyWaitsFor") == ", ".join(lint.READY_STAGES_WITH_MIXER) == "HarpClockSet, SpoutsHomed, MixerStarted"
+    assert ready.get(XSI) == "SubscribeSubject"
 
 
 def test_go_stops_on_a_background_noise_changed_after_launch():
@@ -234,8 +231,9 @@ def test_go_stops_on_a_background_noise_changed_after_launch():
     assert "ExperimentGo" in {nodes[i].findtext(W + "Name") for i in _upstream(edges, read_at_go)}
 
 
-def test_ready_the_cameras_and_the_watchdog_are_rig_hardware_s():
-    assert lint.rig_hardware_problems(WORKFLOW) == []
+def test_the_hardware_is_the_lab_s_pieces():
+    # DomeHardware's pieces, one clock, Ready waiting for every stage they announce, MixerStarted included.
+    assert lint.hardware_problems(WORKFLOW) == []
 
 
 def test_zapit_is_the_shared_include_given_the_conditions_file():
@@ -262,8 +260,8 @@ def test_the_layout_is_tracked():
     assert lint.layout_problems(WORKFLOW) == []
 
 
-def test_the_cameras_are_logged_by_log_cameras():
-    assert lint.camera_log_problems(WORKFLOW) == []
+def test_the_experiment_logs_are_the_lab_s():
+    assert lint.experiment_log_problems(WORKFLOW) == []
 
 
 def test_every_file_the_workflow_writes_is_in_the_manifest_s_expected_files():

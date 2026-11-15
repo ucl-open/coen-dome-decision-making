@@ -10,8 +10,6 @@ from pydantic import Field, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
 
-MAX_QUIET_SECONDS = 10.0  # the longest quiet wait (Pip, 15 Nov 2026): a longer one and a licking mouse would hold the trial start with no message (TrialLogic.cs TrialDraw.MaxQuietSeconds)
-MAX_WHEEL_QUIET_CM = 20.0  # under one turn of the 75 mm wheel (23.6 cm): a full turn within the wait is running, not stillness (TrialDraw.MaxWheelQuietCm)
 
 
 class TrialStructure(TaskBlock):
@@ -188,10 +186,6 @@ class OptogeneticsSettings(Optogenetics):
 class TrainingStage(QuietWait):
     """One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits the lab's (open_rigs.core.task QuietWait)."""
 
-    # QuietWait's fields with a maximum.
-    lick_quiet_seconds: float = Field(default=0.0, ge=0, le=MAX_QUIET_SECONDS, description=QuietWait.model_fields["lick_quiet_seconds"].description)
-    wheel_quiet_seconds: float = Field(default=0.0, ge=0, le=MAX_QUIET_SECONDS, description=QuietWait.model_fields["wheel_quiet_seconds"].description)
-    wheel_quiet_cm: float = Field(default=0.0, ge=0, le=MAX_WHEEL_QUIET_CM, description=QuietWait.model_fields["wheel_quiet_cm"].description)
     label: String = Field(description="Human-readable stage name, for documentation and logs")
     trial_weights: TrialTypeWeights = Field(
         description="Relative draw weight per trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)"

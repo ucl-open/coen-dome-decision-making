@@ -337,17 +337,17 @@ public class TrialDrawTests
     {
         var task = Fixture.Task("task-localization.yml");
         task.TrainingStages[4].WheelQuietSeconds = 1;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "both above 0");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "are both above 0 (the wheel's quiet wait) or both 0 (off)");
         task.TrainingStages[4].WheelQuietCm = 2;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
         task.TrainingStages[4].LickQuietSeconds = -1;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds must be a finite number, 0 or more");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds is -1, not from 0 to 10 s");
         // A NaN or infinite time would hold the trial start for ever, with no error.
         task.TrainingStages[4].LickQuietSeconds = double.PositiveInfinity;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds must be a finite number, 0 or more");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds is ");
         task = Fixture.Task("task-localization.yml");
         task.TrainingStages[4].WheelQuietSeconds = double.NaN;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "wheelQuietSeconds must be a finite number, 0 or more");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "wheelQuietSeconds is NaN, not from 0 to 10 s");
         task = Fixture.Task("task-localization.yml");
         task.TrialStructure.ItiMaxSeconds = double.PositiveInfinity;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "itiMaxSeconds must be a finite number, 0 or more");
@@ -367,9 +367,9 @@ public class TrialDrawTests
     {
         var cases = new Dictionary<string, Action<TrainingStage>>
         {
-            { "lickQuietSeconds (10.5 s) must be at most 10 s", s => s.LickQuietSeconds = 10.5 },
-            { "wheelQuietSeconds (11 s) must be at most 10 s", s => { s.WheelQuietSeconds = 11; s.WheelQuietCm = 1; } },
-            { "wheelQuietCm (21 cm) must be at most 20 cm", s => { s.WheelQuietSeconds = 1; s.WheelQuietCm = 21; } },
+            { "lickQuietSeconds is 10.5, not from 0 to 10 s", s => s.LickQuietSeconds = 10.5 },
+            { "wheelQuietSeconds is 11, not from 0 to 10 s", s => { s.WheelQuietSeconds = 11; s.WheelQuietCm = 1; } },
+            { "wheelQuietCm is 21, not from 0 to 20 cm", s => { s.WheelQuietSeconds = 1; s.WheelQuietCm = 21; } },
         };
         foreach (var c in cases)
         {

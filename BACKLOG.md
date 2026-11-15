@@ -1,5 +1,12 @@
 # Backlog
 
+## 2026-11-15 Rig hardware as device pieces (lib-open-rigs, Pip: "NO BACKWARDS COMPATIBILITY")
+
+- The hardware is lib-open-rigs' `DomeHardware` rig list (one include per device, the Ready gate, the timestamp generator's clock, the camera triggers), after `RigSetup`'s `ReadLabRig`; `RigHardware`, `HarpLogs` and `LogCameras` are gone from lib. Ready waits for the Harp clock, the spouts homed, a first frame from each camera and the mixer (`ReadyWaitsFor`). `LogLabExperiment` is its own top-level node before `Hardware` (a piece's log waits for `PathPrefix`; Bonsai builds a subject's whole top-level node when a subscriber comes first, so inside `Logging`, beside `DeliverReward`'s `Timestamp`, it built as "defined in terms of itself"); coen-dome-navigation now has the same groups.
+- Zapit is `Zapit.ConnectForTask`, the manual rewards `BehaviorBoard.ManualRewards` (`ManualRewardDropUl` and the `Commands` group gone), the shared logs `LogLabExperiment` and `LogControlEvents`; the manifest's `ConfigFiles` is lib's default `{RigFiles}` (rig.yml, every file it names, the mouse's spout positions). The background noise waits for `Ready` itself, not a copy of its stages. The quiet-wait checks are lib's (`QuietWait.SettingsProblems` at Go, open_rigs.core.task's caps in task.py), so task.py has no constants of its own.
+- **Data from this change on:** every video and its CSV include the first frame (the old include skipped it), and a dropped frame is a jump in `frameId` with the triggers around it kept (frames were paired to triggers in order). The cameras' trigger starts once all three cameras acquire (it was 2 s after Start).
+- **Phase 1 camera finding (recorded, past video left as is; Pip):** 7 av-dome sessions (12-13 Nov 2026, 4 rigs; av-dome's experiments count as this workflow's) had no frameId gaps, no non-Event register-92 messages, and camera clock and `harpTime` steps agreeing within 10 ms on every row, so no mid-run shift. Cameras in one session started 0 to 2 triggers apart; whether a late starter missed its first trigger or is paired one trigger late (at most 20 ms, constant) cannot be told from logs. The first test experiment after this change measures it again (k = 0 expected).
+
 ## 15 Nov 2026: Pip's decisions after the audit cycles
 
 - swc-aeon is pinned to the commit uv.lock held (`rev = "af0d7a7..."`), not aeon_api's `main` branch.

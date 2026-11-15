@@ -201,8 +201,6 @@ public class TrialDraw
 {
     public static readonly string[] TypeNames = { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral" };
     const double CentreAzimuth = 0, CentreElevation = 15;  // the sound of visual and neutral trials in localization
-    public const double MaxQuietSeconds = 10.0;  // task.py MAX_QUIET_SECONDS: the longest lickQuietSeconds or wheelQuietSeconds
-    public const double MaxWheelQuietCm = 20.0;  // task.py MAX_WHEEL_QUIET_CM: under one turn of the 75 mm wheel
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly EqualisedSpeakerArray speakers;
@@ -297,23 +295,14 @@ public class TrialDraw
         finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
-        finite("stage '" + stage.Label + "''s lickQuietSeconds", stage.LickQuietSeconds);
-        finite("stage '" + stage.Label + "''s wheelQuietSeconds", stage.WheelQuietSeconds);
-        finite("stage '" + stage.Label + "''s wheelQuietCm", stage.WheelQuietCm);
-        // A long quiet wait and a licking mouse would hold the trial start with no message (Pip, 15 Nov 2026).
-        Action<string, double, double, string> atMost = (name, value, max, unit) =>
-        {
-            if (value > max) problems.Add(string.Format("stage '{0}''s {1} ({2} {3}) must be at most {4} {3}", stage.Label, name, value, unit, max));
-        };
-        atMost("lickQuietSeconds", stage.LickQuietSeconds, MaxQuietSeconds, "s");
-        atMost("wheelQuietSeconds", stage.WheelQuietSeconds, MaxQuietSeconds, "s");
-        atMost("wheelQuietCm", stage.WheelQuietCm, MaxWheelQuietCm, "cm");
+        // The quiet waits, the lab's one check (OpenRigs.Core QuietWait: finite, 0 or more, at most 10 s and 20 cm, the
+        // wheel's pair both set or both 0): a long wait and a licking mouse would hold the trial start with no message.
+        foreach (var p in QuietWait.SettingsProblems(stage.LickQuietSeconds, stage.WheelQuietSeconds, stage.WheelQuietCm)) problems.Add("stage '" + stage.Label + "': " + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.UseZapit) finite("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.OpenLoopSeconds + structure.ClosedLoopSeconds) problems.Add("trialStructure.stimulusSeconds is longer than openLoopSeconds plus closedLoopSeconds");
         if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
         if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts go out drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
-        if ((stage.WheelQuietSeconds > 0) != (stage.WheelQuietCm > 0)) problems.Add("stage '" + stage.Label + "' needs wheelQuietSeconds and wheelQuietCm both above 0 (the wheel's quiet wait) or both 0 (off)");
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
         var leadProblem = ZapitTrial.LeadProblem(lead, structure.ItiMinSeconds);
