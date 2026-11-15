@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from ucl_open_coen_dome_decision_making.stage import Experiment, experiments, suggest
 
 STAGE_PY = Path(__file__).parents[1] / "src" / "ucl_open_coen_dome_decision_making" / "stage.py"
@@ -45,10 +47,26 @@ def test_the_last_experiment_s_stage_is_suggested_whatever_its_performance():
     assert stage == 3 and "Stage 3 Again" in why
 
 
-def test_another_task_type_or_no_history_suggests_nothing():
+def test_the_newest_experiment_of_this_task_type_decides_and_none_suggests_nothing():
+    # Pip, 15 Nov 2026: always the most recent session that matches the current one.
     assert suggest([], "discrimination")[0] is None
     stage, why = suggest([Experiment("b", "2026-11-12", 3, "localization", 400)], "discrimination")
-    assert stage is None and "Localization" in why
+    assert stage is None and "Discrimination" in why
+    history = [Experiment("c", "2026-11-13", 3, "localization", 400), Experiment("b", "2026-11-12", 2, "discrimination", 400)]
+    assert suggest(history, "discrimination")[0] == 2
+
+
+@pytest.mark.parametrize("repo", ["https://github.com/Coen-Lab/coen-dome-decision-making.git", "https://github.com/someone/AV-Dome/"])
+def test_the_repo_name_alone_decides_whatever_the_owner_or_fork(tmp_path, repo):
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60, repo=repo))
+    assert [e.stage for e in read(tmp_path, "r6")[0]] == [2]
+
+
+def test_a_name_that_only_contains_ours_is_another_workflow_and_no_repo_gives_no_stage(tmp_path):
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60, repo="https://github.com/x/av-dome-old"))
+    assert read(tmp_path, "r6") == ([], [])
+    put(tmp_path, summary("ses-007D1_2026-11-14T10-00-00", "r7", 2, 60, repo=None))
+    assert read(tmp_path, "r6", "r7")[1] == ["ses-007D1_2026-11-14T10-00-00.json (Unreadable: KeyError)"]
 
 
 def test_an_old_format_experiment_is_not_read(tmp_path):

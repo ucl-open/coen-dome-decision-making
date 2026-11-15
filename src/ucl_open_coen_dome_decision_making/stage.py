@@ -62,9 +62,12 @@ def read_new(summary: dict) -> Experiment | None:
 
 
 def ours(summary: dict) -> bool:
-    """Whether a summary is this workflow's or av-dome's (source.repo); one without a repo counts as ours."""
-    repo = (summary.get("source") or {}).get("repo") or ""
-    return not repo or any(name in repo for name in OURS)
+    """Whether a summary is this workflow's or av-dome's, by the repo's name alone: any owner, fork or branch counts
+    the same. A summary without source.repo raises KeyError, so it is reported as unreadable."""
+    repo = summary["source"]["repo"]
+    if not repo:
+        raise KeyError("source.repo")
+    return repo.rstrip("/").rsplit("/", 1)[-1].lower().removesuffix(".git") in OURS
 
 
 def summaries_of(subject: str, folder: Path, expected: Path, unread: list[str]) -> list[dict]:
@@ -115,12 +118,11 @@ def experiments(subject: str, folder: Path, expected: Path, unread: list[str]) -
 
 
 def suggest(history: list[Experiment], task_type: str) -> tuple[int | None, str]:
-    """(stage, why): the last experiment's stage; None when that experiment was of another task type."""
-    if not history:
-        return None, "No Earlier Experiment With Trials: Choose the Stage by Hand"
-    last = history[0]
-    if last.task_type != task_type:
-        return None, f"The Last Experiment ({last.name}) Was {last.task_type.title()}: Choose the Stage by Hand"
+    """(stage, why): the stage of the newest experiment of this task type (Pip, 15 Nov 2026: the most recent session
+    that matches the current one); None when there is none."""
+    last = next((e for e in history if e.task_type == task_type), None)
+    if last is None:
+        return None, f"No Earlier {task_type.title()} Experiment With Trials: Choose the Stage by Hand"
     return last.stage, f"The Last Experiment's Stage ({last.name}, {last.task_type.title()}, {last.trials} Trials): Stage {last.stage} Again"
 
 
