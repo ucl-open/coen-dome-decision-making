@@ -3,34 +3,32 @@
 Nothing in this repository, its README or BACKLOG says when a mouse should move up a stage (production
 av-dome's stage was picked by hand in its window), so this suggests no advance: it repeats the last stage,
 and says so. The experimenter changes it before Go. A mouse's experiments from av-dome's switch-over branch
-count as this workflow's (plan v11, decision 3): it wrote this workflow's files. Only the current format is
-read (a manifest, BonsaiData_Trial, Settings_Experiment, a Settings_Task with taskType, filed under
-sub-<lab ID>): the old readers (production av-dome's TrialSettings, a task file without taskType, folders
-named by eartag) were deleted on 15 Nov 2026 (Pip), and an experiment in an old format is not read.
+count as this workflow's (plan v11, decision 3): it wrote this workflow's files. It reads the mouse's session
+summaries (jacuzzi-ingest's `sub-<lab ID>/<ses folder>.json`, version 1: claude-tools records.md, "Session
+summaries"): trials, Settings_Experiment and a Settings_Task with taskType. An experiment in an old format is
+not read (deleted on 15 Nov 2026, Pip).
 
 rig-control runs it (standard library only) when a mouse is chosen, and fills TrainingStage with it:
 
-    uv run suggest-stage --subject GN012 --task-type discrimination [--root DIR ...]
+    python -I stage.py --subject GN012 --task-type discrimination --summaries DIR --expected FILE.json
 
-prints one JSON line, {"value": 3, "why": "..."}: the contract of rig-control's [task.suggest]. Only an
-experiment with trials counts. If the last one's task type is not --task-type, its stage means another
-table's row: value is null. If a
-share among the roots does not answer, an experiment there cannot be read, or one has only its manifest left
-(its data ingested elsewhere), value is null and why names it: the mouse's last experiment may be that one.
+--summaries is the folder holding the sub-<lab ID> folders and --expected a JSON list of the run ids the
+mouse has had (rig-control writes it). Prints one JSON line, {"value": 3, "why": "..."}: the contract of
+rig-control's [task.suggest]. Only an experiment with trials counts. If the last one's task type is not
+--task-type, its stage means another table's row: value is null. If the folder does not answer, an expected
+run has no file, or a file cannot be read, value is null and why names it. A skipped file (a run too short
+or old to count) is accounted for and otherwise ignored.
 """
 
 import argparse
-import csv
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
-# Where a mouse's experiments are: on the rig, copied by the overnight copy (jacuzzi-ingest's ingest-rig), then in the server's staging, then
-# filed in Live-Data.
-LIVE_DATA = Path(r"\\rdp.arc.ucl.ac.uk\ritd-ag-project-rd01n9-pcoen00")
-ROOTS = [Path(r"C:\Coen-Lab-Local\Acquired-Data"), Path(r"\\128.40.51.157\rigs\staging"), LIVE_DATA]
-OURS = ("coen-dome-decision-making", "av-dome")  # manifest source.repo of an experiment that counts
+OURS = ("coen-dome-decision-making", "av-dome")  # source.repo of an experiment that counts
+SUMMARY_VERSION = 1
 
 
 @dataclass
@@ -49,94 +47,71 @@ def _when(folder: str) -> str:
     return m.group(1) if m else ""
 
 
-def _rows(csv_file: Path) -> int:
-    with open(csv_file, newline="", encoding="utf-8-sig") as f:
-        return sum(1 for _ in csv.DictReader(f))
-
-
-def _json(folder: Path, pattern: str) -> dict:
-    files = sorted(folder.glob(pattern))
-    if not files:
-        raise FileNotFoundError(f"{folder.name} has trials but no {pattern}")
-    return json.loads(files[-1].read_text(encoding="utf-8-sig"))
-
-
-def read_new(folder: Path) -> Experiment | None:
-    """This workflow's or the switch-over branch's: BonsaiData_Trial rows, the TrainingStage parameter in
-    Settings_Experiment and the task type in Settings_Task. None without trials, or with a task file in the old
-    format (no taskType): not read."""
-    trials = sum(_rows(log) for log in sorted(folder.glob("BonsaiData/BonsaiData_Trial*.csv")))
+def read_new(summary: dict) -> Experiment | None:
+    """This workflow's or the switch-over branch's: the trials, the TrainingStage parameter in Settings_Experiment
+    and the task type in Settings_Task. None without trials, or with a task file in the old format (no taskType)."""
+    trials = len(summary["trials"]["rows"])
     if not trials:
         return None
-    stage = int(float(_json(folder, "Settings/Settings_Experiment*.json")["parameters"]["TrainingStage"]))
-    task_type = _json(folder, "Settings/Settings_Task*.json")["taskParameters"].get("taskType")
+    stage = int(float(summary["Settings_Experiment"]["parameters"]["TrainingStage"]))
+    task_type = summary["Settings_Task"]["taskParameters"].get("taskType")
     if task_type is None:
         return None
-    return Experiment(folder.name, _when(folder.name), stage, str(task_type), trials)
+    name = summary["session"]
+    return Experiment(name, _when(name), stage, str(task_type), trials)
 
 
-def ours(manifest: Path) -> bool:
-    """Whether a manifest.json is this workflow's or av-dome's (source.repo); unreadable counts as ours."""
-    try:
-        repo = json.loads(manifest.read_text(encoding="utf-8-sig")).get("source", {}).get("repo") or ""
-    except (OSError, ValueError, AttributeError):
-        return True
+def ours(summary: dict) -> bool:
+    """Whether a summary is this workflow's or av-dome's (source.repo); one without a repo counts as ours."""
+    repo = (summary.get("source") or {}).get("repo") or ""
     return not repo or any(name in repo for name in OURS)
 
 
-def unanswered(root: Path) -> bool:
-    """A share (\\\\server\\...) that cannot be listed: glob reads it as empty, which would look like a mouse with
-    no history. A local folder that is not there just has none."""
-    if not str(root).startswith("\\\\"):
-        return False
+def summaries_of(subject: str, folder: Path, expected: Path, unread: list[str]) -> list[dict]:
+    """The mouse's full summaries (skipped and other workflows' left out). Every problem is added to `unread`: a
+    folder that does not answer, an expected run id with no file, a file that cannot be read or is not version 1."""
     try:
-        return not root.is_dir()
+        os.listdir(folder)
     except OSError:
-        return True
-
-
-def _subject_folders(base: Path, subject: str, unread: list[str]) -> list[Path]:
-    try:
-        if unanswered(base):
-            raise OSError(base)
-        return [*base.glob(f"sub-{subject}/ses-*"), *base.glob(f"*/sub-{subject}/ses-*")]
-    except OSError:
-        unread.append(f"{base} (No Answer)")
+        unread.append(f"{folder} (No Answer)")
         return []
-
-
-def _read(folder: Path) -> tuple[Experiment | None, bool]:
-    """(the experiment or None, whether only its manifest is left). A folder with no manifest is in an old
-    format: not read."""
-    manifest = folder / "manifest.json"
-    if not manifest.is_file() or not ours(manifest):
-        return None, False
-    if not (folder / "BonsaiData").is_dir():
-        return None, True  # ingested: staging keeps only the manifest
-    return read_new(folder), False
-
-
-def experiments(subject: str, roots: list[Path], unread: list[str]) -> list[Experiment]:
-    """Every experiment of the mouse with trials, newest first; a folder seen twice (on the rig and in staging)
-    counts once. A root that does not answer, an unreadable experiment and one with only its manifest left
-    (its data in none of the roots) are added to `unread`."""
-    found: dict[str, Experiment] = {}
-    manifest_only: list[str] = []
-    for base in roots:
-        for folder in _subject_folders(base, subject, unread):
-            if folder.name in found or not folder.is_dir():
+    try:
+        wanted = json.loads(Path(expected).read_text(encoding="utf-8-sig"))
+        if not isinstance(wanted, list):
+            raise ValueError(expected)
+    except (OSError, ValueError):
+        unread.append(f"{expected} (Unreadable)")
+        return []
+    runs: set = set()
+    full: dict[str, dict] = {}
+    for file in sorted((folder / f"sub-{subject}").glob("*.json")):
+        try:
+            with open(file, encoding="utf-8-sig") as f:
+                s = json.load(f)
+            if s["version"] != SUMMARY_VERSION:
+                unread.append(f"{file.name} (Version {s['version']} Is Not Supported)")
                 continue
-            try:
-                e, only_manifest = _read(folder)
-            except (OSError, ValueError, KeyError, TypeError) as error:
-                unread.append(f"{folder.name} (Unreadable: {type(error).__name__})")
-                continue
-            if only_manifest:
-                manifest_only.append(folder.name)
-            elif e is not None:
-                found[folder.name] = e
-    unread.extend(f"{name} (Only Its Manifest Is Left)" for name in dict.fromkeys(manifest_only) if name not in found)
-    return sorted(found.values(), key=lambda e: e.when, reverse=True)
+            runs.add(s["run"])
+            if not s.get("skipped") and ours(s):
+                full[s["run"]] = s
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            unread.append(f"{file.name} (Unreadable: {type(error).__name__})")
+    unread.extend(f"Run {run} (No Summary File)" for run in wanted if run not in runs)
+    return list(full.values())
+
+
+def experiments(subject: str, folder: Path, expected: Path, unread: list[str]) -> list[Experiment]:
+    """Every experiment of the mouse with trials, newest first. Problems are added to `unread`."""
+    found = []
+    for s in summaries_of(subject, folder, expected, unread):
+        try:
+            e = read_new(s)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            unread.append(f"{s['session']} (Unreadable: {type(error).__name__})")
+            continue
+        if e is not None:
+            found.append(e)
+    return sorted(found, key=lambda e: e.when, reverse=True)
 
 
 def suggest(history: list[Experiment], task_type: str) -> tuple[int | None, str]:
@@ -154,10 +129,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--subject", required=True)
     parser.add_argument("--task-type", required=True, choices=["localization", "discrimination"])
-    parser.add_argument("--root", action="append", type=Path, help="where the mouse's experiments are (repeatable)")
+    parser.add_argument("--summaries", required=True, type=Path, help="the folder of sub-<lab ID> folders of session summaries")
+    parser.add_argument("--expected", required=True, type=Path, help="a JSON file listing the run ids the mouse has had")
     args = parser.parse_args()
     unread: list[str] = []
-    history = experiments(args.subject, args.root or ROOTS, unread)
+    history = experiments(args.subject, args.summaries, args.expected, unread)
     if unread:
         print(json.dumps({"value": None, "why": f"Could Not Read {' and '.join(unread)}: Choose the Stage by Hand"}))
         return

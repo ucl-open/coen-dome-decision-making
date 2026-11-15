@@ -1,7 +1,6 @@
 """The stage suggestion: the mouse's last experiment's stage (no advancing rule is written down for this task), from this
-workflow's experiments and av-dome's switch-over branch's (plan v11, decision 3), never a guess. Only the current format
-is read: the old readers were deleted on 15 Nov 2026 (Pip)."""
-import csv
+workflow's session summaries and av-dome's switch-over branch's (plan v11, decision 3), never a guess. Summary files are
+written here as claude-tools records.md "Session summaries" v1 describes them."""
 import json
 import subprocess
 import sys
@@ -10,24 +9,34 @@ from pathlib import Path
 from ucl_open_coen_dome_decision_making.stage import Experiment, experiments, suggest
 
 STAGE_PY = Path(__file__).parents[1] / "src" / "ucl_open_coen_dome_decision_making" / "stage.py"
+REPO = "https://github.com/ucl-open/coen-dome-decision-making"
+DROPPED = ("itiStartTime", "trialStartTime", "laserTriggerTime")  # jacuzzi-ingest's drop list (records.md)
 
 
-def write(path: Path, header: list[str], rows: int):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows([[i] * len(header) for i in range(rows)])
-
-
-def write_new(folder: Path, stage: int, rows: int, task_type: str | None = "discrimination", repo: str = "coen-dome-decision-making"):
-    """An experiment as this workflow (or av-dome's switch-over branch) writes it."""
-    write(folder / "BonsaiData" / "BonsaiData_Trial_x.csv", ["trialNumber", "outcome"], rows)
-    (folder / "Settings").mkdir()
-    (folder / "Settings" / "Settings_Experiment_x.json").write_text(json.dumps({"parameters": {"TrainingStage": str(stage)}}), encoding="utf-8")
+def summary(session: str, run: str, stage: int, rows: int, task_type: str | None = "discrimination", repo: str = REPO, **extra) -> dict:
     parameters = {} if task_type is None else {"taskType": task_type}
-    (folder / "Settings" / "Settings_Task_x.json").write_text(json.dumps({"taskParameters": parameters}), encoding="utf-8")
-    (folder / "manifest.json").write_text(json.dumps({"source": {"repo": f"https://github.com/ucl-open/{repo}"}}), encoding="utf-8")
+    s = {"version": 1, "run": run, "subject": "GN012", "session": session, "source": {"repo": repo, "commit": "abc"},
+         "trials": {"columns": ["trialNumber", "outcome"], "rows": [[i, "Correct"] for i in range(rows)]},
+         "Settings_Experiment": {"parameters": {"TrainingStage": str(stage)}}, "Settings_Task": {"taskParameters": parameters}}
+    return {**s, **extra}
+
+
+def put(root: Path, s: dict) -> Path:
+    path = root / "sub-GN012" / f"{s['session']}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(s), encoding="utf-8")
+    return path
+
+
+def expect(root: Path, *runs: str) -> Path:
+    path = root.parent / f"{root.name}-expected.json"
+    path.write_text(json.dumps(list(runs)), encoding="utf-8")
+    return path
+
+
+def read(root: Path, *runs: str):
+    unread: list[str] = []
+    return experiments("GN012", root, expect(root, *runs), unread), unread
 
 
 def test_the_last_experiment_s_stage_is_suggested_whatever_its_performance():
@@ -43,50 +52,82 @@ def test_another_task_type_or_no_history_suggests_nothing():
 
 
 def test_an_old_format_experiment_is_not_read(tmp_path):
-    # Production av-dome's TrialSettings (no manifest), a task file without taskType, a folder named by eartag.
-    live, rig = tmp_path / "Live-Data", tmp_path / "rig"
-    write(live / "AV_Dome" / "sub-GN012" / "ses-Stage 4_date-2026-11-12T12-43-44" / "TrialSettings" / "TrialSettings.csv", ["Seconds", "trialType"], 200)
-    write_new(rig / "sub-GN012" / "ses-005D1_2026-11-10T10-00-00", 3, 60, task_type=None, repo="av-dome")
-    write_new(rig / "sub-PCO1-01503" / "ses-004D1_2026-11-09T10-00-00", 1, 60)
-    unread: list[str] = []
-    assert experiments("GN012", [live, rig], unread) == [] and not unread
-    assert suggest([], "localization")[0] is None
+    # A task file without taskType is the old format.
+    put(tmp_path, summary("ses-005D1_2026-11-10T10-00-00", "r5", 3, 60, task_type=None, repo="av-dome"))
+    assert read(tmp_path, "r5") == ([], [])
 
 
-def test_the_newest_of_every_source_decides_and_others_repos_never_do(tmp_path):
-    rig, live = tmp_path / "rig", tmp_path / "Live-Data"
-    write_new(rig / "sub-GN012" / "ses-007D1_2026-11-14T10-00-00", 1, 50, repo="coen-dome-navigation")  # not this task
-    write_new(rig / "sub-GN012" / "ses-006D1_2026-11-13T10-00-00", 2, 60)
-    write_new(live / "AV_Dome" / "sub-GN012" / "ses-005D1_2026-11-12T10-00-00", 3, 60, task_type="localization", repo="av-dome")
-    unread: list[str] = []
-    found = experiments("GN012", [rig, live], unread)
+def test_the_newest_of_this_workflow_and_av_dome_decides_and_other_repos_never_do(tmp_path):
+    put(tmp_path, summary("ses-007D1_2026-11-14T10-00-00", "r7", 1, 50, repo="coen-dome-navigation"))  # not this task
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60))
+    put(tmp_path, summary("ses-005D1_2026-11-12T10-00-00", "r5", 3, 60, task_type="localization", repo="av-dome"))
+    found, unread = read(tmp_path, "r5", "r6", "r7")
     assert not unread
     assert [(e.stage, e.task_type) for e in found] == [(2, "discrimination"), (3, "localization")]
     assert suggest(found, "discrimination")[0] == 2
 
 
-def test_an_unreadable_or_ingested_experiment_or_a_silent_share_suggests_nothing(tmp_path):
-    rig = tmp_path / "rig"
-    write_new(rig / "sub-GN012" / "ses-006D1_2026-11-13T10-00-00", 2, 60)
-    (rig / "sub-GN012" / "ses-006D1_2026-11-13T10-00-00" / "Settings" / "Settings_Experiment_x.json").unlink()
-    unread: list[str] = []
-    experiments("GN012", [rig], unread)
-    assert unread == ["ses-006D1_2026-11-13T10-00-00 (Unreadable: FileNotFoundError)"]
-    staging = tmp_path / "staging" / "BLUE-DOME-1" / "sub-GN012" / "ses-008D1_2026-11-14T10-00-00"
-    staging.mkdir(parents=True)
-    (staging / "manifest.json").write_text(json.dumps({"source": {"repo": "coen-dome-decision-making"}}), encoding="utf-8")
-    unread = []
-    experiments("GN012", [tmp_path / "staging"], unread)
-    assert unread == ["ses-008D1_2026-11-14T10-00-00 (Only Its Manifest Is Left)"]
-    unread = []
-    experiments("GN012", [Path(r"\\no-such-server-for-a-test\share")], unread)
-    assert unread and "No Answer" in unread[0]
+def test_a_summary_with_no_trials_is_not_an_experiment(tmp_path):
+    put(tmp_path, summary("ses-005D1_2026-11-12T10-00-00", "r5", 3, 0))
+    assert read(tmp_path, "r5") == ([], [])
+
+
+def test_a_folder_that_does_not_answer_gives_no_stage(tmp_path, capsys, monkeypatch):
+    from ucl_open_coen_dome_decision_making import stage
+
+    missing = tmp_path / "no-share"
+    monkeypatch.setattr("sys.argv", ["stage.py", "--subject", "GN012", "--task-type", "discrimination",
+                                     "--summaries", str(missing), "--expected", str(expect(tmp_path))])
+    stage.main()
+    answer = json.loads(capsys.readouterr().out)
+    assert answer["value"] is None and str(missing) in answer["why"] and "No Answer" in answer["why"]
+
+
+def test_an_expected_run_with_no_file_gives_no_stage(tmp_path):
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60))
+    _, unread = read(tmp_path, "r6", "r7")
+    assert unread == ["Run r7 (No Summary File)"]
+
+
+def test_a_file_that_cannot_be_read_gives_no_stage(tmp_path):
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60))
+    (tmp_path / "sub-GN012" / "ses-007D1_2026-11-14T10-00-00.json").write_text("{not json", encoding="utf-8")
+    _, unread = read(tmp_path, "r6")
+    assert unread == ["ses-007D1_2026-11-14T10-00-00.json (Unreadable: JSONDecodeError)"]
+    # trials but no Settings_Experiment: it may be the experiment that decides
+    s = summary("ses-008D1_2026-11-15T10-00-00", "r8", 2, 60)
+    del s["Settings_Experiment"]
+    put(tmp_path, s)
+    _, unread = read(tmp_path, "r6", "r8")
+    assert "ses-008D1_2026-11-15T10-00-00 (Unreadable: KeyError)" in unread
+
+
+def test_a_skipped_file_is_accounted_for_and_ignored(tmp_path):
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60))
+    put(tmp_path, {"version": 1, "run": "r7", "subject": "GN012", "session": "ses-007D1_2026-11-14T10-00-00", "skipped": "short"})
+    found, unread = read(tmp_path, "r6", "r7")
+    assert unread == [] and [e.name for e in found] == ["ses-006D1_2026-11-13T10-00-00"]
+
+
+def test_any_version_but_1_is_refused(tmp_path):
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60, version=2))
+    found, unread = read(tmp_path, "r6")
+    assert found == [] and "Version 2 Is Not Supported" in unread[0] and "No Summary File" in unread[1]
+    put(tmp_path, {"run": "r7", "session": "ses-007D1_2026-11-14T10-00-00", "skipped": "short"})  # no version at all
+    assert any("(Unreadable: KeyError)" in u for u in read(tmp_path, "r7")[1])
+
+
+def test_stage_py_reads_none_of_the_dropped_columns(tmp_path):
+    # jacuzzi-ingest drops these from every summary (records.md): reading one would read null for ever.
+    assert not [c for c in DROPPED if c in STAGE_PY.read_text(encoding="utf-8")]
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60))  # a file without them reads in full
+    assert read(tmp_path, "r6")[1] == []
 
 
 def test_the_script_runs_with_the_standard_library_alone(tmp_path):
     # rig-control runs it with its own Python, -I, outside this project: no package import.
-    write_new(tmp_path / "sub-GN012" / "ses-006D1_2026-11-13T10-00-00", 3, 60)
-    done = subprocess.run([sys.executable, "-I", str(STAGE_PY), "--subject=GN012", "--task-type=discrimination", f"--root={tmp_path}"],
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 3, 60))
+    done = subprocess.run([sys.executable, "-I", str(STAGE_PY), "--subject=GN012", "--task-type=discrimination",
+                           f"--summaries={tmp_path}", f"--expected={expect(tmp_path, 'r6')}"],
                           capture_output=True, text=True, check=True)
     assert json.loads(done.stdout.strip().splitlines()[-1])["value"] == 3
-
