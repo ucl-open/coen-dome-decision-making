@@ -236,6 +236,12 @@ def test_go_stops_on_a_background_noise_changed_after_launch():
 def test_the_hardware_is_the_lab_s_pieces():
     # DomeHardware's pieces, one clock, Ready waiting for every stage they announce, MixerStarted included.
     assert lint.hardware_problems(WORKFLOW) == []
+    # DomeHardware's devices, pinned: dropping one from the list fails here, not at the rig.
+    assert lint.required_devices(WORKFLOW) == [
+        ("TimestampGeneratorGen3-Main", "timestampGeneratorGen3"), ("BehaviorBoard-Main", "behaviorBoard"),
+        ("LicketySplit-Left", "licketySplit"), ("LicketySplit-Right", "licketySplit"),
+        ("StepperDriver-A", "stepperDriver"), ("StepperDriver-B", "stepperDriver"),
+        ("Camera-Face", "camera"), ("Camera-Pupil", "camera"), ("Camera-Body", "camera")]
 
 
 def test_zapit_is_the_shared_include_given_the_conditions_file():
