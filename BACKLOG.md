@@ -10,6 +10,10 @@
 
 - Names and descriptions say what the code does: the README (localization, a nudge kept only by `SaveSpoutPositions`, Zapit's stops as it connects at Go, `uv run pytest -q`), main.bonsai (the manual drop, Ready waiting for the mixer, Zapit from Go), the task files (the penalty sound with every timeout), `src\Extensions\README.md` (`QuietWait` is OpenRigs.Core's; `CheckTaskAtGo`, `OnNextTick`, `UnlessAnswered` listed), `TrialDraw.CheckTask` in task.py; the template's commented `project.urls` deleted.
 
+## Audit cycle 2 (15 Nov 2026)
+
+- `schemas\trial-columns.yml`'s `trialStartTime` description is the shared block's again (lib-open-rigs e0ba7c0), so `uv run pytest -q` passes; main.bonsai names `OpenRigs.Devices.Rigs` `rig:`, as coen-dome-navigation; a test holds `TrialDraw.CheckTask`'s refusal of a stage with no weight or a negative one and of `itiMaxSeconds` below `itiMinSeconds`; the not-changed lines on `ReadTextFile`, `QuietWait`, the rig C#, the rig template, the noise's start and the stage suggestion say what holds now.
+
 ## Open
 
 - Old log readers deleted 15 Nov 2026 (Pip); migrating every mouse's past sessions into the current format is planned in its own session.
@@ -47,13 +51,13 @@
 
 - `outcomeTime` duplicates `harpTime` by choice, so every moment of a trial is named.
 - coen-dome-navigation's `audiovisual` and this task's `audiovisualCoherent` are different tasks' trial types, so their names stay.
-- The rig C# generated in both tasks is identical; generating it once in a lab package is a larger change than it saves.
+- The rig C# generated in both tasks is identical; generating it once in a lab package is a larger change than it saves. (since 15 Nov 2026: neither generates it; both read rig.yml with OpenRigs.Devices' generated lab rig model)
 - `rngSeed` is both in the task file and an `RngSeed` event: the file's is what was asked (null draws one), the event's what ran.
 - The response window, spouts in and stimulus off are not columns: each follows from the task file and the trial's columns.
 - A trial cut by Stop gets no row; its Go is in `BonsaiData_Async`.
 - Trial 1 starts about 1.2 s after Go here and 2.3 s in coen-dome-navigation: each task's own start-up, neither a bug.
 - `history` stays in trial-columns.yml until the old data's refactor.
-- `ReadTextFile.cs` is duplicated in both dome workflows (as round 4).
+- `ReadTextFile.cs` is duplicated in both dome workflows (as round 4). (since 15 Nov 2026: one copy, OpenRigs.Core's `ReadTextFile`)
 - Trial 1's consequence (reward, penalty sound, spouts) comes 8 to 20 ms after its outcome; from trial 2 on, 0 to 2 ms. The choice, row and consequence nodes run for the first time at trial 1's outcome and pay .NET's first-run compile then; no single node is slow. Measured on BLUE-OPTO-2 (scripted test mouse, 2 runs each, trial 1 rewarded): as now +10 and +12 ms; the trial log moved to its own thread +8 to +12 ms (dropped: no gain beyond run-to-run spread, and a row sent just before Stop could be lost); every method of the task's C# and the lab's packages compiled at Start +9 and +16 ms (the cost is not there); one earlier outcome through the same nodes +1 and +2 ms. The fix, if needed: this task's outcome logic in one C# operator that runs on every tick, as coen-dome-navigation's `CorridorState` (whose trial 1 is on time), or a hidden warm-up outcome after Go, wired by hand.
 ## 2026-11-14 Camera video on GREEN-DOME-2 (test mouse, open)
 
@@ -63,7 +67,7 @@ The log is `K:\config\machines\GREEN-DOME-2\switch\iterate-log.md` (round 3).
 - **Add a check that each video holds every frame its CSV lists** (count the frames in the file, not the index), after every run.
 - **The Pupil camera's noise makes its video expensive.** rig.yml `cameras.pupil.gain: 20` (Body and Face 0): frame-to-frame noise 3.7 grey levels, 139 KB a frame (Body 11, Face 6), about 6.4 GB per 15 min, and its writer thread near a full core; when it falls behind, queued 1440x1080 frames hold 1 to 4 GB of memory until written. Proven by a gain-0 copy: 2 KB a frame, noise 0.01, but the image 6.5 times darker. Pip, 14 Nov 2026: camera settings stay as they are until a better lens arrives; re-measure frame size and writer load then.
 - The stage suggestion is None for the test mouse on every launch: `stage.py` reads 18 test folders of 5-6 Nov in `\128.40.51.157
-igs\staging\GREEN-DOME-1\sub-test` that have no manifest.json as production sessions, which fail, and any unreadable folder stops the suggestion. Fails loudly as designed; moving those folders out of staging clears it.
+igs\staging\GREEN-DOME-1\sub-test` that have no manifest.json as production sessions, which fail, and any unreadable folder stops the suggestion. Fails loudly as designed; moving those folders out of staging clears it. (since 15 Nov 2026: a folder with no manifest.json is an old format and passed over, so these no longer stop the suggestion)
 
 ## 2026-11-14 First runs on hardware (BLUE-OPTO-2, test mouse, unattended)
 
@@ -136,7 +140,7 @@ The first runs on a dome found three faults that stopped or emptied every experi
 ## Audit round 4 (13 Nov 2026): not changed
 
 - coen-qc-calibrate-valve and the domes pace pulses on different Harp-synced devices, about 1 ms apart.
-- `ReadTextFile.cs` is duplicated in both dome workflows; moving it to a lab package costs a package bump.
+- `ReadTextFile.cs` is duplicated in both dome workflows; moving it to a lab package costs a package bump. (since 15 Nov 2026: one copy, OpenRigs.Core's `ReadTextFile`)
 - No trigger or Go time column; both follow from `itiStartTime`, `itiSeconds`, the lead and `quietWaitSeconds`.
 - `outcomeTime` (then `choiceTime`) is the latest Harp tick when the choice is read, not the deciding lick's own timestamp.
 - A skipped trial leaves Zapit armed; the next trial disarms it.
@@ -153,7 +157,7 @@ The first runs on a dome found three faults that stopped or emptied every experi
 
 ## Audit round 2 (13 Nov 2026): not changed
 
-- `QuietWait` is the same class here and in coen-dome-navigation's `Corridor.cs`: moving it into the fork needs a package bump pushed into every in-use workflow, and each copy is tested where it runs. Move it if a third workflow needs it, and change both copies together until then.
+- `QuietWait` is the same class here and in coen-dome-navigation's `Corridor.cs`: moving it into the fork needs a package bump pushed into every in-use workflow, and each copy is tested where it runs. Move it if a third workflow needs it, and change both copies together until then. (since 14 Nov 2026: one copy, OpenRigs.Core's `QuietWait`)
 - app-rig-setup's `check-workflow-builds.ps1` fails with "Could not load file or assembly" on a clone whose `.bonsai\Packages` predates its Bonsai.config, not "run .bonsai\Setup.ps1": carried, since app-rig-setup held another session's unpushed commit and a push there deploys.
 
 ## Audit round 1 (13 Nov 2026): not changed
@@ -297,7 +301,7 @@ The certain findings were fixed in 0078311, 97358e6, 1234f38 and d565649. NoResp
 ### Lab standard (coen-behaviour-box as the reference)
 
 - **No `config\main.layout` yet.** rig-control launches with `--start` when Headless is unticked, and without a layout the editor can stall. The plumbing is in, as in coen-behaviour-box: `.gitignore` tracks `config/main.layout`, `.bonsai\Setup.ps1` copies it into `Settings\src\` (keeping a different local one as `main.saved.layout`), rig-setup reruns Setup whenever `config\*.layout` changes, and `scripts\check-workflow.ps1` fails a window on a node it does not fit. Left: open the branch in the editor on a dome (it needs the Spinnaker SDK), arrange the windows wanted with Headless unticked, save, copy `.bonsai\Settings\src\main.layout` to `config\main.layout`, add its visualizer types to `$wanted` in the check, commit. Until then, any machine-local `Settings\src\main.layout` on a dome predates the `TrialLoop` regroup and must be deleted.
-- **Schemas regenerated by update-workflows** (fixed 11 Nov 2026): `pyproject.toml` has the `regenerate-schemas` script, so lib-open-rigs' run regenerates `src\DataSchemas` and the Sgen C# whenever it moves the open-rigs pin. `examples\rig.py` (it wrote `local\UclOpenCoenDomeDecisionMakingRig.json` and threw) is deleted, as nothing used it, so the run writes no rig template: `config\rig-template.yml` stays hand-written with its comments, as coen-dome-navigation's, and the build check holds it to the schema. Regenerated the same night: stale in descriptions only (6c24d19's spout motor numbers, open-rigs' `WiredLine.device`); `tests\test_rig_schema.py` passes again.
+- **Schemas regenerated by update-workflows** (fixed 11 Nov 2026): `pyproject.toml` has the `regenerate-schemas` script, so lib-open-rigs' run regenerates `src\DataSchemas` and the Sgen C# whenever it moves the open-rigs pin. `examples\rig.py` (it wrote `local\UclOpenCoenDomeDecisionMakingRig.json` and threw) is deleted, as nothing used it, so the run writes no rig template: `config\rig-template.yml` stays hand-written with its comments, as coen-dome-navigation's, and the build check holds it to the schema (since 15 Nov 2026: gone; the lab's rig template is open-rigs'). Regenerated the same night: stale in descriptions only (6c24d19's spout motor numbers, open-rigs' `WiredLine.device`); `tests\test_rig_schema.py` passes again.
 - **No `Finished` phase.** No run sequence reaches `ExperimentManifest`, so every session ends "stopped" and the overnight copy (jacuzzi-ingest's ingest-rig) never holds one for a missing expected file: a gap is copied with an alarm, as for any run that did not complete. Needs a session end (a trial count or duration from the task file) that ends `TrialLoop` and reports `Finished`.
 - Done (5 Nov 2026, Pip): the stepper drivers are two rig.yml entries, `stepperDriver: a:` and `b:` (`StepperDriver-A`, `StepperDriver-B`), in place of `lickSpoutStage: main:`, so `RecordHarpDevices` checks and records each board (WhoAmI 1130) and the manifest expects their files. They are still bare `Harp.StepperDriver` devices: their `.Data` and `.Commands` are bridged to `StepperDriver1Events`/`StepperDriver1Commands` (and 2), which `Extensions\MoveStepperMotors` and `ZEROingMotors` and the RigConfigs.cs workflows (Flush_Valves, ManualValveCalibration, MoveIndividualSpouts, main_ClosedLoop, main_NabbefeldG) use; renaming those is for when those workflows move to rig.yml.
 - **No `liveView:` blocks** in the lab's rig template or the domes' rig.yml; the defaults apply.
@@ -312,6 +316,6 @@ The certain findings were fixed in 0078311, 97358e6, 1234f38 and d565649. NoResp
 
 Do not raise again without new information:
 
-- The background noise starts at Go with a 2 s fade, not at mixer start: its level comes from the task file read at Go, as navigation's; trial 1's stimulus comes after the fade.
+- The background noise starts at Go with a 2 s fade, not at mixer start: its level comes from the task file read at Go, as navigation's; trial 1's stimulus comes after the fade. (since 15 Nov 2026: from Ready, at the level of the task file as launched; top of this file)
 - A task file that leaves out a sound's `levelDbfs` plays at lib's default: Pip chose defaults in lib (15 Nov 2026); see coen-dome-navigation's BACKLOG.
 - The noise and penalty chains duplicate navigation's: the noise sources differ and lib's lint forces the mapping.

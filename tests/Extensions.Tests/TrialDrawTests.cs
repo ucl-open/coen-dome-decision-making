@@ -346,6 +346,22 @@ public class TrialDrawTests
         task.TrialStructure.DrinkSeconds = 3.5;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "below drinkSeconds");
     }
+
+    [TestMethod]
+    public void AStageWithNoWeightANegativeWeightOrAReversedIntervalIsRefused()
+    {
+        // Bonsai reads the task file without pydantic: a stage of zero weights would draw no type at the first trial.
+        var task = Fixture.Task("task-localization.yml");
+        var w = task.TrainingStages[4].TrialWeights;
+        w.Visual = w.Auditory = w.AudiovisualCoherent = w.AudiovisualConflict = w.Neutral = 0;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "trialWeights of 0 or more, one above 0");
+        task = Fixture.Task("task-localization.yml");
+        task.TrainingStages[4].TrialWeights.Neutral = -1;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "trialWeights of 0 or more, one above 0");
+        task = Fixture.Task("task-localization.yml");
+        task.TrialStructure.ItiMaxSeconds = task.TrialStructure.ItiMinSeconds - 0.1;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "itiMaxSeconds is below itiMinSeconds");
+    }
 }
 
 /// <summary>Go and the stimulus and trigger timed from it (Pip, 13 Nov 2026), on a stand-in Harp clock of 1 ms ticks.</summary>
