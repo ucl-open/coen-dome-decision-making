@@ -17,8 +17,6 @@ obj
 !.bonsai/NuGet.config
 !.bonsai/Setup.cmd
 !.bonsai/Setup.ps1
-# Scratch output of the Zapit demo workflows
-zapit-demo.csv
 
 .venv
 

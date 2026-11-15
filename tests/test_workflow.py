@@ -4,7 +4,10 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import open_rigs.rigs
+import yaml
 from open_rigs.rigs import workflow_lint as lint
+from open_rigs.rigs.lab_rig import LabRig
 
 
 ROOT = Path(__file__).parents[1]
@@ -171,6 +174,12 @@ def test_the_trial_loop_starts_on_the_clock_thread():
 
 # The lab's rules for every workflow (open_rigs.rigs.workflow_lint, one copy in lib-open-rigs).
 WORKFLOW = lint.Workflow(ROOT)
+
+
+def test_no_fixed_width_pulse_reaches_a_reward_valve():
+    # Every reward is DeliverReward's calibrated pulse; checked against the lab's rig template's valve lines.
+    rig = LabRig.model_validate(yaml.safe_load((Path(open_rigs.rigs.__file__).parent / "rig-template.yml").read_text(encoding="utf-8")))
+    assert rig.reward_valve_lines() and lint.fixed_width_pulses_on_reward_valves(WORKFLOW, rig.reward_valve_lines()) == []
 
 
 def test_every_harp_delay_runs_on_the_timestamp_clock():

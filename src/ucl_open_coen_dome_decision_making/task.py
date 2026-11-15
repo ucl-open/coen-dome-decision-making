@@ -3,16 +3,15 @@ from typing import Literal
 
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
-from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskParameters
+from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskBlock, TaskParameters
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
 from open_rigs.rigs.lab_rig import MAX_REWARD_UL
 from pydantic import Field, field_validator, model_validator
-from swc.aeon.schema import BaseSchema
 
 from ucl_open_coen_dome_decision_making import __semver__
 
 
-class TrialStructure(BaseSchema):
+class TrialStructure(TaskBlock):
     """Timing of each trial, every wait on the Harp clock."""
 
     iti_min_seconds: Double = Field(
@@ -40,7 +39,7 @@ class TrialStructure(BaseSchema):
         return self
 
 
-class VisualStimulus(BaseSchema):
+class VisualStimulus(TaskBlock):
     """Grating stimulus parameters common to all trials; contrast is set per training stage."""
 
     azimuth_min_deg: Double = Field(default=-60.0, ge=-180, le=180, description="Lower bound of the uniformly drawn grating azimuth, in degrees")
@@ -102,14 +101,14 @@ class AudioStimulus(StimulusSound):
         return value
 
 
-class RewardSettings(BaseSchema):
+class RewardSettings(TaskBlock):
     """Reward delivery parameters; per-stage reward size lives in the training stage table."""
 
     large_reward_multiplier: Double = Field(default=1.0, ge=0, description="Reward size multiplier applied on large-reward trials")
     large_reward_probability: Double = Field(default=0.0, ge=0, le=1, description="Probability that a trial is a large-reward trial")
 
 
-class ResponseSettings(BaseSchema):
+class ResponseSettings(TaskBlock):
     """Lick-accumulation response rule; thresholdLicks 1 with degreesPerLick 0 is classic first-lick 2AFC."""
 
     threshold_licks: Int = Field(default=1, ge=1, description="Net lick difference (left minus right, absolute) that terminates the response window")
@@ -138,7 +137,7 @@ class RepeatRule(StrEnum):
     ON_TIMEOUT = "onTimeout"
 
 
-class TrialTypeWeights(BaseSchema):
+class TrialTypeWeights(TaskBlock):
     """Relative draw weight of each trial type, by the name the trial log gives it (what the trial showed)."""
 
     visual: Int = Field(ge=0, description="The grating alone")
@@ -154,7 +153,7 @@ class TrialTypeWeights(BaseSchema):
         return self
 
 
-class TrialTypeRules(BaseSchema):
+class TrialTypeRules(TaskBlock):
     """The repeat rule of each trial type, by the name the trial log gives it."""
 
     visual: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="The grating alone")
@@ -164,7 +163,7 @@ class TrialTypeRules(BaseSchema):
     neutral: RepeatRule = Field(default=RepeatRule.ON_TIMEOUT, description="Grey screen")
 
 
-class RepeatSettings(BaseSchema):
+class RepeatSettings(TaskBlock):
     """Trial repetition policy."""
 
     max_repeats: Int = Field(default=5, ge=0, description="Maximum number of consecutive repeats of the same trial")

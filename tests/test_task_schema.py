@@ -194,6 +194,19 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
     _with(opto={**on, "useZapit": False, "laserDurationSeconds": 2.5})
 
 
+@pytest.mark.parametrize(
+    "block, key, value",
+    [("trialStructure", "itiMaxSeconds", float("inf")), ("visualStimulus", "fixedAzimuthsDeg", [float("nan"), 60]), ("reward", "largeRewardMultiplier", float("inf")),
+     ("response", "degreesPerLick", float("nan"))],
+)
+def test_the_task_s_own_blocks_refuse_inf_and_nan(block, key, value):
+    # Each is a lib-open-rigs TaskBlock (allow_inf_nan off), as the lab's blocks are.
+    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
+    data[block][key] = value
+    with pytest.raises(ValidationError, match="finite number"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
 def test_the_interval_is_at_least_the_drink():
     with pytest.raises(ValidationError, match="drink_seconds"):
         _with(structure={"drinkSeconds": 1.6})
