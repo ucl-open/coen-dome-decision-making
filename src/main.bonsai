@@ -25,50 +25,14 @@
     <Nodes>
       <Expression xsi:type="GroupWorkflow">
         <Name>RigSetup</Name>
-        <Description>Reads this machine's rig.yml (ConfigRoot\MachineName\rig.yml, ReadRigConfig) into RigConfigs, the lab rig model (open_rigs.rigs.lab_rig.LabRig, generated C#), and publishes RigConfigDirectory. Everything else takes its devices and calibrations from these two.</Description>
+        <Description>Reads this machine's rig.yml (ConfigRoot\MachineName\rig.yml, ReadLabRig) into RigConfigs, the lab rig model (open_rigs.rigs.lab_rig.LabRig, generated C#), and publishes RigConfigDirectory. Everything else takes its devices and calibrations from these two.</Description>
         <Workflow>
           <Nodes>
-            <Expression xsi:type="GroupWorkflow">
-              <Name>ReadRigConfig</Name>
-              <Description>Resolves this machine's rig configuration directory (ConfigRoot\MachineName), publishes it as RigConfigDirectory, and reads rig.yml from it. Fails at startup if either is missing.</Description>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="core:ResolveRigConfigDirectory">
-                      <core:ConfigRoot>C:\Coen-Lab-Local\RigConfigs</core:ConfigRoot>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>RigConfigDirectory</Name>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Core:ReadRigConfig.bonsai">
-                    <FileName>rig.yml</FileName>
-                  </Expression>
-                  <Expression xsi:type="WorkflowOutput" />
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                  <Edge From="2" To="3" Label="Source1" />
-                </Edges>
-              </Workflow>
-            </Expression>
-            <Expression xsi:type="rig:DeserializeFromYaml">
-              <rig:Type xsi:type="TypeMapping" TypeArguments="rig:LabRig" />
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Take">
-                <rx:Count>1</rx:Count>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="rx:AsyncSubject">
-              <Name>RigConfigs</Name>
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ReadLabRig.bonsai">
+              <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
             </Expression>
           </Nodes>
           <Edges>
-            <Edge From="0" To="1" Label="Source1" />
-            <Edge From="1" To="2" Label="Source1" />
-            <Edge From="2" To="3" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

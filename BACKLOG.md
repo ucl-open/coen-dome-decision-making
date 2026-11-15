@@ -14,6 +14,10 @@
 
 - `schemas\trial-columns.yml`'s `trialStartTime` description is the shared block's again (lib-open-rigs e0ba7c0), so `uv run pytest -q` passes; main.bonsai names `OpenRigs.Devices.Rigs` `rig:`, as coen-dome-navigation; a test holds `TrialDraw.CheckTask`'s refusal of a stage with no weight or a negative one and of `itiMaxSeconds` below `itiMinSeconds`; the not-changed lines on `ReadTextFile`, `QuietWait`, the rig C#, the rig template, the noise's start and the stage suggestion say what holds now.
 
+## Audit cycle 3 (15 Nov 2026)
+
+- RigSetup reads rig.yml with lib-open-rigs' `ReadLabRig` include (OpenRigs.Devices), the same steps the hand-built `ReadRigConfig` group, `DeserializeFromYaml`, `Take` and `RigConfigs` ran (proved headless: `RigConfigDirectory` and `RigConfigs` reach a sibling group, and a wrong `ConfigRoot` stops at Start naming it); a test holds its `ConfigRoot` to the other nodes', as check-workflow does not look inside an include.
+
 ## Open
 
 - Old log readers deleted 15 Nov 2026 (Pip); migrating every mouse's past sessions into the current format is planned in its own session.

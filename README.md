@@ -48,10 +48,10 @@ Each lib-open-rigs block the workflow uses, its job here and where it lives. `te
 | `RecordHarpDevices` | Each Harp board checked at Start, its device record and register map written into the experiment | `OpenRigs.HarpDevices` |
 | `ExperimentManifest` | `manifest.json`: what ran, the config files by hash, what the experiment must leave | `OpenRigs.Manifest` |
 | `StreamDevices` | The live view (the last node) | `OpenRigs.LiveView` |
-| `ReadRigConfig`, `ResolveRigConfigDirectory` | Reads this machine's rig.yml | `OpenRigs.Core:ReadRigConfig.bonsai` |
+| `ReadLabRig` | Reads this machine's rig.yml into the lab rig model (`RigConfigs`) and publishes its folder (`RigConfigDirectory`) | `OpenRigs.Devices:ReadLabRig.bonsai` |
 | `ExperimentControl` | Parameters, commands, Go and phases for app-rig-control | `OpenRigs.Control:ExperimentControl.bonsai` |
 | `LogController`, `LogAsync`, `LogTrial`, `LogCameras`, `LogData`, `LogDataSchema` | The experiment folder and its files, every camera's video among them | `OpenRigs.Logging` |
-| `LabRig`, `DeserializeFromYaml`, `SerializeToJson` | rig.yml read as the lab rig model, as every lab workflow reads it (its template is open-rigs' `rigs\rig-template.yml`), and logged as `Settings_Rig` | `OpenRigs.Devices` (`OpenRigs.Devices.Rigs`) |
+| `LabRig`, `SerializeToJson` | The lab rig model `ReadLabRig` reads rig.yml into, as every lab workflow does (its template is open-rigs' `rigs\rig-template.yml`), logged as `Settings_Rig` | `OpenRigs.Devices` (`OpenRigs.Devices.Rigs`) |
 | `ReadTextFile` | The task file read at Start (`LaunchTaskConfig`, the background noise's) and at Go (`TaskConfig`) | `OpenRigs.Core` |
 | `ThrowError` | Stops the workflow at Go if `backgroundNoise` differs from the launch's | `OpenRigs.Core` |
 
