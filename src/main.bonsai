@@ -6,7 +6,6 @@
                  xmlns:scr="clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions"
                  xmlns:harp="clr-namespace:Bonsai.Harp;assembly=Bonsai.Harp"
                  xmlns:core="clr-namespace:OpenRigs.Core;assembly=OpenRigs.Core"
-                 xmlns:uoc="clr-namespace:OpenRigs.Core;assembly=OpenRigs.Core"
                  xmlns:dev="clr-namespace:OpenRigs.Devices;assembly=OpenRigs.Devices"
                  xmlns:zap="clr-namespace:OpenRigs.Devices.Zapit;assembly=OpenRigs.Devices"
                  xmlns:orcl="clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control"
@@ -37,8 +36,8 @@
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="uoc:ResolveRigConfigDirectory">
-                      <uoc:ConfigRoot>C:\Coen-Lab-Local\RigConfigs</uoc:ConfigRoot>
+                    <Combinator xsi:type="core:ResolveRigConfigDirectory">
+                      <core:ConfigRoot>C:\Coen-Lab-Local\RigConfigs</core:ConfigRoot>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="rx:AsyncSubject">
@@ -463,7 +462,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. Trial (each trial as drawn), TrialNumber (from 1), TrialOutcome, StimulusOnsetTime (Harp seconds; these three are the plan's shared names, published for any reader and read by none here yet) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and ErrorSound start the stimuli; Zapit's commands and replies; DeliverRewardCommand, each (side, microlitres) reward. Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
+        <Description>Subjects the groups share. Trial (each trial as drawn) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and ErrorSound start the stimuli; Zapit's commands and replies; DeliverRewardCommand, each (side, microlitres) reward. Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
@@ -471,15 +470,6 @@
             </Expression>
             <Expression xsi:type="rx:PublishSubject" TypeArguments="p1:TrialEnd">
               <rx:Name>TrialEnds</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Int32">
-              <rx:Name>TrialNumber</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:String">
-              <rx:Name>TrialOutcome</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Double">
-              <rx:Name>StimulusOnsetTime</rx:Name>
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:Timestamped(p1:TrialRow)">
               <rx:Name>TrialRow</rx:Name>
@@ -529,7 +519,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Hardware</Name>
-        <Description>The dome's devices (OpenRigs.Devices RigHardware: boards, timestamp generator, lick spout stage, Lickety Splits, three cameras), the cameras' trigger, and Ready once the spouts are homed and the Harp clock is set (StartupWatchdog names whichever has not come within 180 s).</Description>
+        <Description>The dome's devices (OpenRigs.Devices RigHardware: boards, timestamp generator, lick spout stage, Lickety Splits, three cameras), the cameras' trigger, and Ready once the spouts are homed and the Harp clock is set (StartupWatchdog stops the workflow, naming what never came, if that takes longer than 180 s: the stage homes its five motors together, each within 60 s).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="PropertyMapping">
@@ -598,7 +588,7 @@
               <Combinator xsi:type="core:StartupWatchdog">
                 <core:Expected>SpoutsHomed, HarpClockSet</core:Expected>
                 <core:TimeoutSeconds>180</core:TimeoutSeconds>
-                <core:What>Starting the dome (needed for Ready)</core:What>
+                <core:What>Readying the rig (the Harp clock and the spout stage's homing)</core:What>
               </Combinator>
             </Expression>
           </Nodes>
@@ -1591,17 +1581,9 @@
             <Expression xsi:type="SubscribeSubject">
               <Name>RigFile</Name>
             </Expression>
-            <Expression xsi:type="PropertyMapping">
-              <PropertyMappings>
-                <Property Name="CalibrationDirectory" />
-              </PropertyMappings>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>RigConfigDirectory</Name>
-            </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai">
               <RigFile>UNMAPPED</RigFile>
-              <CalibrationDirectory>UNMAPPED</CalibrationDirectory>
+              <CalibrationDirectory />
               <MissingCalibration>Refuse</MissingCalibration>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
@@ -1838,17 +1820,15 @@
           <Edges>
             <Edge From="4" To="3" Label="Source1" />
             <Edge From="6" To="5" Label="Source1" />
-            <Edge From="8" To="7" Label="Source1" />
-            <Edge From="3" To="7" Label="Source2" />
-            <Edge From="5" To="7" Label="Source3" />
-            <Edge From="9" To="7" Label="Source4" />
+            <Edge From="3" To="5" Label="Source2" />
+            <Edge From="7" To="5" Label="Source3" />
+            <Edge From="8" To="9" Label="Source1" />
             <Edge From="10" To="11" Label="Source1" />
-            <Edge From="12" To="13" Label="Source1" />
-            <Edge From="13" To="14" Label="Source1" />
+            <Edge From="11" To="12" Label="Source1" />
+            <Edge From="15" To="16" Label="Source1" />
+            <Edge From="16" To="17" Label="Source1" />
             <Edge From="17" To="18" Label="Source1" />
             <Edge From="18" To="19" Label="Source1" />
-            <Edge From="19" To="20" Label="Source1" />
-            <Edge From="20" To="21" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -1862,9 +1842,6 @@
             </Expression>
             <Expression xsi:type="MemberSelector">
               <Selector>trialNumber</Selector>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>TrialNumber</Name>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="orcl:ReportMetric">
@@ -1937,22 +1914,21 @@
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
             <Edge From="1" To="2" Label="Source1" />
-            <Edge From="1" To="3" Label="Source1" />
-            <Edge From="0" To="4" Label="Source1" />
-            <Edge From="4" To="5" Label="Source1" />
-            <Edge From="0" To="6" Label="Source1" />
-            <Edge From="6" To="7" Label="Source1" />
-            <Edge From="0" To="8" Label="Source1" />
-            <Edge From="8" To="9" Label="Source1" />
-            <Edge From="0" To="10" Label="Source1" />
-            <Edge From="10" To="11" Label="Source1" />
-            <Edge From="0" To="12" Label="Source1" />
-            <Edge From="12" To="13" Label="Source1" />
-            <Edge From="0" To="14" Label="Source1" />
-            <Edge From="14" To="15" Label="Source1" />
-            <Edge From="16" To="17" Label="Source1" />
-            <Edge From="0" To="18" Label="Source1" />
-            <Edge From="18" To="19" Label="Source1" />
+            <Edge From="0" To="3" Label="Source1" />
+            <Edge From="3" To="4" Label="Source1" />
+            <Edge From="0" To="5" Label="Source1" />
+            <Edge From="5" To="6" Label="Source1" />
+            <Edge From="0" To="7" Label="Source1" />
+            <Edge From="7" To="8" Label="Source1" />
+            <Edge From="0" To="9" Label="Source1" />
+            <Edge From="9" To="10" Label="Source1" />
+            <Edge From="0" To="11" Label="Source1" />
+            <Edge From="11" To="12" Label="Source1" />
+            <Edge From="0" To="13" Label="Source1" />
+            <Edge From="13" To="14" Label="Source1" />
+            <Edge From="15" To="16" Label="Source1" />
+            <Edge From="0" To="17" Label="Source1" />
+            <Edge From="17" To="18" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -2123,7 +2099,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ExecuteTrial</Name>
-              <Description>One trial on the Harp clock: the stimulus (VisualStimulus, AuditoryStimulus; StimulusOnsetTime stamped as it is commanded, the grating off after stimulusSeconds), the spouts in after stimulusToSpoutsInSeconds, the response window after openLoopSeconds; at the outcome, the trial's row (TrialRow) and what the outcome sets off (TrialConsequence: the reward, the spouts, the error sound); then the timeout; at its end the TrialEnd leaves, stamped with the interval's start, so the next trial is drawn and Zapit armed while the interval runs; drinkSeconds into the interval the spouts go out, and the trial ends.</Description>
+              <Description>One trial on the Harp clock: the stimulus (VisualStimulus, AuditoryStimulus, its onset stamped as it is commanded; the grating off after stimulusSeconds), the spouts in after stimulusToSpoutsInSeconds, the response window after openLoopSeconds; at the outcome, the trial's row (TrialRow) and what the outcome sets off (TrialConsequence: the reward, the spouts, the error sound); then the timeout; at its end the TrialEnd leaves, stamped with the interval's start, so the next trial is drawn and Zapit armed while the interval runs; drinkSeconds into the interval the spouts go out, and the trial ends.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -2180,12 +2156,6 @@
                   </Expression>
                   <Expression xsi:type="rx:AsyncSubject">
                     <Name>Onset</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Onset</Name>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>StimulusOnsetTime</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>Onset</Name>
@@ -2527,15 +2497,6 @@
                   <Expression xsi:type="rx:AsyncSubject">
                     <Name>Row</Name>
                   </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Row</Name>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>Value.outcome</Selector>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>TrialOutcome</Name>
-                  </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:Zip" />
                   </Expression>
@@ -2744,70 +2705,67 @@
                   <Edge From="14" To="15" Label="Source1" />
                   <Edge From="15" To="16" Label="Source1" />
                   <Edge From="17" To="18" Label="Source1" />
-                  <Edge From="19" To="20" Label="Source1" />
-                  <Edge From="21" To="20" Label="Source2" />
-                  <Edge From="22" To="23" Label="Source1" />
-                  <Edge From="23" To="20" Label="Source3" />
-                  <Edge From="20" To="24" Label="Source1" />
-                  <Edge From="25" To="26" Label="Source1" />
-                  <Edge From="27" To="26" Label="Source2" />
-                  <Edge From="28" To="29" Label="Source1" />
-                  <Edge From="29" To="26" Label="Source3" />
+                  <Edge From="19" To="18" Label="Source2" />
+                  <Edge From="20" To="21" Label="Source1" />
+                  <Edge From="21" To="18" Label="Source3" />
+                  <Edge From="18" To="22" Label="Source1" />
+                  <Edge From="23" To="24" Label="Source1" />
+                  <Edge From="25" To="24" Label="Source2" />
+                  <Edge From="26" To="27" Label="Source1" />
+                  <Edge From="27" To="24" Label="Source3" />
+                  <Edge From="29" To="30" Label="Source1" />
+                  <Edge From="24" To="28" Label="Source1" />
+                  <Edge From="30" To="28" Label="Source2" />
+                  <Edge From="28" To="31" Label="Source1" />
                   <Edge From="31" To="32" Label="Source1" />
-                  <Edge From="26" To="30" Label="Source1" />
-                  <Edge From="32" To="30" Label="Source2" />
-                  <Edge From="30" To="33" Label="Source1" />
                   <Edge From="33" To="34" Label="Source1" />
-                  <Edge From="35" To="36" Label="Source1" />
-                  <Edge From="37" To="36" Label="Source2" />
+                  <Edge From="35" To="34" Label="Source2" />
+                  <Edge From="36" To="37" Label="Source1" />
+                  <Edge From="37" To="34" Label="Source3" />
+                  <Edge From="34" To="38" Label="Source1" />
                   <Edge From="38" To="39" Label="Source1" />
-                  <Edge From="39" To="36" Label="Source3" />
-                  <Edge From="36" To="40" Label="Source1" />
-                  <Edge From="40" To="41" Label="Source1" />
-                  <Edge From="41" To="42" Label="Source1" />
-                  <Edge From="44" To="43" Label="Source1" />
-                  <Edge From="45" To="43" Label="Source2" />
-                  <Edge From="46" To="43" Label="Source3" />
-                  <Edge From="48" To="47" Label="Source1" />
-                  <Edge From="43" To="49" Label="Source1" />
-                  <Edge From="47" To="49" Label="Source2" />
-                  <Edge From="49" To="50" Label="Source1" />
-                  <Edge From="50" To="51" Label="Source1" />
-                  <Edge From="52" To="53" Label="Source1" />
+                  <Edge From="39" To="40" Label="Source1" />
+                  <Edge From="42" To="41" Label="Source1" />
+                  <Edge From="43" To="41" Label="Source2" />
+                  <Edge From="44" To="41" Label="Source3" />
+                  <Edge From="46" To="45" Label="Source1" />
+                  <Edge From="41" To="47" Label="Source1" />
+                  <Edge From="45" To="47" Label="Source2" />
+                  <Edge From="47" To="48" Label="Source1" />
+                  <Edge From="48" To="49" Label="Source1" />
+                  <Edge From="51" To="50" Label="Source1" />
+                  <Edge From="52" To="50" Label="Source2" />
+                  <Edge From="50" To="53" Label="Source1" />
                   <Edge From="53" To="54" Label="Source1" />
-                  <Edge From="56" To="55" Label="Source1" />
-                  <Edge From="57" To="55" Label="Source2" />
-                  <Edge From="55" To="58" Label="Source1" />
-                  <Edge From="58" To="59" Label="Source1" />
+                  <Edge From="55" To="56" Label="Source1" />
+                  <Edge From="56" To="57" Label="Source1" />
+                  <Edge From="57" To="58" Label="Source1" />
+                  <Edge From="59" To="60" Label="Source1" />
                   <Edge From="60" To="61" Label="Source1" />
                   <Edge From="61" To="62" Label="Source1" />
-                  <Edge From="62" To="63" Label="Source1" />
+                  <Edge From="63" To="64" Label="Source1" />
                   <Edge From="64" To="65" Label="Source1" />
                   <Edge From="65" To="66" Label="Source1" />
-                  <Edge From="66" To="67" Label="Source1" />
-                  <Edge From="68" To="69" Label="Source1" />
-                  <Edge From="69" To="70" Label="Source1" />
+                  <Edge From="67" To="68" Label="Source1" />
+                  <Edge From="69" To="68" Label="Source2" />
                   <Edge From="70" To="71" Label="Source1" />
+                  <Edge From="71" To="68" Label="Source3" />
+                  <Edge From="68" To="72" Label="Source1" />
                   <Edge From="72" To="73" Label="Source1" />
-                  <Edge From="74" To="73" Label="Source2" />
+                  <Edge From="73" To="74" Label="Source1" />
                   <Edge From="75" To="76" Label="Source1" />
-                  <Edge From="76" To="73" Label="Source3" />
-                  <Edge From="73" To="77" Label="Source1" />
-                  <Edge From="77" To="78" Label="Source1" />
+                  <Edge From="77" To="76" Label="Source2" />
                   <Edge From="78" To="79" Label="Source1" />
-                  <Edge From="80" To="81" Label="Source1" />
-                  <Edge From="82" To="81" Label="Source2" />
+                  <Edge From="79" To="76" Label="Source3" />
+                  <Edge From="76" To="80" Label="Source1" />
+                  <Edge From="81" To="80" Label="Source2" />
+                  <Edge From="80" To="82" Label="Source1" />
+                  <Edge From="82" To="83" Label="Source1" />
                   <Edge From="83" To="84" Label="Source1" />
-                  <Edge From="84" To="81" Label="Source3" />
-                  <Edge From="81" To="85" Label="Source1" />
-                  <Edge From="86" To="85" Label="Source2" />
-                  <Edge From="85" To="87" Label="Source1" />
+                  <Edge From="86" To="87" Label="Source1" />
                   <Edge From="87" To="88" Label="Source1" />
-                  <Edge From="88" To="89" Label="Source1" />
-                  <Edge From="91" To="92" Label="Source1" />
-                  <Edge From="92" To="93" Label="Source1" />
-                  <Edge From="3" To="94" Label="Source1" />
-                  <Edge From="90" To="91" Label="Source1" />
+                  <Edge From="3" To="89" Label="Source1" />
+                  <Edge From="85" To="86" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>

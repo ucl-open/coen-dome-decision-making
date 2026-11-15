@@ -122,7 +122,7 @@ The first runs on a dome found three faults that stopped or emptied every experi
 
 ## Audit round 1 (13 Nov 2026): not changed
 
-- `TrialNumber`, `TrialOutcome` and `StimulusOnsetTime` are published and read by nothing here: the plan's shared names, kept for any reader (the Declarations description says so).
+- `TrialNumber`, `TrialOutcome` and `StimulusOnsetTime` were published and read by nothing (no node, lib-open-rigs block or app-rig-control view): removed on 14 Nov 2026 (alignment audit); `Trial` and `TrialRow` carry the same values.
 - **Discrimination's interval** (measured from 18 of Gerion's sessions): his discrimination ran 1.5 s drink + max(ITI - 2, 0) (ITI uniform 1.5-2.5 s, stage 0 0) = 1.5-2.0 s from the outcome to the next stimulus after a correct choice, and the 4 s timeout + the same = 5.5-6.0 s after an incorrect choice or a miss. Pip, 13 Nov 2026, chose to match it: `itiMinSeconds` 1.5, `itiMaxSeconds` 2.0, `drinkSeconds` 1.5 (the interval includes the drink); stage 0 is 1.5 fixed (both set to 1.5 on the form, as the task file has no per-stage interval).
 
 ## 2026-11-13 Rebuilt on the shared dome blocks (plan v11, W2)
