@@ -150,8 +150,8 @@ public class ResponseRuleTests
     [TestMethod]
     public void ALickBeforeTheResponseWindowIsNotCounted()
     {
-        // openLoopSeconds 0.5: the window opens at 12.5 s. Licks in the interval, the lead and the open loop count for nothing.
-        var run = new Harness(Rules.Make(t => t.TrialStructure.OpenLoopSeconds = 0.5));
+        // responseDelaySeconds 0.5: the window opens at 12.5 s. Licks in the interval, the lead and the response delay count for nothing.
+        var run = new Harness(Rules.Make(t => t.TrialStructure.ResponseDelaySeconds = 0.5));
         foreach (var t in new[] { 11.0, 11.7, 12.2, 12.499 }) run.At(t, h => h.Lick(0));
         run.At(12.5, h => h.Lick(1));
         run.RunTo(13);
@@ -164,7 +164,7 @@ public class ResponseRuleTests
     public void NoResponseAtTheWindowsEnd()
     {
         // thresholdLicks 2, one lick: the window (0.5 s open loop, then 1.5 s) ends with no choice at 14 s.
-        var run = new Harness(Rules.Make(t => { t.TrialStructure.OpenLoopSeconds = 0.5; t.Response.ThresholdLicks = 2; }));
+        var run = new Harness(Rules.Make(t => { t.TrialStructure.ResponseDelaySeconds = 0.5; t.Response.ThresholdLicks = 2; }));
         run.At(13.0, h => h.Lick(0)).RunTo(13.999);
         Assert.AreEqual(0, run.Outcomes.Count);
         run.RunTo(18.5);

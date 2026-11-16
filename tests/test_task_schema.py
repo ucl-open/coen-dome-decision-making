@@ -288,9 +288,9 @@ def test_reward_size_says_the_calibration_plans_its_pulses():
 
 def test_the_stimulus_never_outlasts_the_response_window():
     from ucl_open_coen_dome_decision_making.task import TrialStructure
-    TrialStructure(stimulusSeconds=1.5, openLoopSeconds=0, closedLoopSeconds=1.5)
+    TrialStructure(stimulusSeconds=1.5, responseDelaySeconds=0, responseWindowSeconds=1.5)
     with pytest.raises(ValidationError, match="stimulus_seconds"):
-        TrialStructure(stimulusSeconds=2.0, openLoopSeconds=0, closedLoopSeconds=1.5)
+        TrialStructure(stimulusSeconds=2.0, responseDelaySeconds=0, responseWindowSeconds=1.5)
 
 
 def test_weights_and_repeat_rules_are_keyed_by_trial_type_name():

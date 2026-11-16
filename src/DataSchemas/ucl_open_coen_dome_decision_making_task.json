@@ -116,7 +116,7 @@
         },
         "laserDurationSeconds": {
           "default": 1.5,
-          "description": "How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
+          "description": "How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most responseDelaySeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
           "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
           "type": "number"
@@ -197,11 +197,11 @@
       "type": "object"
     },
     "RepeatRule": {
-      "description": "When a trial type is repeated after a failed trial.",
+      "description": "When a trial type is repeated: never, onFailure (after Incorrect or NoResponse) or onNoResponse (after NoResponse only).",
       "enum": [
         "never",
         "onFailure",
-        "onTimeout"
+        "onNoResponse"
       ],
       "title": "RepeatRule",
       "type": "string"
@@ -223,8 +223,8 @@
             "visual": "onFailure",
             "auditory": "onFailure",
             "audiovisualCoherent": "onFailure",
-            "audiovisualConflict": "onTimeout",
-            "neutral": "onTimeout"
+            "audiovisualConflict": "onNoResponse",
+            "neutral": "onNoResponse"
           },
           "description": "Repeat rule per trial type",
           "title": "RulesPerType"
@@ -355,7 +355,7 @@
           "title": "TrialWeights"
         },
         "autoRewardProbability": {
-          "description": "Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and still counts as a timeout for repeats",
+          "description": "Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats",
           "maximum": 1,
           "minimum": 0,
           "title": "AutoRewardProbability",
@@ -432,23 +432,23 @@
           "title": "DrinkSeconds",
           "type": "number"
         },
-        "openLoopSeconds": {
+        "responseDelaySeconds": {
           "default": 0.0,
-          "description": "From stimulus onset to the response window, in seconds",
+          "description": "The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted",
           "minimum": 0,
-          "title": "OpenLoopSeconds",
+          "title": "ResponseDelaySeconds",
           "type": "number"
         },
-        "closedLoopSeconds": {
+        "responseWindowSeconds": {
           "default": 1.5,
-          "description": "The response window, in seconds",
+          "description": "The response window: how long it stays open, from responseDelaySeconds after stimulus onset, in seconds; with no choice by its end the trial is NoResponse",
           "exclusiveMinimum": 0,
-          "title": "ClosedLoopSeconds",
+          "title": "ResponseWindowSeconds",
           "type": "number"
         },
         "stimulusSeconds": {
           "default": 1.5,
-          "description": "How long the grating shows, in seconds from onset; at most openLoopSeconds plus closedLoopSeconds, so it never outlasts the response window",
+          "description": "How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window",
           "exclusiveMinimum": 0,
           "title": "StimulusSeconds",
           "type": "number"
@@ -487,13 +487,13 @@
         },
         "audiovisualConflict": {
           "$ref": "#/$defs/RepeatRule",
-          "default": "onTimeout",
+          "default": "onNoResponse",
           "description": "Grating and sound on opposite sides",
           "title": "AudiovisualConflict"
         },
         "neutral": {
           "$ref": "#/$defs/RepeatRule",
-          "default": "onTimeout",
+          "default": "onNoResponse",
           "description": "Grey screen",
           "title": "Neutral"
         }

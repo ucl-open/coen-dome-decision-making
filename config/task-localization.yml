@@ -9,9 +9,9 @@ taskParameters:
     itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included
     itiMaxSeconds: 4.4            # s
     drinkSeconds: 2.0             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
-    openLoopSeconds: 0.0          # s
-    closedLoopSeconds: 1.5        # s, the response window
-    stimulusSeconds: 1.5          # s, the grating; at most openLoopSeconds + closedLoopSeconds
+    responseDelaySeconds: 0.0     # s, from stimulus onset to the response window; licks before it do not count
+    responseWindowSeconds: 1.5    # s, the response window: NoResponse at its end
+    stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
     azimuthMinDeg: -60        # deg, grating azimuth drawn uniformly in [min, max]
@@ -45,7 +45,7 @@ taskParameters:
     largeRewardProbability: 0.0
   repeats:
     maxRepeats: 5
-    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onTimeout, neutral: onTimeout }
+    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onNoResponse, neutral: onNoResponse }
   optogenetics:
     useZapit: false
     zapitConfigPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml

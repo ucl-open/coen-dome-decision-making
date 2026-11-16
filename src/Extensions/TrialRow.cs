@@ -40,8 +40,8 @@ public class TrialRow
         return choice == "NoResponse" ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
     }
 
-    // The timeout follows an incorrect choice or a miss that was not auto-rewarded.
-    public static bool TimedOut(string outcome, Trial trial)
+    // Penalised (the penalty sound and timeout): an incorrect choice or a miss that was not auto-rewarded.
+    public static bool Penalised(string outcome, Trial trial)
     {
         return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward);
     }
@@ -51,7 +51,7 @@ public class TrialRow
     public static TrialRow Build(string choice, Trial trial, TrialTimes times, double timeoutSeconds, bool penaltySound)
     {
         var outcome = Outcome(choice, trial);
-        var timedOut = TimedOut(outcome, trial);
+        var penalised = Penalised(outcome, trial);
         return new TrialRow
         {
             trialNumber = trial.trialNumber,
@@ -64,8 +64,8 @@ public class TrialRow
             stimulusOnsetTime = times.StimulusOnsetTime,
             outcomeTime = times.Now,
             rewardSizeUl = trial.rewardSizeUl,
-            penaltySound = timedOut && penaltySound,  // the sound comes with every timeout, as in coen-dome-navigation (Pip, 14 Nov 2026)
-            penaltyTimeoutSeconds = timedOut ? timeoutSeconds : 0.0,
+            penaltySound = penalised && penaltySound,  // the sound comes with every timeout, as in coen-dome-navigation (Pip, 14 Nov 2026)
+            penaltyTimeoutSeconds = penalised ? timeoutSeconds : 0.0,
             laserCondition = trial.laserCondition,
             laserPowerMw = times.LaserFired ? trial.laserPowerMw : 0,  // answered before its trigger: no laser (Pip, 13 Nov 2026)
             laserTriggerTime = times.LaserTriggerTime,

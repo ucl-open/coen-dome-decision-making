@@ -160,8 +160,8 @@ public class TrialDraw
         finite("trialStructure.itiMinSeconds", structure.ItiMinSeconds);
         finite("trialStructure.itiMaxSeconds", structure.ItiMaxSeconds);
         finite("trialStructure.drinkSeconds", structure.DrinkSeconds);
-        finite("trialStructure.openLoopSeconds", structure.OpenLoopSeconds);
-        positive("trialStructure.closedLoopSeconds", structure.ClosedLoopSeconds);
+        finite("trialStructure.responseDelaySeconds", structure.ResponseDelaySeconds);
+        positive("trialStructure.responseWindowSeconds", structure.ResponseWindowSeconds);
         finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
@@ -170,21 +170,21 @@ public class TrialDraw
         foreach (var p in QuietWait.SettingsProblems(stage.LickQuietSeconds, stage.WheelQuietSeconds, stage.WheelQuietCm)) problems.Add("stage '" + stage.Label + "': " + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.UseZapit) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
-        if (structure.StimulusSeconds > structure.OpenLoopSeconds + structure.ClosedLoopSeconds) problems.Add("trialStructure.stimulusSeconds is longer than openLoopSeconds plus closedLoopSeconds");
+        if (structure.StimulusSeconds > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds) problems.Add("trialStructure.stimulusSeconds is longer than responseDelaySeconds plus responseWindowSeconds");
         if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
-        if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts go out drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
+        if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts are drawn back drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
         var leadProblem = ZapitTrial.LeadProblem(lead, structure.ItiMinSeconds);
         if (leadProblem != null) problems.Add(leadProblem);
-        if (-lead > structure.OpenLoopSeconds + structure.ClosedLoopSeconds + 1e-9)
+        if (-lead > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (openLoopSeconds + closedLoopSeconds, {1} s)", lead, structure.OpenLoopSeconds + structure.ClosedLoopSeconds));
+            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (responseDelaySeconds + responseWindowSeconds, {1} s)", lead, structure.ResponseDelaySeconds + structure.ResponseWindowSeconds));
         }
         var longest = LongestLaserSeconds(task);
         if (opto.UseZapit && opto.LaserDurationSeconds > longest + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (openLoopSeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
+            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (responseDelaySeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
         }
         // DeliverReward refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var multiplier = task.Reward.LargeRewardMultiplier;
@@ -195,14 +195,14 @@ public class TrialDraw
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
     }
 
-    /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least openLoopSeconds
+    /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least responseDelaySeconds
     /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, the longest ramp-down a
     /// conditions file may have (Zapit refuses the next StartStimulus until it has played) and Zapit's reply margin must fit
     /// before the next trigger.</summary>
     public static double LongestLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         var s = task.TrialStructure;
-        return s.OpenLoopSeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
+        return s.ResponseDelaySeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
     }
 
     public static int[] Weights(TrainingStage stage)
@@ -268,7 +268,7 @@ public class TrialDraw
         switch (Rule(task.Repeats, type))
         {
             case RepeatRule.OnFailure: return outcome != "Correct";
-            case RepeatRule.OnTimeout: return outcome == "NoResponse";
+            case RepeatRule.OnNoResponse: return outcome == "NoResponse";
             default: return false;
         }
     }
@@ -452,7 +452,7 @@ public class TrialOutcome : ITrialOutcome
 /// <summary>
 /// Decision-making's part of each trial, which lib-open-rigs' TrialLoop runs (the interval, the quiet waits, the lead,
 /// the laser, the response window and the timeout are the loop's): the draw (TrialDraw), each trial's timing from the
-/// task file, and the response rule. In the response window, openLoopSeconds after the stimulus for closedLoopSeconds,
+/// task file, and the response rule. In the response window, responseDelaySeconds after the stimulus for responseWindowSeconds,
 /// each lick adds 1 (left) or -1 (right) to the decision variable, which moves the grating degreesPerLick per lick from
 /// its drawn azimuth; the choice is Left once it reaches thresholdLicks, Right once it reaches -thresholdLicks, else
 /// NoResponse at the window's end. A lick before the window is not counted. The answer is the trial's target: on
@@ -513,8 +513,8 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             WheelQuietSeconds = stage.WheelQuietSeconds,
             WheelQuietCm = stage.WheelQuietCm,
             Laser = trial.laserCondition > 0,                                    // every trial of an optogenetics experiment, laser on or off
-            ResponseDelaySeconds = structure.OpenLoopSeconds,
-            ResponseSeconds = structure.ClosedLoopSeconds,
+            ResponseDelaySeconds = structure.ResponseDelaySeconds,
+            ResponseSeconds = structure.ResponseWindowSeconds,
             Cues = cues,
         };
     }
@@ -580,7 +580,7 @@ public class RunTrials
 }
 
 [Combinator]
-[Description("Where the spouts go once the stimulus is on: both in on a both-spouts trial, else the target's alone.")]
+[Description("Where the spouts move once the stimulus is on: both in on a both-spouts trial, else the target's alone.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SpoutsIn
 {

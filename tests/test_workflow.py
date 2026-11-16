@@ -340,7 +340,7 @@ def test_the_task_logs_are_the_shared_include():
 def test_each_trial_s_sound_carries_its_sync_copy():
     # SelectAuditoryStimulus gives the mixer's buffer at the task's level, sync copy and all (OpenRigs.Audio SpeakerSet.Layout),
     # straight to the mixer's StimulusSounds.
-    nodes, edges = _scope(_named("PlayStim"))
+    nodes, edges = _scope(_named("PlayAuditoryStimulus"))
     select = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:SelectAuditoryStimulus")
     assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == select] == ["StimulusSounds"]
     assert "Broadcast" not in TEXT and "ChannelActivation" not in TEXT and "PinkNoiseSync" not in TEXT

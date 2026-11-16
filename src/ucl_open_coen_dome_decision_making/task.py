@@ -22,10 +22,10 @@ class TrialStructure(TaskBlock):
     )
     iti_max_seconds: Double = Field(default=4.4, ge=0, description="Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSeconds)")
     drink_seconds: Double = Field(default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval")
-    open_loop_seconds: Double = Field(default=0.0, ge=0, description="From stimulus onset to the response window, in seconds")
-    closed_loop_seconds: Double = Field(default=1.5, gt=0, description="The response window, in seconds")
+    response_delay_seconds: Double = Field(default=0.0, ge=0, description="The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted")
+    response_window_seconds: Double = Field(default=1.5, gt=0, description="The response window: how long it stays open, from responseDelaySeconds after stimulus onset, in seconds; with no choice by its end the trial is NoResponse")
     stimulus_seconds: Double = Field(
-        default=1.5, gt=0, description="How long the grating shows, in seconds from onset; at most openLoopSeconds plus closedLoopSeconds, so it never outlasts the response window"
+        default=1.5, gt=0, description="How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window"
     )
     stimulus_to_spouts_in_seconds: Double = Field(default=0.5, ge=0, description="From stimulus onset to moving the response spouts in, in seconds")
 
@@ -34,9 +34,9 @@ class TrialStructure(TaskBlock):
         if self.iti_max_seconds < self.iti_min_seconds:
             raise ValueError("iti_max_seconds must be >= iti_min_seconds")
         if self.iti_min_seconds < self.drink_seconds:
-            raise ValueError("iti_min_seconds must be >= drink_seconds: the spouts go out drink_seconds into the interval, before the stimulus")
-        if self.stimulus_seconds > self.open_loop_seconds + self.closed_loop_seconds:
-            raise ValueError("stimulus_seconds must not exceed open_loop_seconds + closed_loop_seconds")
+            raise ValueError("iti_min_seconds must be >= drink_seconds: the spouts are drawn back drink_seconds into the interval, before the stimulus")
+        if self.stimulus_seconds > self.response_delay_seconds + self.response_window_seconds:
+            raise ValueError("stimulus_seconds must not exceed response_delay_seconds + response_window_seconds")
         return self
 
 
@@ -131,11 +131,11 @@ class Modality(StrEnum):
 
 
 class RepeatRule(StrEnum):
-    """When a trial type is repeated after a failed trial."""
+    """When a trial type is repeated: never, onFailure (after Incorrect or NoResponse) or onNoResponse (after NoResponse only)."""
 
     NEVER = "never"
     ON_FAILURE = "onFailure"
-    ON_TIMEOUT = "onTimeout"
+    ON_NO_RESPONSE = "onNoResponse"
 
 
 class TrialTypeWeights(TaskBlock):
@@ -160,8 +160,8 @@ class TrialTypeRules(TaskBlock):
     visual: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="The grating alone")
     auditory: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="The sound alone")
     audiovisual_coherent: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="Grating and sound on the same side")
-    audiovisual_conflict: RepeatRule = Field(default=RepeatRule.ON_TIMEOUT, description="Grating and sound on opposite sides")
-    neutral: RepeatRule = Field(default=RepeatRule.ON_TIMEOUT, description="Grey screen")
+    audiovisual_conflict: RepeatRule = Field(default=RepeatRule.ON_NO_RESPONSE, description="Grating and sound on opposite sides")
+    neutral: RepeatRule = Field(default=RepeatRule.ON_NO_RESPONSE, description="Grey screen")
 
 
 class RepeatSettings(TaskBlock):
@@ -178,7 +178,7 @@ class OptogeneticsSettings(Optogenetics):
     laser_duration_seconds: Double = Field(
         default=1.5,
         gt=0,
-        description="How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
+        description="How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most responseDelaySeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
     )
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
 
@@ -190,7 +190,7 @@ class TrainingStage(QuietWait):
     trial_weights: TrialTypeWeights = Field(
         description="Relative draw weight per trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)"
     )
-    auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and still counts as a timeout for repeats")
+    auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats")
     both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
     reward_size_ul: Double = Field(
         ge=0, le=MAX_REWARD_UL, description=f"Reward size, in microlitres; the valve's calibration plans the pulses. At most {MAX_REWARD_UL}, the most one reward may ask for, with largeRewardMultiplier applied"
@@ -237,17 +237,17 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         opto, s = self.optogenetics, self.trial_structure
         opto.check_lead_fits(s.iti_min_seconds)
         lead = opto.laser_to_stimulus_seconds
-        if -lead > s.open_loop_seconds + s.closed_loop_seconds + 1e-9:
+        if -lead > s.response_delay_seconds + s.response_window_seconds + 1e-9:
             raise ValueError(
                 f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "
-                f"(open_loop_seconds + closed_loop_seconds, {s.open_loop_seconds + s.closed_loop_seconds:g} s)"
+                f"(response_delay_seconds + response_window_seconds, {s.response_delay_seconds + s.response_window_seconds:g} s)"
             )
-        # Trigger to the next trigger is at least open_loop + iti_min (a response at once, no timeout, a quiet mouse); the
+        # Trigger to the next trigger is at least response_delay + iti_min (a response at once, no timeout, a quiet mouse); the
         # next arm waits for this laser and its ramp-down, and its reply needs the margin before that next trigger.
-        longest = s.open_loop_seconds + s.iti_min_seconds - ZAPIT_MAX_RAMP_DOWN_SECONDS - ZAPIT_REPLY_MARGIN_SECONDS
+        longest = s.response_delay_seconds + s.iti_min_seconds - ZAPIT_MAX_RAMP_DOWN_SECONDS - ZAPIT_REPLY_MARGIN_SECONDS
         if opto.use_zapit and opto.laser_duration_seconds > longest + 1e-9:
             raise ValueError(
-                f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be at most {longest:g} s (open_loop_seconds + "
+                f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be at most {longest:g} s (response_delay_seconds + "
                 f"iti_min_seconds - {ZAPIT_MAX_RAMP_DOWN_SECONDS} s ramp-down - {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin), so Zapit can be armed for the next trial in time"
             )
         return self

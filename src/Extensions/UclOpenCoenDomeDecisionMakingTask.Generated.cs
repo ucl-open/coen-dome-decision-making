@@ -504,11 +504,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger
+        /// How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most responseDelaySeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserDurationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserDurationSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most openLoopSeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger")]
+        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most responseDelaySeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger")]
         public double LaserDurationSeconds
         {
             get
@@ -771,7 +771,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// When a trial type is repeated after a failed trial.
+    /// When a trial type is repeated: never, onFailure (after Incorrect or NoResponse) or onNoResponse (after NoResponse only).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
@@ -786,9 +786,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="onFailure")]
         OnFailure = 1,
     
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="onTimeout")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="onTimeout")]
-        OnTimeout = 2,
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="onNoResponse")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="onNoResponse")]
+        OnNoResponse = 2,
     }
 
 
@@ -1366,12 +1366,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and still counts as a timeout for repeats
+        /// Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("autoRewardProbability", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="autoRewardProbability")]
         [System.ComponentModel.DescriptionAttribute("Probability that a trial is an auto-reward trial: a miss on it is rewarded at the" +
-            " target spout, and still counts as a timeout for repeats")]
+            " target spout, and is still a NoResponse for repeats")]
         public double AutoRewardProbability
         {
             get
@@ -1535,9 +1535,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _drinkSeconds;
     
-        private double _openLoopSeconds;
+        private double _responseDelaySeconds;
     
-        private double _closedLoopSeconds;
+        private double _responseWindowSeconds;
     
         private double _stimulusSeconds;
     
@@ -1548,8 +1548,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _itiMinSeconds = 3.4D;
             _itiMaxSeconds = 4.4D;
             _drinkSeconds = 2D;
-            _openLoopSeconds = 0D;
-            _closedLoopSeconds = 1.5D;
+            _responseDelaySeconds = 0D;
+            _responseWindowSeconds = 1.5D;
             _stimulusSeconds = 1.5D;
             _stimulusToSpoutsInSeconds = 0.5D;
         }
@@ -1559,8 +1559,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _itiMinSeconds = other._itiMinSeconds;
             _itiMaxSeconds = other._itiMaxSeconds;
             _drinkSeconds = other._drinkSeconds;
-            _openLoopSeconds = other._openLoopSeconds;
-            _closedLoopSeconds = other._closedLoopSeconds;
+            _responseDelaySeconds = other._responseDelaySeconds;
+            _responseWindowSeconds = other._responseWindowSeconds;
             _stimulusSeconds = other._stimulusSeconds;
             _stimulusToSpoutsInSeconds = other._stimulusToSpoutsInSeconds;
         }
@@ -1622,48 +1622,50 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// From stimulus onset to the response window, in seconds
+        /// The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("openLoopSeconds")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="openLoopSeconds")]
-        [System.ComponentModel.DescriptionAttribute("From stimulus onset to the response window, in seconds")]
-        public double OpenLoopSeconds
+        [Newtonsoft.Json.JsonPropertyAttribute("responseDelaySeconds")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="responseDelaySeconds")]
+        [System.ComponentModel.DescriptionAttribute("The response delay: from stimulus onset to the response window opening, in second" +
+            "s; licks before it are not counted")]
+        public double ResponseDelaySeconds
         {
             get
             {
-                return _openLoopSeconds;
+                return _responseDelaySeconds;
             }
             set
             {
-                _openLoopSeconds = value;
+                _responseDelaySeconds = value;
             }
         }
     
         /// <summary>
-        /// The response window, in seconds
+        /// The response window: how long it stays open, from responseDelaySeconds after stimulus onset, in seconds; with no choice by its end the trial is NoResponse
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("closedLoopSeconds")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="closedLoopSeconds")]
-        [System.ComponentModel.DescriptionAttribute("The response window, in seconds")]
-        public double ClosedLoopSeconds
+        [Newtonsoft.Json.JsonPropertyAttribute("responseWindowSeconds")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="responseWindowSeconds")]
+        [System.ComponentModel.DescriptionAttribute("The response window: how long it stays open, from responseDelaySeconds after stim" +
+            "ulus onset, in seconds; with no choice by its end the trial is NoResponse")]
+        public double ResponseWindowSeconds
         {
             get
             {
-                return _closedLoopSeconds;
+                return _responseWindowSeconds;
             }
             set
             {
-                _closedLoopSeconds = value;
+                _responseWindowSeconds = value;
             }
         }
     
         /// <summary>
-        /// How long the grating shows, in seconds from onset; at most openLoopSeconds plus closedLoopSeconds, so it never outlasts the response window
+        /// How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("stimulusSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="stimulusSeconds")]
-        [System.ComponentModel.DescriptionAttribute("How long the grating shows, in seconds from onset; at most openLoopSeconds plus c" +
-            "losedLoopSeconds, so it never outlasts the response window")]
+        [System.ComponentModel.DescriptionAttribute("How long the grating shows, in seconds from onset; at most responseDelaySeconds p" +
+            "lus responseWindowSeconds, so it never outlasts the response window")]
         public double StimulusSeconds
         {
             get
@@ -1709,8 +1711,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("ItiMinSeconds = " + _itiMinSeconds + ", ");
             stringBuilder.Append("ItiMaxSeconds = " + _itiMaxSeconds + ", ");
             stringBuilder.Append("DrinkSeconds = " + _drinkSeconds + ", ");
-            stringBuilder.Append("OpenLoopSeconds = " + _openLoopSeconds + ", ");
-            stringBuilder.Append("ClosedLoopSeconds = " + _closedLoopSeconds + ", ");
+            stringBuilder.Append("ResponseDelaySeconds = " + _responseDelaySeconds + ", ");
+            stringBuilder.Append("ResponseWindowSeconds = " + _responseWindowSeconds + ", ");
             stringBuilder.Append("StimulusSeconds = " + _stimulusSeconds + ", ");
             stringBuilder.Append("StimulusToSpoutsInSeconds = " + _stimulusToSpoutsInSeconds);
             return true;
@@ -1756,8 +1758,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _visual = RepeatRule.OnFailure;
             _auditory = RepeatRule.OnFailure;
             _audiovisualCoherent = RepeatRule.OnFailure;
-            _audiovisualConflict = RepeatRule.OnTimeout;
-            _neutral = RepeatRule.OnTimeout;
+            _audiovisualConflict = RepeatRule.OnNoResponse;
+            _neutral = RepeatRule.OnNoResponse;
         }
     
         protected TrialTypeRules(TrialTypeRules other)

@@ -170,6 +170,18 @@ public class TrialDrawTests
     }
 
     [TestMethod]
+    public void OnNoResponseRepeatsAfterANoResponseAlone()
+    {
+        // onNoResponse names its outcome (16 Nov 2026): a NoResponse repeats the trial, an Incorrect never does.
+        var task = Fixture.Task("task-localization.yml");
+        task.RngSeed = 7;
+        var r = task.Repeats.RulesPerType;
+        r.Visual = r.Auditory = r.AudiovisualCoherent = r.AudiovisualConflict = r.Neutral = RepeatRule.OnNoResponse;
+        Assert.IsTrue(Fixture.Draw(task, 4, 100, t => "Incorrect").All(t => t.repeatCount == 0));
+        Assert.IsTrue(Fixture.Draw(task, 4, 100, t => "NoResponse").Any(t => t.repeatCount > 0));
+    }
+
+    [TestMethod]
     public void EachTrialDrawsItsOwnInterval()
     {
         var task = Fixture.Task("task-discrimination.yml");

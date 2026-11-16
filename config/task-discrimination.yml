@@ -13,9 +13,9 @@ taskParameters:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
     itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5; Pip, 13 Nov 2026). Stage 0: set both to 1.5 on the form
     drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
-    openLoopSeconds: 0.0          # s
-    closedLoopSeconds: 1.5        # s, the response window
-    stimulusSeconds: 1.5          # s, the grating; at most openLoopSeconds + closedLoopSeconds
+    responseDelaySeconds: 0.0     # s, from stimulus onset to the response window; licks before it do not count
+    responseWindowSeconds: 1.5    # s, the response window: NoResponse at its end
+    stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
     azimuthMinDeg: -60        # deg, grating azimuth drawn uniformly in [min, max]
@@ -49,13 +49,13 @@ taskParameters:
     largeRewardProbability: 0.0
   repeats:
     maxRepeats: 5
-    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onTimeout, neutral: onTimeout }
+    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onNoResponse, neutral: onNoResponse }
   optogenetics:
     useZapit: false
     zapitConfigPath: ""
     laserPowerMw: null             # mW on laser-on trials, every condition; required with optogenetics on
     laserOnProbability: 0.5
-    laserDurationSeconds: 2.5      # s; with optogenetics on at most openLoopSeconds + itiMinSeconds - 0.7 (0.8 here), so ticking useZapit is refused until this is shortened
+    laserDurationSeconds: 2.5      # s; with optogenetics on at most responseDelaySeconds + itiMinSeconds - 0.7 (0.8 here), so ticking useZapit is refused until this is shortened
     laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
