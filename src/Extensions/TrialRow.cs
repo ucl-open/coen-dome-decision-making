@@ -44,10 +44,10 @@ public class TrialRow
         switch (trial.target)
         {
             case Answer.NoReward:
-            case Answer.Random: return Answer.ProbeOutcome;
-            case Answer.Go: return choice == Choice.Lick ? "Correct" : "NoResponse";
-            case Answer.NoGo: return choice == Choice.Lick ? "Incorrect" : "Correct";
-            default: return choice == Choice.NoResponse ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
+            case Answer.Random: return TrialOutcomes.Probe;
+            case Answer.Go: return choice == Choice.Lick ? TrialOutcomes.Correct : TrialOutcomes.NoResponse;
+            case Answer.NoGo: return choice == Choice.Lick ? TrialOutcomes.Incorrect : TrialOutcomes.Correct;
+            default: return choice == Choice.NoResponse ? TrialOutcomes.NoResponse : choice == trial.target ? TrialOutcomes.Correct : TrialOutcomes.Incorrect;
         }
     }
 
@@ -58,7 +58,7 @@ public class TrialRow
     {
         if (choice == Choice.NoResponse) return MissPenalised(trial);
         if (trial.target == Answer.Random) return !trial.probeHeads;
-        return outcome == "Incorrect";
+        return outcome == TrialOutcomes.Incorrect;
     }
 
     // Rewarded (the valve, TrialOutcome.Of): a correct choice but a withheld NoGo, an auto-rewarded miss, and a choice on a
@@ -66,7 +66,7 @@ public class TrialRow
     public static bool Rewarded(string outcome, string choice, Trial trial)
     {
         if (trial.target == Answer.Random) return choice != Choice.NoResponse && trial.probeHeads;
-        return (outcome == "Correct" && trial.target != Answer.NoGo) || (trial.autoReward && choice == Choice.NoResponse);
+        return (outcome == TrialOutcomes.Correct && trial.target != Answer.NoGo) || (trial.autoReward && choice == Choice.NoResponse);
     }
 
     // A miss's penalty, on every trial that can be penalised: none when auto-rewarded or on a Go trial; never on

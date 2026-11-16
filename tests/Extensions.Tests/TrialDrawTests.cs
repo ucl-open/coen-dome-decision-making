@@ -442,7 +442,7 @@ public class TrialDrawTests
     [TestMethod]
     public void ALargeRewardOverTheCapIsRefusedAtGo()
     {
-        // DeliverReward refuses a reward over its MaxRewardUl (lib's MAX_REWARD_UL) mid-session; Go refuses it first.
+        // A RewardValve piece refuses a reward over its MaxRewardUl (lib's MAX_REWARD_UL) mid-session; Go refuses it first.
         var task = Fixture.Task("task-localization.yml");
         task.Reward.LargeRewardProbability = 0.2;
         task.Reward.LargeRewardMultiplier = 3;

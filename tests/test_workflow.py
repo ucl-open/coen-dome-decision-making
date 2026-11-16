@@ -215,7 +215,7 @@ WORKFLOW = lint.Workflow(ROOT)
 
 
 def test_no_fixed_width_pulse_reaches_a_reward_valve():
-    # Every reward is DeliverReward's calibrated pulse; checked against the lab's rig template's valve lines.
+    # Every reward is its RewardValve piece's calibrated pulse; checked against the lab's rig template's valve lines.
     rig = LabRig.model_validate(yaml.safe_load((Path(open_rigs.rigs.__file__).parent / "rig-template.yml").read_text(encoding="utf-8").replace("CHANGE-ME", "X")))
     assert rig.reward_valve_lines() and lint.fixed_width_pulses_on_reward_valves(WORKFLOW, rig.reward_valve_lines()) == []
 
@@ -227,7 +227,7 @@ def test_every_harp_delay_runs_on_the_timestamp_clock():
 
 def test_no_async_event_sender_completes_async_events():
     senders, finite = lint.finite_async_event_senders(WORKFLOW)
-    assert senders == 0 and finite == []  # LogRngSeed sends RngSeed, LogControlEvents Control and DeliverReward RewardDelivered
+    assert senders == 0 and finite == []  # LogRngSeed sends RngSeed, LogControlEvents Control and Rewards RewardDelivered
 
 
 def test_no_trial_graph_closes_a_shared_subject():
@@ -291,8 +291,8 @@ def test_the_readme_lists_every_open_rigs_block():
 
 
 def test_every_command_is_declared_once_by_the_task_or_its_piece():
-    # The pieces declare their own (LickSpoutStage's spout commands and SpoutStepSize, ManualRewards' RewardLeft
-    # and RewardRight, 16 Nov 2026): a task's copy stops ControlServer at Start.
+    # The pieces declare their own (LickSpoutStage's spout commands and SpoutStepSize, each RewardValve's
+    # <Name>.Reward, 16 Nov 2026): a task's copy stops ControlServer at Start.
     assert lint.undeclared_commands(WORKFLOW) == [] and lint.declared_twice(WORKFLOW) == []
 
 

@@ -19,7 +19,7 @@ class Harness
 
     public Harness(TrialRules rules)
     {
-        Loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(rules);
+        Loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(rules, true);
         Loop.OnWheel(0);
         Events.AddRange(Loop.OnClock(Now));
     }
@@ -239,7 +239,7 @@ public class ResponseRuleTests
                 var t = probes[i];
                 var choice = i % 2 == 0 ? Choice.Left : Choice.Right;
                 var o = TrialOutcome.Of(TrialRow.Build(choice, t, times, 4, true), t);
-                Assert.AreEqual(Answer.ProbeOutcome, o.Row.Value.outcome);
+                Assert.AreEqual(TrialOutcomes.Probe, o.Row.Value.outcome);
                 Assert.AreNotEqual(o.Rewarded, o.PenaltySound, "rewarded or penalised, never both or neither");
                 Assert.IsTrue(o.Row.Value.rewarded == o.Rewarded && o.Row.Value.penalised == o.PenaltySound, "the row says what the valve and the penalty did");
                 Assert.IsTrue(t.rewardOfferedUl > 0 && o.Row.Value.rewardOfferedUl == t.rewardOfferedUl, "the offer, heads or tails");
@@ -258,7 +258,7 @@ public class ResponseRuleTests
                 var miss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, t, times, 4, true), t);
                 var scored = all.First(s => s.target != Answer.Random && !s.autoReward);
                 var scoredMiss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, scored, times, 4, true), scored);
-                Assert.IsTrue(miss.Row.Value.outcome == Answer.ProbeOutcome && !miss.Rewarded && !miss.Row.Value.rewarded && miss.Row.Value.penalised, "no choice, nothing paid");
+                Assert.IsTrue(miss.Row.Value.outcome == TrialOutcomes.Probe && !miss.Rewarded && !miss.Row.Value.rewarded && miss.Row.Value.penalised, "no choice, nothing paid");
                 Assert.AreEqual(t.rewardOfferedUl, miss.Row.Value.rewardOfferedUl, "the offer kept on a miss");
                 Assert.IsTrue(miss.PenaltySound == scoredMiss.PenaltySound && miss.PenaltyTimeoutSeconds == scoredMiss.PenaltyTimeoutSeconds && scoredMiss.PenaltySound, file);
             }
@@ -295,7 +295,7 @@ public class ResponseRuleTests
         foreach (var choice in new[] { Choice.Lick, "NoResponse" })
         {
             var probe = score(Answer.NoReward, choice);
-            Assert.IsTrue(probe.Row.Value.outcome == Answer.ProbeOutcome && !probe.Rewarded && probe.PenaltyTimeoutSeconds == 0 && !probe.PenaltySound, choice);
+            Assert.IsTrue(probe.Row.Value.outcome == TrialOutcomes.Probe && !probe.Rewarded && probe.PenaltyTimeoutSeconds == 0 && !probe.PenaltySound, choice);
             Assert.IsTrue(!probe.Row.Value.rewarded && !probe.Row.Value.penalised && probe.Row.Value.rewardOfferedUl == 0, choice);
         }
     }
@@ -310,7 +310,7 @@ public class ResponseRuleTests
         Assert.AreEqual(0, run.Outcomes.Count, "a right lick is not counted");
         run.At(12.4, h => h.Lick(0)).RunTo(12.5);
         Assert.AreEqual(Choice.Lick, run.Row(0).choice);
-        Assert.AreEqual(trial.target == Answer.Go ? "Correct" : trial.target == Answer.NoGo ? "Incorrect" : Answer.ProbeOutcome, run.Row(0).outcome);
+        Assert.AreEqual(trial.target == Answer.Go ? "Correct" : trial.target == Answer.NoGo ? "Incorrect" : TrialOutcomes.Probe, run.Row(0).outcome);
     }
 }
 
@@ -628,7 +628,7 @@ public class ConsequenceTests
             Assert.IsTrue(!miss.Row.Value.rewarded && miss.Row.Value.penalised && miss.Reward == null && miss.PenaltyTimeoutSeconds == 4);
         }
         foreach (var o in new[] { heads, tails, score(Choice.NoResponse, true) })
-            Assert.IsTrue(o.Row.Value.outcome == Answer.ProbeOutcome && o.Row.Value.rewardOfferedUl == 3 && o.Row.Value.target == Answer.Random);
+            Assert.IsTrue(o.Row.Value.outcome == TrialOutcomes.Probe && o.Row.Value.rewardOfferedUl == 3 && o.Row.Value.target == Answer.Random);
     }
 
     [TestMethod]

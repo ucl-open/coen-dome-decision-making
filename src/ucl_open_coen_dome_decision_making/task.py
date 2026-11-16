@@ -343,7 +343,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
 
     @model_validator(mode="after")
     def _large_reward_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # DeliverReward refuses a reward over MaxRewardUl when it plans it, mid-session; refuse it here instead.
+        # A RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session; refuse it here instead.
         multiplier = self.reward.large_reward_multiplier
         if self.reward.large_reward_probability > 0 and multiplier > 1:
             for index, stage in enumerate(self.training_stages):

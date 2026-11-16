@@ -69,8 +69,6 @@ public static class Answer
     public const string NoGo = "NoGo";
     public const string NoReward = "NoReward";
     public const string Random = "Random";
-    /// <summary>The outcome of a NoReward or Random trial, whatever the choice: left out of performance.</summary>
-    public const string ProbeOutcome = "Probe";
 }
 
 /// <summary>What the mouse chose (the choice column), and in discriminationLeftRight the target's two sides: Left or Right, in
@@ -375,11 +373,11 @@ public class TrialDraw
 
     bool ShouldRepeat(string outcome)
     {
-        if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == Answer.ProbeOutcome) return false;
+        if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == TrialOutcomes.Probe) return false;
         switch (Rule(task, last.trialType))
         {
-            case RepeatRule.OnFailure: return outcome != "Correct";
-            case RepeatRule.OnNoResponse: return outcome == "NoResponse";
+            case RepeatRule.OnFailure: return outcome != TrialOutcomes.Correct;
+            case RepeatRule.OnNoResponse: return outcome == TrialOutcomes.NoResponse;
             default: return false;
         }
     }
@@ -558,18 +556,14 @@ public class DecisionUpdate
     public double GratingAzimuthDeg;
 }
 
-/// <summary>A trial's outcome: its row, and what it sets off (the reward, the spouts, the penalty sound, the timeout).</summary>
-public class TrialOutcome : ITrialOutcome
+/// <summary>A trial's outcome (lib-open-rigs' TrialOutcome: its row, the reward, the penalty sound, the timeout) and the
+/// spouts it moves.</summary>
+public class TrialOutcome : OpenRigs.Devices.TrialOutcome<TrialRow>
 {
-    public Timestamped<TrialRow> Row;      // the BonsaiData_Trial row, stamped with the outcome's Harp time
-    public bool Rewarded;
-    public Tuple<string, double> Reward;   // (side, microlitres) for RewardRequests, the side as rig.yml's wiring names it (left, right); null without a reward
     public bool MoveSpouts;
     public LickSpoutCommand SpoutCommand;
-    public bool PenaltySound;
 
-    /// <summary>Gets the timeout after the trial, in seconds: the row's penaltyTimeoutSeconds.</summary>
-    public double PenaltyTimeoutSeconds { get; private set; }
+    TrialOutcome(TrialRow row, string valve) : base(row, valve) { }
 
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
     /// (discriminationGoNoGo's: the left), a Random trial's at the spout chosen, the other spout drawn back. Anything else
@@ -577,13 +571,12 @@ public class TrialOutcome : ITrialOutcome
     /// leaves the spouts where they are.</summary>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
-        var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, PenaltyTimeoutSeconds = row.penaltyTimeoutSeconds };
-        o.Rewarded = row.rewarded;
-        var side = (trial.target == Answer.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";   // Go is answered at the left spout
-        o.Reward = o.Rewarded ? Tuple.Create(side, row.rewardOfferedUl) : null;
+        // The valve as rig.yml's wiring names it; Go is answered at the left spout.
+        var valve = (trial.target == Answer.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
+        var o = new TrialOutcome(row, valve);
         o.MoveSpouts = trial.spoutMovements;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
-            : side == "left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
+            : valve == "left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
         return o;
     }
 }
@@ -716,7 +709,7 @@ public class RunTrials
     public IObservable<TrialEvent<Trial, DecisionUpdate, TrialOutcome>> Process(IObservable<TrialRules> rules, IObservable<double> clock,
         IObservable<double> wheelCm, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<ZapitReply> zapitReplies)
     {
-        return TrialLoop.Observe(rules, clock, wheelCm, lickLeft, lickRight, zapitReplies);
+        return TrialLoop.Observe(rules, clock, new[] { lickLeft, lickRight }, zapitReplies, wheelCm);
     }
 }
 

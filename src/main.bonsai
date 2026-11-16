@@ -31,7 +31,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
-        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test), SessionId and LaunchId (the launcher's run id, which the manifest records) are the launch's; the parameter a controller may change until Go (TrainingStage; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath); the pieces declare their own parameters and commands (16 Nov 2026). The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskFilePath (TaskPath) at Start and RunSettings (SubjectId, SessionId) at Go; TrainingStage (OpenRigs.Control) publishes TrainingStage at Go and reports it as the metric trainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardLeft and RewardRight each give 2.5 ul before and during a run through the valve's calibration (BehaviorBoard.Rewards' ManualRewards: Pip's fixed manual drop, 15 Nov 2026).</Description>
+        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test), SessionId and LaunchId (the launcher's run id, which the manifest records) are the launch's; the parameter a controller may change until Go (TrainingStage; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath); the pieces declare their own parameters and commands (16 Nov 2026). The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskFilePath (TaskPath) at Start and RunSettings (SubjectId, SessionId) at Go; TrainingStage (OpenRigs.Control) publishes TrainingStage at Go and reports it as the metric trainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardValve-Left.Reward and RewardValve-Right.Reward each give 2.5 ul before and during a run through the valve's calibration (each BehaviorBoard.RewardValve piece's manual drop: Pip's fixed drop, 15 Nov 2026).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="ExternalizedMapping">
@@ -585,7 +585,7 @@
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:Zapit.ConnectForTask.bonsai" />
       <Expression xsi:type="GroupWorkflow">
         <Name>Logging</Name>
-        <Description>Everything else written to the experiment folder (LogLabExperiment, before Hardware, makes it at Go, with BonsaiData_Async, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), BonsaiData_Trial and Zapit's logs; BehaviorBoard.Rewards (OpenRigs.Devices, its DeliverReward) logs each reward and each calibrated valve's file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to BonsaiData_Async, records the Harp devices and writes the manifest.</Description>
+        <Description>Everything else written to the experiment folder (LogLabExperiment, before Hardware, makes it at Go, with BonsaiData_Async, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), BonsaiData_Trial and Zapit's logs; BehaviorBoard.Rewards (OpenRigs.Devices) logs each reward (RewardDelivered) and each RewardValve piece its calibration file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to BonsaiData_Async, records the Harp devices and writes the manifest.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -688,6 +688,16 @@
         </Workflow>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.Rewards.bonsai" />
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.RewardValve.bonsai">
+        <Name>RewardValve-Left</Name>
+        <Board>BehaviorBoard-Main</Board>
+        <BoardTriggerCalibratedPulseSubjectName>BehaviorBoard-Main.TriggerCalibratedPulse</BoardTriggerCalibratedPulseSubjectName>
+      </Expression>
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.RewardValve.bonsai">
+        <Name>RewardValve-Right</Name>
+        <Board>BehaviorBoard-Main</Board>
+        <BoardTriggerCalibratedPulseSubjectName>BehaviorBoard-Main.TriggerCalibratedPulse</BoardTriggerCalibratedPulseSubjectName>
+      </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
         <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and the seed; Arm and Trigger: Zapit's StartStimulus (Zapit) and the ZapitTrigger line raised, cleared at TriggerOff; Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (stimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and Drink (drinkSeconds into the next interval, on a stage with spout movements: the spouts out); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the spouts and the penalty sound. Zapit adds no time.</Description>
