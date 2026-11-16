@@ -140,8 +140,8 @@ def test_the_launch_properties():
 
 def test_rewards_go_to_reward_requests():
     # One name for the reward request in both dome tasks (Pip, 15 Nov 2026), as coen-dome-navigation's.
-    # The manual rewards' two are BehaviorBoard.ManualRewards'; ExperimentRecords' DeliverReward takes them.
-    assert "DeliverRewardCommand" not in TEXT and TEXT.count("<Name>RewardRequests</Name>") == 1
+    # The manual rewards' two are BehaviorBoard.ManualRewards'; the Rewards group's DeliverReward takes them.
+    assert "DeliverRewardCommand" not in TEXT and TEXT.count("<Name>RewardRequests</Name>") == 2  # declared; Rewards'
 
 
 def test_the_auditory_stimuli_are_the_tasks_own_files():
@@ -278,6 +278,7 @@ def test_spout_step_size_is_the_lick_spout_stage_s():
 
 def test_the_experiment_records_are_the_shared_include():
     assert lint.experiment_records_problems(WORKFLOW) == []
+    assert lint.reward_delivery_problems(WORKFLOW) == []  # DeliverReward is the task's own, in Rewards
 
 
 def test_the_launch_settings_are_the_shared_include():
