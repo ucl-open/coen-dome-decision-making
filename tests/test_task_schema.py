@@ -26,6 +26,12 @@ def test_committed_task_files_validate(path):
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
+def test_committed_task_files_start_with_the_laser_off(path):
+    # The laser is off unless the experimenter turns it on (Pip, 16 Nov 2026).
+    assert yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]["useZapit"] is False
+
+
+@pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
 def test_committed_task_files_use_the_discrete_azimuths(path):
     data = yaml.safe_load(path.read_text())
     assert data["taskParameters"]["visualStimulus"]["fixedAzimuthsDeg"] == [-60, 60]
