@@ -9,12 +9,12 @@
 # before it launches the workflow.
 #
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
-# unit (itiSeconds, rewardSizeUl); never a stored latency.
+# unit (itiSeconds, rewardOfferedUl); never a stored latency.
 #
-# The first 16 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the opto and quietWait blocks (Pip, 14 Nov 2026):
+# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the opto and quietWait blocks (Pip, 14 Nov 2026):
 # coen-dome-decision-making and coen-dome-navigation list them in this order with these types, units and
 # descriptions, word for word (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
-# trialType, outcome, rewardSizeUl and penaltySound are described per task. This task's own columns follow.
+# trialType, outcome and penaltySound are described per task, and which trials are rewarded and penalised in those columns' notes. This task's own columns follow.
 
 harpTime:
   type: double
@@ -31,7 +31,7 @@ trialType:
 outcome:
   type: string
   values: [Correct, Incorrect, NoResponse, Probe]
-  description: The trial's result - Correct when the choice was the target, Incorrect when it was the other side, NoResponse with no choice in the response window. In discriminationGoNoGo a lick on Go is Correct and none NoResponse, a lick on NoGo Incorrect and none Correct. A Probe trial (target Probe, a trial with no right answer) is Probe whatever the choice, and left out of performance; rewardSizeUl and penaltyTimeoutSeconds say what it got.
+  description: The trial's result - Correct when the choice was the target, Incorrect when it was the other side, NoResponse with no choice in the response window. In discriminationGoNoGo a lick on Go is Correct and none NoResponse, a lick on NoGo Incorrect and none Correct. A Probe trial (target NoReward or Random, a trial with no right answer) is Probe whatever the choice, and left out of performance; rewarded and penalised say what it got.
 itiStartTime:
   type: double
   unit: s
@@ -63,12 +63,17 @@ outcomeTime:
   description: Harp time the workflow knew the outcome, the same time as harpTime, as its own column so that every moment of a trial is named; the reward, the penalty sound and the timeout are timed from it. On a lick it is the Harp clock's latest tick when the workflow saw the lick, a few ms after it; each lick's own Harp time is in the lick detectors' logs.
   note: When the workflow saw the lick it counted as the choice, or the end of the response window on NoResponse.
   history: From 14 Nov 2026; until then choiceTime held it on a choice, NaN on NoResponse.
-rewardSizeUl:
+rewardOfferedUl:
   type: double
   unit: ul
-  description: Microlitres a reward on this trial gives, the stage's rewardSizeUl times reward.largeRewardMultiplier on a large-reward trial; 0 on a discriminationGoNoGo NoGo or Probe trial, which offers none. On a random-reward probe (localization's audiovisualConflict and neutral, discriminationLeftRight's two-modality and neutral trials) above 0 only when it paid - a choice, rewarded at the spout chosen on the coin's heads. What was delivered is RewardDelivered in BonsaiData_Async.
-  note: A paid random-reward probe is outcome Probe with rewardSizeUl above 0, which lib-open-rigs' summarise-experiment does not count in "ul asked by the task" (it counts Correct and autoRewarded rows); RewardDelivered counts it.
-  history: largeReward said which trials were large until 9 Nov 2026.
+  description: "Microlitres a reward on this trial gives, on every trial whether or not it was rewarded: the size the task drew for it (its stage's rewardSizeUl, or a larger reward where the task has one); 0 on a trial that offers none. rewarded says whether it was given; what was delivered is RewardDelivered in BonsaiData_Async."
+  note: The stage's rewardSizeUl times reward.largeRewardMultiplier on a large-reward trial; 0 on a discriminationGoNoGo NoGo or NoReward trial, which offers none; a Random trial's offer whether its coin came up heads or tails, and every trial's on a miss.
+  history: rewardSizeUl until 16 Nov 2026; until then 0 on a NoResponse and on an unpaid probe in decision-making (a random-reward probe's miss or tails). largeReward said which trials were large until 9 Nov 2026.
+rewarded:
+  type: bool
+  description: "True when the trial's outcome delivered its reward (rewardOfferedUl, at outcomeTime): the value the workflow's reward command is made from. Which outcomes are rewarded is the task's (its note)."
+  note: A correct choice (but a withheld NoGo, Correct and unrewarded), an auto-rewarded miss (autoRewarded), and a choice on a Random trial whose coin came up heads, rewarded at the spout chosen.
+  history: From 16 Nov 2026; until then rewardSizeUl above 0 on a Correct or autoRewarded row, or a paid probe.
 penaltySound:
   type: bool
   description: "True when the penalty sound played: on every penalised trial (an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial, as a miss on a Go trial is unpenalised; on a random-reward probe a choice on the coin's tails, or a miss as a scored trial's) with the task's penalty.sound enabled, whatever penalty.timeoutSeconds is. The sound is the lab's (OpenRigs.Audio), on rig.yml's penaltySoundChannel."
@@ -78,6 +83,11 @@ penaltyTimeoutSeconds:
   unit: s
   description: "The timeout after this trial: the task's penalty.timeoutSeconds when the trial was penalised, else 0. The next interval starts after it (itiStartTime)."
   note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a Go miss is unpenalised); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
+penalised:
+  type: bool
+  description: "True when the trial was penalised: the task's penalty timeout (penaltyTimeoutSeconds) and, with its penalty.sound enabled, the penalty sound (penaltySound) followed its outcome. Which outcomes are penalised is the task's (its note)."
+  note: An incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a false alarm; a Go miss and a NoReward trial are unpenalised); on a Random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
+  history: From 16 Nov 2026; until then penaltyTimeoutSeconds above 0.
 laserCondition:
   type: int
   description: "The Zapit condition sent to Zapit this trial (its conditions file's number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics."
@@ -94,9 +104,9 @@ laserTriggerTime:
   history: From 14 Nov 2026.
 target:
   type: string
-  values: [Left, Right, Go, NoGo, Probe]
-  description: The answer the trial rewards - the side in localization and discriminationLeftRight; in discriminationGoNoGo Go (lick, goModality shown) or NoGo (withhold, the other modality). Probe on a trial with no right answer, never repeated - a no-reward probe in discriminationGoNoGo (both modalities or neither, the neutral grey screen; never rewarded or penalised), a random-reward probe in localization (audiovisualConflict, neutral) and discriminationLeftRight (audiovisualCoherent, audiovisualConflict, neutral) - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
-  history: Go, NoGo and Probe from 16 Nov 2026, when discrimination split into discriminationGoNoGo and discriminationLeftRight; until then discrimination's target was Left (targetModality) or Right, and a two-modality trial's the stimuli's side. Random-reward probes from 16 Nov 2026 (Pip); until then localization's conflict target was the grating's side and its neutral target a side drawn at random.
+  values: [Left, Right, Go, NoGo, NoReward, Random]
+  description: The answer the trial rewards - the side in localization and discriminationLeftRight; in discriminationGoNoGo Go (lick, goModality shown) or NoGo (withhold, the other modality). On a trial with no right answer (outcome Probe, never repeated) NoReward or Random - NoReward a no-reward probe in discriminationGoNoGo (both modalities or neither, the neutral grey screen; never rewarded or penalised), Random a random-reward probe in localization (audiovisualConflict, neutral) and discriminationLeftRight (audiovisualCoherent, audiovisualConflict, neutral) - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
+  history: NoReward and Random were Probe until 16 Nov 2026 (Pip). Go, NoGo and Probe from 16 Nov 2026, when discrimination split into discriminationGoNoGo and discriminationLeftRight; until then discrimination's target was Left (targetModality) or Right, and a two-modality trial's the stimuli's side. Random-reward probes from 16 Nov 2026 (Pip); until then localization's conflict target was the grating's side and its neutral target a side drawn at random.
 choice:
   type: string
   values: [Left, Right, Lick, NoResponse]
@@ -109,7 +119,7 @@ autoRewarded:
   description: True when a miss on an auto-reward trial was rewarded at the target spout.
 bothSpouts:
   type: bool
-  description: True when both spouts were offered (otherwise only the target's; in discriminationGoNoGo the left, for NoGo and Probe trials too); always on a random-reward probe.
+  description: True when both spouts were offered (otherwise only the target's; in discriminationGoNoGo the left, for NoGo and NoReward trials too); always on a random-reward probe.
 visualAzimuthDeg:
   type: double
   unit: deg

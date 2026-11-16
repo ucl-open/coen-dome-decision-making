@@ -16,9 +16,11 @@ public class TrialRow
     public double trialStartTime;
     public double stimulusOnsetTime;
     public double outcomeTime;
-    public double rewardSizeUl;
+    public double rewardOfferedUl;
+    public bool rewarded;
     public bool penaltySound;
     public double penaltyTimeoutSeconds;
+    public bool penalised;
     public int laserCondition;
     public double laserPowerMw;
     public double laserTriggerTime;
@@ -41,7 +43,8 @@ public class TrialRow
     {
         switch (trial.target)
         {
-            case Answer.Probe: return Answer.Probe;
+            case Answer.NoReward:
+            case Answer.Random: return Answer.ProbeOutcome;
             case Answer.Go: return choice == Choice.Lick ? "Correct" : "NoResponse";
             case Answer.NoGo: return choice == Choice.Lick ? "Incorrect" : "Correct";
             default: return choice == Choice.NoResponse ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
@@ -54,15 +57,23 @@ public class TrialRow
     public static bool Penalised(string outcome, string choice, Trial trial)
     {
         if (choice == Choice.NoResponse) return MissPenalised(trial);
-        if (trial.randomRewardProbe) return !trial.probeHeads;
+        if (trial.target == Answer.Random) return !trial.probeHeads;
         return outcome == "Incorrect";
+    }
+
+    // Rewarded (the valve, TrialOutcome.Of): a correct choice but a withheld NoGo, an auto-rewarded miss, and a choice on a
+    // Random trial whose coin came up heads.
+    public static bool Rewarded(string outcome, string choice, Trial trial)
+    {
+        if (trial.target == Answer.Random) return choice != Choice.NoResponse && trial.probeHeads;
+        return (outcome == "Correct" && trial.target != Answer.NoGo) || (trial.autoReward && choice == Choice.NoResponse);
     }
 
     // A miss's penalty, on every trial that can be penalised: none when auto-rewarded or on a Go trial; never on
     // discriminationGoNoGo's other trials (a withheld NoGo is Correct, a probe pays nothing and costs nothing).
     static bool MissPenalised(Trial trial)
     {
-        if (trial.target == Answer.Go || trial.target == Answer.NoGo || (trial.target == Answer.Probe && !trial.randomRewardProbe)) return false;
+        if (trial.target == Answer.Go || trial.target == Answer.NoGo || trial.target == Answer.NoReward) return false;
         return !trial.autoReward;
     }
 
@@ -72,14 +83,13 @@ public class TrialRow
     {
         var outcome = Outcome(choice, trial);
         var penalised = Penalised(outcome, choice, trial);
-        // The shared block (trial number, the loop's times, the penalty, the laser: 0 mW when answered before its trigger,
-        // Pip 13 Nov 2026; the sound comes with every timeout, Pip 14 Nov 2026) is lib-open-rigs' SharedTrialColumns.Fill.
+        // The shared block (trial number, the loop's times, the offer on every trial, rewarded, the penalty, the laser: 0 mW
+        // when answered before its trigger, Pip 13 Nov 2026; the sound comes with every timeout, Pip 14 Nov 2026) is
+        // lib-open-rigs' SharedTrialColumns.Fill.
         var row = new TrialRow
         {
             trialType = trial.trialType,
             outcome = outcome,
-            // On a random-reward probe, above 0 only when a choice was paid (heads), so the column says whether it paid.
-            rewardSizeUl = trial.randomRewardProbe && choice == Choice.NoResponse ? 0 : trial.rewardSizeUl,
             target = trial.target,
             choice = choice,
             repeatCount = trial.repeatCount,
@@ -93,6 +103,6 @@ public class TrialRow
             audioElevationDeg = trial.audioElevationDeg,
             audioWaveformIndex = trial.audioWaveformIndex,
         };
-        return SharedTrialColumns.Fill(row, trial, times, penalised, timeoutSeconds, penaltySound);
+        return SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised, timeoutSeconds, penaltySound);
     }
 }

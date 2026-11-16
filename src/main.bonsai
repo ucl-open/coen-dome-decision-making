@@ -606,7 +606,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Status</Name>
-        <Description>The current trial's facts as metrics, named as BonsaiData_Trial's columns (trialNumber, target, trialType, visualAzimuthDeg, audioAzimuthDeg, rewardSizeUl, laserCondition; the trainingStage is TrainingStage's); rig-control computes counts, water and performance from the files.</Description>
+        <Description>The current trial's facts as metrics, named as BonsaiData_Trial's columns (trialNumber, target, trialType, visualAzimuthDeg, audioAzimuthDeg, rewardOfferedUl, laserCondition; the trainingStage is TrainingStage's); rig-control computes counts, water and performance from the files.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -653,11 +653,11 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>rewardSizeUl</Selector>
+              <Selector>rewardOfferedUl</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="orcl:ReportMetric">
-                <orcl:Name>rewardSizeUl</orcl:Name>
+                <orcl:Name>rewardOfferedUl</orcl:Name>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">

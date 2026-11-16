@@ -21,8 +21,8 @@ public class Trial : IZapitTrial
 
     public int trialNumber;            // from 1, repeats counted
     public string trialType;           // TrialDraw.TypeNames: what the trial shows
-    public string target;              // Left or Right; Probe on a trial with no right answer; in discriminationGoNoGo Go or NoGo too
-    public double rewardSizeUl;
+    public string target;              // Left or Right; in discriminationGoNoGo Go or NoGo; on a trial with no right answer NoReward or Random (Answer)
+    public double rewardOfferedUl;     // what a reward on this trial gives, on every trial; 0 where none is on offer
     public bool bothSpouts;
     public int repeatCount;            // 0 for a new draw
     public double itiSeconds;          // the interval drawn for this trial: its start to the stimulus, with a quiet mouse
@@ -39,8 +39,7 @@ public class Trial : IZapitTrial
     public bool laserOn;
     public double laserPowerMw;        // 0 with the laser off
     public bool autoReward;
-    public bool randomRewardProbe;     // no right answer: a choice is rewarded or penalised on the coin (TrialDraw.RandomRewardProbe)
-    public bool probeHeads;            // that coin: heads rewards the choice, tails penalises it
+    public bool probeHeads;            // a Random trial's coin: heads rewards a choice, tails penalises it
     public bool spoutMovements;
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
 
@@ -61,13 +60,17 @@ public class CheckTaskAtGo
     }
 }
 
-/// <summary>The target column's answers other than a side: discriminationGoNoGo's Go and NoGo, and Probe, a trial with no right
-/// answer (go/no-go's pay nothing; localization's and left-right's pay at random, RandomRewardProbe).</summary>
+/// <summary>The target column's answers other than a side: discriminationGoNoGo's Go and NoGo, and on a trial with no right
+/// answer (a probe, outcome Probe) NoReward (go/no-go's: never rewarded or penalised) or Random (localization's and
+/// left-right's: a choice rewarded or penalised on a coin, TrialDraw.RandomRewardProbe).</summary>
 public static class Answer
 {
     public const string Go = "Go";
     public const string NoGo = "NoGo";
-    public const string Probe = "Probe";
+    public const string NoReward = "NoReward";
+    public const string Random = "Random";
+    /// <summary>The outcome of a NoReward or Random trial, whatever the choice: left out of performance.</summary>
+    public const string ProbeOutcome = "Probe";
 }
 
 /// <summary>What the mouse chose (the choice column), and in discriminationLeftRight the target's two sides: Left or Right, in
@@ -362,7 +365,7 @@ public class TrialDraw
 
     bool ShouldRepeat(string outcome)
     {
-        if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == Answer.Probe) return false;
+        if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == Answer.ProbeOutcome) return false;
         var type = Array.IndexOf(TypeNames, last.trialType);
         switch (Rule(task, type))
         {
@@ -379,7 +382,7 @@ public class TrialDraw
         trial.spoutMovements = stage.SpoutMovements;
         trial.bothSpouts = random.NextDouble() < stage.BothSpoutsProbability;
         var large = random.NextDouble() < task.Reward.LargeRewardProbability;
-        trial.rewardSizeUl = large ? stage.RewardSizeUl * task.Reward.LargeRewardMultiplier : stage.RewardSizeUl;
+        trial.rewardOfferedUl = large ? stage.RewardSizeUl * task.Reward.LargeRewardMultiplier : stage.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
         int type = WeightedType();
@@ -418,14 +421,14 @@ public class TrialDraw
         if (task.TaskType == TaskType.DiscriminationGoNoGo)
         {
             // Lick for goModality (Go), withhold for the other modality (NoGo); a trial showing both modalities or neither
-            // (neutral, the grey screen) is a probe, never rewarded or penalised (Song et al. 2017; Pip, 16 Nov 2026).
+            // (neutral, the grey screen) is a NoReward probe, never rewarded or penalised (Song et al. 2017; Pip, 16 Nov 2026).
             bool goShown = (type == 0 || type == 1) && (type == 0) == (task.GoModality == Modality.Visual);
-            trial.target = type == 2 || type == 3 || type == 4 ? Answer.Probe : goShown ? Answer.Go : Answer.NoGo;
+            trial.target = type == 2 || type == 3 || type == 4 ? Answer.NoReward : goShown ? Answer.Go : Answer.NoGo;
             trial.bothSpouts = false;                                   // one spout, the left
             if (trial.target != Answer.Go)
             {
                 trial.autoReward = false;   // auto-reward only on a Go trial
-                trial.rewardSizeUl = 0;     // no reward on offer: a withheld NoGo is Correct, unrewarded
+                trial.rewardOfferedUl = 0;  // no reward on offer: a withheld NoGo is Correct, unrewarded
             }
         }
         else if (task.TaskType == TaskType.DiscriminationLeftRight)
@@ -436,15 +439,13 @@ public class TrialDraw
         if (RandomRewardProbe(task.TaskType, type))
         {
             // No right answer (left-right's two-modality and neutral trials, localization's conflict and neutral): a
-            // random-reward probe. Both spouts move in, and a coin drawn now, from the seeded stream, decides a choice at
-            // either: heads rewarded at that spout, tails penalised as an incorrect choice; no choice, neither. It never
-            // repeats (Pip, 16 Nov 2026).
-            trial.target = Answer.Probe;
-            trial.randomRewardProbe = true;
+            // random-reward probe, target Random. Both spouts move in, and a coin drawn now, from the seeded stream, decides
+            // a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored
+            // trial's miss. Its rewardOfferedUl is kept, heads or tails (Pip, 16 Nov 2026). It never repeats.
+            trial.target = Answer.Random;
             trial.bothSpouts = true;
             trial.autoReward = false;
             trial.probeHeads = random.NextDouble() < 0.5;
-            if (!trial.probeHeads) trial.rewardSizeUl = 0;   // tails: no reward on offer
         }
 
         trial.audioEnabled = showsSound;
@@ -560,18 +561,16 @@ public class TrialOutcome : ITrialOutcome
     /// <summary>Gets the timeout after the trial, in seconds: the row's penaltyTimeoutSeconds.</summary>
     public double PenaltyTimeoutSeconds { get; private set; }
 
-    /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target's spout (discriminationGoNoGo's:
-    /// the left), the other spout drawn back, and a random-reward probe whose coin offered a reward at the spout chosen; a correct NoGo is not rewarded. Anything else draws both back, with the
-    /// row's penalty sound and timeout if it was penalised. A stage without spout movements leaves the spouts where they are.</summary>
+    /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
+    /// (discriminationGoNoGo's: the left), a Random trial's at the spout chosen, the other spout drawn back. Anything else
+    /// draws both back, with the row's penalty sound and timeout if it was penalised. A stage without spout movements
+    /// leaves the spouts where they are.</summary>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
         var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, PenaltyTimeoutSeconds = row.penaltyTimeoutSeconds };
-        bool chose = row.choice == Choice.Left || row.choice == Choice.Right;
-        // A random-reward probe pays at the spout chosen when its coin offered a reward (go/no-go's probes offer none).
-        bool probePaid = trial.randomRewardProbe && chose && trial.probeHeads;
-        o.Rewarded = (row.outcome == "Correct" && trial.target != Answer.NoGo) || row.autoRewarded || probePaid;
-        var side = (trial.target == Answer.Probe ? row.choice : trial.target) == Choice.Right ? "right" : "left";   // Go is answered at the left spout
-        o.Reward = o.Rewarded ? Tuple.Create(side, trial.rewardSizeUl) : null;
+        o.Rewarded = row.rewarded;
+        var side = (trial.target == Answer.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";   // Go is answered at the left spout
+        o.Reward = o.Rewarded ? Tuple.Create(side, row.rewardOfferedUl) : null;
         o.MoveSpouts = trial.spoutMovements;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
             : side == "left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;

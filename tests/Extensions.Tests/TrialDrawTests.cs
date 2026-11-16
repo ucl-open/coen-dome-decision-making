@@ -99,7 +99,7 @@ public class TrialDrawTests
         var w = task.TrialWeights;
         w.Visual = w.Auditory = w.AudiovisualCoherent = w.Neutral = 0;
         var trials = Fixture.Draw(task, 4, 600);
-        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualAzimuthDeg > 0) == (t.audioAzimuthDeg < 0) && t.target == Answer.Probe));
+        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualAzimuthDeg > 0) == (t.audioAzimuthDeg < 0) && t.target == Answer.Random));
         Assert.AreEqual(0.5, trials.Count(t => t.probeHeads) / 600.0, 0.07);
     }
 
@@ -140,8 +140,8 @@ public class TrialDrawTests
         Assert.IsTrue(Fixture.Draw(task, 0, 50).All(t => t.autoReward && t.target == "Left" && !t.spoutMovements && t.trialType == "visual"));
         task.TrainingStages[2].AutoRewardProbability = 1;
         var stage2 = Fixture.Draw(task, 2, 300);
-        Assert.IsTrue(stage2.Where(t => t.target != Answer.Probe).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
-        Assert.IsTrue(stage2.Where(t => t.target == Answer.Probe).All(t => !t.autoReward), "a probe never is");
+        Assert.IsTrue(stage2.Where(t => t.target != Answer.Random).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
+        Assert.IsTrue(stage2.Where(t => t.target == Answer.Random).All(t => !t.autoReward), "a probe never is");
     }
 
     [TestMethod]
@@ -154,12 +154,12 @@ public class TrialDrawTests
             task.TrainingStages[3].AutoRewardProbability = 1;
             foreach (var t in Fixture.Draw(task, 3, 600))
             {
-                var expected = t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" || t.trialType == "neutral" ? Answer.Probe
+                var expected = t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" || t.trialType == "neutral" ? Answer.NoReward
                     : (t.trialType == "visual" && modality == Modality.Visual) || (t.trialType == "auditory" && modality == Modality.Auditory) ? Answer.Go
                     : Answer.NoGo;   // the other modality
                 Assert.AreEqual(expected, t.target, t.trialType);
                 Assert.AreEqual(expected == Answer.Go, t.autoReward, "auto-reward only on Go");
-                Assert.AreEqual(expected == Answer.Go, t.rewardSizeUl > 0, "a reward on offer only on Go");
+                Assert.AreEqual(expected == Answer.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
                 Assert.IsFalse(t.bothSpouts);
                 Assert.AreEqual(LickSpoutCommand.LeftIn, SpoutsIn.Command(t));
             }
