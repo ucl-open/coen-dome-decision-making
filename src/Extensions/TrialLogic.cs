@@ -146,21 +146,22 @@ public class TrialDraw
     static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage, EqualisedSpeakerArray speakers)
     {
         var problems = new List<string>();
+        var who = "stage " + task.TrainingStages.IndexOf(stage);
         // Each block names exactly the task type's keys (task.py's same rule), the stage's weights only when it sets its own.
         var weightKeys = Keys(task.TaskType);
         KeyProblems(problems, "trialWeights", task.TaskType, weightKeys, task.TrialWeights == null ? null : AllKeys(task.TrialWeights));
-        if (stage.TrialWeights != null) KeyProblems(problems, "stage '" + stage.Label + "' trialWeights", task.TaskType, weightKeys, AllKeys(stage.TrialWeights));
+        if (stage.TrialWeights != null) KeyProblems(problems, who + " trialWeights", task.TaskType, weightKeys, AllKeys(stage.TrialWeights));
         if (problems.Count == 0)
         {
             var roles = RoleWeights(task, stage);
-            if (roles.Any(w => w < 0) || roles.Sum() <= 0) problems.Add("stage '" + stage.Label + "' needs trial weights of 0 or more, one above 0");
-            if (task.TaskType == TaskType.DiscriminationGoNoGo && roles[0] == 0) problems.Add("stage '" + stage.Label + "' has no Go trials: its trial weights' go is 0");
+            if (roles.Any(w => w < 0) || roles.Sum() <= 0) problems.Add(who + " needs trial weights of 0 or more, one above 0");
+            if (task.TaskType == TaskType.DiscriminationGoNoGo && roles[0] == 0) problems.Add(who + " has no Go trials: its trial weights' go is 0");
         }
         KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeys(task.TaskType),task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
-        if (task.TaskType == TaskType.DiscriminationGoNoGo && stage.BothSpoutsProbability != 0) problems.Add("stage '" + stage.Label + "' needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
+        if (task.TaskType == TaskType.DiscriminationGoNoGo && stage.BothSpoutsProbability != 0) problems.Add(who + " needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
         // The SpoutsIn cue's LeftIn or RightIn draws the other spout back, which a stage without spout movements never returns.
-        if (task.TaskType != TaskType.DiscriminationGoNoGo && !stage.SpoutMovements && stage.BothSpoutsProbability != 1) problems.Add("stage '" + stage.Label + "' needs bothSpoutsProbability 1 with spoutMovements false: a one-spout trial draws the other spout back");
-        if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add("stage '" + stage.Label + "' needs contrasts, each above 0");
+        if (task.TaskType != TaskType.DiscriminationGoNoGo && !stage.SpoutMovements && stage.BothSpoutsProbability != 1) problems.Add(who + " needs bothSpoutsProbability 1 with spoutMovements false: a one-spout trial draws the other spout back");
+        if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add(who + " needs contrasts, each above 0");
         var visual = task.VisualStimulus;
         foreach (var right in new[] { false, true })
         {
@@ -198,7 +199,7 @@ public class TrialDraw
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
         // The quiet waits, the lab's one check (OpenRigs.Core QuietWait: finite, 0 or more, at most 10 s and 20 cm, the
         // wheel's pair both set or both 0): a long wait and a licking mouse would hold the trial start with no message.
-        foreach (var p in QuietWait.SettingsProblems(stage.LickQuietSeconds, stage.WheelQuietSeconds, stage.WheelQuietCm)) problems.Add("stage '" + stage.Label + "': " + p);
+        foreach (var p in QuietWait.SettingsProblems(stage.LickQuietSeconds, stage.WheelQuietSeconds, stage.WheelQuietCm)) problems.Add(who + ": " + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.Enabled) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds) problems.Add("trialStructure.stimulusSeconds is longer than responseDelaySeconds plus responseWindowSeconds");
@@ -222,7 +223,7 @@ public class TrialDraw
         var multiplier = task.Reward.LargeRewardMultiplier;
         if (task.Reward.LargeRewardProbability > 0 && multiplier > 1 && stage.RewardSizeUl * multiplier > LoadRewardLine.DefaultMaxRewardUl + 1e-9)
         {
-            problems.Add(string.Format("stage '{0}' rewardSizeUl ({1} ul) x reward.largeRewardMultiplier ({2}) is {3} ul, more than {4} ul, the most one reward may ask for", stage.Label, stage.RewardSizeUl, multiplier, stage.RewardSizeUl * multiplier, LoadRewardLine.DefaultMaxRewardUl));
+            problems.Add(string.Format("{0} rewardSizeUl ({1} ul) x reward.largeRewardMultiplier ({2}) is {3} ul, more than {4} ul, the most one reward may ask for", who, stage.RewardSizeUl, multiplier, stage.RewardSizeUl * multiplier, LoadRewardLine.DefaultMaxRewardUl));
         }
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
     }

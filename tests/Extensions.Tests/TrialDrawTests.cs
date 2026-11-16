@@ -356,7 +356,7 @@ public class TrialDrawTests
     public void TheStageIsCheckedAtGoBeforeTheFirstTrial()
     {
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(Fixture.Task("task-localization.yml"), 5, Fixture.Speakers())), "rows 0 to 4");
-        Assert.AreEqual("Stage 4", TrialDraw.CheckTask(Fixture.Task("task-discrimination-left-right.yml"), 4, Fixture.Speakers()).Label);
+        Assert.AreEqual(Fixture.Task("task-discrimination-left-right.yml").TrainingStages[4].RewardSizeUl, TrialDraw.CheckTask(Fixture.Task("task-discrimination-left-right.yml"), 4, Fixture.Speakers()).RewardSizeUl);
     }
 
     [TestMethod]
@@ -407,14 +407,14 @@ public class TrialDrawTests
     {
         var task = Fixture.Task("task-discrimination-go-no-go.yml");
         task.TrainingStages[2].TrialWeights.Go = 0;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 2, Fixture.Speakers())), "stage 'Stage 2' has no Go trials: its trial weights' go is 0");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 2, Fixture.Speakers())), "stage 2 has no Go trials: its trial weights' go is 0");
         task = Fixture.Task("task-discrimination-go-no-go.yml");
         task.TrialWeights.Go = 0;   // stage 3 takes the task's weights
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 3, Fixture.Speakers())), "has no Go trials");
         task = Fixture.Task("task-discrimination-go-no-go.yml");
         task.TrainingStages[0].TrialWeights.Visual = 5;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 0, Fixture.Speakers())),
-            "stage 'Stage 0' trialWeights must give exactly go, noGo, audiovisualCoherent, audiovisualConflict, neutral in discriminationGoNoGo (it gives visual, audiovisualCoherent");
+            "stage 0 trialWeights must give exactly go, noGo, audiovisualCoherent, audiovisualConflict, neutral in discriminationGoNoGo (it gives visual, audiovisualCoherent");
         task = Fixture.Task("task-discrimination-left-right.yml");
         task.Repeats.RulesPerType.Left = null;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 0, Fixture.Speakers())), "repeats.rulesPerType must give exactly left, right");
@@ -448,7 +448,7 @@ public class TrialDrawTests
         task.Reward.LargeRewardMultiplier = 3;
         task.TrainingStages[4].RewardSizeUl = 8;
         var refusal = Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers()));
-        StringAssert.Contains(refusal, "stage '" + task.TrainingStages[4].Label + "' rewardSizeUl (8 ul) x reward.largeRewardMultiplier (3) is 24 ul, more than 20 ul");
+        StringAssert.Contains(refusal, "stage 4 rewardSizeUl (8 ul) x reward.largeRewardMultiplier (3) is 24 ul, more than 20 ul");
         task.TrainingStages[4].RewardSizeUl = OpenRigs.Core.LoadRewardLine.DefaultMaxRewardUl / 3;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
         task.TrainingStages[4].RewardSizeUl = 8;

@@ -222,7 +222,7 @@ class OptogeneticsSettings(Optogenetics):
 class TrainingStage(QuietWait):
     """One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits the lab's (open_rigs.core.task QuietWait)."""
 
-    label: String = Field(description="Human-readable stage name, for documentation and logs")
+    label: String | None = Field(default=None, description="The stage's name, shown on Setup after its number")
     trial_weights: TrialTypeWeights | None = Field(
         default=None,
         description="This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights",
@@ -312,7 +312,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         # TrialDraw.CheckTask's same rules: each block names exactly its task type's keys, and a go/no-go stage has Go trials.
         weights, rules = TRIAL_KEYS[self.task_type], RULE_KEYS[self.task_type]
         blocks = [("trial_weights", self.trial_weights, weights), ("repeats.rules_per_type", self.repeats.rules_per_type, rules)]
-        blocks += [(f"training_stages[{i}] ({s.label}).trial_weights", s.trial_weights, weights) for i, s in enumerate(self.training_stages) if s.trial_weights is not None]
+        blocks += [(f"training_stages[{i}].trial_weights", s.trial_weights, weights) for i, s in enumerate(self.training_stages) if s.trial_weights is not None]
         for where, block, keys in blocks:
             given = set(block.model_dump(by_alias=True, exclude_none=True))
             if given != set(keys):
@@ -320,7 +320,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
             for index, stage in enumerate(self.training_stages):
                 if self.weights_of(stage).go == 0:
-                    raise ValueError(f"training_stages[{index}] ({stage.label}): its trial weights' go is 0, so the stage has no Go trials")
+                    raise ValueError(f"training_stages[{index}]: its trial weights' go is 0, so the stage has no Go trials")
         return self
 
     def weights_of(self, stage: TrainingStage) -> TrialTypeWeights:
@@ -333,12 +333,12 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
             for index, stage in enumerate(self.training_stages):
                 if stage.both_spouts_probability != 0:
-                    raise ValueError(f"training_stages[{index}] ({stage.label}): both_spouts_probability must be 0 in discriminationGoNoGo: only the left spout moves in")
+                    raise ValueError(f"training_stages[{index}]: both_spouts_probability must be 0 in discriminationGoNoGo: only the left spout moves in")
         else:
             # The SpoutsIn cue's LeftIn or RightIn draws the other spout back, which a stage without spout movements never returns.
             for index, stage in enumerate(self.training_stages):
                 if not stage.spout_movements and stage.both_spouts_probability != 1:
-                    raise ValueError(f"training_stages[{index}] ({stage.label}): both_spouts_probability must be 1 with spout_movements false: a one-spout trial draws the other spout back")
+                    raise ValueError(f"training_stages[{index}]: both_spouts_probability must be 1 with spout_movements false: a one-spout trial draws the other spout back")
         return self
 
     @model_validator(mode="after")
@@ -349,7 +349,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             for index, stage in enumerate(self.training_stages):
                 if stage.reward_size_ul * multiplier > MAX_REWARD_UL + 1e-9:
                     raise ValueError(
-                        f"training_stages[{index}] ({stage.label}): reward_size_ul ({stage.reward_size_ul} ul) x reward.large_reward_multiplier "
+                        f"training_stages[{index}]: reward_size_ul ({stage.reward_size_ul} ul) x reward.large_reward_multiplier "
                         f"({multiplier}) is more than {MAX_REWARD_UL} ul, the most one reward may ask for"
                     )
         return self

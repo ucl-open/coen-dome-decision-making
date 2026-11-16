@@ -66,7 +66,7 @@ taskParameters:
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
   trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
-    - label: Stage 0       # habituation: Go trials only, every miss auto-rewarded, spouts stay in
+    - label: Habituation   # Go trials only, every miss auto-rewarded, spouts stay in
       trialWeights: { go: 10, noGo: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 0.0
@@ -77,8 +77,8 @@ taskParameters:
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
       spoutMovements: false
-    - label: Stage 1       # Go trials only, every miss auto-rewarded
-      trialWeights: { go: 10, noGo: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
+    # Stage 1: Go trials only, every miss auto-rewarded
+    - trialWeights: { go: 10, noGo: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3
@@ -87,8 +87,8 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 2       # NoGo and coherent (probe) trials added
-      trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
+    # Stage 2: NoGo and coherent (probe) trials added
+    - trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3
@@ -97,8 +97,8 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 3       # conflict and neutral (probe) trials added: the task's trialWeights
-      autoRewardProbability: 0.0
+    # Stage 3: conflict and neutral (probe) trials added: the task's trialWeights
+    - autoRewardProbability: 0.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3
       contrasts: [0.5, 1.0]
@@ -106,8 +106,8 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 4       # as stage 3, wider contrasts (Gerion's default row)
-      autoRewardProbability: 0.0
+    # Stage 4: as stage 3, wider contrasts (Gerion's default row)
+    - autoRewardProbability: 0.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3
       contrasts: [0.5, 1.0, 2.0, 3.0]

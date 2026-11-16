@@ -340,9 +340,13 @@
           "type": "number"
         },
         "label": {
-          "description": "Human-readable stage name, for documentation and logs",
+          "default": null,
+          "description": "The stage's name, shown on Setup after its number",
           "title": "Label",
-          "type": "string"
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "trialWeights": {
           "anyOf": [
@@ -400,7 +404,6 @@
         }
       },
       "required": [
-        "label",
         "autoRewardProbability",
         "bothSpoutsProbability",
         "rewardSizeUl",

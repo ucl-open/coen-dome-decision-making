@@ -61,7 +61,7 @@ taskParameters:
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
   trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
-    - label: Stage 0       # habituation, coherent only, single spout half the time, no repeats
+    - label: Habituation   # coherent only, single spout half the time, no repeats
       trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 0.5
@@ -71,8 +71,8 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 1       # coherent trials only
-      trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
+    # Stage 1: coherent trials only
+    - trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
@@ -81,8 +81,8 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 2       # unisensory auditory added
-      trialWeights: { visual: 0, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
+    # Stage 2: unisensory auditory added
+    - trialWeights: { visual: 0, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
@@ -91,8 +91,8 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 3       # unisensory visual added
-      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
+    # Stage 3: unisensory visual added
+    - trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
@@ -101,8 +101,8 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 4       # conflict and neutral trials added: the task's trialWeights
-      autoRewardProbability: 0.0
+    # Stage 4: conflict and neutral trials added: the task's trialWeights
+    - autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3
       contrasts: [0.25, 0.5, 1.0]

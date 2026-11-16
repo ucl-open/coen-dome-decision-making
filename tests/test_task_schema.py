@@ -40,6 +40,12 @@ def test_committed_task_files_use_the_discrete_azimuths(path):
     assert data["taskParameters"]["visualStimulus"]["fixedAzimuthsDeg"] == [-60, 60]
 
 
+@pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
+def test_only_stage_0_has_a_name(path):
+    labels = [row.get("label") for row in yaml.safe_load(path.read_text())["taskParameters"]["trainingStages"]]
+    assert labels == ["Habituation"] + [None] * (len(labels) - 1)
+
+
 def test_overwrite_azimuths_default_keeps_the_uniform_range():
     assert VisualStimulus().fixed_azimuths_deg is None
 
@@ -398,7 +404,7 @@ def test_keys_of_another_task_type_or_a_probe_s_repeat_rule_are_refused(name, wh
 def test_a_go_no_go_stage_with_no_go_trials_is_refused():
     data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
     data["trialWeights"]["go"] = 0   # stages 3 and 4 take it
-    with pytest.raises(ValidationError, match=r"training_stages\[3\] \(Stage 3\): its trial weights' go is 0"):
+    with pytest.raises(ValidationError, match=r"training_stages\[3\]: its trial weights' go is 0"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
