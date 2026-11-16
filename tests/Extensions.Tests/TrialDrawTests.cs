@@ -201,6 +201,7 @@ public class TrialDrawTests
     public void OptogeneticsSendsAConditionOnEveryTrial()
     {
         var task = Fixture.Task("task-localization.yml");
+        task.Optogenetics.UseZapit = true;
         task.Optogenetics.TrialsBeforeLaser = 20;
         task.Optogenetics.LaserOnProbability = 0.5;
         var trials = Fixture.Draw(task, 4, 300, t => "NoResponse");
