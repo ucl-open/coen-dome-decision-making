@@ -1593,7 +1593,7 @@
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
                     <Set>true</Set>
-                    <BoardCommandsSubjectName>BehaviorBoardFeed</BoardCommandsSubjectName>
+                    <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>LaserDuration</Name>
@@ -1614,7 +1614,7 @@
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
                     <Set>false</Set>
-                    <BoardCommandsSubjectName>BehaviorBoardFeed</BoardCommandsSubjectName>
+                    <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>RampDown</Name>
