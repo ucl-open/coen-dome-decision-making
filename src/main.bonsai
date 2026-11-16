@@ -939,7 +939,7 @@
               <Selector>Trial</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="ext:SpoutsIn" />
+              <Combinator xsi:type="ext:SpoutsInCommand" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
               <Name>LickSpoutStage.Commands</Name>

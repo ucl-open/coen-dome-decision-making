@@ -132,6 +132,24 @@ def test_go_no_go_refuses_both_spouts():
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
+@pytest.mark.parametrize("name", ["task-localization.yml", "task-discrimination-left-right.yml"])
+def test_a_stage_without_spout_movements_needs_both_spouts(name):
+    # Round 3 F14: the SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
+    data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
+    data["trainingStages"][0].update(spoutMovements=False, bothSpoutsProbability=0.5)
+    with pytest.raises(ValidationError, match="both_spouts_probability must be 1 with spout_movements false"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
+def test_no_text_says_a_probe_s_side_is_drawn_at_random():
+    # Round 3 F4/F5: a two-modality or neutral trial is a probe (target NoReward or Random, a coin on a Random trial's choice),
+    # never a trial whose side is drawn at random; and a Random probe's tails is penalised.
+    stale = ("drawn at random, left or right", "side drawn at random", "a probe never does", "`rewardSizeUl` 0 where", "`rewardSizeUl` above 0", "gain stays 20")
+    for path in [SCHEMA, CONFIG.parent / "BACKLOG.md", CONFIG.parent / "README.md", *TASK_FILES]:
+        text = path.read_text(encoding="utf-8")
+        assert not [s for s in stale if s in text], path.name
+
+
 def test_the_discrimination_iti_is_what_gerion_s_mice_got():
     # Pip, 13 Nov 2026, measured from 18 of Gerion's sessions: 1.5 s drink + max(ITI - 2, 0) with ITI 1.5-2.5 s, so
     # 1.5-2.0 s from the outcome to the next stimulus, and the 4 s timeout first after an incorrect choice or a miss.

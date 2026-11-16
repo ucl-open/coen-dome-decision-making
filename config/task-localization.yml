@@ -3,7 +3,8 @@
 # Read by src/main.bonsai at Go and published as the TaskConfig subject (and at Start, as launched, for the background noise).
 # trialWeights names each kind of trial by what it shows; the top-level one is per mouse, and a stage's own replaces it for
 # that stage. rulesPerType names visual, auditory and audiovisualCoherent alone: audiovisualConflict and neutral trials have
-# no right answer and never repeat (Pip, 16 Nov 2026).
+# no right answer and never repeat: random-reward probes (target Random, outcome Probe), both spouts in, a choice at either
+# rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss (Pip, 16 Nov 2026).
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
@@ -40,7 +41,7 @@ taskParameters:
     enabled: true
     levelDbfs: -60.1       # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
   penalty:
-    timeoutSeconds: 4.0   # s, after an incorrect choice or a miss (not after an auto-rewarded miss)
+    timeoutSeconds: 4.0   # s, after an incorrect choice, a miss (not an auto-rewarded one) or a probe's choice on the coin's tails
     sound:               # the penalty sound, with every timeout
       enabled: true
       levelDbfs: -44.6   # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)

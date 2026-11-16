@@ -183,7 +183,7 @@ class TrialTypeWeights(TaskBlock):
 class TrialTypeRules(TaskBlock):
     """The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
     the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
-    trial in the discriminations (go/no-go's probes; left-right's side drawn at random). A key it lacks is refused, as Bonsai's
+    trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
     reader refuses it at Go."""
 
     model_config = ConfigDict(extra="forbid")
@@ -254,7 +254,10 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             "discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); "
             "a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. "
             "discriminationLeftRight: the left spout for leftModality, the right spout for the other; "
-            "a trial showing both modalities has its answer drawn at random, left or right"
+            "a trial showing both modalities, or a neutral trial, is a random-reward probe. "
+            "In localization (audiovisualConflict, neutral) and discriminationLeftRight a random-reward probe moves both spouts in, and a coin "
+            "drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised "
+            "as an incorrect choice; a miss as a scored trial's miss"
         ),
     )
     go_modality: Modality = Field(default=Modality.VISUAL, description="discriminationGoNoGo only: the modality to lick for, shown on the stages' go trials; the other modality's (noGo) trials are NoGo")
@@ -277,7 +280,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         default=BackgroundNoise(), description="The lab's background white noise (rig.yml's speakerArray.backgroundNoise) on every speaker, from Ready at the level of the task file as launched (open_rigs.core.task BackgroundNoise)"
     )
     penalty: Penalty = Field(
-        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead; in discriminationGoNoGo a miss has neither, and a probe never does), open_rigs.core.task Penalty"
+        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a NoGo trial (a Go miss and a no-reward probe have neither), open_rigs.core.task Penalty"
     )
     reward: RewardSettings = Field(description="Reward delivery parameters")
     repeats: RepeatSettings = Field(description="Trial repetition policy")
@@ -330,6 +333,11 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             for index, stage in enumerate(self.training_stages):
                 if stage.both_spouts_probability != 0:
                     raise ValueError(f"training_stages[{index}] ({stage.label}): both_spouts_probability must be 0 in discriminationGoNoGo: only the left spout moves in")
+        else:
+            # The SpoutsIn cue's LeftIn or RightIn draws the other spout back, which a stage without spout movements never returns.
+            for index, stage in enumerate(self.training_stages):
+                if not stage.spout_movements and stage.both_spouts_probability != 1:
+                    raise ValueError(f"training_stages[{index}] ({stage.label}): both_spouts_probability must be 1 with spout_movements false: a one-spout trial draws the other spout back")
         return self
 
     @model_validator(mode="after")

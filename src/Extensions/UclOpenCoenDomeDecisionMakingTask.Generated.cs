@@ -1742,13 +1742,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// <summary>
     /// The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
     ///the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
-    ///trial in the discriminations (go/no-go's probes; left-right's side drawn at random). A key it lacks is refused, as Bonsai's
+    ///trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
     ///reader refuses it at Go.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
     the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
-    trial in the discriminations (go/no-go's probes; left-right's side drawn at random). A key it lacks is refused, as Bonsai's
+    trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
     reader refuses it at Go.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
@@ -2295,11 +2295,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right
+        /// localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities, or a neutral trial, is a random-reward probe. In localization (audiovisualConflict, neutral) and discriminationLeftRight a random-reward probe moves both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
-        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right")]
+        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities, or a neutral trial, is a random-reward probe. In localization (audiovisualConflict, neutral) and discriminationLeftRight a random-reward probe moves both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss")]
         public TaskType TaskType
         {
             get
@@ -2467,14 +2467,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead; in discriminationGoNoGo a miss has neither, and a probe never does), open_rigs.core.task Penalty
+        /// The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a NoGo trial (a Go miss and a no-reward probe have neither), open_rigs.core.task Penalty
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("penalty", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penalty")]
-        [System.ComponentModel.DescriptionAttribute("The timeout and penalty sound after an incorrect response or a miss (a miss on an" +
-            " auto-reward trial is rewarded instead; in discriminationGoNoGo a miss has neith" +
-            "er, and a probe never does), open_rigs.core.task Penalty")]
+        [System.ComponentModel.DescriptionAttribute(@"The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a NoGo trial (a Go miss and a no-reward probe have neither), open_rigs.core.task Penalty")]
         public Penalty Penalty
         {
             get

@@ -118,6 +118,8 @@ def test_each_trial_event_reaches_its_hardware():
     assert _reached("Update") == {"GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"VisualStimulusOff"}
     assert _reached("Cue", "SpoutsIn") == _reached("Cue", "Drink") == {"LickSpoutStage.Commands"}
+    # Round 3 F13: the cue's command is SpoutsInCommand, apart from the cue and lib's LickSpoutCommand.SpoutsIn.
+    assert TEXT.count('"ext:SpoutsInCommand"') == 1 and '"ext:SpoutsIn"' not in TEXT
     assert _reached("Outcome") == {"TrialRow", "RewardRequests", "LickSpoutStage.Commands", "PlayPenaltySound.bonsai"}
     assert _reached("Trigger") == {"BehaviorBoard.SetZapitTriggerLine.bonsai Set=true"}
     assert _reached("TriggerOff") == {"BehaviorBoard.SetZapitTriggerLine.bonsai Set=false"}

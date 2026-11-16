@@ -232,7 +232,7 @@ public class ResponseRuleTests
             var kinds = file.Contains("left-right") ? new[] { "audiovisualCoherent", "audiovisualConflict", "neutral" } : new[] { "audiovisualConflict", "neutral" };
             CollectionAssert.AreEquivalent(kinds, probes.Select(t => t.trialType).Distinct().ToArray(), file);
             Assert.IsTrue(all.Where(t => t.target != Answer.Random).All(t => !kinds.Contains(t.trialType)), file);
-            Assert.IsTrue(probes.All(t => t.bothSpouts && !t.autoReward && SpoutsIn.Command(t) == LickSpoutCommand.SpoutsIn), file);
+            Assert.IsTrue(probes.All(t => t.bothSpouts && !t.autoReward && SpoutsInCommand.Command(t) == LickSpoutCommand.SpoutsIn), file);
             int rewarded = 0, penalised = 0;
             for (int i = 0; i < probes.Count; i++)
             {
@@ -634,9 +634,9 @@ public class ConsequenceTests
     [TestMethod]
     public void TheSpoutsComeInAsTheTrialSays()
     {
-        Assert.AreEqual(LickSpoutCommand.SpoutsIn, SpoutsIn.Command(new Trial { bothSpouts = true, target = "Left" }));
-        Assert.AreEqual(LickSpoutCommand.LeftIn, SpoutsIn.Command(new Trial { bothSpouts = false, target = "Left" }));
-        Assert.AreEqual(LickSpoutCommand.RightIn, SpoutsIn.Command(new Trial { bothSpouts = false, target = "Right" }));
+        Assert.AreEqual(LickSpoutCommand.SpoutsIn, SpoutsInCommand.Command(new Trial { bothSpouts = true, target = "Left" }));
+        Assert.AreEqual(LickSpoutCommand.LeftIn, SpoutsInCommand.Command(new Trial { bothSpouts = false, target = "Left" }));
+        Assert.AreEqual(LickSpoutCommand.RightIn, SpoutsInCommand.Command(new Trial { bothSpouts = false, target = "Right" }));
     }
 }
 

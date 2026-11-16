@@ -161,7 +161,7 @@ public class TrialDrawTests
                 Assert.AreEqual(expected == Answer.Go, t.autoReward, "auto-reward only on Go");
                 Assert.AreEqual(expected == Answer.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
                 Assert.IsFalse(t.bothSpouts);
-                Assert.AreEqual(LickSpoutCommand.LeftIn, SpoutsIn.Command(t));
+                Assert.AreEqual(LickSpoutCommand.LeftIn, SpoutsInCommand.Command(t));
             }
         }
     }
@@ -172,6 +172,29 @@ public class TrialDrawTests
         var task = Fixture.Task("task-discrimination-go-no-go.yml");
         task.TrainingStages[2].BothSpoutsProbability = 0.5;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 2, Fixture.Speakers())), "bothSpoutsProbability 0 in discriminationGoNoGo");
+    }
+
+    [TestMethod]
+    public void AStageWithoutSpoutMovementsNeedsBothSpouts()
+    {
+        // Round 3 F14: the SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
+        var task = Fixture.Task("task-localization.yml");
+        task.TrainingStages[0].SpoutMovements = false;
+        task.TrainingStages[0].BothSpoutsProbability = 0.5;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 0, Fixture.Speakers())), "bothSpoutsProbability 1 with spoutMovements false");
+        TrialDraw.CheckTask(Fixture.Task("task-discrimination-go-no-go.yml"), 0, Fixture.Speakers());   // go/no-go's one spout: allowed
+    }
+
+    [TestMethod]
+    public void TheTypeNamesAreNavigationSAndTheDrawSConstants()
+    {
+        // Round 3 F10: the draw names its trial types, coen-dome-navigation's names, never bare numbers.
+        CollectionAssert.AreEqual(new[] { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral" }, TrialDraw.TypeNames);
+        CollectionAssert.AreEqual(new[] { "go", "noGo", "audiovisualCoherent", "audiovisualConflict", "neutral" }, TrialDraw.Keys(TaskType.DiscriminationGoNoGo));
+        Assert.IsTrue(TrialDraw.RandomRewardProbe(TaskType.Localization, TrialDraw.Neutral));
+        Assert.IsFalse(TrialDraw.RandomRewardProbe(TaskType.Localization, TrialDraw.AudiovisualCoherent));
+        Assert.IsTrue(TrialDraw.RandomRewardProbe(TaskType.DiscriminationLeftRight, TrialDraw.AudiovisualCoherent));
+        Assert.IsFalse(TrialDraw.RandomRewardProbe(TaskType.DiscriminationGoNoGo, TrialDraw.Neutral));
     }
 
     [TestMethod]

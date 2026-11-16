@@ -86,7 +86,15 @@ public static class Choice
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
 public class TrialDraw
 {
-    public static readonly string[] TypeNames = { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral" };
+    public const string Visual = "visual";                           // the grating alone
+    public const string Auditory = "auditory";                       // the sound alone
+    public const string AudiovisualCoherent = "audiovisualCoherent"; // both on one side
+    public const string AudiovisualConflict = "audiovisualConflict"; // the grating on one side, the sound on the other
+    public const string Neutral = "neutral";                         // grey screen
+    /// <summary>The trial types, the trial row's trialType and localization's trialWeights keys (coen-dome-navigation's names).</summary>
+    public static readonly string[] TypeNames = { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral };
+    // The discriminations' trialWeights and rulesPerType keys by role, goModality or leftModality filling go or left.
+    public const string GoKey = "go", NoGoKey = "noGo", LeftKey = "left", RightKey = "right";
     const double CentreAzimuth = 0, CentreElevation = 15;  // the sound of visual and neutral trials in localization
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
@@ -141,7 +149,7 @@ public class TrialDraw
     {
         var problems = new List<string>();
         // Each block names exactly the task type's keys (task.py's same rule), the stage's weights only when it sets its own.
-        var weightKeys = KeyIndices(task.TaskType);
+        var weightKeys = Keys(task.TaskType);
         KeyProblems(problems, "trialWeights", task.TaskType, weightKeys, task.TrialWeights == null ? null : AllKeys(task.TrialWeights));
         if (stage.TrialWeights != null) KeyProblems(problems, "stage '" + stage.Label + "' trialWeights", task.TaskType, weightKeys, AllKeys(stage.TrialWeights));
         if (problems.Count == 0)
@@ -150,8 +158,10 @@ public class TrialDraw
             if (roles.Any(w => w < 0) || roles.Sum() <= 0) problems.Add("stage '" + stage.Label + "' needs trial weights of 0 or more, one above 0");
             if (task.TaskType == TaskType.DiscriminationGoNoGo && roles[0] == 0) problems.Add("stage '" + stage.Label + "' has no Go trials: its trial weights' go is 0");
         }
-        KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeyIndices(task.TaskType), task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
+        KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeys(task.TaskType),task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
         if (task.TaskType == TaskType.DiscriminationGoNoGo && stage.BothSpoutsProbability != 0) problems.Add("stage '" + stage.Label + "' needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
+        // The SpoutsIn cue's LeftIn or RightIn draws the other spout back, which a stage without spout movements never returns.
+        if (task.TaskType != TaskType.DiscriminationGoNoGo && !stage.SpoutMovements && stage.BothSpoutsProbability != 1) problems.Add("stage '" + stage.Label + "' needs bothSpoutsProbability 1 with spoutMovements false: a one-spout trial draws the other spout back");
         if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add("stage '" + stage.Label + "' needs contrasts, each above 0");
         var visual = task.VisualStimulus;
         foreach (var right in new[] { false, true })
@@ -231,25 +241,21 @@ public class TrialDraw
 
     // Every key trialWeights and rulesPerType may have, and which five each task type gives, in its order (task.py TRIAL_KEYS):
     // localization's by what a trial shows, the discriminations' by role, goModality or leftModality filling go or left.
-    static readonly string[] AllKeyNames = { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral", "go", "noGo", "left", "right" };
-
-    static int[] KeyIndices(TaskType type)
-    {
-        switch (type)
-        {
-            case TaskType.DiscriminationGoNoGo: return new[] { 5, 6, 2, 3, 4 };
-            case TaskType.DiscriminationLeftRight: return new[] { 7, 8, 2, 3, 4 };
-            default: return new[] { 0, 1, 2, 3, 4 };
-        }
-    }
+    static readonly string[] AllKeyNames = { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey };
 
     /// <summary>The five keys of trialWeights and rulesPerType in a task type: localization's TypeNames; discriminationGoNoGo's
     /// go, noGo, audiovisualCoherent, audiovisualConflict, neutral; discriminationLeftRight's left, right and the same three.</summary>
     public static string[] Keys(TaskType type)
     {
-        return KeyIndices(type).Select(i => AllKeyNames[i]).ToArray();
+        switch (type)
+        {
+            case TaskType.DiscriminationGoNoGo: return new[] { GoKey, NoGoKey, AudiovisualCoherent, AudiovisualConflict, Neutral };
+            case TaskType.DiscriminationLeftRight: return new[] { LeftKey, RightKey, AudiovisualCoherent, AudiovisualConflict, Neutral };
+            default: return (string[])TypeNames.Clone();
+        }
     }
 
+    // Each block's values in AllKeyNames' order, null where it gives none.
     static int?[] AllKeys(TrialTypeWeights w)
     {
         return new[] { w.Visual, w.Auditory, w.AudiovisualCoherent, w.AudiovisualConflict, w.Neutral, w.Go, w.NoGo, w.Left, w.Right };
@@ -262,19 +268,23 @@ public class TrialDraw
 
     // rulesPerType's keys (task.py RULE_KEYS): only a trial with a right answer repeats, so localization names visual,
     // auditory, audiovisualCoherent and the discriminations their two one-modality roles (Pip, 16 Nov 2026).
-    static int[] RuleKeyIndices(TaskType type)
+    static string[] RuleKeys(TaskType type)
     {
         switch (type)
         {
-            case TaskType.DiscriminationGoNoGo: return new[] { 5, 6 };
-            case TaskType.DiscriminationLeftRight: return new[] { 7, 8 };
-            default: return new[] { 0, 1, 2 };
+            case TaskType.DiscriminationGoNoGo: return new[] { GoKey, NoGoKey };
+            case TaskType.DiscriminationLeftRight: return new[] { LeftKey, RightKey };
+            default: return new[] { Visual, Auditory, AudiovisualCoherent };
         }
     }
 
-    static void KeyProblems<T>(List<string> problems, string name, TaskType type, int[] indices, T?[] values) where T : struct
+    static T[] Pick<T>(T?[] all, string[] keys) where T : struct
     {
-        var keys = indices.Select(i => AllKeyNames[i]).ToArray();
+        return keys.Select(k => all[Array.IndexOf(AllKeyNames, k)].GetValueOrDefault()).ToArray();
+    }
+
+    static void KeyProblems<T>(List<string> problems, string name, TaskType type, string[] keys, T?[] values) where T : struct
+    {
         var given = values == null ? new string[0] : AllKeyNames.Where((k, i) => values[i].HasValue).ToArray();
         if (!given.OrderBy(k => k).SequenceEqual(keys.OrderBy(k => k)))
         {
@@ -290,8 +300,7 @@ public class TrialDraw
     /// <summary>The stage's trial mix in its task type's key order (Keys): the stage's own trialWeights, else the task's.</summary>
     public static int[] RoleWeights(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage)
     {
-        var all = AllKeys(stage.TrialWeights ?? task.TrialWeights);
-        return KeyIndices(task.TaskType).Select(i => all[i].GetValueOrDefault()).ToArray();
+        return Pick(AllKeys(stage.TrialWeights ?? task.TrialWeights), Keys(task.TaskType));
     }
 
     /// <summary>The stage's trial mix by what each trial shows, in TypeNames' order: in the discriminations goModality's or
@@ -312,11 +321,12 @@ public class TrialDraw
         return swapped;
     }
 
-    static RepeatRule Rule(UclOpenCoenDomeDecisionMakingTaskParameters task, int type)
+    static RepeatRule Rule(UclOpenCoenDomeDecisionMakingTaskParameters task, string trialType)
     {
-        var all = AllKeys(task.Repeats.RulesPerType);
-        var byStimulus = ByStimulus(task, RuleKeyIndices(task.TaskType).Select(i => all[i].GetValueOrDefault()).ToArray());
-        return type < byStimulus.Length ? byStimulus[type] : RepeatRule.Never;   // no right answer: never repeated
+        // RuleKeys by stimulus are TypeNames' first two or three: a type past them has no right answer, never repeated.
+        var byStimulus = ByStimulus(task, Pick(AllKeys(task.Repeats.RulesPerType), RuleKeys(task.TaskType)));
+        var type = Array.IndexOf(TypeNames, trialType);
+        return type >= 0 && type < byStimulus.Length ? byStimulus[type] : RepeatRule.Never;
     }
 
     /// <summary>The speaker in rig.yml at the smallest angle from the location.</summary>
@@ -366,8 +376,7 @@ public class TrialDraw
     bool ShouldRepeat(string outcome)
     {
         if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == Answer.ProbeOutcome) return false;
-        var type = Array.IndexOf(TypeNames, last.trialType);
-        switch (Rule(task, type))
+        switch (Rule(task, last.trialType))
         {
             case RepeatRule.OnFailure: return outcome != "Correct";
             case RepeatRule.OnNoResponse: return outcome == "NoResponse";
@@ -385,30 +394,30 @@ public class TrialDraw
         trial.rewardOfferedUl = large ? stage.RewardSizeUl * task.Reward.LargeRewardMultiplier : stage.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
-        int type = WeightedType();
-        trial.trialType = TypeNames[type];
+        string type = TypeNames[WeightedType()];
+        trial.trialType = type;
         bool discrimination = task.TaskType != TaskType.Localization;
         // Localization plays a centre sound on visual and neutral trials; the discriminations' are silent.
-        bool showsSound = !discrimination || (type != 0 && type != 4);
+        bool showsSound = !discrimination || (type != Visual && type != Neutral);
 
         bool right;
         double soundAzimuth = CentreAzimuth, soundElevation = CentreElevation;
         switch (type)
         {
-            case 0: // the grating alone; in localization a centre sound
+            case Visual: // the grating alone; in localization a centre sound
                 right = random.NextDouble() >= 0.5;
                 SetVisual(trial, right, false);
                 break;
-            case 1: // the sound alone
+            case Auditory: // the sound alone
                 right = random.NextDouble() >= 0.5;
                 PickLocation(right, out soundAzimuth, out soundElevation);
                 break;
-            case 2: // coherent: both on one side, the grating capped
+            case AudiovisualCoherent: // both on one side, the grating capped
                 right = random.NextDouble() >= 0.5;
                 SetVisual(trial, right, true);
                 PickLocation(right, out soundAzimuth, out soundElevation);
                 break;
-            case 3: // conflict: the grating on one side, the sound on the other
+            case AudiovisualConflict: // the grating on one side, the sound on the other
                 right = random.NextDouble() >= 0.5;
                 SetVisual(trial, right, false);
                 PickLocation(!right, out soundAzimuth, out soundElevation);
@@ -422,8 +431,9 @@ public class TrialDraw
         {
             // Lick for goModality (Go), withhold for the other modality (NoGo); a trial showing both modalities or neither
             // (neutral, the grey screen) is a NoReward probe, never rewarded or penalised (Song et al. 2017; Pip, 16 Nov 2026).
-            bool goShown = (type == 0 || type == 1) && (type == 0) == (task.GoModality == Modality.Visual);
-            trial.target = type == 2 || type == 3 || type == 4 ? Answer.NoReward : goShown ? Answer.Go : Answer.NoGo;
+            bool oneModality = type == Visual || type == Auditory;
+            bool goShown = oneModality && (type == Visual) == (task.GoModality == Modality.Visual);
+            trial.target = !oneModality ? Answer.NoReward : goShown ? Answer.Go : Answer.NoGo;
             trial.bothSpouts = false;                                   // one spout, the left
             if (trial.target != Answer.Go)
             {
@@ -434,7 +444,7 @@ public class TrialDraw
         else if (task.TaskType == TaskType.DiscriminationLeftRight)
         {
             // The answer is the modality: leftModality's trials at the left spout, the other's at the right.
-            if (type == 0 || type == 1) trial.target = (type == 0) == (task.LeftModality == Modality.Visual) ? Choice.Left : Choice.Right;
+            if (type == Visual || type == Auditory) trial.target = (type == Visual) == (task.LeftModality == Modality.Visual) ? Choice.Left : Choice.Right;
         }
         if (RandomRewardProbe(task.TaskType, type))
         {
@@ -477,10 +487,10 @@ public class TrialDraw
 
     /// <summary>Whether a trial type has no right answer and pays at random: localization's audiovisualConflict and neutral,
     /// discriminationLeftRight's two-modality and neutral trials. discriminationGoNoGo's probes pay nothing.</summary>
-    public static bool RandomRewardProbe(TaskType taskType, int type)
+    public static bool RandomRewardProbe(TaskType taskType, string trialType)
     {
-        if (taskType == TaskType.Localization) return type == 3 || type == 4;
-        return taskType == TaskType.DiscriminationLeftRight && type >= 2;
+        if (taskType == TaskType.Localization) return trialType == AudiovisualConflict || trialType == Neutral;
+        return taskType == TaskType.DiscriminationLeftRight && trialType != Visual && trialType != Auditory;
     }
 
     int WeightedType()
@@ -711,9 +721,9 @@ public class RunTrials
 }
 
 [Combinator]
-[Description("Where the spouts move once the stimulus is on: both in on a both-spouts trial, else the target's alone.")]
+[Description("Where the spouts move at the SpoutsIn cue: both in on a both-spouts trial, else the target's alone.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
-public class SpoutsIn
+public class SpoutsInCommand
 {
     public IObservable<LickSpoutCommand> Process(IObservable<Trial> source)
     {
