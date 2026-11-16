@@ -1,4 +1,4 @@
-"""What src\\main.bonsai must keep: Harp-timed task logic, the shared blocks, and the bugs found fixed."""
+﻿"""What src\\main.bonsai must keep: Harp-timed task logic, the shared blocks, and the bugs found fixed."""
 
 import re
 import xml.etree.ElementTree as ET
@@ -135,7 +135,7 @@ def test_the_launch_properties():
     # No MissingCalibration: a reward valve without a calibration always stops the workflow (Pip, 15 Nov 2026).
     top = list(MAIN.find(W + "Workflow").find(W + "Nodes"))
     exposed = {p.get("Name") for n in top if n.get(XSI) == "ExternalizedMapping" for p in n.iter(W + "Property")}
-    assert {"SubjectId", "SessionId", "TaskPath", "DisplayDevice"} <= exposed and "MissingCalibration" not in exposed
+    assert {"SubjectId", "SessionId", "TaskPath", "DisplayDevice", "ConfigRoot"} == exposed
 
 
 def test_rewards_go_to_reward_requests():
@@ -158,6 +158,12 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
     assert len(shapes) == 1
     assert shapes.pop()[:3] == (1, 2, 48000)
     assert r"<ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>" in TEXT
+
+
+def test_zapit_s_hardware_triggering_is_rig_yml_s():
+    # lib-open-rigs' ZapitTrialCommand, its HardwareTriggered mapped from rig.yml's zapit.hardwareTriggered, never typed in.
+    assert TEXT.count('"zap:ZapitTrialCommand"') == 1 and "ext:ZapitTrialCommand" not in TEXT
+    assert '<Property Name="HardwareTriggered" Selector="Zapit.HardwareTriggered" />' in TEXT and "HardwareTriggered>true<" not in TEXT
 
 
 def test_the_trial_loop_starts_on_the_clock_thread():

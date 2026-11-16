@@ -16,6 +16,9 @@
                  xmlns="https://bonsai-rx.org/2018/workflow">
   <Workflow>
     <Nodes>
+      <Expression xsi:type="ExternalizedMapping">
+        <Property Name="ConfigRoot" Description="The root under which each machine has its own configuration directory, &lt;ConfigRoot&gt;\&lt;MACHINE-NAME&gt;\rig.yml, read by ReadLabRig, which publishes it to every device piece; the launch's own. ExperimentRecords and LiveView keep their own, the lab's: an edge from here joins them to ReadLabRig in Bonsai's build order, so ExperimentManifest is built before ConnectForTask publishes Optogenetics, and StreamDevices before the devices." />
+      </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ReadLabRig.bonsai">
         <Description>This machine's rig.yml (ConfigRoot\MACHINE\rig.yml) read once into the lab rig model: RigConfigs, RigFile, RigConfigDirectory and ConfigRoot, which every device piece reads. First, before anything that reads them.</Description>
         <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
@@ -1841,8 +1844,9 @@
       </Expression>
     </Nodes>
     <Edges>
-      <Edge From="1" To="2" Label="Source1" />
-      <Edge From="6" To="7" Label="Source1" />
+      <Edge From="0" To="1" Label="Source1" />
+      <Edge From="2" To="3" Label="Source1" />
+      <Edge From="7" To="8" Label="Source1" />
     </Edges>
   </Workflow>
 </WorkflowBuilder>
