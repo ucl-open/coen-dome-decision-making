@@ -76,10 +76,17 @@ def _task(name):
     return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data["taskParameters"])
 
 
-def test_a_task_file_without_task_type_is_localization_with_moving_spouts():
+def test_the_localization_file_moves_the_spouts_on_every_stage():
     task = _task("task-localization.yml")
     assert task.task_type == "localization"
     assert all(stage.spout_movements for stage in task.training_stages)
+
+
+def test_a_task_file_must_name_its_task_type():
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    del data["taskType"]
+    with pytest.raises(ValidationError, match="task_type|taskType"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 def test_the_discrimination_file_keeps_the_spouts_in_for_habituation():
@@ -113,7 +120,7 @@ def test_the_iti_descriptions_say_the_drink_is_in_the_interval():
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda p: p.name)
 def test_rig_control_keeps_the_zapit_file(path):
     # rig-control copies a task field ending in ConfigPath beside the task file at Go (taskfile.keep_files):
-    # renamed zapitConditionsPath on 9 Nov 2026, the file stopped being kept (audit, 10 Nov 2026).
+    # a field not ending so is not kept.
     opto = yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]
     assert [k for k in opto if k.endswith("Path")] == ["zapitConfigPath"]
 
@@ -135,8 +142,8 @@ def test_laser_power_is_required_with_optogenetics_on():
 
 
 def test_zapit_needs_its_file_in_the_model_and_the_schema():
-    # Audit, 10 Nov 2026, round 2: an empty zapitConfigPath with Zapit ticked passed rig-control's schema check and
-    # stopped the experiment at its first trial; the form says to set it first, and the corridor's schema refuses it.
+    # An empty zapitConfigPath with Zapit ticked must fail rig-control's schema check, not stop the experiment at its
+    # first trial; the form says to set it first, and coen-dome-navigation's schema refuses it too.
     data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "useZapit": True, "laserPowerMw": 2.0, "zapitConfigPath": ""}
     with pytest.raises(ValidationError, match="zapit_config_path is empty"):
@@ -221,10 +228,10 @@ def test_a_quiet_wait_above_its_maximum_is_refused(stage):
 def test_the_constants_are_the_c_sharp_s():
     import re
     logic = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
-    # Zapit's reply margin is lib-open-rigs' alone (ZapitTrial.ReplyMarginSeconds, ZAPIT_REPLY_MARGIN_SECONDS; audit round 3).
+    # Zapit's reply margin is lib-open-rigs' alone (ZapitTrial.ReplyMarginSeconds, ZAPIT_REPLY_MARGIN_SECONDS).
     assert "ZapitTrial.ReplyMarginSeconds" in logic and not re.search(r"const double \w*Margin", logic)
     task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
-    # The ramp-down and reward caps are lib-open-rigs' too (audit round 4), each tied there to its C# value.
+    # The ramp-down and reward caps are lib-open-rigs' too, each tied there to its C# value.
     assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS" in task_py
     assert "from open_rigs.rigs.lab_rig import MAX_REWARD_UL" in task_py
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task QuietWait in task.py,

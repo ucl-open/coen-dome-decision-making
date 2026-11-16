@@ -1,5 +1,5 @@
 """The stage suggestion: the mouse's last experiment's stage (no advancing rule is written down for this task), from this
-workflow's session summaries and av-dome's switch-over branch's (plan v11, decision 3), never a guess. Summary files are
+workflow's session summaries and av-dome's switch-over branch's, never a guess. Summary files are
 written here as claude-tools records.md "Session summaries" v1 describes them."""
 import json
 import subprocess

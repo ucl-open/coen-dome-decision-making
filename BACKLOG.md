@@ -27,5 +27,5 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 - Auto-reward is a flag with outcome `NoResponse`; contrasts, coherent sides and both spouts as Gerion's; trial types drawn independently (Pip).
 - Every reward goes through lib-open-rigs' `DeliverReward`, which stops on a reward line that is a fixed pulse or has no valve calibration.
 - The Pupil camera's gain stays 20 until a better lens arrives (Pip, 14 Nov 2026); re-measure frame size and writer load then.
-- swc-aeon pinned to a commit; BSD 3-Clause, as lib-open-rigs.
+- swc-aeon is open-rigs' (lib-open-rigs), never pinned here; BSD 3-Clause, as lib-open-rigs.
 - Not changed on audit: `outcomeTime` duplicates `harpTime` so every moment is named; trial-type names differ from navigation's as the tasks differ; `rngSeed` in the task file is what was asked, the `RngSeed` event what ran; a trial cut by Stop has no row; the response window, spouts in, stimulus off and Go time follow from the task file and the row's columns; internal Trial fields keep old names (only recorded names, task fields and metrics are the lab's).

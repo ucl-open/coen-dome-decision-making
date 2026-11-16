@@ -17,16 +17,16 @@
   <Workflow>
     <Nodes>
       <Expression xsi:type="ExternalizedMapping">
-        <Property Name="ConfigRoot" Description="The root under which each machine has its own configuration directory, &lt;ConfigRoot&gt;\&lt;MACHINE-NAME&gt;\rig.yml, read by ReadLabRig, which publishes it to every device piece; the launch's own. ExperimentRecords and LiveView keep their own, the lab's: an edge from here joins them to ReadLabRig in Bonsai's build order, so ExperimentManifest is built before ConnectForTask publishes Optogenetics, and StreamDevices before the devices." />
+        <Property Name="ConfigRoot" Description="The root under which each machine has its own configuration directory, &lt;ConfigRoot&gt;\&lt;MACHINE-NAME&gt;\rig.yml, read by ReadLabRig, which publishes it to every device piece; the launch's own, which rig-control always sets to C:\Coen-Lab-Local\RigConfigs. ExperimentRecords and LiveView are not mapped from here: each reads that root as its own ConfigRoot, as a mapping edge into LiveView's StreamDevices would build it before the devices it streams." />
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ReadLabRig.bonsai">
         <Description>This machine's rig.yml (ConfigRoot\MACHINE\rig.yml) read once into the lab rig model: RigConfigs, RigFile, RigConfigDirectory and ConfigRoot, which every device piece reads. First, before anything that reads them.</Description>
         <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
-        <Property Name="SubjectId" />
-        <Property Name="SessionId" />
-        <Property Name="TaskPath" />
+        <Property Name="SubjectId" Description="The mouse's lab ID; the launch's own, from rig-control." />
+        <Property Name="SessionId" Description="The session number; the launch's own, from rig-control." />
+        <Property Name="TaskPath" Description="The task file: rig-control's copy of the one chosen at launch, read at Start for the background noise and again at Go with the form's edits; from the editor, config\task-localization.yml." />
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
@@ -189,7 +189,7 @@
         <Description>The experiment folder at Go (PathPrefix), BonsaiData_Async, Settings_Rig, Settings_Experiment and the Recording phase. Before Hardware: every device's log waits for PathPrefix, so its definition must read nothing the devices define.</Description>
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
-        <Property Name="DisplayDevice" Description="The display the dome projector is on; a launch property." />
+        <Property Name="DisplayDevice" Description="The display the dome projector is on (DomeHardware's ProjectorDisplay); a launch property." />
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Hardware</Name>
@@ -197,6 +197,7 @@
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:DomeHardware.bonsai">
+              <Description>Every dome device as a piece, named as in the data (lib-open-rigs Building Blocks): the Ready gate, the timestamp generator's clock, the Behavior board with its reward lines, Zapit line and wheel, both Lickety Splits, the lick spout stage, the three cameras, which start triggering once all three acquire, the speakers (SpeakerMixer) and the projector (ProjectorDisplay, stimuli on DrawStimuli).</Description>
             </Expression>
             <Expression xsi:type="ExternalizedMapping">
               <Property Name="DisplayDevice" />
@@ -442,61 +443,43 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound and the penalty sound at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound and the penalty sound at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
-            <Expression xsi:type="GroupWorkflow">
-              <Name>LoadAudioFiles</Name>
-              <Description>The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after Audio.</Description>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Speakers</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:LoadAuditoryStimulusSet">
-                      <ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>
-                      <ext:FilePrefix>filtered_pink_pulse_train_</ext:FilePrefix>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Take">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>AuditoryStimulusSet</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>AuditoryStimulusSet</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>TaskParameters.AudioStimulus.LevelDbfs</Selector>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Zip" />
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:LevelAuditoryStimulusSet" />
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>LevelledStimulusSet</Name>
-                  </Expression>
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                  <Edge From="2" To="3" Label="Source1" />
-                  <Edge From="4" To="7" Label="Source1" />
-                  <Edge From="5" To="6" Label="Source1" />
-                  <Edge From="6" To="7" Label="Source2" />
-                  <Edge From="7" To="8" Label="Source1" />
-                  <Edge From="8" To="9" Label="Source1" />
-                </Edges>
-              </Workflow>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>Speakers</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="ext:LoadAuditoryStimulusSet">
+                <ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>
+                <ext:FilePrefix>filtered_pink_pulse_train_</ext:FilePrefix>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Take">
+                <rx:Count>1</rx:Count>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="rx:AsyncSubject">
+              <Name>AuditoryStimulusSet</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>AuditoryStimulusSet</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TaskConfig</Name>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>TaskParameters.AudioStimulus.LevelDbfs</Selector>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Zip" />
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="ext:LevelAuditoryStimulusSet" />
+            </Expression>
+            <Expression xsi:type="rx:AsyncSubject">
+              <Name>LevelledStimulusSet</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>AuditoryStimulus</Name>
@@ -572,9 +555,17 @@
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:PlayPenaltySound.bonsai" />
           </Nodes>
           <Edges>
+            <Edge From="0" To="1" Label="Source1" />
             <Edge From="1" To="2" Label="Source1" />
             <Edge From="2" To="3" Label="Source1" />
-            <Edge From="4" To="5" Label="Source1" />
+            <Edge From="4" To="7" Label="Source1" />
+            <Edge From="5" To="6" Label="Source1" />
+            <Edge From="6" To="7" Label="Source2" />
+            <Edge From="7" To="8" Label="Source1" />
+            <Edge From="8" To="9" Label="Source1" />
+            <Edge From="10" To="11" Label="Source1" />
+            <Edge From="11" To="12" Label="Source1" />
+            <Edge From="13" To="14" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -584,7 +575,7 @@
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:Zapit.ConnectForTask.bonsai" />
       <Expression xsi:type="GroupWorkflow">
         <Name>Logging</Name>
-        <Description>Everything else written to the experiment folder (LogLabExperiment, before Hardware, makes it at Go, with BonsaiData_Async, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), BonsaiData_Trial and Zapit's logs; ExperimentRecords, last but LiveView, delivers and logs rewards (a valve with no calibration stops the workflow, for every mouse), adds the controller's events to BonsaiData_Async, records the Harp devices and writes the manifest.</Description>
+        <Description>Everything else written to the experiment folder (LogLabExperiment, before Hardware, makes it at Go, with BonsaiData_Async, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), BonsaiData_Trial and Zapit's logs; Rewards (DeliverReward) logs each reward and each calibrated valve's file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to BonsaiData_Async, records the Harp devices and writes the manifest.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -1831,7 +1822,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Rewards</Name>
-        <Description>Each reward on RewardRequests (side, microlitres: the task's and ManualRewards') delivered through its valve's calibration (OpenRigs.Devices BehaviorBoard.DeliverReward, both reward lines from rig.yml at Start; a RewardDelivered row in BonsaiData_Async). Before ExperimentRecords, which records the experiment but gives no rewards.</Description>
+        <Description>Each reward on RewardRequests (side, microlitres: the task's and ManualRewards') delivered through its valve's calibration (OpenRigs.Devices BehaviorBoard.DeliverReward, both reward lines from rig.yml at Start; a RewardDelivered row in BonsaiData_Async, each calibrated valve's file as ValveCalibrationDO&lt;n&gt;). Before ExperimentRecords, which records the experiment but gives no rewards.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -1858,7 +1849,7 @@
         </Workflow>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ExperimentRecords.bonsai">
-        <Description>Each reward through its valve's calibration (DeliverReward: a RewardDelivered row in BonsaiData_Async, each calibrated valve's file as ValveCalibrationDO&lt;n&gt;), the controller's events (LogControlEvents), every Harp device in rig.yml checked at Start and recorded (RecordHarpDevices: the Behavior board, the timestamp generator, both stepper drivers and both Lickety Splits), and manifest.json (ExperimentManifest: the machine, this repo's commit, who launched it and sent Go, rig.yml and every file it names by hash ({RigFiles}: MeshMap.csv, gammalut.bmp, the speakers' filters, the valve calibrations; the auditory stimuli are this repo's, in src\LocalFiles\AuditoryStimuli, so the commit names them) and this mouse's spout positions, schemas\trial-columns.yml, and what the experiment must leave: a folder for each device in rig.yml, the Harp device records (harp), the three settings files and BonsaiData (Trial and Async), Zapit's logs in an optogenetics experiment). Last but LiveView, as it finds each device by the subjects published before it.</Description>
+        <Description>The controller's events (LogControlEvents), every Harp device in rig.yml checked at Start and recorded (RecordHarpDevices: the Behavior board, the timestamp generator, both stepper drivers and both Lickety Splits), and manifest.json (ExperimentManifest: the machine, this repo's commit, who launched it and sent Go, rig.yml and every file it names by hash ({RigFiles}: MeshMap.csv, gammalut.bmp, the speakers' filters, the valve calibrations; the auditory stimuli are this repo's, in src\LocalFiles\AuditoryStimuli, so the commit names them) and this mouse's spout positions, schemas\trial-columns.yml, and what the experiment must leave: a folder for each device in rig.yml, the Harp device records (harp), the three settings files and BonsaiData (Trial and Async), Zapit's logs in an optogenetics experiment). Last but LiveView, as it finds each device by the subjects published before it.</Description>
         <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
         <IngestScript>coen-dome-decision-making</IngestScript>
         <ExpectedFiles>auto;harp;Settings/Settings_Rig_;Settings/Settings_Task_;Settings/Settings_Experiment_;BonsaiData/BonsaiData_Trial_;BonsaiData/BonsaiData_Async_;BonsaiData/BonsaiData_ZapitReplies_?Optogenetics;Settings/Settings_ZapitConditions_?Optogenetics</ExpectedFiles>

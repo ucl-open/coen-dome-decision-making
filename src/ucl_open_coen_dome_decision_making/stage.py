@@ -3,7 +3,7 @@
 Nothing in this repository, its README or BACKLOG says when a mouse should move up a stage (production
 av-dome's stage was picked by hand in its window), so this suggests no advance: it repeats the last stage,
 and says so. The experimenter changes it before Go. A mouse's experiments from av-dome's switch-over branch
-count as this workflow's (plan v11, decision 3): it wrote this workflow's files. It reads the mouse's session
+count as this workflow's: it wrote this workflow's files. It reads the mouse's session
 summaries (jacuzzi-ingest's `sub-<lab ID>/<ses folder>.json`, version 1: claude-tools records.md, "Session
 summaries"): trials, Settings_Experiment and a Settings_Task with taskType. An experiment in an old format is
 not read (deleted on 15 Nov 2026, Pip).

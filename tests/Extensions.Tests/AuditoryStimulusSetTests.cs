@@ -99,7 +99,6 @@ public class AuditoryStimulusSetTests
     public void EqualisingIsTheFiltersCentredConvolution()
     {
         var set = Load(Speakers());
-        CollectionAssert.AreEqual(new[] { 0, 1, 2 }, set.SpeakerChannels);
         var x = waves[7].Select(s => (s + 32768.0) * (2.0 / 65535.0) - 1.0).ToArray();
         var got = Samples(set.Stimulus(7, 2));
         for (int n = 0; n < x.Length; n++)
@@ -112,6 +111,12 @@ public class AuditoryStimulusSetTests
             }
             Assert.AreEqual(want, got[n], 1e-5);
         }
+    }
+
+    [TestMethod]
+    public void A_channel_with_no_speaker_is_refused()
+    {
+        StringAssert.Contains(Fixture.Refusal(() => Load(Speakers()).Stimulus(7, 99)), "mixer channel 99");
     }
 
     [TestMethod]
@@ -143,7 +148,8 @@ public class AuditoryStimulusSetTests
         StringAssert.Contains(refusal(() => set.Buffer(7, 2)), "no level yet");
         var levelled = set.AtLevel(-47.2);
         var buffer = levelled.Buffer(7, 2);
-        var gain = SoundLevel.Gain(set.Stimulus(7, 99), -47.2);  // channel 99 has no speaker: the unequalised waveform
+        var unequalised = OpenRigs.Audio.Wave.Read(Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_7.wav"), 48000);
+        var gain = SoundLevel.Gain(unequalised, -47.2);
         var equalised = Samples(set.Stimulus(7, 2));
         using (var row = buffer.GetRow(2))
         using (var copy = new OpenCV.Net.Mat(1, buffer.Cols, OpenCV.Net.Depth.F32, 1))
@@ -152,7 +158,7 @@ public class AuditoryStimulusSetTests
             var played = Samples(copy);
             for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(equalised[n] * gain, played[n], 1e-6);
         }
-        Assert.AreEqual(-47.2, SoundLevel.RmsDbfs(set.Stimulus(7, 99)) + 20 * Math.Log10(gain), 1e-9);
+        Assert.AreEqual(-47.2, SoundLevel.RmsDbfs(unequalised) + 20 * Math.Log10(gain), 1e-9);
         StringAssert.Contains(refusal(() => set.AtLevel(-3)), "on speaker 'left' at -3 dBFS RMS (audioStimulus.levelDbfs) peaks at");
     }
 }

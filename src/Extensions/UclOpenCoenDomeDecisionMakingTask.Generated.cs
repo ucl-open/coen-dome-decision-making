@@ -2092,7 +2092,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         public UclOpenCoenDomeDecisionMakingTaskParameters()
         {
-            _taskType = TaskType.Localization;
             _targetModality = Modality.Visual;
             _trialStructure = new TrialStructure();
             _visualStimulus = new VisualStimulus();
@@ -2144,7 +2143,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
         /// <summary>
         /// localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("taskType")]
+        [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
         [System.ComponentModel.DescriptionAttribute("localization: the answer is the side the stimulus came from. discrimination: the " +
             "answer is the modality, the left spout for targetModality and the right spout fo" +

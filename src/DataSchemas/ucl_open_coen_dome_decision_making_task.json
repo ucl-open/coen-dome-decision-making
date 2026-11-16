@@ -592,7 +592,6 @@
         },
         "taskType": {
           "$ref": "#/$defs/TaskType",
-          "default": "localization",
           "description": "localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other"
         },
         "targetModality": {
@@ -656,6 +655,7 @@
         }
       },
       "required": [
+        "taskType",
         "trialStructure",
         "visualStimulus",
         "audioStimulus",

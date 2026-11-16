@@ -304,7 +304,7 @@ public class TrialDrawTests
     [TestMethod]
     public void ALargeRewardOverTheCapIsRefusedAtGo()
     {
-        // Audit round 5: DeliverReward refuses a reward over its MaxRewardUl (lib's MAX_REWARD_UL) mid-session; Go refuses it first.
+        // DeliverReward refuses a reward over its MaxRewardUl (lib's MAX_REWARD_UL) mid-session; Go refuses it first.
         var task = Fixture.Task("task-localization.yml");
         task.Reward.LargeRewardProbability = 0.2;
         task.Reward.LargeRewardMultiplier = 3;
@@ -510,7 +510,7 @@ public class TrialStartTests
         Assert.AreEqual(3, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserPowerMw);
         Assert.AreEqual(20.4, CreateTrialRow.Build("Left", 20.5, triggered, 20, 0, false).laserTriggerTime, "the trigger's Harp time");
 
-        // The outcome first: the row logs 0 mW and the trigger after it is dropped, whatever the Harp times (audit round 3).
+        // The outcome first: the row logs 0 mW and the trigger after it is dropped, whatever the Harp times.
         var answered = started();
         Assert.AreEqual(0, CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserPowerMw);
         Assert.IsTrue(double.IsNaN(CreateTrialRow.Build("Left", 20.45, answered, 20, 0, false).laserTriggerTime), "no trigger: NaN");
@@ -569,7 +569,7 @@ public class TrialStartTests
     [TestMethod]
     public void WithoutHardwareTriggeringTheCommandGoesAtTheTriggerAndItsReplyIsChecked()
     {
-        // Zapit starts the laser when a command reaches it on such a rig (audit round 3): never at the interval's start.
+        // Zapit starts the laser when a command reaches it on such a rig: never at the interval's start.
         var trial = new System.Reactive.Subjects.Subject<Trial>();
         var trigger = new System.Reactive.Subjects.Subject<Trial>();
         var sent = new List<OpenRigs.Devices.Zapit.ZapitCommand>();

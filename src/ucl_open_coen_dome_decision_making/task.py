@@ -213,7 +213,6 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and discrimination."""
 
     task_type: TaskType = Field(
-        default=TaskType.LOCALIZATION,
         description="localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other",
     )
     target_modality: Modality = Field(default=Modality.VISUAL, description="Discrimination only: the modality answered at the left spout")

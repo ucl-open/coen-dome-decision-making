@@ -3,8 +3,8 @@
 # Read by src/main.bonsai at Go and published as the TaskConfig subject (and at Start, as launched, for the background noise).
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
-  taskType: localization   # stated, not left to the schema's default: app-rig-control's stage suggestion reads it from this file
-  rngSeed: null           # null = draw a random seed; each seed used is a RngSeed event in BonsaiData_Async
+  taskType: localization   # localization or discrimination
+  rngSeed: null           # null = the workflow draws one at Go; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
     itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included
     itiMaxSeconds: 4.4            # s
@@ -63,8 +63,8 @@ taskParameters:
       rewardSizeUl: 3      # ul, planned from the valve's calibration
       contrasts: [3.0]
       allowRepeats: false
-      lickQuietSeconds: 0  # s with both spouts released before Go (a held contact holds Go); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     - label: Stage 1       # coherent trials only
       trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
@@ -73,8 +73,8 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [3.0]
       allowRepeats: true
-      lickQuietSeconds: 0  # s with both spouts released before Go (a held contact holds Go); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     - label: Stage 2       # unisensory auditory added
       trialWeights: { visual: 0, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
@@ -83,8 +83,8 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
-      lickQuietSeconds: 0  # s with both spouts released before Go (a held contact holds Go); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     - label: Stage 3       # unisensory visual added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
@@ -93,8 +93,8 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
-      lickQuietSeconds: 0  # s with both spouts released before Go (a held contact holds Go); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     - label: Stage 4       # conflict and neutral trials added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
@@ -103,6 +103,6 @@ taskParameters:
       rewardSizeUl: 3
       contrasts: [0.25, 0.5, 1.0]
       allowRepeats: true
-      lickQuietSeconds: 0  # s with both spouts released before Go (a held contact holds Go); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before Go; 0 off (with wheelQuietCm 0)
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds

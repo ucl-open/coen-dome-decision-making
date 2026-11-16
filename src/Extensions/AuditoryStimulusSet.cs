@@ -36,20 +36,15 @@ public class AuditoryStimulusSet
         this.raw = raw;
         Speakers = speakers;
         equalised = speakers.SpeakerChannels.ToDictionary(channel => channel, channel => raw.Select(waveform => speakers.Equalise(waveform, channel)).ToArray());
-        LevelDbfs = double.NaN;
     }
 
-    AuditoryStimulusSet(AuditoryStimulusSet set, double levelDbfs, double[] gains)
+    AuditoryStimulusSet(AuditoryStimulusSet set, double[] gains)
     {
         raw = set.raw;
         equalised = set.equalised;
         Speakers = set.Speakers;
-        LevelDbfs = levelDbfs;
         this.gains = gains;
     }
-
-    /// <summary>The level every waveform plays at, in dBFS RMS of the unequalised waveform (OpenRigs.Audio SoundLevel); NaN until set.</summary>
-    public double LevelDbfs { get; private set; }
 
     /// <summary>
     /// The set at the task's level (audioStimulus.levelDbfs): each waveform's gain from its unequalised self, every
@@ -58,7 +53,7 @@ public class AuditoryStimulusSet
     /// </summary>
     public AuditoryStimulusSet AtLevel(double levelDbfs)
     {
-        var levelled = new AuditoryStimulusSet(this, levelDbfs, raw.Select(waveform => SoundLevel.Gain(waveform, levelDbfs)).ToArray());
+        var levelled = new AuditoryStimulusSet(this, raw.Select(waveform => SoundLevel.Gain(waveform, levelDbfs)).ToArray());
         foreach (var speaker in Speakers.Speakers)
         {
             for (int i = 0; i < raw.Length; i++)
@@ -77,12 +72,6 @@ public class AuditoryStimulusSet
     /// <summary>The speakers the set is equalised for.</summary>
     public SpeakerSet Speakers { get; private set; }
 
-    /// <summary>The mixer channel of every speaker in rig.yml, in rig.yml's order.</summary>
-    public int[] SpeakerChannels
-    {
-        get { return Speakers.SpeakerChannels; }
-    }
-
     /// <summary>The waveform a trial plays on a channel, equalised for that speaker, before its level.</summary>
     public Mat Stimulus(int index, int channel)
     {
@@ -92,7 +81,11 @@ public class AuditoryStimulusSet
                 "Trial asks for auditory waveform " + index + ", but the set has " + raw.Length + " (0 to " + (raw.Length - 1) + ").");
         }
         Mat[] waveforms;
-        return equalised.TryGetValue(channel, out waveforms) ? waveforms[index] : raw[index];
+        if (!equalised.TryGetValue(channel, out waveforms))
+        {
+            throw new InvalidOperationException("Trial asks for mixer channel " + channel + ", which is no rig.yml speaker's.");
+        }
+        return waveforms[index];
     }
 
     /// <summary>The mixer's buffer for a trial: its waveform equalised for the speaker on its channel, at the set's level, with its sync copy.</summary>

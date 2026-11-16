@@ -647,7 +647,7 @@ public class SecondsUntil
     /// <summary>How far past a moment may be and still come at once: the trial start is exact, but is seen on a tick of the 1 kHz
     /// Harp clock after it, and the timestamp generator's messages reach Bonsai with USB lag, so a moment at the trial start (the
     /// trigger with a lead, the stimulus without) comes a few ms late. 10 ms covers both; a tighter bound would stop
-    /// experiments on trial 1 (audit round 2's bug).</summary>
+    /// experiments on trial 1.</summary>
     public const double ClockStepSeconds = 0.01;
 
     public TrialMoment Moment { get; set; }
