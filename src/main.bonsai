@@ -42,7 +42,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
-        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test) and SessionId are the launch's; the parameters a controller may change until Go (TrainingStage, SpoutStepSize; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath) and the commands it may send while ready or recording. The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskFilePath (TaskPath) at Start and RunSettings (SubjectId, SessionId) at Go; Go also publishes TrainingStage. SpoutStepSize is taken live by DomeHardware's LickSpoutStage, which shows its default. RewardLeft and RewardRight each give 2.5 ul before and during a run through the valve's calibration (BehaviorBoard.ManualRewards: Pip's fixed manual drop, 15 Nov 2026).</Description>
+        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test) and SessionId are the launch's; the parameter a controller may change until Go (TrainingStage; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath); the pieces declare their own parameters and commands (16 Nov 2026). The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskFilePath (TaskPath) at Start and RunSettings (SubjectId, SessionId) at Go; Go also publishes TrainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardLeft and RewardRight each give 2.5 ul before and during a run through the valve's calibration (BehaviorBoard.ManualRewards: Pip's fixed manual drop, 15 Nov 2026).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="ExternalizedMapping">
@@ -64,80 +64,8 @@
                   <Maximum>4</Maximum>
                   <WholeNumber>true</WholeNumber>
                 </Parameter>
-                <Parameter>
-                  <Name>SpoutStepSize</Name>
-                  <Value />
-                  <Description>Motor steps each spout nudge moves, taken live (DomeHardware's LickSpoutStage).</Description>
-                  <Minimum>1</Minimum>
-                  <WholeNumber>true</WholeNumber>
-                </Parameter>
               </Parameters>
-              <Commands>
-                <Command>
-                  <Name>RewardLeft</Name>
-                  <Description>Deliver 2.5 ul on the left spout (BehaviorBoard.ManualRewards).</Description>
-                </Command>
-                <Command>
-                  <Name>RewardRight</Name>
-                  <Description>Deliver 2.5 ul on the right spout (BehaviorBoard.ManualRewards).</Description>
-                </Command>
-                <Command>
-                  <Name>SpoutsHome</Name>
-                  <Description>Move both spouts to the home position.</Description>
-                </Command>
-                <Command>
-                  <Name>SpoutsIn</Name>
-                  <Description>Move both spouts to the in position.</Description>
-                </Command>
-                <Command>
-                  <Name>SpoutsOut</Name>
-                  <Description>Move both spouts to the out position.</Description>
-                </Command>
-                <Command>
-                  <Name>SaveSpoutPositions</Name>
-                  <Description>Save the spouts' in positions to this mouse's file.</Description>
-                </Command>
-                <Command>
-                  <Name>LeftUp</Name>
-                  <Description>Nudge the left spout up by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>LeftDown</Name>
-                  <Description>Nudge the left spout down by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>RightUp</Name>
-                  <Description>Nudge the right spout up by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>RightDown</Name>
-                  <Description>Nudge the right spout down by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>LeftFront</Name>
-                  <Description>Nudge the left spout forward by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>LeftBack</Name>
-                  <Description>Nudge the left spout back by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>RightFront</Name>
-                  <Description>Nudge the right spout forward by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>RightBack</Name>
-                  <Description>Nudge the right spout back by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>BaseLeft</Name>
-                  <Description>Nudge the spout base left by SpoutStepSize.</Description>
-                </Command>
-                <Command>
-                  <Name>BaseRight</Name>
-                  <Description>Nudge the spout base right by SpoutStepSize.</Description>
-                </Command>
-              </Commands>
+              <Commands />
             </Expression>
             <Expression xsi:type="ExternalizedMapping">
               <Property Name="TaskPath" Description="The task file: rig-control's copy of the one chosen at launch, read at Start for the background noise and again at Go with the form's edits; from the editor, config\task-localization.yml." />
