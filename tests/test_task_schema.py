@@ -95,18 +95,39 @@ def test_a_task_file_must_name_its_task_type():
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
-def test_the_discrimination_file_keeps_the_spouts_in_for_habituation():
-    task = _task("task-discrimination.yml")
-    assert task.task_type == "discrimination"
-    assert task.target_modality == "visual"
-    assert not task.training_stages[0].spout_movements
-    assert all(stage.spout_movements for stage in task.training_stages[1:])
+def test_the_discrimination_files_keep_the_spouts_in_for_habituation():
+    for name, task_type in (("task-discrimination-left-right.yml", "discriminationLeftRight"), ("task-discrimination-go-no-go.yml", "discriminationGoNoGo")):
+        task = _task(name)
+        assert task.task_type == task_type
+        assert not task.training_stages[0].spout_movements
+        assert all(stage.spout_movements for stage in task.training_stages[1:])
+    assert _task("task-discrimination-left-right.yml").left_modality == "visual"
+    assert _task("task-discrimination-go-no-go.yml").go_modality == "visual"
+
+
+def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
+    # Same stages and timing (Gerion's); go-no-go names goModality and offers one spout.
+    lr = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
+    gng = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    assert all(s["bothSpoutsProbability"] == 0 for s in gng["trainingStages"])
+    for data, key in ((lr, "leftModality"), (gng, "goModality")):
+        del data["taskType"], data[key]
+        for s in data["trainingStages"]:
+            del s["bothSpoutsProbability"]
+    assert lr == gng
+
+
+def test_go_no_go_refuses_both_spouts():
+    data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    data["trainingStages"][2]["bothSpoutsProbability"] = 0.5
+    with pytest.raises(ValidationError, match="both_spouts_probability must be 0"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 def test_the_discrimination_iti_is_what_gerion_s_mice_got():
     # Pip, 13 Nov 2026, measured from 18 of Gerion's sessions: 1.5 s drink + max(ITI - 2, 0) with ITI 1.5-2.5 s, so
     # 1.5-2.0 s from the outcome to the next stimulus, and the 4 s timeout first after an incorrect choice or a miss.
-    task = _task("task-discrimination.yml")
+    task = _task("task-discrimination-left-right.yml")
     trial = task.trial_structure
     assert (trial.iti_min_seconds, trial.iti_max_seconds, trial.drink_seconds) == (1.5, 2.0, 1.5)
     assert task.penalty.timeout_seconds == 4.0
@@ -133,7 +154,7 @@ def test_rig_control_keeps_the_zapit_file(path):
 
 def test_laser_power_is_required_with_optogenetics_on():
     # Pip, 10 Nov 2026: this workflow sends and logs laserPowerMw as coen-dome-navigation does, required when on.
-    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml", "laserDurationSeconds": 0.8}
     with pytest.raises(ValidationError, match="laser_power_mw is not set"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
@@ -150,14 +171,14 @@ def test_laser_power_is_required_with_optogenetics_on():
 def test_zapit_needs_its_file_in_the_model_and_the_schema():
     # An empty zapitConfigPath with Zapit ticked must fail rig-control's schema check, not stop the experiment at its
     # first trial; the form says to set it first, and coen-dome-navigation's schema refuses it too.
-    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "useZapit": True, "laserPowerMw": 2.0, "zapitConfigPath": ""}
     with pytest.raises(ValidationError, match="zapit_config_path is empty"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     jsonschema = pytest.importorskip("jsonschema")
     import json
     schema = json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8"))
-    task = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())
+    task = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())
     task["taskParameters"]["optogenetics"] = on
     assert not jsonschema.Draft202012Validator(schema).is_valid(task)
     task["taskParameters"]["optogenetics"] = {**on, "zapitConfigPath": "C:\\zapit\\conditions.yml"}
@@ -166,7 +187,7 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
 
 
-def _with(name="task-discrimination.yml", opto=None, structure=None, stage=None):
+def _with(name="task-discrimination-left-right.yml", opto=None, structure=None, stage=None):
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
     data["optogenetics"].update(opto or {})
     data["trialStructure"].update(structure or {})
@@ -202,7 +223,7 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
 )
 def test_the_task_s_own_blocks_refuse_inf_and_nan(block, key, value):
     # Each is a lib-open-rigs TaskBlock (allow_inf_nan off), as the lab's blocks are.
-    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     data[block][key] = value
     with pytest.raises(ValidationError, match="finite number"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
@@ -255,7 +276,7 @@ def test_a_reward_over_the_cap_is_refused():
 
 
 def test_a_large_reward_over_the_cap_is_refused():
-    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     data["reward"].update({"largeRewardMultiplier": 3, "largeRewardProbability": 0.1})
     data["trainingStages"][0]["rewardSizeUl"] = 7
     with pytest.raises(ValidationError, match=r"reward_size_ul \(7.0 ul\) x reward.large_reward_multiplier \(3.0\) is more than 20 ul"):
@@ -275,11 +296,12 @@ def test_the_spout_wait_is_named_by_its_ends():
         assert yaml.safe_load(path.read_text())["taskParameters"]["trialStructure"]["stimulusToSpoutsInSeconds"] == 0.5
 
 
-def test_target_modality_is_visual_or_auditory():
-    data = yaml.safe_load((CONFIG / "task-discrimination.yml").read_text())["taskParameters"]
-    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "targetModality": "auditory"})
-    with pytest.raises(ValidationError):
-        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "targetModality": "smell"})
+def test_the_modalities_are_visual_or_auditory():
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
+    for key in ("leftModality", "goModality"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, key: "auditory"})
+        with pytest.raises(ValidationError):
+            UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, key: "smell"})
 
 def test_reward_size_says_the_calibration_plans_its_pulses():
     from ucl_open_coen_dome_decision_making.task import TrainingStage
@@ -313,7 +335,7 @@ def test_every_task_file_states_its_task_type():
 
     for path in sorted((Path(__file__).parents[1] / "config").glob("task*.yml")):
         task = yaml.safe_load(path.read_text(encoding="utf-8"))["taskParameters"]
-        assert task.get("taskType") in ("localization", "discrimination"), path.name
+        assert task.get("taskType") in ("localization", "discriminationGoNoGo", "discriminationLeftRight"), path.name
 
 
 def test_the_committed_task_schema_is_the_model_s():

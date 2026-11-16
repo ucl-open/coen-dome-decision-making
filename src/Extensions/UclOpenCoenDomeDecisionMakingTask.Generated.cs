@@ -915,12 +915,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Net lick difference (left minus right, absolute) that terminates the response window
+        /// Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("thresholdLicks")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="thresholdLicks")]
-        [System.ComponentModel.DescriptionAttribute("Net lick difference (left minus right, absolute) that terminates the response win" +
-            "dow")]
+        [System.ComponentModel.DescriptionAttribute("Net lick difference (left minus right, absolute) that ends the response window wi" +
+            "th a choice; in discriminationGoNoGo, licks at the left spout (the right is not " +
+            "counted)")]
         public int ThresholdLicks
         {
             get
@@ -1206,9 +1207,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="localization")]
         Localization = 0,
     
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="discrimination")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="discrimination")]
-        Discrimination = 1,
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="discriminationGoNoGo")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="discriminationGoNoGo")]
+        DiscriminationGoNoGo = 1,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="discriminationLeftRight")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="discriminationLeftRight")]
+        DiscriminationLeftRight = 2,
     }
 
 
@@ -2003,11 +2008,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Grey screen, centre sound in localization, silent in discrimination
+        /// Grey screen, centre sound in localization, silent in the discriminations
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("neutral", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
-        [System.ComponentModel.DescriptionAttribute("Grey screen, centre sound in localization, silent in discrimination")]
+        [System.ComponentModel.DescriptionAttribute("Grey screen, centre sound in localization, silent in the discriminations")]
         public int Neutral
         {
             get
@@ -2056,11 +2061,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Task parameters for the coen-dome-decision-making audiovisual tasks: localization and discrimination.
+    /// Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute("Task parameters for the coen-dome-decision-making audiovisual tasks: localization" +
-        " and discrimination.")]
+        " and two modality discriminations.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class UclOpenCoenDomeDecisionMakingTaskParameters
@@ -2070,7 +2075,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private TaskType _taskType;
     
-        private Modality _targetModality;
+        private Modality _goModality;
+    
+        private Modality _leftModality;
     
         private TrialStructure _trialStructure;
     
@@ -2094,7 +2101,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         public UclOpenCoenDomeDecisionMakingTaskParameters()
         {
-            _targetModality = Modality.Visual;
+            _goModality = Modality.Visual;
+            _leftModality = Modality.Visual;
             _trialStructure = new TrialStructure();
             _visualStimulus = new VisualStimulus();
             _audioStimulus = new AudioStimulus();
@@ -2111,7 +2119,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
         {
             _rngSeed = other._rngSeed;
             _taskType = other._taskType;
-            _targetModality = other._targetModality;
+            _goModality = other._goModality;
+            _leftModality = other._leftModality;
             _trialStructure = other._trialStructure;
             _visualStimulus = other._visualStimulus;
             _audioStimulus = other._audioStimulus;
@@ -2143,13 +2152,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other
+        /// localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
-        [System.ComponentModel.DescriptionAttribute("localization: the answer is the side the stimulus came from. discrimination: the " +
-            "answer is the modality, the left spout for targetModality and the right spout fo" +
-            "r the other")]
+        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right")]
         public TaskType TaskType
         {
             get
@@ -2163,20 +2170,40 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Discrimination only: the modality answered at the left spout
+        /// discriminationGoNoGo only: the modality to lick for; the other modality's trials are NoGo
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("targetModality")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="targetModality")]
-        [System.ComponentModel.DescriptionAttribute("Discrimination only: the modality answered at the left spout")]
-        public Modality TargetModality
+        [Newtonsoft.Json.JsonPropertyAttribute("goModality")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="goModality")]
+        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the modality to lick for; the other modality\'s trials " +
+            "are NoGo")]
+        public Modality GoModality
         {
             get
             {
-                return _targetModality;
+                return _goModality;
             }
             set
             {
-                _targetModality = value;
+                _goModality = value;
+            }
+        }
+    
+        /// <summary>
+        /// discriminationLeftRight only: the modality answered at the left spout; the other is answered at the right
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("leftModality")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="leftModality")]
+        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the modality answered at the left spout; the other " +
+            "is answered at the right")]
+        public Modality LeftModality
+        {
+            get
+            {
+                return _leftModality;
+            }
+            set
+            {
+                _leftModality = value;
             }
         }
     
@@ -2278,13 +2305,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty
+        /// The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead; in discriminationGoNoGo a miss has neither, and a probe never does), open_rigs.core.task Penalty
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("penalty", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penalty")]
         [System.ComponentModel.DescriptionAttribute("The timeout and penalty sound after an incorrect response or a miss (a miss on an" +
-            " auto-reward trial is rewarded instead), open_rigs.core.task Penalty")]
+            " auto-reward trial is rewarded instead; in discriminationGoNoGo a miss has neith" +
+            "er, and a probe never does), open_rigs.core.task Penalty")]
         public Penalty Penalty
         {
             get
@@ -2388,7 +2416,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
         {
             stringBuilder.Append("RngSeed = " + _rngSeed + ", ");
             stringBuilder.Append("TaskType = " + _taskType + ", ");
-            stringBuilder.Append("TargetModality = " + _targetModality + ", ");
+            stringBuilder.Append("GoModality = " + _goModality + ", ");
+            stringBuilder.Append("LeftModality = " + _leftModality + ", ");
             stringBuilder.Append("TrialStructure = " + _trialStructure + ", ");
             stringBuilder.Append("VisualStimulus = " + _visualStimulus + ", ");
             stringBuilder.Append("AudioStimulus = " + _audioStimulus + ", ");

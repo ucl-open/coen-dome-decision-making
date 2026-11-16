@@ -131,7 +131,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>CheckTaskAtGo</Name>
-              <Description>The task checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the stage, rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, a target modality with no trials, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. A problem stops the workflow here, naming each, before the first trial.</Description>
+              <Description>The task checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the stage, rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, a go or left modality with no trials, both spouts in go/no-go, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. A problem stops the workflow here, naming each, before the first trial.</Description>
               <Combinator xsi:type="ext:CheckTaskAtGo" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
@@ -504,7 +504,7 @@
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>AudioEnabled?</Name>
-              <Description>Discrimination's visual and neutral trials play no sound.</Description>
+              <Description>The discriminations' visual and neutral trials play no sound.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">

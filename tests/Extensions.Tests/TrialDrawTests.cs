@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.Serialization;
@@ -108,8 +109,8 @@ public class TrialDrawTests
     {
         foreach (var modality in new[] { Modality.Visual, Modality.Auditory })
         {
-            var task = Fixture.Task("task-discrimination.yml");
-            task.TargetModality = modality;
+            var task = Fixture.Task("task-discrimination-left-right.yml");
+            task.LeftModality = modality;
             foreach (var t in Fixture.Draw(task, 3, 500))
             {
                 if (t.trialType == "visual") Assert.IsTrue(!t.audioEnabled && t.visualContrast > 0 && t.target == (modality == Modality.Visual ? "Left" : "Right"));
@@ -122,10 +123,40 @@ public class TrialDrawTests
     [TestMethod]
     public void DiscriminationHabituationAutoRewardsAtTheLeftSpoutWithTheSpoutsIn()
     {
-        var task = Fixture.Task("task-discrimination.yml");
+        var task = Fixture.Task("task-discrimination-left-right.yml");
         Assert.IsTrue(Fixture.Draw(task, 0, 50).All(t => t.autoReward && t.target == "Left" && !t.spoutMovements && t.trialType == "visual"));
         task.TrainingStages[2].AutoRewardProbability = 1;
-        Assert.IsTrue(Fixture.Draw(task, 2, 300).All(t => t.autoReward == (t.target == "Left")));
+        Assert.IsTrue(Fixture.Draw(task, 2, 300).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
+    }
+
+    [TestMethod]
+    public void GoNoGoAnswersTheModalityAtTheLeftSpout()
+    {
+        foreach (var modality in new[] { Modality.Visual, Modality.Auditory })
+        {
+            var task = Fixture.Task("task-discrimination-go-no-go.yml");
+            task.GoModality = modality;
+            task.TrainingStages[3].AutoRewardProbability = 1;
+            foreach (var t in Fixture.Draw(task, 3, 600))
+            {
+                var expected = t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" ? Answer.Probe
+                    : (t.trialType == "visual" && modality == Modality.Visual) || (t.trialType == "auditory" && modality == Modality.Auditory) ? Answer.Go
+                    : Answer.NoGo;   // the other modality and the grey screen
+                Assert.AreEqual(expected, t.target, t.trialType);
+                Assert.AreEqual(expected == Answer.Go, t.autoReward, "auto-reward only on Go");
+                Assert.AreEqual(expected == Answer.Go, t.rewardSizeUl > 0, "a reward on offer only on Go");
+                Assert.IsFalse(t.bothSpouts);
+                Assert.AreEqual(LickSpoutCommand.LeftIn, SpoutsIn.Command(t));
+            }
+        }
+    }
+
+    [TestMethod]
+    public void GoNoGoRefusesBothSpouts()
+    {
+        var task = Fixture.Task("task-discrimination-go-no-go.yml");
+        task.TrainingStages[2].BothSpoutsProbability = 0.5;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 2, Fixture.Speakers())), "bothSpoutsProbability 0 in discriminationGoNoGo");
     }
 
     [TestMethod]
@@ -141,7 +172,7 @@ public class TrialDrawTests
     public void EachTrialTypeIsDrawnAtRandomByWeight()
     {
         // Stage 3: visual 10, auditory 10, coherent 5, conflict 5, neutral 1, each new trial drawn independently.
-        var trials = Fixture.Draw(Fixture.Task("task-discrimination.yml"), 3, 6200);
+        var trials = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 3, 6200);
         var weights = new Dictionary<string, double> { { "visual", 10 }, { "auditory", 10 }, { "audiovisualCoherent", 5 }, { "audiovisualConflict", 5 }, { "neutral", 1 } };
         foreach (var w in weights)
         {
@@ -184,7 +215,7 @@ public class TrialDrawTests
     [TestMethod]
     public void EachTrialDrawsItsOwnInterval()
     {
-        var task = Fixture.Task("task-discrimination.yml");
+        var task = Fixture.Task("task-discrimination-left-right.yml");
         var trials = Fixture.Draw(task, 3, 300, t => t.trialNumber % 3 == 0 ? "Incorrect" : "Correct");
         for (int i = 0; i < trials.Count; i++) Assert.AreEqual(i + 1, trials[i].trialNumber);
         // What Gerion's mice got (Pip, 13 Nov 2026): 1.5 to 2.0 s from the outcome (after any timeout) to the stimulus.
@@ -197,7 +228,7 @@ public class TrialDrawTests
     [TestMethod]
     public void TheDiscriminationFileIsWhatGerionsMiceGot()
     {
-        var s = Fixture.Task("task-discrimination.yml");
+        var s = Fixture.Task("task-discrimination-left-right.yml");
         Assert.AreEqual(1.5, s.TrialStructure.ItiMinSeconds);
         Assert.AreEqual(2.0, s.TrialStructure.ItiMaxSeconds);
         Assert.AreEqual(1.5, s.TrialStructure.DrinkSeconds);
@@ -223,7 +254,7 @@ public class TrialDrawTests
     [TestMethod]
     public void WithoutZapitNoConditionIsSent()
     {
-        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination.yml"), 3, 100).All(t => t.laserCondition == 0 && !t.laserOn && t.laserPowerMw == 0));
+        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 3, 100).All(t => t.laserCondition == 0 && !t.laserOn && t.laserPowerMw == 0));
     }
 
     [TestMethod]
@@ -263,7 +294,7 @@ public class TrialDrawTests
         speakers.Speakers.Remove("right");
         StringAssert.Contains(refusal(task, 4), "is 'centre', not on the right");
 
-        task = Fixture.Task("task-discrimination.yml");
+        task = Fixture.Task("task-discrimination-left-right.yml");
         task.Optogenetics.UseZapit = true;
         task.Optogenetics.LaserPowerMw = null;
         task.Optogenetics.LaserDurationSeconds = 0.8;
@@ -274,17 +305,20 @@ public class TrialDrawTests
     public void TheStageIsCheckedAtGoBeforeTheFirstTrial()
     {
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(Fixture.Task("task-localization.yml"), 5, Fixture.Speakers())), "rows 0 to 4");
-        Assert.AreEqual("Stage 4", TrialDraw.CheckTask(Fixture.Task("task-discrimination.yml"), 4, Fixture.Speakers()).Label);
+        Assert.AreEqual("Stage 4", TrialDraw.CheckTask(Fixture.Task("task-discrimination-left-right.yml"), 4, Fixture.Speakers()).Label);
     }
 
     [TestMethod]
     public void AnAuditoryTargetOnAVisualOnlyStageIsRefusedWithTheFix()
     {
-        // Discrimination's stages 0 and 1 are visual only: with targetModality auditory every trial would be a distractor.
-        var task = Fixture.Task("task-discrimination.yml");
-        task.TargetModality = Modality.Auditory;
+        // The discriminations' stages 0 and 1 are visual only: with leftModality auditory every trial would be a right one.
+        var task = Fixture.Task("task-discrimination-left-right.yml");
+        task.LeftModality = Modality.Auditory;
         var refusal = Fixture.Refusal(() => TrialDraw.CheckTask(task, 0, Fixture.Speakers()));
-        StringAssert.Contains(refusal, "targetModality auditory no trials");
+        StringAssert.Contains(refusal, "leftModality auditory no trials");
+        var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml");
+        goNoGo.GoModality = Modality.Auditory;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(goNoGo, 0, Fixture.Speakers())), "goModality auditory no trials");
         StringAssert.Contains(refusal, "swap the auditory and visual weights on the form");
         var w = task.TrainingStages[0].TrialWeights;
         w.Auditory = w.Visual;
@@ -297,7 +331,7 @@ public class TrialDrawTests
     public void ALaserThatWouldDelayTheNextArmIsRefused()
     {
         // Discrimination: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s reply margin = 0.8 s.
-        var task = Fixture.Task("task-discrimination.yml");
+        var task = Fixture.Task("task-discrimination-left-right.yml");
         task.Optogenetics.UseZapit = true;
         task.Optogenetics.LaserPowerMw = 3;
         Assert.AreEqual(0.8, TrialDraw.LongestLaserSeconds(task), 1e-9);
@@ -331,7 +365,7 @@ public class TrialDrawTests
     {
         Func<double, string> refusal = lead =>
         {
-            var task = Fixture.Task("task-discrimination.yml");   // itiMinSeconds 1.5, response window 0 + 1.5 s
+            var task = Fixture.Task("task-discrimination-left-right.yml");   // itiMinSeconds 1.5, response window 0 + 1.5 s
             task.Optogenetics.LaserToStimulusSeconds = lead;
             return Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers()));
         };

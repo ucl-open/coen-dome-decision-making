@@ -1,13 +1,14 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
-# Task parameters for the coen-dome-decision-making modality discrimination task (Gerion's, from ActiveExperiemntsWithDiscrimination).
-# The answer is the modality, not the side: the left spout for targetModality, the right spout for the other.
-# trialWeights and rulesPerType name each trial type by what it shows: with targetModality visual, visual trials are
-# target trials and auditory trials distractors (swap their weights for an auditory-target mouse). Visual-only and
-# neutral trials are silent.
+# Task parameters for the coen-dome-decision-making two-spout modality discrimination (the stages and timing Gerion's
+# go/no-go mice got, task-discrimination-go-no-go.yml). The answer is the modality, not the side: the left spout for
+# leftModality, the right spout for the other. A trial showing both modalities (audiovisualCoherent, audiovisualConflict)
+# has no right answer, so its side is drawn at random (Pip, 16 Nov 2026). trialWeights and rulesPerType name each trial
+# type by what it shows; the stages are written for leftModality visual (swap the visual and auditory weights for an
+# auditory-left mouse). Visual-only and neutral trials are silent.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
-  taskType: discrimination
-  targetModality: visual   # visual or auditory: the modality answered at the left spout; set per mouse on the form
+  taskType: discriminationLeftRight
+  leftModality: visual     # visual or auditory: the modality answered at the left spout; set per mouse on the form
   rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
@@ -60,7 +61,7 @@ taskParameters:
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
   trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
-    - label: Stage 0       # habituation: target trials only, every miss auto-rewarded, spouts stay in
+    - label: Stage 0       # habituation: left (visual) trials only, every miss auto-rewarded, spouts stay in
       trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 1.0
@@ -71,7 +72,7 @@ taskParameters:
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
       spoutMovements: false
-    - label: Stage 1       # target trials only, every miss auto-rewarded
+    - label: Stage 1       # left (visual) trials only, every miss auto-rewarded
       trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 1.0
@@ -81,7 +82,7 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 2       # distractor and coherent trials added
+    - label: Stage 2       # right (auditory) and coherent trials added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0

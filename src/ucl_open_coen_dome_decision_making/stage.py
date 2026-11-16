@@ -10,7 +10,7 @@ not read (deleted on 15 Nov 2026, Pip).
 
 rig-control runs it (standard library only) when a mouse is chosen, and fills TrainingStage with it:
 
-    python -I stage.py --subject GN012 --task-type discrimination --summaries DIR --expected FILE.json
+    python -I stage.py --subject GN012 --task-type discriminationGoNoGo --summaries DIR --expected FILE.json
 
 --summaries is the folder holding the sub-<lab ID> folders and --expected a JSON list of the run ids the
 mouse has had (rig-control writes it). Prints one JSON line, {"value": 3, "why": "..."}: the contract of
@@ -117,20 +117,25 @@ def experiments(subject: str, folder: Path, expected: Path, unread: list[str]) -
     return sorted(found, key=lambda e: e.when, reverse=True)
 
 
+def _words(task_type: str) -> str:
+    """A camelCase task type in Title Case words: discriminationGoNoGo is Discrimination Go No Go."""
+    return re.sub(r"(?<!^)(?=[A-Z])", " ", task_type).title()
+
+
 def suggest(history: list[Experiment], task_type: str) -> tuple[int | None, str]:
     """(stage, why): the stage of the newest experiment of this task type (Pip, 15 Nov 2026: the most recent session
     that matches the current one); None when there is none."""
     last = next((e for e in history if e.task_type == task_type), None)
     if last is None:
-        return None, f"No Earlier {task_type.title()} Experiment With Trials: Choose the Stage by Hand"
-    return last.stage, f"The Last Experiment's Stage ({last.name}, {last.task_type.title()}, {last.trials} Trials): Stage {last.stage} Again"
+        return None, f"No Earlier {_words(task_type)} Experiment With Trials: Choose the Stage by Hand"
+    return last.stage, f"The Last Experiment's Stage ({last.name}, {_words(last.task_type)}, {last.trials} Trials): Stage {last.stage} Again"
 
 
 def main() -> None:
     """Print the suggestion for --subject and --task-type as one JSON line."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--subject", required=True)
-    parser.add_argument("--task-type", required=True, choices=["localization", "discrimination"])
+    parser.add_argument("--task-type", required=True, choices=["localization", "discriminationGoNoGo", "discriminationLeftRight"])
     parser.add_argument("--summaries", required=True, type=Path, help="the folder of sub-<lab ID> folders of session summaries")
     parser.add_argument("--expected", required=True, type=Path, help="a JSON file listing the run ids the mouse has had")
     args = parser.parse_args()

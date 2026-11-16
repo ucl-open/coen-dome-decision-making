@@ -1,0 +1,116 @@
+# yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
+# Task parameters for the coen-dome-decision-making go/no-go modality discrimination (Gerion's, from
+# ActiveExperiemntsWithDiscrimination; his mice ran one spout). One spout, the left: lick on a goModality trial (Go),
+# withhold on the other modality's and the grey screen's (NoGo). Go and a lick: Correct, rewarded. Go and none: NoResponse,
+# no penalty. NoGo and a lick: Incorrect, the penalty. NoGo and none: Correct, unrewarded. A trial showing both
+# modalities (audiovisualCoherent, audiovisualConflict) is a Probe, never rewarded or penalised (Song et al. 2017;
+# Pip, 16 Nov 2026). trialWeights and rulesPerType name each trial type by what it shows; the stages are written for
+# goModality visual (swap the visual and auditory weights for an auditory-go mouse). Visual-only and neutral trials
+# are silent. bothSpoutsProbability must be 0: only the left spout moves in.
+# The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
+taskParameters:
+  taskType: discriminationGoNoGo
+  goModality: visual       # visual or auditory: the modality to lick for; set per mouse on the form
+  rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in BonsaiData_Async
+  trialStructure:
+    itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
+    itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5; Pip, 13 Nov 2026). Stage 0: set both to 1.5 on the form
+    drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
+    responseDelaySeconds: 0.0     # s, from stimulus onset to the response window; licks before it do not count
+    responseWindowSeconds: 1.5    # s, the response window: NoResponse at its end
+    stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
+    stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
+  visualStimulus:
+    azimuthMinDeg: -60        # deg, grating azimuth drawn uniformly in [min, max]
+    azimuthMaxDeg: 60         # deg
+    fixedAzimuthsDeg: [-60, 60]   # deg, discrete grating azimuths; when set, used instead of [min, max]
+    elevationMinDeg: 15       # deg, grating elevation drawn uniformly in [min, max]
+    elevationMaxDeg: 15       # deg
+    coherentAzimuthCapDeg: 80 # deg, |azimuth| kept below this on coherent trials
+    gaussianWindowSigmaDeg: 20   # deg
+    orientationDeg: 0         # deg
+    spatialFrequencyCpd: 0.066666667   # cycles/deg
+    temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
+  audioStimulus:
+    levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+    speakerLocations:      # lateral positions, one drawn per audio trial; no centre entry (fixed in code); playback uses the nearest wired speaker
+      - { azimuth: -60, elevation: 15 }
+      - { azimuth: 60, elevation: 15 }
+  response:
+    thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
+    degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
+  backgroundNoise:         # white noise on every speaker, unequalised, faded in at Ready at the level launched
+    enabled: true
+    levelDbfs: -60.1       # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+  penalty:
+    timeoutSeconds: 4.0   # s, after an incorrect choice or a miss (not after an auto-rewarded miss)
+    sound:               # the penalty sound, with every timeout
+      enabled: true
+      levelDbfs: -44.6   # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+  reward:
+    largeRewardMultiplier: 1
+    largeRewardProbability: 0.0
+  repeats:
+    maxRepeats: 5
+    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onNoResponse, neutral: onNoResponse }
+  optogenetics:
+    useZapit: false
+    zapitConfigPath: ""
+    laserPowerMw: null             # mW on laser-on trials, every condition; required with optogenetics on
+    laserOnProbability: 0.5
+    laserDurationSeconds: 2.5      # s; with optogenetics on at most responseDelaySeconds + itiMinSeconds - 0.7 (0.8 here), so ticking useZapit is refused until this is shortened
+    laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
+    noLaserOnRepeats: true
+    trialsBeforeLaser: 20
+  trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
+    - label: Stage 0       # habituation: Go trials only, every miss auto-rewarded, spouts stay in
+      trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
+      autoRewardProbability: 1.0
+      bothSpoutsProbability: 0.0
+      rewardSizeUl: 3      # ul, planned from the valve's calibration
+      contrasts: [1.0]
+      allowRepeats: false
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
+      spoutMovements: false
+    - label: Stage 1       # Go trials only, every miss auto-rewarded
+      trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
+      autoRewardProbability: 1.0
+      bothSpoutsProbability: 0.0
+      rewardSizeUl: 3
+      contrasts: [1.0]
+      allowRepeats: false
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
+    - label: Stage 2       # NoGo and coherent (probe) trials added
+      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
+      autoRewardProbability: 0.0
+      bothSpoutsProbability: 0.0
+      rewardSizeUl: 3
+      contrasts: [0.5, 1.0]
+      allowRepeats: false
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
+    - label: Stage 3       # conflict (probe) and neutral (NoGo) trials added
+      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
+      autoRewardProbability: 0.0
+      bothSpoutsProbability: 0.0
+      rewardSizeUl: 3
+      contrasts: [0.5, 1.0]
+      allowRepeats: false
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
+    - label: Stage 4       # as stage 3, wider contrasts (Gerion's default row)
+      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
+      autoRewardProbability: 0.0
+      bothSpoutsProbability: 0.0
+      rewardSizeUl: 3
+      contrasts: [0.5, 1.0, 2.0, 3.0]
+      allowRepeats: false
+      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
+      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
+      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds

@@ -26,12 +26,12 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral]
-  description: What the trial showed, in words (TrialDraw.TypeNames, also the keys of the task's trialWeights and rulesPerType) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in discrimination). In discrimination the target modality's trials and the other modality's say which they showed; the task file's targetModality (in the manifest) says which is the target.
+  description: What the trial showed, in words (TrialDraw.TypeNames, also the keys of the task's trialWeights and rulesPerType) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in the discriminations). In the discriminations each one-modality trial says which modality it showed; the task file's goModality or leftModality (in the manifest) says which modality was Go or answered at the left.
   history: Until 9 Nov 2026 a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning.
 outcome:
   type: string
-  values: [Correct, Incorrect, NoResponse]
-  description: The trial's result - Correct when the choice was the target, Incorrect when it was the other side, NoResponse with no choice in the response window.
+  values: [Correct, Incorrect, NoResponse, Probe]
+  description: The trial's result - Correct when the choice was the target, Incorrect when it was the other side, NoResponse with no choice in the response window. In discriminationGoNoGo a lick on Go is Correct and none NoResponse, a lick on NoGo Incorrect and none Correct, and a Probe trial's outcome is Probe whatever the choice.
 itiStartTime:
   type: double
   unit: s
@@ -66,7 +66,7 @@ outcomeTime:
 rewardSizeUl:
   type: double
   unit: ul
-  description: Microlitres a reward on this trial gives, the stage's rewardSizeUl times reward.largeRewardMultiplier on a large-reward trial. What was delivered is RewardDelivered in BonsaiData_Async.
+  description: Microlitres a reward on this trial gives, the stage's rewardSizeUl times reward.largeRewardMultiplier on a large-reward trial; 0 on a discriminationGoNoGo NoGo or Probe trial, which offers none. What was delivered is RewardDelivered in BonsaiData_Async.
   history: largeReward said which trials were large until 9 Nov 2026.
 penaltySound:
   type: bool
@@ -93,12 +93,13 @@ laserTriggerTime:
   history: From 14 Nov 2026.
 target:
   type: string
-  values: [Left, Right]
-  description: The side that was right.
+  values: [Left, Right, Go, NoGo, Probe]
+  description: The answer the trial rewards - the side in localization and discriminationLeftRight (on a trial showing both modalities in discriminationLeftRight, drawn at random); in discriminationGoNoGo Go (lick, goModality shown), NoGo (withhold, the other modality or the grey screen) or Probe (both modalities, never rewarded or penalised).
+  history: Go, NoGo and Probe from 16 Nov 2026, when discrimination split into discriminationGoNoGo and discriminationLeftRight; until then discrimination's target was Left (targetModality) or Right, and a two-modality trial's the stimuli's side.
 choice:
   type: string
-  values: [Left, Right, NoResponse]
-  description: The side the mouse chose.
+  values: [Left, Right, Lick, NoResponse]
+  description: The side the mouse chose; in discriminationGoNoGo Lick (thresholdLicks at the left spout).
 repeatCount:
   type: int
   description: How many times in a row the trial has been repeated, 0 for a new draw.

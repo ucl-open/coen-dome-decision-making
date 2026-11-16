@@ -21,7 +21,7 @@ public class Trial : IZapitTrial
 
     public int trialNumber;            // from 1, repeats counted
     public string trialType;           // TrialDraw.TypeNames: what the trial shows
-    public string target;              // Left or Right
+    public string target;              // Left or Right; in discriminationGoNoGo an Answer (Go, NoGo or Probe)
     public double rewardSizeUl;
     public bool bothSpouts;
     public int repeatCount;            // 0 for a new draw
@@ -57,6 +57,15 @@ public class CheckTaskAtGo
     {
         return source.Select(input => TrialRules.Create(input.Item1.TaskParameters, input.Item2, input.Item3, null));
     }
+}
+
+/// <summary>discriminationGoNoGo's answers and choice: the target column's Go, NoGo and Probe, and the choice Lick.</summary>
+public static class Answer
+{
+    public const string Go = "Go";
+    public const string NoGo = "NoGo";
+    public const string Probe = "Probe";
+    public const string Lick = "Lick";
 }
 
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
@@ -118,15 +127,19 @@ public class TrialDraw
         var problems = new List<string>();
         var weights = Weights(stage);
         if (weights.Any(w => w < 0) || weights.Sum() <= 0) problems.Add("stage '" + stage.Label + "' needs trialWeights of 0 or more, one above 0");
-        if (task.TaskType == TaskType.Discrimination)
+        if (task.TaskType != TaskType.Localization)
         {
-            // A target modality with no trials leaves only the other modality's: every one a distractor at the right spout.
-            bool visualTarget = task.TargetModality == Modality.Visual;
-            int target = visualTarget ? weights[0] : weights[1], other = visualTarget ? weights[1] : weights[0];
-            if (target == 0 && other > 0)
+            // The stage tables are written for a visual go (or left) modality: with the other set, a stage that gives it no
+            // trials would train only the other modality's answer.
+            bool goNoGo = task.TaskType == TaskType.DiscriminationGoNoGo;
+            if (goNoGo && stage.BothSpoutsProbability != 0) problems.Add("stage '" + stage.Label + "' needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
+            string key = goNoGo ? "goModality" : "leftModality";
+            bool visualModality = (goNoGo ? task.GoModality : task.LeftModality) == Modality.Visual;
+            int mine = visualModality ? weights[0] : weights[1], other = visualModality ? weights[1] : weights[0];
+            if (mine == 0 && other > 0)
             {
-                string t = visualTarget ? "visual" : "auditory", o = visualTarget ? "auditory" : "visual";
-                problems.Add(string.Format("stage '{0}' gives targetModality {1} no trials (trialWeights.{1} 0), so every {2} trial would be a distractor: swap the {1} and {2} weights on the form", stage.Label, t, o));
+                string m = visualModality ? "visual" : "auditory", o = visualModality ? "auditory" : "visual";
+                problems.Add(string.Format("stage '{0}' gives {1} {2} no trials (trialWeights.{2} 0), so every trial would be a {3} one: swap the {2} and {3} weights on the form", stage.Label, key, m, o));
             }
         }
         if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add("stage '" + stage.Label + "' needs contrasts, each above 0");
@@ -263,7 +276,7 @@ public class TrialDraw
 
     bool ShouldRepeat(string outcome)
     {
-        if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats) return false;
+        if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == Answer.Probe) return false;
         var type = Array.IndexOf(TypeNames, last.trialType);
         switch (Rule(task.Repeats, type))
         {
@@ -285,8 +298,8 @@ public class TrialDraw
 
         int type = WeightedType();
         trial.trialType = TypeNames[type];
-        bool discrimination = task.TaskType == TaskType.Discrimination;
-        // Localization plays a centre sound on visual and neutral trials; discrimination's are silent.
+        bool discrimination = task.TaskType != TaskType.Localization;
+        // Localization plays a centre sound on visual and neutral trials; the discriminations' are silent.
         bool showsSound = !discrimination || (type != 0 && type != 4);
 
         bool right;
@@ -316,16 +329,25 @@ public class TrialDraw
                 break;
         }
         trial.target = right ? "Right" : "Left";
-        if (discrimination)
+        if (task.TaskType == TaskType.DiscriminationGoNoGo)
         {
-            // The answer is the modality: the target modality's trials at the left spout, the other's at the right;
-            // coherent and conflict trials show both, so their side stays as drawn.
-            if (type == 0 || type == 1)
+            // Lick for goModality (Go), withhold for the other modality and the grey screen (NoGo); a trial showing both
+            // is a probe, never rewarded or penalised (Song et al. 2017; Pip, 16 Nov 2026).
+            bool goShown = (type == 0 || type == 1) && (type == 0) == (task.GoModality == Modality.Visual);
+            trial.target = type == 2 || type == 3 ? Answer.Probe : goShown ? Answer.Go : Answer.NoGo;
+            trial.bothSpouts = false;                                   // one spout, the left
+            if (trial.target != Answer.Go)
             {
-                bool shownIsTarget = (type == 0) == (task.TargetModality == Modality.Visual);
-                trial.target = shownIsTarget ? "Left" : "Right";
+                trial.autoReward = false;   // auto-reward only on a Go trial
+                trial.rewardSizeUl = 0;     // no reward on offer: a withheld NoGo is Correct, unrewarded
             }
-            if (trial.target != "Left") trial.autoReward = false;  // auto-reward only at the target modality's spout
+        }
+        else if (task.TaskType == TaskType.DiscriminationLeftRight)
+        {
+            // The answer is the modality: leftModality's trials at the left spout, the other's at the right. A trial showing
+            // both has no right answer, so its side is drawn at random, apart from the stimuli's (Pip, 16 Nov 2026).
+            if (type == 0 || type == 1) trial.target = (type == 0) == (task.LeftModality == Modality.Visual) ? "Left" : "Right";
+            else if (type == 2 || type == 3) trial.target = random.NextDouble() >= 0.5 ? "Right" : "Left";
         }
 
         trial.audioEnabled = showsSound;
@@ -434,17 +456,18 @@ public class TrialOutcome : ITrialOutcome
     /// <summary>Gets the timeout after the trial, in seconds: the row's penaltyTimeoutSeconds.</summary>
     public double TimeoutSeconds { get; private set; }
 
-    /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target, the other spout drawn back; an
-    /// error or a plain miss draws both back, with the row's penalty sound and timeout. A stage without spout
-    /// movements leaves the spouts where they are.</summary>
+    /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target's spout (discriminationGoNoGo's:
+    /// the left), the other spout drawn back; a correct NoGo is not rewarded. Anything else draws both back, with the
+    /// row's penalty sound and timeout if it was penalised. A stage without spout movements leaves the spouts where they are.</summary>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
         var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, TimeoutSeconds = row.penaltyTimeoutSeconds };
-        o.Rewarded = row.outcome == "Correct" || row.autoRewarded;
-        o.Reward = o.Rewarded ? Tuple.Create(trial.target.ToLowerInvariant(), trial.rewardSizeUl) : null;
+        o.Rewarded = (row.outcome == "Correct" && trial.target != Answer.NoGo) || row.autoRewarded;
+        var side = trial.target == "Right" ? "right" : "left";   // Go is answered at the left spout
+        o.Reward = o.Rewarded ? Tuple.Create(side, trial.rewardSizeUl) : null;
         o.MoveSpouts = trial.spoutMovements;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
-            : trial.target == "Left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
+            : side == "left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
         return o;
     }
 }
@@ -455,8 +478,8 @@ public class TrialOutcome : ITrialOutcome
 /// task file, and the response rule. In the response window, responseDelaySeconds after the stimulus for responseWindowSeconds,
 /// each lick adds 1 (left) or -1 (right) to the decision variable, which moves the grating degreesPerLick per lick from
 /// its drawn azimuth; the choice is Left once it reaches thresholdLicks, Right once it reaches -thresholdLicks, else
-/// NoResponse at the window's end. A lick before the window is not counted. The answer is the trial's target: on
-/// audiovisualCoherent and audiovisualConflict trials the stimuli's side, the grating's side (TrialDraw).
+/// NoResponse at the window's end. A lick before the window is not counted. In discriminationGoNoGo only the left
+/// spout counts, and the choice is Lick once its licks reach thresholdLicks. The answer is the trial's target (TrialDraw).
 /// </summary>
 public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 {
@@ -537,10 +560,12 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public TrialOutcome Lick(Trial trial, int spout, TrialTimes times, ICollection<DecisionUpdate> updates)
     {
         if (!times.Responding) return null;
+        bool goNoGo = task.TaskType == TaskType.DiscriminationGoNoGo;
+        if (goNoGo && spout != 0) return null;   // one spout, the left
         decision += spout == 0 ? 1 : -1;
         updates.Add(Update(trial));
         var threshold = task.Response.ThresholdLicks;
-        if (decision >= threshold) return Outcome(trial, "Left", times);
+        if (decision >= threshold) return Outcome(trial, goNoGo ? Answer.Lick : "Left", times);
         if (decision <= -threshold) return Outcome(trial, "Right", times);
         return null;
     }
@@ -592,6 +617,6 @@ public class SpoutsIn
     public static LickSpoutCommand Command(Trial trial)
     {
         if (trial.bothSpouts) return LickSpoutCommand.SpoutsIn;
-        return trial.target == "Left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
+        return trial.target == "Right" ? LickSpoutCommand.RightIn : LickSpoutCommand.LeftIn;   // go-no-go: the left
     }
 }

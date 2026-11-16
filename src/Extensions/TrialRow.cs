@@ -35,15 +35,24 @@ public class TrialRow
     public double audioElevationDeg;
     public int audioWaveformIndex;
 
+    // Left or Right against the target; in discriminationGoNoGo, Lick or NoResponse against Go or NoGo (a withheld
+    // NoGo is Correct), and a probe's outcome is Probe whatever the choice.
     public static string Outcome(string choice, Trial trial)
     {
-        return choice == "NoResponse" ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
+        switch (trial.target)
+        {
+            case Answer.Probe: return Answer.Probe;
+            case Answer.Go: return choice == Answer.Lick ? "Correct" : "NoResponse";
+            case Answer.NoGo: return choice == Answer.Lick ? "Incorrect" : "Correct";
+            default: return choice == "NoResponse" ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
+        }
     }
 
-    // Penalised (the penalty sound and timeout): an incorrect choice or a miss that was not auto-rewarded.
+    // Penalised (the penalty sound and timeout): an incorrect choice, or a miss that was not auto-rewarded, except a
+    // discriminationGoNoGo miss, which has neither (Song et al. 2017; Pip, 16 Nov 2026).
     public static bool Penalised(string outcome, Trial trial)
     {
-        return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward);
+        return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward && trial.target != Answer.Go);
     }
 
     // The trial's row at its outcome, the choice made now (times.Now: the lick, or the end of the response window,

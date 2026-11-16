@@ -15,7 +15,7 @@ REPO = "https://github.com/ucl-open/coen-dome-decision-making"
 DROPPED = ("itiStartTime", "trialStartTime", "laserTriggerTime")  # jacuzzi-ingest's drop list (records.md)
 
 
-def summary(session: str, run: str, stage: int, rows: int, task_type: str | None = "discrimination", repo: str = REPO, **extra) -> dict:
+def summary(session: str, run: str, stage: int, rows: int, task_type: str | None = "discriminationGoNoGo", repo: str = REPO, **extra) -> dict:
     parameters = {} if task_type is None else {"taskType": task_type}
     s = {"version": 1, "run": run, "subject": "GN012", "session": session, "source": {"repo": repo, "commit": "abc"},
          "trials": {"columns": ["trialNumber", "outcome"], "rows": [[i, "Correct"] for i in range(rows)]},
@@ -42,18 +42,18 @@ def read(root: Path, *runs: str):
 
 
 def test_the_last_experiment_s_stage_is_suggested_whatever_its_performance():
-    history = [Experiment("b", "2026-11-12", 3, "discrimination", 400), Experiment("a", "2026-11-11", 2, "discrimination", 400)]
-    stage, why = suggest(history, "discrimination")
+    history = [Experiment("b", "2026-11-12", 3, "discriminationGoNoGo", 400), Experiment("a", "2026-11-11", 2, "discriminationGoNoGo", 400)]
+    stage, why = suggest(history, "discriminationGoNoGo")
     assert stage == 3 and "Stage 3 Again" in why
 
 
 def test_the_newest_experiment_of_this_task_type_decides_and_none_suggests_nothing():
     # Pip, 15 Nov 2026: always the most recent session that matches the current one.
-    assert suggest([], "discrimination")[0] is None
-    stage, why = suggest([Experiment("b", "2026-11-12", 3, "localization", 400)], "discrimination")
-    assert stage is None and "Discrimination" in why
-    history = [Experiment("c", "2026-11-13", 3, "localization", 400), Experiment("b", "2026-11-12", 2, "discrimination", 400)]
-    assert suggest(history, "discrimination")[0] == 2
+    assert suggest([], "discriminationGoNoGo")[0] is None
+    stage, why = suggest([Experiment("b", "2026-11-12", 3, "localization", 400)], "discriminationGoNoGo")
+    assert stage is None and "No Earlier Discrimination Go No Go Experiment" in why
+    history = [Experiment("c", "2026-11-13", 3, "localization", 400), Experiment("b", "2026-11-12", 2, "discriminationGoNoGo", 400)]
+    assert suggest(history, "discriminationGoNoGo")[0] == 2
 
 
 @pytest.mark.parametrize("repo", ["https://github.com/Coen-Lab/coen-dome-decision-making.git", "https://github.com/someone/AV-Dome/"])
@@ -81,8 +81,8 @@ def test_the_newest_of_this_workflow_and_av_dome_decides_and_other_repos_never_d
     put(tmp_path, summary("ses-005D1_2026-11-12T10-00-00", "r5", 3, 60, task_type="localization", repo="av-dome"))
     found, unread = read(tmp_path, "r5", "r6", "r7")
     assert not unread
-    assert [(e.stage, e.task_type) for e in found] == [(2, "discrimination"), (3, "localization")]
-    assert suggest(found, "discrimination")[0] == 2
+    assert [(e.stage, e.task_type) for e in found] == [(2, "discriminationGoNoGo"), (3, "localization")]
+    assert suggest(found, "discriminationGoNoGo")[0] == 2
 
 
 def test_a_summary_with_no_trials_is_not_an_experiment(tmp_path):
@@ -94,7 +94,7 @@ def test_a_folder_that_does_not_answer_gives_no_stage(tmp_path, capsys, monkeypa
     from ucl_open_coen_dome_decision_making import stage
 
     missing = tmp_path / "no-share"
-    monkeypatch.setattr("sys.argv", ["stage.py", "--subject", "GN012", "--task-type", "discrimination",
+    monkeypatch.setattr("sys.argv", ["stage.py", "--subject", "GN012", "--task-type", "discriminationGoNoGo",
                                      "--summaries", str(missing), "--expected", str(expect(tmp_path))])
     stage.main()
     answer = json.loads(capsys.readouterr().out)
@@ -138,7 +138,7 @@ def test_any_version_but_1_is_refused(tmp_path):
 def test_the_script_runs_with_the_standard_library_alone(tmp_path):
     # rig-control runs it with its own Python, -I, outside this project: no package import.
     put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 3, 60))
-    done = subprocess.run([sys.executable, "-I", str(STAGE_PY), "--subject=GN012", "--task-type=discrimination",
+    done = subprocess.run([sys.executable, "-I", str(STAGE_PY), "--subject=GN012", "--task-type=discriminationGoNoGo",
                            f"--summaries={tmp_path}", f"--expected={expect(tmp_path, 'r6')}"],
                           capture_output=True, text=True, check=True)
     assert json.loads(done.stdout.strip().splitlines()[-1])["value"] == 3

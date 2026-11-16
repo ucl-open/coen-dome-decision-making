@@ -87,7 +87,7 @@ static class Rules
 {
     // Discrimination stage 4 with every interval exactly 2 s: trial 1's interval from 10 s, its start at 11.5 (the 0.5 s
     // lead), the stimulus at 12 and, with no open loop, its response window 12 to 13.5.
-    public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, bool hardwareTriggered = true, string file = "task-discrimination.yml", int stage = 4)
+    public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, bool hardwareTriggered = true, string file = "task-discrimination-left-right.yml", int stage = 4)
     {
         var task = Fixture.Task(file);
         task.TrialStructure.ItiMinSeconds = 2;
@@ -202,10 +202,10 @@ public class ResponseRuleTests
     public void TheLoopRunsTheDrawsTrialsInOrder()
     {
         // The same seed draws the same trials through the loop as TrialDraw alone, every trial a miss.
-        var run = new Harness(new TrialRules(Fixture.Task("task-discrimination.yml"), 3, Fixture.Speakers(), true, path => 2));
+        var run = new Harness(new TrialRules(Fixture.Task("task-discrimination-left-right.yml"), 3, Fixture.Speakers(), true, path => 2));
         run.RunTo(200);
         var looped = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
-        var drawn = Fixture.Draw(Fixture.Task("task-discrimination.yml"), 3, looped.Count, t => "NoResponse");
+        var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 3, looped.Count, t => "NoResponse");
         Assert.IsTrue(looped.Count >= 20);
         CollectionAssert.AreEqual(drawn.Select(t => t.visualPhaseRad).ToList(), looped.Select(t => t.visualPhaseRad).ToList());
         CollectionAssert.AreEqual(drawn.Select(t => t.trialType + t.target + t.itiSeconds + t.audioWaveformIndex).ToList(),
@@ -213,16 +213,56 @@ public class ResponseRuleTests
     }
 
     [TestMethod]
-    public void CoherentAndConflictTrialsAreAnsweredAtTheirDrawnSide()
+    public void LeftRightTwoModalityTrialsHaveTheirSideDrawnApartFromTheStimuli()
     {
-        // Discrimination's rule today (Pip to revisit): a coherent trial's side is its stimuli's, a conflict trial's its grating's.
-        var task = Fixture.Task("task-discrimination.yml");
-        foreach (var t in Fixture.Draw(task, 4, 600).Where(t => t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict"))
+        // A trial showing both modalities has no right answer: its side is a coin flip, not the stimuli's (Pip, 16 Nov 2026).
+        var two = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 4, 4000)
+            .Where(t => t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict").ToList();
+        Assert.AreEqual(0.5, two.Count(t => t.target == "Right") / (double)two.Count, 0.05);
+        Assert.AreEqual(0.5, two.Count(t => t.target == "Right" == t.visualAzimuthDeg > 0) / (double)two.Count, 0.05, "the side is not the grating's");
+        var times = new TrialTimes { Now = 1 };
+        Assert.AreEqual("Correct", TrialRow.Build(two[0].target, two[0], times, 4, true).outcome);
+    }
+
+    [TestMethod]
+    public void GoNoGoScoresALickOrNone()
+    {
+        // Go: a lick Correct and rewarded at the left, none NoResponse unpenalised; NoGo: a lick Incorrect and penalised,
+        // none Correct and unrewarded; a probe: Probe, neither (Song et al. 2017; Pip, 16 Nov 2026).
+        var times = new TrialTimes { Now = 1 };
+        Func<string, string, TrialOutcome> score = (target, choice) =>
         {
-            Assert.AreEqual(t.visualAzimuthDeg > 0 ? "Right" : "Left", t.target, t.trialType);
-            var times = new TrialTimes { Now = 1 };
-            Assert.AreEqual("Correct", TrialRow.Build(t.target, t, times, 4, true).outcome);
+            var t = new Trial { target = target, rewardSizeUl = target == Answer.Go ? 3 : 0, spoutMovements = true };
+            return TrialOutcome.Of(TrialRow.Build(choice, t, times, 4, true), t);
+        };
+        var hit = score(Answer.Go, Answer.Lick);
+        Assert.AreEqual("Correct", hit.Row.Value.outcome);
+        Assert.AreEqual(Tuple.Create("left", 3.0), hit.Reward);
+        Assert.AreEqual(LickSpoutCommand.LeftIn, hit.SpoutCommand);
+        var miss = score(Answer.Go, "NoResponse");
+        Assert.IsTrue(miss.Row.Value.outcome == "NoResponse" && !miss.Rewarded && miss.TimeoutSeconds == 0 && !miss.PenaltySound);
+        var falseAlarm = score(Answer.NoGo, Answer.Lick);
+        Assert.IsTrue(falseAlarm.Row.Value.outcome == "Incorrect" && !falseAlarm.Rewarded && falseAlarm.TimeoutSeconds == 4 && falseAlarm.PenaltySound);
+        var rejection = score(Answer.NoGo, "NoResponse");
+        Assert.IsTrue(rejection.Row.Value.outcome == "Correct" && !rejection.Rewarded && rejection.TimeoutSeconds == 0 && rejection.Reward == null);
+        foreach (var choice in new[] { Answer.Lick, "NoResponse" })
+        {
+            var probe = score(Answer.Probe, choice);
+            Assert.IsTrue(probe.Row.Value.outcome == Answer.Probe && !probe.Rewarded && probe.TimeoutSeconds == 0 && !probe.PenaltySound, choice);
         }
+    }
+
+    [TestMethod]
+    public void GoNoGoCountsTheLeftSpoutAlone()
+    {
+        var run = new Harness(Rules.Make(file: "task-discrimination-go-no-go.yml"));
+        run.RunTo(12.05);
+        var trial = run.Of(TrialEventKind.Start)[0].Trial;
+        run.At(12.2, h => h.Lick(1)).RunTo(12.3);
+        Assert.AreEqual(0, run.Outcomes.Count, "a right lick is not counted");
+        run.At(12.4, h => h.Lick(0)).RunTo(12.5);
+        Assert.AreEqual(Answer.Lick, run.Row(0).choice);
+        Assert.AreEqual(trial.target == Answer.Go ? "Correct" : trial.target == Answer.NoGo ? "Incorrect" : Answer.Probe, run.Row(0).outcome);
     }
 }
 
@@ -516,7 +556,7 @@ public class CheckTaskAtGoTests
     {
         var rig = new LabRig { SpeakerArray = Fixture.Speakers() };
         StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Task("task-localization.yml"), 5, rig, null)), "rows 0 to 4");
-        var rules = TrialRules.Create(Fixture.Task("task-discrimination.yml"), 4, rig, null);
+        var rules = TrialRules.Create(Fixture.Task("task-discrimination-left-right.yml"), 4, rig, null);
         Assert.IsNull(rules.Laser, "no optogenetics");
         var timing = rules.Timing(rules.Draw(null));
         Assert.IsTrue(timing.LaserToStimulusSeconds == 0.5 && !timing.Laser && timing.ResponseDelaySeconds == 0 && timing.ResponseSeconds == 1.5);

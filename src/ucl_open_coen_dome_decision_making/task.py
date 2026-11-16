@@ -112,7 +112,7 @@ class RewardSettings(TaskBlock):
 class ResponseSettings(TaskBlock):
     """Lick-accumulation response rule; thresholdLicks 1 with degreesPerLick 0 is classic first-lick 2AFC."""
 
-    threshold_licks: Int = Field(default=1, ge=1, description="Net lick difference (left minus right, absolute) that terminates the response window")
+    threshold_licks: Int = Field(default=1, ge=1, description="Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)")
     degrees_per_lick: Double = Field(default=0.0, description="Degrees the grating azimuth moves per net lick difference; 0 keeps the stimulus fixed")
 
 
@@ -120,7 +120,8 @@ class TaskType(StrEnum):
     """What the mouse answers."""
 
     LOCALIZATION = "localization"
-    DISCRIMINATION = "discrimination"
+    DISCRIMINATION_GO_NO_GO = "discriminationGoNoGo"
+    DISCRIMINATION_LEFT_RIGHT = "discriminationLeftRight"
 
 
 class Modality(StrEnum):
@@ -145,7 +146,7 @@ class TrialTypeWeights(TaskBlock):
     auditory: Int = Field(ge=0, description="The sound alone")
     audiovisual_coherent: Int = Field(ge=0, description="Grating and sound on the same side")
     audiovisual_conflict: Int = Field(ge=0, description="Grating and sound on opposite sides")
-    neutral: Int = Field(ge=0, description="Grey screen, centre sound in localization, silent in discrimination")
+    neutral: Int = Field(ge=0, description="Grey screen, centre sound in localization, silent in the discriminations")
 
     @model_validator(mode="after")
     def _some_weight(self) -> "TrialTypeWeights":
@@ -210,12 +211,19 @@ class TrainingStage(QuietWait):
 
 
 class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
-    """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and discrimination."""
+    """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
     task_type: TaskType = Field(
-        description="localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other",
+        description=(
+            "localization: the answer is the side the stimulus came from, at that side's spout. "
+            "discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); "
+            "a trial showing both modalities is a probe, never rewarded or penalised. "
+            "discriminationLeftRight: the left spout for leftModality, the right spout for the other; "
+            "a trial showing both modalities has its answer drawn at random, left or right"
+        ),
     )
-    target_modality: Modality = Field(default=Modality.VISUAL, description="Discrimination only: the modality answered at the left spout")
+    go_modality: Modality = Field(default=Modality.VISUAL, description="discriminationGoNoGo only: the modality to lick for; the other modality's trials are NoGo")
+    left_modality: Modality = Field(default=Modality.VISUAL, description="discriminationLeftRight only: the modality answered at the left spout; the other is answered at the right")
     trial_structure: TrialStructure = Field(description="Timing of each trial")
     visual_stimulus: VisualStimulus = Field(description="Grating stimulus parameters")
     audio_stimulus: AudioStimulus = Field(description="Auditory stimulus parameters")
@@ -224,7 +232,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         default=BackgroundNoise(), description="The lab's background white noise (rig.yml's speakerArray.backgroundNoise) on every speaker, from Ready at the level of the task file as launched (open_rigs.core.task BackgroundNoise)"
     )
     penalty: Penalty = Field(
-        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty"
+        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead; in discriminationGoNoGo a miss has neither, and a probe never does), open_rigs.core.task Penalty"
     )
     reward: RewardSettings = Field(description="Reward delivery parameters")
     repeats: RepeatSettings = Field(description="Trial repetition policy")
@@ -250,6 +258,15 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
                 f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be at most {longest:g} s (response_delay_seconds + "
                 f"iti_min_seconds - {ZAPIT_MAX_RAMP_DOWN_SECONDS} s ramp-down - {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin), so Zapit can be armed for the next trial in time"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _one_spout_in_go_no_go(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # TrialDraw.CheckTask's same rule: go/no-go uses the left spout alone.
+        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
+            for index, stage in enumerate(self.training_stages):
+                if stage.both_spouts_probability != 0:
+                    raise ValueError(f"training_stages[{index}] ({stage.label}): both_spouts_probability must be 0 in discriminationGoNoGo: only the left spout moves in")
         return self
 
     @model_validator(mode="after")

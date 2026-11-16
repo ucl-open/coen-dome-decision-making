@@ -238,7 +238,7 @@
       "properties": {
         "thresholdLicks": {
           "default": 1,
-          "description": "Net lick difference (left minus right, absolute) that terminates the response window",
+          "description": "Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)",
           "maximum": 2147483647,
           "minimum": -2147483648,
           "title": "ThresholdLicks",
@@ -312,7 +312,8 @@
       "description": "What the mouse answers.",
       "enum": [
         "localization",
-        "discrimination"
+        "discriminationGoNoGo",
+        "discriminationLeftRight"
       ],
       "title": "TaskType",
       "type": "string"
@@ -533,7 +534,7 @@
           "type": "integer"
         },
         "neutral": {
-          "description": "Grey screen, centre sound in localization, silent in discrimination",
+          "description": "Grey screen, centre sound in localization, silent in the discriminations",
           "maximum": 2147483647,
           "minimum": -2147483648,
           "title": "Neutral",
@@ -579,7 +580,7 @@
       "type": "object"
     },
     "UclOpenCoenDomeDecisionMakingTaskParameters": {
-      "description": "Task parameters for the coen-dome-decision-making audiovisual tasks: localization and discrimination.",
+      "description": "Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations.",
       "properties": {
         "rngSeed": {
           "default": null,
@@ -592,13 +593,19 @@
         },
         "taskType": {
           "$ref": "#/$defs/TaskType",
-          "description": "localization: the answer is the side the stimulus came from. discrimination: the answer is the modality, the left spout for targetModality and the right spout for the other"
+          "description": "localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right"
         },
-        "targetModality": {
+        "goModality": {
           "$ref": "#/$defs/Modality",
           "default": "visual",
-          "description": "Discrimination only: the modality answered at the left spout",
-          "title": "TargetModality"
+          "description": "discriminationGoNoGo only: the modality to lick for; the other modality's trials are NoGo",
+          "title": "GoModality"
+        },
+        "leftModality": {
+          "$ref": "#/$defs/Modality",
+          "default": "visual",
+          "description": "discriminationLeftRight only: the modality answered at the left spout; the other is answered at the right",
+          "title": "LeftModality"
         },
         "trialStructure": {
           "$ref": "#/$defs/TrialStructure",
@@ -627,7 +634,7 @@
         },
         "penalty": {
           "$ref": "#/$defs/Penalty",
-          "description": "The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty"
+          "description": "The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead; in discriminationGoNoGo a miss has neither, and a probe never does), open_rigs.core.task Penalty"
         },
         "reward": {
           "$ref": "#/$defs/RewardSettings",
