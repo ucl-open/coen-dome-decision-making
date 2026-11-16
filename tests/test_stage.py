@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from ucl_open_coen_dome_decision_making.stage import Experiment, experiments, suggest
+from ucl_open_coen_dome_decision_making import stage
+from ucl_open_coen_dome_decision_making.stage import Experiment, experiments, read_experiment, suggest
 
 STAGE_PY = Path(__file__).parents[1] / "src" / "ucl_open_coen_dome_decision_making" / "stage.py"
 REPO = "https://github.com/ucl-open/coen-dome-decision-making"
@@ -142,3 +143,10 @@ def test_the_script_runs_with_the_standard_library_alone(tmp_path):
                            f"--summaries={tmp_path}", f"--expected={expect(tmp_path, 'r6')}"],
                           capture_output=True, text=True, check=True)
     assert json.loads(done.stdout.strip().splitlines()[-1])["value"] == 3
+
+
+def test_one_reader_named_as_navigation_s():
+    # Round 3 F15: read_new outlived the old-format reader it was named against; both dome tasks call it read_experiment.
+    assert not hasattr(stage, "read_new")
+    e = read_experiment(summary("ses-002_2026-11-10T09-00-00", "r2", 3, 5))
+    assert (e.stage, e.task_type, e.trials) == (3, "discriminationGoNoGo", 5)

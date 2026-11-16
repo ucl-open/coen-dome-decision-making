@@ -47,7 +47,7 @@ def _when(folder: str) -> str:
     return m.group(1) if m else ""
 
 
-def read_new(summary: dict) -> Experiment | None:
+def read_experiment(summary: dict) -> Experiment | None:
     """This workflow's or the switch-over branch's: the trials, the TrainingStage parameter in Settings_Experiment
     and the task type in Settings_Task. None without trials, or with a task file in the old format (no taskType)."""
     trials = len(summary["trials"]["rows"])
@@ -108,7 +108,7 @@ def experiments(subject: str, folder: Path, expected: Path, unread: list[str]) -
     found = []
     for s in summaries_of(subject, folder, expected, unread):
         try:
-            e = read_new(s)
+            e = read_experiment(s)
         except (OSError, ValueError, KeyError, TypeError) as error:
             unread.append(f"{s['session']} (Unreadable: {type(error).__name__})")
             continue

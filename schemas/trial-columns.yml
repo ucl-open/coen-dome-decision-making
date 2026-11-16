@@ -14,7 +14,7 @@
 # The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the opto and quietWait blocks (Pip, 14 Nov 2026):
 # coen-dome-decision-making and coen-dome-navigation list them in this order with these types, units and
 # descriptions, word for word (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
-# trialType, outcome and penaltySound are described per task, and which trials are rewarded and penalised in those columns' notes. This task's own columns follow.
+# trialType and outcome are described per task, and which trials are rewarded and penalised in those columns' notes. This task's own columns follow.
 
 harpTime:
   type: double
@@ -76,7 +76,7 @@ rewarded:
   history: From 16 Nov 2026; until then rewardSizeUl above 0 on a Correct or autoRewarded row, or a paid probe.
 penaltySound:
   type: bool
-  description: "True when the penalty sound played: on every penalised trial (an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial, as a miss on a Go trial is unpenalised; on a random-reward probe a choice on the coin's tails, or a miss as a scored trial's) with the task's penalty.sound enabled, whatever penalty.timeoutSeconds is. The sound is the lab's (OpenRigs.Audio), on rig.yml's penaltySoundChannel."
+  description: "True when the trial was penalised and the task's penalty sound is enabled."
   history: Until 14 Nov 2026 only after an incorrect choice.
 penaltyTimeoutSeconds:
   type: double
