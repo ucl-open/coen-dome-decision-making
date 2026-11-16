@@ -1,5 +1,11 @@
 # Backlog
 
+## 2026-11-16 Device-pieces test on BLUE-OPTO-2 (runs 001E5, 001E6; lib eccf28a, this repo e32b84c)
+
+- Passed, 40 s test runs, no mouse: launch accepted, Ready 21-22 s, expected files, camera k 0 and 0 gaps, CSV closed, RewardLeft row, DO1-DO3 low at Start, Bonsai exit 1.0-1.3 s after Stop, no ffmpeg left. Camera USB serials are rig.yml's serialNumber in hex.
+- Fixed on the way in lib: the projector window deadlocked the start, so an error could not end headless Bonsai (5c44e45); the Harp clock timeout counts from the first heartbeat (48c8297).
+- Open: background noise not yet heard at Ready; `config\main.layout` not yet saved (both need Pip at the rig).
+
 ## 2026-11-16 One background noise for every dome task (lib-open-rigs a5120a4; Audio .12, Devices .24; Pip: "It should be literally the same file")
 
 - **Changed for the mice:** the background noise is rig.yml's `speakerArray.backgroundNoise`, `../shared/sounds/background_noise.wav` from the rig's folder: the server's `K:\config\shared\sounds\background_noise.wav` (coen-dome-navigation's 60 s of 32-bit float white noise, byte for byte, SHA-256 762999848f9152e400e2ac7c452a729a2cf980056a59c34d44e148681b177704), which app-rig-control's upkeep copies down to `RigConfigs\shared\`. The include takes no `FileName`, stops at Start naming the file when it is missing or at another rate, and `LocalFiles\background_white_noise.wav` is deleted. The manifest hashes the noise with rig.yml's other files (`{RigFiles}`).
