@@ -22,18 +22,9 @@
                  xmlns="https://bonsai-rx.org/2018/workflow">
   <Workflow>
     <Nodes>
-      <Expression xsi:type="GroupWorkflow">
-        <Name>RigSetup</Name>
-        <Description>Reads this machine's rig.yml (ConfigRoot\MachineName\rig.yml, ReadLabRig) into RigConfigs, the lab rig model (open_rigs.rigs.lab_rig.LabRig, generated C#), and publishes RigConfigDirectory. Everything else takes its devices and calibrations from these two.</Description>
-        <Workflow>
-          <Nodes>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ReadLabRig.bonsai">
-              <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
-            </Expression>
-          </Nodes>
-          <Edges>
-          </Edges>
-        </Workflow>
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ReadLabRig.bonsai">
+        <Description>This machine's rig.yml (ConfigRoot\MACHINE\rig.yml) read once into the lab rig model: RigConfigs, RigFile, RigConfigDirectory and ConfigRoot, which every device piece reads. First, before anything that reads them.</Description>
+        <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="SubjectId" />
@@ -200,9 +191,12 @@
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogLabExperiment.bonsai">
         <Description>The experiment folder at Go (PathPrefix), BonsaiData_Async, Settings_Rig, Settings_Experiment and the Recording phase. Before Hardware: every device's log waits for PathPrefix, so its definition must read nothing the devices define.</Description>
       </Expression>
+      <Expression xsi:type="ExternalizedMapping">
+        <Property Name="DisplayDevice" Description="The display the dome projector is on; a launch property." />
+      </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Hardware</Name>
-        <Description>The dome's devices (OpenRigs.Devices DomeHardware: every device as a piece, each logging itself; the cameras triggered once all three acquire; the speakers and their mixer; the projector, DisplayDevice a launch property), with Ready once the Harp clock is set, the spouts are homed, each camera has sent a frame and the mixer has started (ReadyWaitsFor), and a stop naming what never came after 180 s.</Description>
+        <Description>The dome's devices (OpenRigs.Devices DomeHardware: every device as a piece, each logging itself; the cameras triggered once all three acquire; the speakers and their mixer; the projector, DisplayDevice a launch property), with Ready once the Harp clock is set, the spouts are homed, each camera has sent a frame and the mixer has started, and a stop naming what never came after 180 s.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:DomeHardware.bonsai">
@@ -215,9 +209,6 @@
             <Edge From="1" To="0" Label="Source1" />
           </Edges>
         </Workflow>
-      </Expression>
-      <Expression xsi:type="ExternalizedMapping">
-        <Property Name="DisplayDevice" Description="The display the dome projector is on; a launch property." />
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Display</Name>
@@ -1857,7 +1848,7 @@
     </Nodes>
     <Edges>
       <Edge From="1" To="2" Label="Source1" />
-      <Edge From="7" To="6" Label="Source1" />
+      <Edge From="6" To="7" Label="Source1" />
     </Edges>
   </Workflow>
 </WorkflowBuilder>

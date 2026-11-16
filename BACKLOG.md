@@ -66,7 +66,7 @@
 
 ## Audit cycles 1-3 (15 Nov 2026)
 
-- Done, details in `git log`: names and descriptions say what the code does; `TrialDraw.CheckTask` refuses a NaN or infinite time at Go (test); RigSetup reads rig.yml with lib-open-rigs' `ReadLabRig` (a test holds its `ConfigRoot`, as check-workflow does not look inside an include).
+- Done, details in `git log`: names and descriptions say what the code does; `TrialDraw.CheckTask` refuses a NaN or infinite time at Go (test); rig.yml is read with lib-open-rigs' `ReadLabRig` (a test holds its `ConfigRoot`, as check-workflow does not look inside an include).
 
 ## Audit cycle 4 (15 Nov 2026)
 
