@@ -1,5 +1,10 @@
 # Backlog
 
+## 2026-11-16 Shared chains as includes (lib-open-rigs 069e4f3; Audio .13, Control .14, Devices .28, Logging .19)
+
+- What both dome tasks built the same way is a lib-open-rigs include, each linted: `TrainingStage` (OpenRigs.Control: the parameter at Go and the metric `trainingStage`), `PlayPenaltySound` (OpenRigs.Audio: the penalty buffer at `penalty.sound.levelDbfs`, played on each penalty), `BehaviorBoard.SetZapitTriggerLine` (the trigger line's set and clear, `Set`, `BoardCommandsSubjectName`), `LogRngSeed` (the RngSeed row once) and `TaskLogs` (Settings_Task from the task's own SerializeToJson, BonsaiData_Trial, Zapit's logs); `Zapit.ConnectForTask` publishes `Optogenetics`. The task's copies are deleted. Reading the task file stays here (its type is the task's).
+- The penalty sound is sent with the buffer made at Go (WithLatestFrom) where it waited for it per penalty (SelectMany); the buffer is ready before trial 1, so nothing heard changes. The trigger line still goes through BehaviorBoardFeed (the include's `BoardCommandsSubjectName`). Nothing written changes. Checked by tests/test_workflow.py, check-workflow and check-workflow-builds; not yet run on a rig.
+
 ## 2026-11-16 Pieces declare their own commands and parameters (lib-open-rigs def14f6; Control .13, Devices .27)
 
 - ExperimentControl declares only `TrainingStage`: `SpoutStepSize` and the 14 spout commands are DomeHardware's `LickSpoutStage`'s, `RewardLeft` and `RewardRight` `ManualRewards'`, each declared by its piece (`DeclareControls`), and ControlServer stops at Start on a name declared twice. `tests\test_workflow.py` holds the task to `undeclared_commands` and `declared_twice`.

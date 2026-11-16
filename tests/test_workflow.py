@@ -77,8 +77,7 @@ def test_the_trigger_rises_only_once_zapit_armed_the_trial():
     # The trigger is timed from the trial start, never from Zapit's reply.
     assert check not in _upstream(edges, trigger)
     assert any(_kind(nodes[i]) == "p1:TrialStartFor" for i in _upstream(edges, trigger))
-    zap = "{clr-namespace:OpenRigs.Devices.Zapit;assembly=OpenRigs.Devices}Set"
-    line = next(i for i, n in enumerate(nodes) if _kind(n) == "zap:ZapitLineMessage" and n.find(W + "Combinator").findtext(zap) == "true")
+    line = next(i for i, n in enumerate(nodes) if n.get("Path") == lint.SET_ZAPIT_TRIGGER_LINE and n.findtext(W + "Set") == "true")
     assert require in _upstream(edges, line)
 
 
@@ -192,7 +191,7 @@ def test_every_harp_delay_runs_on_the_timestamp_clock():
 
 def test_no_async_event_sender_completes_async_events():
     senders, finite = lint.finite_async_event_senders(WORKFLOW)
-    assert senders == 1 and finite == []  # RngSeed; LogControlEvents sends Control and DeliverReward RewardDelivered
+    assert senders == 0 and finite == []  # LogRngSeed sends RngSeed, LogControlEvents Control and DeliverReward RewardDelivered
 
 
 def test_no_trial_graph_closes_a_shared_subject():
@@ -223,9 +222,8 @@ def test_the_background_noise_is_the_shared_include():
 def test_the_training_stage_is_read_at_go_on_its_own():
     # TrainingStage is the ParameterValue at Go into its own AsyncSubject, as coen-dome-navigation's, not RunSettings' Item3:
     # RunSettings is LaunchSettings' (subject, session).
-    nodes, edges = _scope(_named("Initialization"))
-    (stage,) = [i for i, n in enumerate(nodes) if n.get(XSI) == "rx:AsyncSubject" and n.findtext(W + "Name") == "TrainingStage"]
-    assert {_kind(nodes[i]) for i in _upstream(edges, stage)} >= {"orcl:ParameterValue"} and "<Selector>Item3</Selector>" not in TEXT
+    # OpenRigs.Control's TrainingStage, which also reports trainingStage (16 Nov 2026).
+    assert lint.training_stage_problems(WORKFLOW) == [] and "<Selector>Item3</Selector>" not in TEXT
 
 
 def test_the_hardware_is_the_lab_s_pieces():
@@ -290,12 +288,18 @@ def test_no_wall_clock_wait_inside_task_logic():
 
 
 def test_the_rng_seed_is_logged_at_trial_1s_start():
-    # Once, at TaskLogic's top level from the first trial's start (TrialStart), as coen-dome-navigation; the Take after the multicast.
+    # OpenRigs.Logging's LogRngSeed at TaskLogic's top level, given trial 1's seed from TrialStart.
+    assert lint.rng_seed_problems(WORKFLOW) == []
     nodes, edges = lint.scope(WORKFLOW.named("TaskLogic"))
-    (seed,) = [i for i, n in enumerate(nodes) if n.findtext(lint.W + "Name") == "RngSeed"]
+    (log,) = [i for i, n in enumerate(nodes) if n.get("Path") == lint.LOG_RNG_SEED]
+    (seed,) = [a for a, b, _ in edges if b == log]
     (start,) = [a for a, b, _ in edges if b == seed]
+    assert nodes[seed].findtext(lint.W + "Selector") == "rngSeed"
     assert nodes[start].get(lint.XSI) == "SubscribeSubject" and nodes[start].findtext(lint.W + "Name") == "TrialStart"
-    assert WORKFLOW.text.count("<Name>RngSeed</Name>") == 1
+
+
+def test_the_task_logs_are_the_shared_include():
+    assert lint.task_logs_problems(WORKFLOW) == []
 
 
 def test_each_trial_s_sound_carries_its_sync_copy():
