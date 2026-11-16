@@ -1,13 +1,13 @@
 """Load coen-dome-decision-making sessions and score them from BonsaiData_Trial (schemas/trial-columns.yml).
 
 Nothing here runs on import. A session is `<root>/sub-<mouse>/ses-<id>_<DateTime>`, as the lab's ingest puts them
-on jacuzzi (Live-Data); its columns come from the session's own manifest.json (open_rigs.trials)."""
+on jacuzzi (Live-Data); its columns come from the session's own manifest.json (open_rigs.trial_log)."""
 
 import json
 from pathlib import Path
 
 import pandas as pd
-from open_rigs import trials
+from open_rigs import trial_log
 
 # The repositories whose sessions count, by name alone (stage.py's OURS): this workflow and av-dome's switch-over branch,
 # which wrote this workflow's files before the move (README); production av-dome's are told apart by their task file.
@@ -53,7 +53,7 @@ def load_sessions(root, subjects=None):
     """Every trial of this workflow's sessions as one DataFrame: the typed columns plus subject, session and session_path."""
     frames = []
     for session in find_sessions(root, subjects):
-        rows = trials.read(session)
+        rows = trial_log.read(session)
         if not rows:
             continue
         frame = pd.DataFrame(rows)

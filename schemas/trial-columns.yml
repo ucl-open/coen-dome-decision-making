@@ -1,6 +1,6 @@
 # What each BonsaiData_Trial column this workflow writes means. ExperimentManifest (TrialColumns) copies
 # this file into every experiment's manifest.json at Start, so each experiment carries the meaning of its
-# own trial log; open_rigs.trials reads it from there.
+# own trial log; open_rigs.trial_log reads it from there.
 #
 # Each column: type (int, double, bool or string), and where they apply values (the strings it may hold),
 # unit, description (what it is), note (this task's detail) and history (what it was before, dated). The
