@@ -118,9 +118,8 @@ def test_the_next_trial_is_drawn_at_the_start_of_the_interval():
 
 def test_the_shared_blocks_replace_the_local_copies():
     for block in ("OpenRigs.Devices:ReadLabRig.bonsai", "OpenRigs.Devices:DomeHardware.bonsai",
-                  "OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai", "OpenRigs.Devices:BehaviorBoard.ManualRewards.bonsai",
-                  "OpenRigs.Devices:Zapit.ConnectForTask.bonsai", "OpenRigs.Logging:LogLabExperiment.bonsai",
-                  "OpenRigs.Logging:LogControlEvents.bonsai"):
+                  "OpenRigs.Devices:BehaviorBoard.ManualRewards.bonsai", "OpenRigs.Devices:Zapit.ConnectForTask.bonsai",
+                  "OpenRigs.Logging:LogLabExperiment.bonsai", lint.LAUNCH_SETTINGS, lint.BACKGROUND_NOISE, lint.EXPERIMENT_RECORDS):
         assert f'Path="{block}"' in TEXT
     # The speakers and the projector are DomeHardware's (Pip, 15 Nov 2026: every task has background noise and a screen).
     assert lint.SPEAKER_MIXER not in TEXT and lint.PROJECTOR_DISPLAY not in TEXT
@@ -129,7 +128,7 @@ def test_the_shared_blocks_replace_the_local_copies():
 
 
 def test_every_config_root_is_the_lab_s():
-    # check-workflow holds every node that reads rig.yml to one root (4 nodes); this holds that root to the lab's.
+    # check-workflow holds every node that reads rig.yml to one root (3 nodes: ReadLabRig, ExperimentRecords, LiveView); this holds that root to the lab's.
     assert set(re.findall(r"<(?:\w+:)?ConfigRoot>([^<]*)</", TEXT)) == {r"C:\Coen-Lab-Local\RigConfigs"}
 
 
@@ -142,8 +141,8 @@ def test_the_launch_properties():
 
 def test_rewards_go_to_reward_requests():
     # One name for the reward request in both dome tasks (Pip, 15 Nov 2026), as coen-dome-navigation's.
-    # The manual rewards' two are BehaviorBoard.ManualRewards'.
-    assert "DeliverRewardCommand" not in TEXT and TEXT.count("<Name>RewardRequests</Name>") == 2
+    # The manual rewards' two are BehaviorBoard.ManualRewards'; ExperimentRecords' DeliverReward takes them.
+    assert "DeliverRewardCommand" not in TEXT and TEXT.count("<Name>RewardRequests</Name>") == 1
 
 
 def test_the_auditory_stimuli_are_the_tasks_own_files():
@@ -212,25 +211,25 @@ def test_every_sound_plays_at_the_task_file_s_level():
     assert any(nodes[a].findtext(W + "Selector") == "TaskParameters.AudioStimulus.LevelDbfs" for a in _upstream(edges, level))
 
 
-def test_the_background_noise_starts_at_ready_at_the_launch_s_level():
-    # Pip, 15 Nov 2026: the noise starts at Ready, not Go, at the level of the task file as launched (LaunchTaskConfig);
-    # its Ready is ReadyGate's (DomeHardware), the stages its ReadyWaitsFor names (hardware_problems). The mixer fades it in over 2 s.
-    nodes, edges = _scope(_named("LoadAudioFiles"))
-    sent = next(i for i, n in enumerate(nodes) if n.get(XSI) == "MulticastSubject" and n.findtext(W + "Name") == "BackgroundNoise")
-    upstream = _upstream(edges, sent)
-    names = {nodes[i].findtext(W + "Name") for i in upstream}
-    assert {"LaunchTaskConfig", "Ready", "BackgroundNoiseEnabled?"} <= names and "TaskConfig" not in names
-    (ready,) = [nodes[i] for i in upstream if nodes[i].findtext(W + "Name") == "Ready"]
-    assert ready.get(XSI) == "SubscribeSubject"
+def test_the_background_noise_is_the_shared_include():
+    # OpenRigs.Audio's BackgroundNoise (16 Nov 2026): the noise unequalised on every speaker at the launched task file's
+    # level from Ready, Go stopping on a backgroundNoise changed after launch. ReadWave takes a mono 16-bit PCM or 32-bit
+    # float WAV at the mixer's rate.
+    import wave
+
+    assert lint.background_noise_problems(WORKFLOW) == []
+    (noise,) = [e for e in MAIN.iter(W + "Expression") if e.get("Path") == lint.BACKGROUND_NOISE]
+    assert noise.findtext(W + "FileName") == r"LocalFiles\background_white_noise.wav"
+    with wave.open(str(ROOT / "src" / "LocalFiles" / "background_white_noise.wav")) as w:
+        assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 48000)
 
 
-def test_go_stops_on_a_background_noise_changed_after_launch():
-    nodes, edges = _scope(_named("TaskFile"))
-    (stop,) = [i for i, n in enumerate(nodes) if _kind(n) == "core:ThrowError"]
-    names = {nodes[i].findtext(W + "Name") for i in _upstream(edges, stop)}
-    assert {"TaskConfig", "LaunchTaskConfig", "BackgroundNoiseChanged?"} <= names
-    read_at_go = next(i for i, n in enumerate(nodes) if n.get(XSI) == "rx:AsyncSubject" and n.findtext(W + "Name") == "TaskConfig")
-    assert "ExperimentGo" in {nodes[i].findtext(W + "Name") for i in _upstream(edges, read_at_go)}
+def test_the_training_stage_is_read_at_go_on_its_own():
+    # TrainingStage is the ParameterValue at Go into its own AsyncSubject, as coen-dome-navigation's, not RunSettings' Item3:
+    # RunSettings is LaunchSettings' (subject, session).
+    nodes, edges = _scope(_named("Initialization"))
+    (stage,) = [i for i, n in enumerate(nodes) if n.get(XSI) == "rx:AsyncSubject" and n.findtext(W + "Name") == "TrainingStage"]
+    assert {_kind(nodes[i]) for i in _upstream(edges, stage)} >= {"orcl:ParameterValue"} and "<Selector>Item3</Selector>" not in TEXT
 
 
 def test_the_hardware_is_the_lab_s_pieces():
@@ -262,6 +261,18 @@ def test_the_readme_lists_every_open_rigs_block():
 
 def test_the_workflow_declares_every_command_it_handles():
     assert lint.undeclared_commands(WORKFLOW) == []
+
+
+def test_spout_step_size_is_the_lick_spout_stage_s():
+    assert lint.spout_step_size_problems(WORKFLOW) == []
+
+
+def test_the_experiment_records_are_the_shared_include():
+    assert lint.experiment_records_problems(WORKFLOW) == []
+
+
+def test_the_launch_settings_are_the_shared_include():
+    assert lint.launch_settings_problems(WORKFLOW) == []
 
 
 def test_the_layout_is_tracked():

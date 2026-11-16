@@ -1,5 +1,14 @@
 # Backlog
 
+## 2026-11-16 Task-side includes (lib-open-rigs 5ea5729; Audio .11, Control .12, Core .19, Devices .22, Logging .15, Manifest .23, Video .17)
+
+- `LaunchSettings` (OpenRigs.Control) publishes `SubjectId`, `TaskFilePath` and `RunSettings` (subject, session); Initialization keeps ExperimentControl and the training stage, now `ParameterValue TrainingStage` at Go into its own `TrainingStage` AsyncSubject, as coen-dome-navigation's, instead of `RunSettings`' third item. One inner `ExternalizedMapping` maps `SubjectId` onto ExperimentControl and LaunchSettings.
+- `SpoutStepSize`: DomeHardware's `LickSpoutStage` takes the parameter live and shows its default (150); the task's subject, `OnParameterSet`, `ParameterDefault` and the mapping onto DomeHardware are gone. The parameter's declaration stays on ExperimentControl.
+- `BackgroundNoise` (OpenRigs.Audio) after Audio reads `LocalFiles\background_white_noise.wav` (`ReadWave`, refusing another rate, which `CheckWaveRate` did), plays it and stops Go on a changed `backgroundNoise`. `ReadWave` maps 16-bit PCM onto -1 to 1 as `(x + 32768) * 2 / 65535 - 1` where the old `AudioReader` path took the samples as they were: after levelling to `levelDbfs` the largest sample difference is -62 dB re the noise's RMS and the level changes by 3e-6 dB (a DC offset of half a 16-bit step), so the mouse hears the same noise.
+- `ExperimentRecords` (OpenRigs.Logging), after TaskLogic and before LiveView, holds `DeliverReward`, `LogControlEvents`, `RecordHarpDevices` and `ExperimentManifest`, with the same `ConfigRoot`, `IngestScript` and `ExpectedFiles`.
+- ShowGrating's `TaskConfig` subscription fed both DrawGratings' mapping and the `Aperture` transform (`shared_mapping_problems`): `Aperture` has its own subscription now. A shared source hands a ready value on only once every successor has subscribed, so the temporal and spatial frequency and orientation could reach DrawGratings after it started (its XML defaults: 0.0667 cpd, 0 Hz, 0 deg); whether a frame was ever drawn before them was not measured (no run).
+- Nothing written changes: trial columns, `ExpectedFiles`, async events, `Settings_*` and device log names are as before (checked against the old workflow). `tests\test_workflow.py` calls `launch_settings_problems`, `spout_step_size_problems`, `background_noise_problems` and `experiment_records_problems`.
+
 ## Audit of the device-pieces cut (16 Nov 2026): not changed
 
 - Rig lists are registered in the lint: deliberate, documented and tested; an unregistered list fails loudly.
