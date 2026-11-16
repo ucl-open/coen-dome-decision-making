@@ -1,4 +1,4 @@
-﻿"""What src\\main.bonsai must keep: Harp-timed task logic, the shared blocks, and the bugs found fixed."""
+"""What src\\main.bonsai must keep: Harp-timed task logic, the shared blocks, and the bugs found fixed."""
 
 import re
 import xml.etree.ElementTree as ET
@@ -216,7 +216,7 @@ WORKFLOW = lint.Workflow(ROOT)
 
 def test_no_fixed_width_pulse_reaches_a_reward_valve():
     # Every reward is DeliverReward's calibrated pulse; checked against the lab's rig template's valve lines.
-    rig = LabRig.model_validate(yaml.safe_load((Path(open_rigs.rigs.__file__).parent / "rig-template.yml").read_text(encoding="utf-8")))
+    rig = LabRig.model_validate(yaml.safe_load((Path(open_rigs.rigs.__file__).parent / "rig-template.yml").read_text(encoding="utf-8").replace("CHANGE-ME", "X")))
     assert rig.reward_valve_lines() and lint.fixed_width_pulses_on_reward_valves(WORKFLOW, rig.reward_valve_lines()) == []
 
 
