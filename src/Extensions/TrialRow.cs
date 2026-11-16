@@ -1,8 +1,4 @@
-using Bonsai;
-using Bonsai.Harp;
-using System;
-using System.ComponentModel;
-using System.Reactive.Linq;
+using OpenRigs.Devices;
 
 // One row of BonsaiData_Trial. Each field is a column, named and typed as the lab's list
 // (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
@@ -38,23 +34,6 @@ public class TrialRow
     public double audioAzimuthDeg;
     public double audioElevationDeg;
     public int audioWaveformIndex;
-}
-
-[Combinator]
-[Description("Builds the trial's BonsaiData_Trial row when its outcome is known. Input: the choice (Left, Right or NoResponse) stamped with the Harp time it was made, the trial, and the Harp time of its stimulus onset (NaN if none).")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class CreateTrialRow
-{
-    [Description("The timeout after an incorrect choice or a miss not auto-rewarded, in seconds (penalty.timeoutSeconds).")]
-    public double TimeoutSeconds { get; set; }
-
-    [Description("Whether the penalty sound plays with every timeout: an incorrect choice or a miss not auto-rewarded (penalty.sound.enabled).")]
-    public bool PenaltySound { get; set; }
-
-    public IObservable<Timestamped<TrialRow>> Process(IObservable<Tuple<Timestamped<string>, Trial, double>> source)
-    {
-        return source.Select(value => new Timestamped<TrialRow>(Build(value.Item1.Value, value.Item1.Seconds, value.Item2, value.Item3, TimeoutSeconds, PenaltySound), value.Item1.Seconds));
-    }
 
     public static string Outcome(string choice, Trial trial)
     {
@@ -67,8 +46,9 @@ public class CreateTrialRow
         return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward);
     }
 
-    // outcomeTime is the choice's Harp time (the lick, or the end of the response window), the row's own time too.
-    public static TrialRow Build(string choice, double outcomeTime, Trial trial, double stimulusOnsetTime, double timeoutSeconds, bool penaltySound)
+    // The trial's row at its outcome, the choice made now (times.Now: the lick, or the end of the response window,
+    // the row's own time too); the shared block's times are the trial loop's (TrialTimes).
+    public static TrialRow Build(string choice, Trial trial, TrialTimes times, double timeoutSeconds, bool penaltySound)
     {
         var outcome = Outcome(choice, trial);
         var timedOut = TimedOut(outcome, trial);
@@ -77,18 +57,18 @@ public class CreateTrialRow
             trialNumber = trial.trialNumber,
             trialType = trial.trialType,
             outcome = outcome,
-            itiStartTime = trial.itiStartTime,
-            itiSeconds = trial.itiSeconds,
-            quietWaitSeconds = trial.quietWaitSeconds,
-            trialStartTime = trial.startTime,
-            stimulusOnsetTime = stimulusOnsetTime,
-            outcomeTime = outcomeTime,
+            itiStartTime = times.IntervalStartTime,
+            itiSeconds = times.IntervalSeconds,
+            quietWaitSeconds = times.QuietWaitSeconds,
+            trialStartTime = times.TrialStartTime,
+            stimulusOnsetTime = times.StimulusOnsetTime,
+            outcomeTime = times.Now,
             rewardSizeUl = trial.rewardSizeUl,
             penaltySound = timedOut && penaltySound,  // the sound comes with every timeout, as in coen-dome-navigation (Pip, 14 Nov 2026)
             penaltyTimeoutSeconds = timedOut ? timeoutSeconds : 0.0,
             laserCondition = trial.laserCondition,
-            laserPowerMw = trial.LaserFiredByOutcome() ? trial.laserPowerMw : 0,  // answered before its trigger: no laser
-            laserTriggerTime = trial.LaserFiredByOutcome() ? trial.laserTriggerTime : double.NaN,
+            laserPowerMw = times.LaserFired ? trial.laserPowerMw : 0,  // answered before its trigger: no laser (Pip, 13 Nov 2026)
+            laserTriggerTime = times.LaserTriggerTime,
             target = trial.target,
             choice = choice,
             repeatCount = trial.repeatCount,

@@ -4,6 +4,7 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 
 ## Open
 
+- The trial now runs on lib-open-rigs' `TrialLoop` (16 Nov 2026): before any mouse, a no-mouse rig run with scripted licks (the `test` mouse) proving each trial's interval, start, stimulus, grating off, spouts in, response, reward, penalty sound, timeout and drink on the Harp clock, and with optogenetics the arm, trigger and line on a hardware-triggered rig; then `uv run summarise-experiment` on its folder.
 - On a rig, with the `test` mouse (BLUE-OPTO-2 first; Pip at the rig):
   - The background noise heard from Ready; every sound at the same loudness as before.
   - `config\main.layout` saved in the editor on a machine with the Spinnaker SDK, then committed (`.bonsai\Setup.ps1` copies it).
@@ -18,7 +19,7 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 
 ## Decided
 
-- The hardware is lib-open-rigs' `DomeHardware`; this workflow keeps its own task file reading, task C# (`src\Extensions`, tested in `tests\Extensions.Tests`, every wait on the Harp clock) and auditory stimuli (`src\LocalFiles\AuditoryStimuli`, checked against the mixer's rate at Start). What every task does the same way is a lib include (`LaunchSettings`, `TrainingStage`, `BackgroundNoise`, `PlayPenaltySound`, `TaskLogs`, `LogRngSeed`, `ExperimentRecords`, `Zapit.ConnectForTask`); the pieces declare their own commands and parameters, so ExperimentControl declares only `TrainingStage`.
+- The hardware is lib-open-rigs' `DomeHardware`; this workflow keeps its own task file reading, task C# (`src\Extensions`, tested in `tests\Extensions.Tests`, every wait on the Harp clock) and auditory stimuli (`src\LocalFiles\AuditoryStimuli`, checked against the mixer's rate at Start). What every task does the same way is lib's: the trial's state machine (`TrialLoop`, as coen-dome-navigation's, the task's own part its `TrialRules`; 16 Nov 2026) and the includes (`LaunchSettings`, `TrainingStage`, `BackgroundNoise`, `PlayPenaltySound`, `TaskLogs`, `LogRngSeed`, `BehaviorBoard.Rewards`, `ExperimentRecords`, `Zapit.ConnectForTask`); the pieces declare their own commands and parameters, so ExperimentControl declares only `TrainingStage`.
 - The background noise is the lab's one file, rig.yml's `speakerArray.backgroundNoise` (`../shared/sounds/background_noise.wav`, coen-dome-navigation's float white noise; Pip, 16 Nov 2026, accepted its spectrum against the old file's: 0.5 dB lower to 19 kHz, +1.3 dB over 16-24 kHz), from Ready, faded in over 2 s, at the task file's level as launched; Go stops if the form changed `backgroundNoise`.
 - Every sound's level is the task file's `levelDbfs` (dBFS RMS as stored, before equalisation): stimuli -47.2, background -60.1, penalty -44.6, the levels played before 15 Nov 2026. The penalty sound is the lab's, on rig.yml's `penaltySoundChannel`, at 48 kHz as every sound (13 Nov 2026).
 - The quiet waits are per stage (`lickQuietSeconds`, `wheelQuietSeconds`, `wheelQuietCm`, 0 in every stage), capped at 10 s, 10 s and 20 cm; the wheel's counts travel in the last `wheelQuietSeconds`, the lick's needs both spouts released.

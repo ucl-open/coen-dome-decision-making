@@ -27,14 +27,16 @@
         <Property Name="SubjectId" Description="The mouse's lab ID; the launch's own, from rig-control." />
         <Property Name="SessionId" Description="The session number; the launch's own, from rig-control." />
         <Property Name="TaskPath" Description="The task file: rig-control's copy of the one chosen at launch, read at Start for the background noise and again at Go with the form's edits; from the editor, config\task-localization.yml." />
+        <Property Name="LaunchId" Description="The launcher's run id; the launch's own, from rig-control." />
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
-        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test) and SessionId are the launch's; the parameter a controller may change until Go (TrainingStage; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath); the pieces declare their own parameters and commands (16 Nov 2026). The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskFilePath (TaskPath) at Start and RunSettings (SubjectId, SessionId) at Go; TrainingStage (OpenRigs.Control) publishes TrainingStage at Go and reports it as the metric trainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardLeft and RewardRight each give 2.5 ul before and during a run through the valve's calibration (BehaviorBoard.ManualRewards: Pip's fixed manual drop, 15 Nov 2026).</Description>
+        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test), SessionId and LaunchId (the launcher's run id, which the manifest records) are the launch's; the parameter a controller may change until Go (TrainingStage; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath); the pieces declare their own parameters and commands (16 Nov 2026). The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskFilePath (TaskPath) at Start and RunSettings (SubjectId, SessionId) at Go; TrainingStage (OpenRigs.Control) publishes TrainingStage at Go and reports it as the metric trainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardLeft and RewardRight each give 2.5 ul before and during a run through the valve's calibration (BehaviorBoard.Rewards' ManualRewards: Pip's fixed manual drop, 15 Nov 2026).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="ExternalizedMapping">
               <Property Name="SessionId" />
+              <Property Name="LaunchId" />
             </Expression>
             <Expression xsi:type="ExternalizedMapping">
               <Property Name="SubjectId" />
@@ -74,7 +76,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskFile</Name>
-        <Description>Reads the task file (TaskPath) at Start into LaunchTaskConfig, as rig-control wrote it at launch, for the background noise, which plays from Ready; and at Go, with the form's edits, into TaskConfig. BackgroundNoise stops the workflow at Go if backgroundNoise was changed after launch, as the noise already plays at the launch's level.</Description>
+        <Description>Reads the task file (TaskPath) at Start into LaunchTaskConfig, as rig-control wrote it at launch, for the background noise, which plays from Ready; and at Go, with the form's edits, into TaskConfig. BackgroundNoise stops the workflow at Go if backgroundNoise was changed after launch, as the noise already plays at the launch's level. At Go, CheckTaskAtGo checks the task once and publishes the trials' rules (TrialRules) for TaskLogic.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -115,6 +117,26 @@
             <Expression xsi:type="rx:AsyncSubject">
               <Name>LaunchTaskConfig</Name>
             </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TaskConfig</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrainingStage</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>RigConfigs</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:Zip" />
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Name>CheckTaskAtGo</Name>
+              <Description>The task checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the stage, rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, a target modality with no trials, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. A problem stops the workflow here, naming each, before the first trial.</Description>
+              <Combinator xsi:type="ext:CheckTaskAtGo" />
+            </Expression>
+            <Expression xsi:type="rx:AsyncSubject">
+              <Name>TrialRules</Name>
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -127,58 +149,42 @@
             <Edge From="8" To="9" Label="Source1" />
             <Edge From="9" To="10" Label="Source1" />
             <Edge From="10" To="11" Label="Source1" />
+            <Edge From="12" To="15" Label="Source1" />
+            <Edge From="13" To="15" Label="Source2" />
+            <Edge From="14" To="15" Label="Source3" />
+            <Edge From="15" To="16" Label="Source1" />
+            <Edge From="16" To="17" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. Trial (each trial as drawn) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and PenaltySound start the stimuli; Zapit's commands and replies; RewardRequests, each (side, microlitres) reward, the side as rig.yml's wiring names it (left, right). Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage-Main.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
+        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's BonsaiData_Trial row, built at its outcome; DecisionVariable and GratingAzimuthDeg, the response; VisualStimulus, VisualStimulusOff and AuditoryStimulus, the stimuli. Zapit's commands and replies are Zapit.ConnectForTask's, RewardRequests BehaviorBoard.Rewards'.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
               <rx:Name>Trial</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="ext:TrialEnd">
-              <rx:Name>TrialEnds</rx:Name>
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="dev:TrialEvent(ext:Trial,ext:DecisionUpdate,ext:TrialOutcome)">
+              <rx:Name>TrialEvents</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:Timestamped(ext:TrialRow)">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="harp:Timestamped(ext:TrialRow)">
               <rx:Name>TrialRow</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Int32">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="sys:Int32">
               <rx:Name>DecisionVariable</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Double">
-              <rx:Name>GratingAzimuthStart</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Double">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="sys:Double">
               <rx:Name>GratingAzimuthDeg</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="ext:Trial">
               <rx:Name>VisualStimulus</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="harp:Timestamped(sys:Double)">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="ext:Trial">
               <rx:Name>VisualStimulusOff</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="ext:Trial">
               <rx:Name>AuditoryStimulus</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:String">
-              <rx:Name>PenaltySound</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="zap:ZapitReply">
-              <rx:Name>ZapitReplies</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Tuple(sys:String,sys:Double)">
-              <rx:Name>RewardRequests</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:Timestamped(sys:Double)">
-              <rx:Name>VisualStimulusOffFeed</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="dev:LickSpoutCommand">
-              <rx:Name>LickSpoutStageFeed</rx:Name>
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:HarpMessage">
-              <rx:Name>BehaviorBoardFeed</rx:Name>
             </Expression>
           </Nodes>
           <Edges>
@@ -218,7 +224,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ShowGrating</Name>
-              <Description>Draws a trial's grating from VisualStimulus until VisualStimulusOff: contrast, elevation and phase the trial's, the rest the task's, the azimuth GratingAzimuthDeg (closed loop moves it), flickering at the stimulus set's pulse rate, with the photodiode square black on its on frames and white on its off frames.</Description>
+              <Description>Draws a trial's grating from VisualStimulus until VisualStimulusOff: contrast, elevation and phase the trial's, the rest the task's, the azimuth the trial's, then GratingAzimuthDeg's as the licks move it (so its first frame is never the last trial's), flickering at the stimulus set's pulse rate, with the photodiode square black on its on frames and white on its off frames.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -399,6 +405,15 @@
                       <Property Name="Period" Selector="FlickerHalfPeriod" />
                     </PropertyMappings>
                   </Expression>
+                  <Expression xsi:type="SubscribeSubject">
+                    <Name>GratingTrial</Name>
+                  </Expression>
+                  <Expression xsi:type="MemberSelector">
+                    <Selector>visualAzimuthDeg</Selector>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Combinator xsi:type="rx:Merge" />
+                  </Expression>
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
@@ -413,7 +428,10 @@
                   <Edge From="12" To="11" Label="Source1" />
                   <Edge From="14" To="13" Label="Source1" />
                   <Edge From="17" To="15" Label="Source1" />
-                  <Edge From="19" To="18" Label="Source1" />
+                  <Edge From="31" To="32" Label="Source1" />
+                  <Edge From="32" To="33" Label="Source1" />
+                  <Edge From="19" To="33" Label="Source2" />
+                  <Edge From="33" To="18" Label="Source1" />
                   <Edge From="8" To="20" Label="Source1" />
                   <Edge From="11" To="20" Label="Source2" />
                   <Edge From="13" To="20" Label="Source3" />
@@ -443,7 +461,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound and the penalty sound at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound (and TaskLogic's penalty sound) at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -549,10 +567,6 @@
                 </Edges>
               </Workflow>
             </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>PenaltySound</Name>
-            </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:PlayPenaltySound.bonsai" />
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -565,7 +579,6 @@
             <Edge From="8" To="9" Label="Source1" />
             <Edge From="10" To="11" Label="Source1" />
             <Edge From="11" To="12" Label="Source1" />
-            <Edge From="13" To="14" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -575,7 +588,7 @@
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:Zapit.ConnectForTask.bonsai" />
       <Expression xsi:type="GroupWorkflow">
         <Name>Logging</Name>
-        <Description>Everything else written to the experiment folder (LogLabExperiment, before Hardware, makes it at Go, with BonsaiData_Async, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), BonsaiData_Trial and Zapit's logs; Rewards (DeliverReward) logs each reward and each calibrated valve's file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to BonsaiData_Async, records the Harp devices and writes the manifest.</Description>
+        <Description>Everything else written to the experiment folder (LogLabExperiment, before Hardware, makes it at Go, with BonsaiData_Async, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), BonsaiData_Trial and Zapit's logs; BehaviorBoard.Rewards (OpenRigs.Devices, its DeliverReward) logs each reward and each calibrated valve's file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to BonsaiData_Async, records the Harp devices and writes the manifest.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -677,66 +690,40 @@
           </Edges>
         </Workflow>
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.ManualRewards.bonsai" />
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.Rewards.bonsai" />
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trial loop, every wait on the Harp clock (Core HarpDelay on Timestamp): the task checked at Go (CheckTaskAtGo); once the experiment folder exists, the spouts out (on a stage with spout movements) and the first trial drawn, its interval starting then. Each trial is drawn at the start of its interval (the last outcome, after any timeout); WaitForTrialStart holds it until the interval's end less the lead (max(laserToStimulusSeconds, 0)) and the stage's quiet waits; the stimulus comes the lead after the trial start (LeadToStimulus) in every experiment; with optogenetics, Laser arms Zapit during the interval and raises the ZapitTrigger line at laserToStimulusSeconds before the stimulus (after it if negative), stopping the workflow if Zapit has not answered by then. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and the seed; Arm and Trigger: Zapit's StartStimulus (Zapit) and the ZapitTrigger line raised, cleared at TriggerOff; Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (stimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and Drink (drinkSeconds into the next interval, on a stage with spout movements: the spouts out); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the spouts and the penalty sound. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialRules</Name>
+            </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>PathPrefix</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Take">
-                <rx:Count>1</rx:Count>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Name>OnNextTick</Name>
-              <Description>The experiment folder stamped with the next Harp clock tick and given from the clock's thread (lib-open-rigs' OpenRigs.Core OnNextTick), so the first draw runs as every later one does. WithLatestTimestamp here ran it under a lock the clock needs, and the clock stopped at trial 1 (BLUE-OPTO-2, 14 Nov 2026).</Description>
-              <Combinator xsi:type="core:OnNextTick" />
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="ext:StartTrials" />
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Merge" />
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TrialEnds</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>RigConfigs</Name>
+              <Combinator xsi:type="rx:Zip" />
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>SpeakerArray</Selector>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:CombineLatest" />
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TaskConfig</Name>
-            </Expression>
-            <Expression xsi:type="PropertyMapping">
-              <PropertyMappings>
-                <Property Name="TrainingStage" />
-              </PropertyMappings>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TrainingStage</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Name>DrawTrial</Name>
-              <Description>Draws each trial (TrialDraw, tested C#) at the start of its interval, from the last trial's end, the task and rig.yml's speakers; the first once the experiment folder exists, its interval starting then.</Description>
-              <Combinator xsi:type="ext:DrawTrial">
-                <ext:TrainingStage>0</ext:TrainingStage>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>Trial</Name>
+              <Selector>Item1</Selector>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>Timestamp</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Name>OnNextTick</Name>
+              <Description>The rules, once the experiment folder exists, stamped with the next Harp clock tick and given from the clock's thread (lib-open-rigs' OpenRigs.Core OnNextTick): the first trial's interval starts then.</Description>
+              <Combinator xsi:type="core:OnNextTick" />
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Value</Selector>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>Timestamp</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>WheelDistanceCm</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>LickStateLeft</Name>
@@ -745,725 +732,49 @@
               <Name>LickStateRight</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>WheelDistanceCm</Name>
+              <Name>ZapitReplies</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Name>WaitForTrialStart</Name>
-              <Description>Each trial's start (tested C#), on the Harp clock: the end of its interval less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds, a held contact blocking the start; the wheel within wheelQuietCm, forward and back added, over the last wheelQuietSeconds; each counted from the interval's start). Sets startTime and quietWaitSeconds.</Description>
-              <Combinator xsi:type="ext:WaitForTrialStart" />
-            </Expression>
-            <Expression xsi:type="rx:BehaviorSubject">
-              <Name>TrialStart</Name>
-            </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
-              <Name>Timestamp</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="ext:SecondsUntil">
-                <ext:Moment>Stimulus</ext:Moment>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="InputMapping">
-              <PropertyMappings>
-                <Property Name="DueSeconds" Selector="Item2" />
-              </PropertyMappings>
-              <Selector>Item1</Selector>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>Timestamp</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Name>LeadToStimulus</Name>
-              <Description>The stimulus the lead (max(laserToStimulusSeconds, 0)) after the trial start, in every experiment, optogenetics on or off, so timing never reveals Zapit.</Description>
-              <Combinator xsi:type="core:HarpDelay">
-                <core:DueSeconds>0.0</core:DueSeconds>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="rx:SelectMany">
-              <Name>ExecuteTrial</Name>
-              <Description>One trial on the Harp clock: the stimulus (VisualStimulus, AuditoryStimulus, its onset stamped as it is commanded; the grating off after stimulusSeconds), the spouts in after stimulusToSpoutsInSeconds, the response window after openLoopSeconds; at the outcome, the trial's row (TrialRow) and what the outcome sets off (TrialConsequence: the reward, the spouts, the penalty sound); then the timeout; at its end the TrialEnd leaves, stamped with the interval's start, so the next trial is drawn and Zapit armed while the interval runs; drinkSeconds into the interval the spouts go out, and the trial ends.</Description>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="WorkflowInput">
-                    <Name>Source1</Name>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>Value</Selector>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Take">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>ExecTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ExecTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>visualAzimuthDeg</Selector>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>GratingAzimuthStart</Name>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>GratingAzimuthDeg</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ExecTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="IntProperty">
-                      <Value>0</Value>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>DecisionVariable</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ExecTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>VisualStimulus</Name>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>AuditoryStimulus</Name>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>Seconds</Selector>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>Onset</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Onset</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>StimulusOff</Name>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.0</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="DueSeconds" Selector="TaskParameters.TrialStructure.StimulusSeconds" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>VisualStimulusOffFeed</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Onset</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>SpoutsIn</Name>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.0</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="DueSeconds" Selector="TaskParameters.TrialStructure.StimulusToSpoutsInSeconds" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:WithLatestFrom" />
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ExecTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:SpoutsIn" />
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>Item2</Selector>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>LickSpoutStageFeed</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Onset</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>OpenLoop</Name>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.0</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="DueSeconds" Selector="TaskParameters.TrialStructure.OpenLoopSeconds" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="rx:SelectMany">
-                    <Name>Response</Name>
-                    <Description>The response window, from the end of the open loop for closedLoopSeconds on the Harp clock: each lick adds 1 (left) or -1 (right) to DecisionVariable, which moves the grating degreesPerLick per lick; the choice is the side whose net licks reach thresholdLicks first, else NoResponse at the window's end.</Description>
-                    <Workflow>
-                      <Nodes>
-                        <Expression xsi:type="rx:PublishSubject" TypeArguments="sys:String">
-                          <rx:Name>ResponseDone</rx:Name>
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>LickStateLeft</Name>
-                        </Expression>
-                        <Expression xsi:type="rx:Condition">
-                          <Name>Lick?</Name>
-                          <Workflow>
-                            <Nodes>
-                              <Expression xsi:type="WorkflowInput">
-                                <Name>Source1</Name>
-                              </Expression>
-                              <Expression xsi:type="scr:ExpressionTransform">
-                                <scr:Expression>it</scr:Expression>
-                              </Expression>
-                              <Expression xsi:type="WorkflowOutput" />
-                            </Nodes>
-                            <Edges>
-                              <Edge From="0" To="1" Label="Source1" />
-                              <Edge From="1" To="2" Label="Source1" />
-                            </Edges>
-                          </Workflow>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="IntProperty">
-                            <Value>1</Value>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>LickStateRight</Name>
-                        </Expression>
-                        <Expression xsi:type="rx:Condition">
-                          <Name>Lick?</Name>
-                          <Workflow>
-                            <Nodes>
-                              <Expression xsi:type="WorkflowInput">
-                                <Name>Source1</Name>
-                              </Expression>
-                              <Expression xsi:type="scr:ExpressionTransform">
-                                <scr:Expression>it</scr:Expression>
-                              </Expression>
-                              <Expression xsi:type="WorkflowOutput" />
-                            </Nodes>
-                            <Edges>
-                              <Edge From="0" To="1" Label="Source1" />
-                              <Edge From="1" To="2" Label="Source1" />
-                            </Edges>
-                          </Workflow>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="IntProperty">
-                            <Value>-1</Value>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:Merge" />
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:TakeUntil" />
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>ResponseDone</Name>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:WithLatestFrom" />
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>DecisionVariable</Name>
-                        </Expression>
-                        <Expression xsi:type="Add" />
-                        <Expression xsi:type="MulticastSubject">
-                          <Name>DecisionVariable</Name>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:WithLatestFrom" />
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>TaskConfig</Name>
-                        </Expression>
-                        <Expression xsi:type="MemberSelector">
-                          <Selector>TaskParameters.Response.DegreesPerLick</Selector>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:WithLatestFrom" />
-                        </Expression>
-                        <Expression xsi:type="Multiply" />
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>GratingAzimuthStart</Name>
-                        </Expression>
-                        <Expression xsi:type="Add" />
-                        <Expression xsi:type="MulticastSubject">
-                          <Name>GratingAzimuthDeg</Name>
-                        </Expression>
-                        <Expression xsi:type="WorkflowInput">
-                          <Name>Source1</Name>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Name>ResponseWindow</Name>
-                          <Combinator xsi:type="core:HarpDelay">
-                            <core:DueSeconds>0.0</core:DueSeconds>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>Timestamp</Name>
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>TaskConfig</Name>
-                        </Expression>
-                        <Expression xsi:type="PropertyMapping">
-                          <PropertyMappings>
-                            <Property Name="DueSeconds" Selector="TaskParameters.TrialStructure.ClosedLoopSeconds" />
-                          </PropertyMappings>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:Take">
-                            <rx:Count>1</rx:Count>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="StringProperty">
-                            <Value>NoResponse</Value>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:WithLatestFrom" />
-                        </Expression>
-                        <Expression xsi:type="SubscribeSubject">
-                          <Name>TaskConfig</Name>
-                        </Expression>
-                        <Expression xsi:type="MemberSelector">
-                          <Selector>TaskParameters.Response.ThresholdLicks</Selector>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionCondition">
-                          <scr:Expression>Item1 &gt;= Item2</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:Take">
-                            <rx:Count>1</rx:Count>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="StringProperty">
-                            <Value>Left</Value>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionCondition">
-                          <scr:Expression>Item1 &lt;= -Item2</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:Take">
-                            <rx:Count>1</rx:Count>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="StringProperty">
-                            <Value>Right</Value>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:Merge" />
-                        </Expression>
-                        <Expression xsi:type="Combinator">
-                          <Combinator xsi:type="rx:Take">
-                            <rx:Count>1</rx:Count>
-                          </Combinator>
-                        </Expression>
-                        <Expression xsi:type="MulticastSubject">
-                          <Name>ResponseDone</Name>
-                        </Expression>
-                        <Expression xsi:type="WorkflowOutput" />
-                      </Nodes>
-                      <Edges>
-                        <Edge From="1" To="2" Label="Source1" />
-                        <Edge From="2" To="3" Label="Source1" />
-                        <Edge From="4" To="5" Label="Source1" />
-                        <Edge From="5" To="6" Label="Source1" />
-                        <Edge From="3" To="7" Label="Source1" />
-                        <Edge From="6" To="7" Label="Source2" />
-                        <Edge From="7" To="8" Label="Source1" />
-                        <Edge From="9" To="8" Label="Source2" />
-                        <Edge From="8" To="10" Label="Source1" />
-                        <Edge From="11" To="10" Label="Source2" />
-                        <Edge From="10" To="12" Label="Source1" />
-                        <Edge From="12" To="13" Label="Source1" />
-                        <Edge From="15" To="16" Label="Source1" />
-                        <Edge From="13" To="14" Label="Source1" />
-                        <Edge From="16" To="14" Label="Source2" />
-                        <Edge From="14" To="18" Label="Source1" />
-                        <Edge From="18" To="17" Label="Source1" />
-                        <Edge From="19" To="17" Label="Source2" />
-                        <Edge From="17" To="20" Label="Source1" />
-                        <Edge From="20" To="21" Label="Source1" />
-                        <Edge From="22" To="23" Label="Source1" />
-                        <Edge From="24" To="23" Label="Source2" />
-                        <Edge From="25" To="26" Label="Source1" />
-                        <Edge From="26" To="23" Label="Source3" />
-                        <Edge From="23" To="27" Label="Source1" />
-                        <Edge From="27" To="28" Label="Source1" />
-                        <Edge From="30" To="31" Label="Source1" />
-                        <Edge From="13" To="29" Label="Source1" />
-                        <Edge From="31" To="29" Label="Source2" />
-                        <Edge From="29" To="32" Label="Source1" />
-                        <Edge From="32" To="33" Label="Source1" />
-                        <Edge From="33" To="34" Label="Source1" />
-                        <Edge From="29" To="35" Label="Source1" />
-                        <Edge From="35" To="36" Label="Source1" />
-                        <Edge From="36" To="37" Label="Source1" />
-                        <Edge From="34" To="38" Label="Source1" />
-                        <Edge From="37" To="38" Label="Source2" />
-                        <Edge From="28" To="38" Label="Source3" />
-                        <Edge From="38" To="39" Label="Source1" />
-                        <Edge From="39" To="40" Label="Source1" />
-                        <Edge From="40" To="41" Label="Source1" />
-                      </Edges>
-                    </Workflow>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>Choice</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Zip" />
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Choice</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ExecTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Onset</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="TimeoutSeconds" Selector="TaskParameters.Penalty.TimeoutSeconds" />
-                      <Property Name="PenaltySound" Selector="TaskParameters.Penalty.Sound.Enabled" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>BuildTrialRow</Name>
-                    <Combinator xsi:type="ext:CreateTrialRow">
-                      <ext:TimeoutSeconds>0</ext:TimeoutSeconds>
-                      <ext:PenaltySound>false</ext:PenaltySound>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>TrialRow</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>Row</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Zip" />
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Row</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ExecTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:TrialConsequence" />
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>Outcome</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Outcome</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:Condition">
-                    <Name>Rewarded?</Name>
-                    <Workflow>
-                      <Nodes>
-                        <Expression xsi:type="WorkflowInput">
-                          <Name>Source1</Name>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>Rewarded</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="WorkflowOutput" />
-                      </Nodes>
-                      <Edges>
-                        <Edge From="0" To="1" Label="Source1" />
-                        <Edge From="1" To="2" Label="Source1" />
-                      </Edges>
-                    </Workflow>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>Reward</Selector>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>RewardRequests</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Outcome</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:Condition">
-                    <Name>MoveSpouts?</Name>
-                    <Workflow>
-                      <Nodes>
-                        <Expression xsi:type="WorkflowInput">
-                          <Name>Source1</Name>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>MoveSpouts</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="WorkflowOutput" />
-                      </Nodes>
-                      <Edges>
-                        <Edge From="0" To="1" Label="Source1" />
-                        <Edge From="1" To="2" Label="Source1" />
-                      </Edges>
-                    </Workflow>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>SpoutCommand</Selector>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>LickSpoutStageFeed</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Outcome</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:Condition">
-                    <Name>PenaltySound?</Name>
-                    <Workflow>
-                      <Nodes>
-                        <Expression xsi:type="WorkflowInput">
-                          <Name>Source1</Name>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>PenaltySound</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="WorkflowOutput" />
-                      </Nodes>
-                      <Edges>
-                        <Edge From="0" To="1" Label="Source1" />
-                        <Edge From="1" To="2" Label="Source1" />
-                      </Edges>
-                    </Workflow>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>Outcome</Selector>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>PenaltySound</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Outcome</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>Timeout</Name>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.0</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Outcome</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="DueSeconds" Selector="TimeoutSeconds" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="MemberSelector">
-                    <Selector>Value</Selector>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>ItiStart</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ItiStart</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>Drink</Name>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.0</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="DueSeconds" Selector="TaskParameters.TrialStructure.DrinkSeconds" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:WithLatestFrom" />
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Outcome</Name>
-                  </Expression>
-                  <Expression xsi:type="rx:Condition">
-                    <Name>Withdraw?</Name>
-                    <Workflow>
-                      <Nodes>
-                        <Expression xsi:type="WorkflowInput">
-                          <Name>Source1</Name>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>Item2.WithdrawAfterDrink</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="WorkflowOutput" />
-                      </Nodes>
-                      <Edges>
-                        <Edge From="0" To="1" Label="Source1" />
-                        <Edge From="1" To="2" Label="Source1" />
-                      </Edges>
-                    </Workflow>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="dev:ToLickSpoutCommand">
-                      <dev:Command>SpoutsOut</dev:Command>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>LickSpoutStageFeed</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ItiStart</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:EndTrial" />
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Take">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="WorkflowOutput" />
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:IgnoreElements" />
-                  </Expression>
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                  <Edge From="2" To="3" Label="Source1" />
-                  <Edge From="4" To="5" Label="Source1" />
-                  <Edge From="5" To="6" Label="Source1" />
-                  <Edge From="6" To="7" Label="Source1" />
-                  <Edge From="8" To="9" Label="Source1" />
-                  <Edge From="9" To="10" Label="Source1" />
-                  <Edge From="11" To="12" Label="Source1" />
-                  <Edge From="12" To="13" Label="Source1" />
-                  <Edge From="13" To="14" Label="Source1" />
-                  <Edge From="14" To="15" Label="Source1" />
-                  <Edge From="15" To="16" Label="Source1" />
-                  <Edge From="17" To="18" Label="Source1" />
-                  <Edge From="19" To="18" Label="Source2" />
-                  <Edge From="20" To="21" Label="Source1" />
-                  <Edge From="21" To="18" Label="Source3" />
-                  <Edge From="18" To="22" Label="Source1" />
-                  <Edge From="23" To="24" Label="Source1" />
-                  <Edge From="25" To="24" Label="Source2" />
-                  <Edge From="26" To="27" Label="Source1" />
-                  <Edge From="27" To="24" Label="Source3" />
-                  <Edge From="29" To="30" Label="Source1" />
-                  <Edge From="24" To="28" Label="Source1" />
-                  <Edge From="30" To="28" Label="Source2" />
-                  <Edge From="28" To="31" Label="Source1" />
-                  <Edge From="31" To="32" Label="Source1" />
-                  <Edge From="33" To="34" Label="Source1" />
-                  <Edge From="35" To="34" Label="Source2" />
-                  <Edge From="36" To="37" Label="Source1" />
-                  <Edge From="37" To="34" Label="Source3" />
-                  <Edge From="34" To="38" Label="Source1" />
-                  <Edge From="38" To="39" Label="Source1" />
-                  <Edge From="39" To="40" Label="Source1" />
-                  <Edge From="42" To="41" Label="Source1" />
-                  <Edge From="43" To="41" Label="Source2" />
-                  <Edge From="44" To="41" Label="Source3" />
-                  <Edge From="46" To="45" Label="Source1" />
-                  <Edge From="41" To="47" Label="Source1" />
-                  <Edge From="45" To="47" Label="Source2" />
-                  <Edge From="47" To="48" Label="Source1" />
-                  <Edge From="48" To="49" Label="Source1" />
-                  <Edge From="51" To="50" Label="Source1" />
-                  <Edge From="52" To="50" Label="Source2" />
-                  <Edge From="50" To="53" Label="Source1" />
-                  <Edge From="53" To="54" Label="Source1" />
-                  <Edge From="55" To="56" Label="Source1" />
-                  <Edge From="56" To="57" Label="Source1" />
-                  <Edge From="57" To="58" Label="Source1" />
-                  <Edge From="59" To="60" Label="Source1" />
-                  <Edge From="60" To="61" Label="Source1" />
-                  <Edge From="61" To="62" Label="Source1" />
-                  <Edge From="63" To="64" Label="Source1" />
-                  <Edge From="64" To="65" Label="Source1" />
-                  <Edge From="65" To="66" Label="Source1" />
-                  <Edge From="67" To="68" Label="Source1" />
-                  <Edge From="69" To="68" Label="Source2" />
-                  <Edge From="70" To="71" Label="Source1" />
-                  <Edge From="71" To="68" Label="Source3" />
-                  <Edge From="68" To="72" Label="Source1" />
-                  <Edge From="72" To="73" Label="Source1" />
-                  <Edge From="73" To="74" Label="Source1" />
-                  <Edge From="75" To="76" Label="Source1" />
-                  <Edge From="77" To="76" Label="Source2" />
-                  <Edge From="78" To="79" Label="Source1" />
-                  <Edge From="79" To="76" Label="Source3" />
-                  <Edge From="76" To="80" Label="Source1" />
-                  <Edge From="81" To="80" Label="Source2" />
-                  <Edge From="80" To="82" Label="Source1" />
-                  <Edge From="82" To="83" Label="Source1" />
-                  <Edge From="83" To="84" Label="Source1" />
-                  <Edge From="86" To="87" Label="Source1" />
-                  <Edge From="87" To="88" Label="Source1" />
-                  <Edge From="3" To="89" Label="Source1" />
-                  <Edge From="85" To="86" Label="Source1" />
-                </Edges>
-              </Workflow>
+              <Name>RunTrials</Name>
+              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last outcome plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the stage's quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window openLoopSeconds after it for closedLoopSeconds (each lick 1 left or -1 right on the decision variable, the grating moved degreesPerLick a lick; Left at thresholdLicks, Right at -thresholdLicks, else NoResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once the longest ramp-down has played. Inputs: the rules, the clock, the wheel, the left and right lick states, Zapit's replies.</Description>
+              <Combinator xsi:type="ext:RunTrials" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>TrialEnds</Name>
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Start</dev:Kind>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Trial</Selector>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>Trial</Name>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>rngSeed</Selector>
+            </Expression>
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogRngSeed.bonsai">
+              <Description>The seed every draw of the experiment follows from (the task file's rngSeed, or one drawn at Go when it is null), logged once at trial 1's start.</Description>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialRules</Name>
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>Optogenetics?</Name>
-              <Description>Every trial of an optogenetics experiment has a condition, laser on or off; none without.</Description>
+              <Description>An optogenetics experiment: the rules have a laser (optogenetics.useZapit).</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>laserCondition &gt; 0</scr:Expression>
+                    <scr:Expression>Laser != null</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>
@@ -1473,24 +784,38 @@
                 </Edges>
               </Workflow>
             </Expression>
-            <Expression xsi:type="rx:CreateObservable">
-              <Name>Laser</Name>
-              <Description>One optogenetics trial's laser, the trials one after another (Concat), so the next is armed only once this one ends: Zapit sent the trial's StartStimulus (ArmZapit) and its reply checked (CheckZapitArmed: a refusal or the wrong condition stops the workflow); at the trial's trigger (its start, or -laserToStimulusSeconds after it; SecondsUntil on the Harp clock) the ZapitTrigger line rises (BehaviorBoard.SetZapitTriggerLine), unless the trial was answered first (UnlessAnswered: no laser, and the row logs laserPowerMw 0), and on a hardware-triggered rig only if Zapit has answered by then (RequireZapitArmed stops the workflow otherwise, never moving the trigger); the line falls laserDurationSeconds later, and the laser ends after the longest ramp-down (RampDown).</Description>
+            <Expression xsi:type="rx:SelectMany">
+              <Name>Zapit</Name>
+              <Description>Once at Go, in an optogenetics experiment: ArmZapit given rig.yml's triggering and the task's laserDurationSeconds, which it reads as it starts (so here, after Go, not at Start), then sent each trial's StartStimulus. TrialLoop checks each reply (ZapitTrial.CheckArmed) and stops the workflow if Zapit has not armed a hardware-triggered trial by its trigger.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
                     <Name>Source1</Name>
                   </Expression>
+                  <Expression xsi:type="SubscribeSubject">
+                    <Name>TrialEvents</Name>
+                  </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Take">
-                      <rx:Count>1</rx:Count>
+                    <Combinator xsi:type="dev:PickTrialEvents">
+                      <dev:Kind>Arm</dev:Kind>
                     </Combinator>
                   </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>LaserTrial</Name>
+                  <Expression xsi:type="MemberSelector">
+                    <Selector>Trial</Selector>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>LaserTrial</Name>
+                    <Name>TrialEvents</Name>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Combinator xsi:type="dev:PickTrialEvents">
+                      <dev:Kind>Trigger</dev:Kind>
+                    </Combinator>
+                  </Expression>
+                  <Expression xsi:type="MemberSelector">
+                    <Selector>Trial</Selector>
+                  </Expression>
+                  <Expression xsi:type="SubscribeSubject">
+                    <Name>RigConfigs</Name>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -1498,19 +823,16 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>RigConfigs</Name>
+                    <Name>TaskConfig</Name>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
                       <Property Name="DurationSeconds" Selector="TaskParameters.Optogenetics.LaserDurationSeconds" />
                     </PropertyMappings>
                   </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>ArmZapit</Name>
-                    <Description>The trial's StartStimulus (its condition, laser on with the task's power or off at 0 mW, timed for laserDurationSeconds). On a hardware-triggered rig (rig.yml's zapit.hardwareTriggered) sent as this trial's laser begins: at the start of its interval, or once the last trial's laser and ramp-down have ended if later. Without, Zapit starts the laser on receipt, so it is sent at the trigger (RequireZapitArmed's output).</Description>
+                    <Description>Each laser trial's StartStimulus (its condition, laser on with the task's power or off at 0 mW, timed for laserDurationSeconds). On a hardware-triggered rig (rig.yml's zapit.hardwareTriggered) sent at Arm, during the interval; without, Zapit starts the laser on receipt, so it is sent at the Trigger.</Description>
                     <Combinator xsi:type="zap:ZapitTrialCommand">
                       <zap:HardwareTriggered>false</zap:HardwareTriggered>
                       <zap:DurationSeconds>0</zap:DurationSeconds>
@@ -1519,189 +841,226 @@
                   <Expression xsi:type="MulticastSubject">
                     <Name>ZapitCommands</Name>
                   </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>ZapitReplies</Name>
+                  <Expression xsi:type="WorkflowOutput" />
+                </Nodes>
+                <Edges>
+                  <Edge From="1" To="2" Label="Source1" />
+                  <Edge From="2" To="3" Label="Source1" />
+                  <Edge From="4" To="5" Label="Source1" />
+                  <Edge From="5" To="6" Label="Source1" />
+                  <Edge From="7" To="8" Label="Source1" />
+                  <Edge From="9" To="10" Label="Source1" />
+                  <Edge From="3" To="11" Label="Source1" />
+                  <Edge From="6" To="11" Label="Source2" />
+                  <Edge From="8" To="11" Label="Source3" />
+                  <Edge From="10" To="11" Label="Source4" />
+                  <Edge From="11" To="12" Label="Source1" />
+                  <Edge From="12" To="13" Label="Source1" />
+                </Edges>
+              </Workflow>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Trigger</dev:Kind>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
+              <Set>true</Set>
+              <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>TriggerOff</dev:Kind>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
+              <Set>false</Set>
+              <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Stimulus</dev:Kind>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Trial</Selector>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>VisualStimulus</Name>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>AuditoryStimulus</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Update</dev:Kind>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Update.DecisionVariable</Selector>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>DecisionVariable</Name>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Update.GratingAzimuthDeg</Selector>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>GratingAzimuthDeg</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Cue</dev:Kind>
+                <dev:Cue>GratingOff</dev:Cue>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Trial</Selector>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>VisualStimulusOff</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Cue</dev:Kind>
+                <dev:Cue>SpoutsIn</dev:Cue>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Trial</Selector>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="ext:SpoutsIn" />
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>LickSpoutStage-Main.Commands</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Cue</dev:Kind>
+                <dev:Cue>Drink</dev:Cue>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:ToLickSpoutCommand">
+                <dev:Command>SpoutsOut</dev:Command>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>LickSpoutStage-Main.Commands</Name>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialEvents</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="dev:PickTrialEvents">
+                <dev:Kind>Outcome</dev:Kind>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Outcome</Selector>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Row</Selector>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>TrialRow</Name>
+            </Expression>
+            <Expression xsi:type="rx:Condition">
+              <Name>Rewarded?</Name>
+              <Workflow>
+                <Nodes>
+                  <Expression xsi:type="WorkflowInput">
+                    <Name>Source1</Name>
                   </Expression>
-                  <Expression xsi:type="rx:Condition">
-                    <Name>StartStimulusReply?</Name>
-                    <Workflow>
-                      <Nodes>
-                        <Expression xsi:type="WorkflowInput">
-                          <Name>Source1</Name>
-                        </Expression>
-                        <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>CommandCode == 1</scr:Expression>
-                        </Expression>
-                        <Expression xsi:type="WorkflowOutput" />
-                      </Nodes>
-                      <Edges>
-                        <Edge From="0" To="1" Label="Source1" />
-                        <Edge From="1" To="2" Label="Source1" />
-                      </Edges>
-                    </Workflow>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Take">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:WithLatestFrom" />
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>LaserTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:CheckZapitArmed" />
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>LaserTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TrialStart</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:TrialStartFor" />
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:SecondsUntil">
-                      <ext:Moment>LaserTrigger</ext:Moment>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="InputMapping">
-                    <PropertyMappings>
-                      <Property Name="DueSeconds" Selector="Item2" />
-                    </PropertyMappings>
-                    <Selector>Item1</Selector>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>Trigger</Name>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.0</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:RequireZapitArmed">
-                      <ext:HardwareTriggered>false</ext:HardwareTriggered>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
-                    <Set>true</Set>
-                    <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>LaserDuration</Name>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.0</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="DueSeconds" Selector="TaskParameters.Optogenetics.LaserDurationSeconds" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
-                    <Set>false</Set>
-                    <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Name>RampDown</Name>
-                    <Description>The longest ramp-down a Zapit conditions file may have (lib-open-rigs ZapitConditions.MaximumRampDownSeconds, TrialDraw.ZapitRampDownSeconds): Zapit refuses the next StartStimulus until it has played.</Description>
-                    <Combinator xsi:type="core:HarpDelay">
-                      <core:DueSeconds>0.5</core:DueSeconds>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>Timestamp</Name>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Expression>Rewarded</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
-                  <Expression xsi:type="Combinator">
-                    <Name>UnlessAnswered</Name>
-                    <Description>No laser on a trial answered before its trigger (a trigger after the stimulus, Pip 13 Nov 2026): the trial records whichever of its trigger and its outcome came first, and its row logs laserPowerMw 0 from the same record.</Description>
-                    <Combinator xsi:type="ext:UnlessAnswered" />
-                  </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="HardwareTriggered" Selector="Zapit.HardwareTriggered" />
-                    </PropertyMappings>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>RigConfigs</Name>
-                  </Expression>
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
                   <Edge From="1" To="2" Label="Source1" />
-                  <Edge From="3" To="8" Label="Source1" />
-                  <Edge From="5" To="4" Label="Source1" />
-                  <Edge From="4" To="8" Label="Source3" />
-                  <Edge From="7" To="6" Label="Source1" />
-                  <Edge From="6" To="8" Label="Source4" />
-                  <Edge From="8" To="9" Label="Source1" />
-                  <Edge From="10" To="11" Label="Source1" />
-                  <Edge From="11" To="12" Label="Source1" />
-                  <Edge From="12" To="13" Label="Source1" />
-                  <Edge From="14" To="13" Label="Source2" />
-                  <Edge From="13" To="15" Label="Source1" />
-                  <Edge From="16" To="18" Label="Source1" />
-                  <Edge From="17" To="18" Label="Source2" />
-                  <Edge From="18" To="19" Label="Source1" />
-                  <Edge From="19" To="20" Label="Source1" />
-                  <Edge From="20" To="21" Label="Source1" />
-                  <Edge From="21" To="23" Label="Source1" />
-                  <Edge From="22" To="23" Label="Source2" />
-                  <Edge From="23" To="34" Label="Source1" />
-                  <Edge From="34" To="24" Label="Source1" />
-                  <Edge From="15" To="24" Label="Source2" />
-                  <Edge From="24" To="26" Label="Source1" />
-                  <Edge From="27" To="26" Label="Source2" />
-                  <Edge From="28" To="29" Label="Source1" />
-                  <Edge From="29" To="26" Label="Source3" />
-                  <Edge From="26" To="31" Label="Source1" />
-                  <Edge From="32" To="31" Label="Source2" />
-                  <Edge From="31" To="33" Label="Source1" />
-                  <Edge From="24" To="8" Label="Source2" />
-                  <Edge From="36" To="35" Label="Source1" />
-                  <Edge From="35" To="24" Label="Source3" />
-                  <Edge From="24" To="25" Label="Source1" />
-                  <Edge From="26" To="30" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Concat" />
+            <Expression xsi:type="MemberSelector">
+              <Selector>Reward</Selector>
             </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TaskConfig</Name>
+            <Expression xsi:type="MulticastSubject">
+              <Name>RewardRequests</Name>
             </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TrainingStage</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>RigConfigs</Name>
+            <Expression xsi:type="rx:Condition">
+              <Name>MoveSpouts?</Name>
+              <Workflow>
+                <Nodes>
+                  <Expression xsi:type="WorkflowInput">
+                    <Name>Source1</Name>
+                  </Expression>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Expression>MoveSpouts</scr:Expression>
+                  </Expression>
+                  <Expression xsi:type="WorkflowOutput" />
+                </Nodes>
+                <Edges>
+                  <Edge From="0" To="1" Label="Source1" />
+                  <Edge From="1" To="2" Label="Source1" />
+                </Edges>
+              </Workflow>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>SpeakerArray</Selector>
+              <Selector>SpoutCommand</Selector>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>LickSpoutStage-Main.Commands</Name>
+            </Expression>
+            <Expression xsi:type="rx:Condition">
+              <Name>PenaltySound?</Name>
+              <Workflow>
+                <Nodes>
+                  <Expression xsi:type="WorkflowInput">
+                    <Name>Source1</Name>
+                  </Expression>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Expression>PenaltySound</scr:Expression>
+                  </Expression>
+                  <Expression xsi:type="WorkflowOutput" />
+                </Nodes>
+                <Edges>
+                  <Edge From="0" To="1" Label="Source1" />
+                  <Edge From="1" To="2" Label="Source1" />
+                </Edges>
+              </Workflow>
+            </Expression>
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:PlayPenaltySound.bonsai" />
+            <Expression xsi:type="SubscribeSubject">
+              <Name>PathPrefix</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Zip" />
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Name>CheckTaskAtGo</Name>
-              <Description>The task checked at Go (TrialDraw.CheckTask, tested C#): a stage past the table, a target modality with no trials or a laser that would outlast the next trigger stops the workflow here, before the first trial.</Description>
-              <Combinator xsi:type="ext:CheckTaskAtGo" />
+              <Combinator xsi:type="rx:Take">
+                <rx:Count>1</rx:Count>
+              </Combinator>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TaskConfig</Name>
@@ -1737,114 +1096,72 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStageFeed</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>Timestamp</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>VisualStimulusOffFeed</Name>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>VisualStimulusOff</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>LickSpoutStageFeed</Name>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
               <Name>LickSpoutStage-Main.Commands</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>BehaviorBoardFeed</Name>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>BehaviorBoard-Main.Commands</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TrialStart</Name>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>rngSeed</Selector>
-            </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogRngSeed.bonsai">
-              <Description>The seed every draw of the experiment follows from (the task file's rngSeed, or one drawn at Go when it is null), logged once at trial 1's start.</Description>
             </Expression>
           </Nodes>
           <Edges>
-            <Edge From="0" To="1" Label="Source1" />
-            <Edge From="1" To="2" Label="Source1" />
+            <Edge From="0" To="2" Label="Source1" />
+            <Edge From="1" To="2" Label="Source2" />
             <Edge From="2" To="3" Label="Source1" />
-            <Edge From="3" To="4" Label="Source1" />
-            <Edge From="5" To="4" Label="Source2" />
-            <Edge From="6" To="7" Label="Source1" />
-            <Edge From="4" To="8" Label="Source1" />
-            <Edge From="9" To="8" Label="Source2" />
-            <Edge From="7" To="8" Label="Source3" />
-            <Edge From="11" To="10" Label="Source1" />
-            <Edge From="8" To="12" Label="Source1" />
-            <Edge From="10" To="12" Label="Source2" />
+            <Edge From="3" To="5" Label="Source1" />
+            <Edge From="4" To="5" Label="Source2" />
+            <Edge From="5" To="6" Label="Source1" />
+            <Edge From="6" To="12" Label="Source1" />
+            <Edge From="7" To="12" Label="Source2" />
+            <Edge From="8" To="12" Label="Source3" />
+            <Edge From="9" To="12" Label="Source4" />
+            <Edge From="10" To="12" Label="Source5" />
+            <Edge From="11" To="12" Label="Source6" />
             <Edge From="12" To="13" Label="Source1" />
-            <Edge From="13" To="18" Label="Source1" />
-            <Edge From="14" To="18" Label="Source2" />
-            <Edge From="15" To="18" Label="Source3" />
-            <Edge From="16" To="18" Label="Source4" />
-            <Edge From="17" To="18" Label="Source5" />
+            <Edge From="14" To="15" Label="Source1" />
+            <Edge From="15" To="16" Label="Source1" />
+            <Edge From="16" To="17" Label="Source1" />
+            <Edge From="17" To="18" Label="Source1" />
             <Edge From="18" To="19" Label="Source1" />
-            <Edge From="19" To="20" Label="Source1" />
             <Edge From="20" To="21" Label="Source1" />
             <Edge From="21" To="22" Label="Source1" />
-            <Edge From="22" To="24" Label="Source1" />
-            <Edge From="23" To="24" Label="Source2" />
+            <Edge From="23" To="24" Label="Source1" />
             <Edge From="24" To="25" Label="Source1" />
-            <Edge From="25" To="26" Label="Source1" />
-            <Edge From="13" To="27" Label="Source1" />
+            <Edge From="26" To="27" Label="Source1" />
             <Edge From="27" To="28" Label="Source1" />
-            <Edge From="28" To="29" Label="Source1" />
-            <Edge From="30" To="34" Label="Source1" />
-            <Edge From="31" To="34" Label="Source2" />
+            <Edge From="29" To="30" Label="Source1" />
+            <Edge From="30" To="31" Label="Source1" />
+            <Edge From="31" To="32" Label="Source1" />
             <Edge From="32" To="33" Label="Source1" />
-            <Edge From="33" To="34" Label="Source3" />
             <Edge From="34" To="35" Label="Source1" />
-            <Edge From="1" To="38" Label="Source1" />
-            <Edge From="36" To="38" Label="Source2" />
-            <Edge From="37" To="38" Label="Source3" />
+            <Edge From="35" To="36" Label="Source1" />
+            <Edge From="36" To="37" Label="Source1" />
+            <Edge From="35" To="38" Label="Source1" />
             <Edge From="38" To="39" Label="Source1" />
-            <Edge From="39" To="40" Label="Source1" />
             <Edge From="40" To="41" Label="Source1" />
-            <Edge From="42" To="2" Label="Source2" />
-            <Edge From="43" To="44" Label="Source1" />
+            <Edge From="41" To="42" Label="Source1" />
+            <Edge From="42" To="43" Label="Source1" />
+            <Edge From="44" To="45" Label="Source1" />
             <Edge From="45" To="46" Label="Source1" />
+            <Edge From="46" To="47" Label="Source1" />
             <Edge From="47" To="48" Label="Source1" />
             <Edge From="49" To="50" Label="Source1" />
             <Edge From="50" To="51" Label="Source1" />
-          </Edges>
-        </Workflow>
-      </Expression>
-      <Expression xsi:type="GroupWorkflow">
-        <Name>Rewards</Name>
-        <Description>Each reward on RewardRequests (side, microlitres: the task's and ManualRewards') delivered through its valve's calibration (OpenRigs.Devices BehaviorBoard.DeliverReward, both reward lines from rig.yml at Start; a RewardDelivered row in BonsaiData_Async, each calibrated valve's file as ValveCalibrationDO&lt;n&gt;). Before ExperimentRecords, which records the experiment but gives no rewards.</Description>
-        <Workflow>
-          <Nodes>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>RewardRequests</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>RigFile</Name>
-            </Expression>
-            <Expression xsi:type="PropertyMapping">
-              <PropertyMappings>
-                <Property Name="RigFile" />
-              </PropertyMappings>
-            </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai">
-              <RigFile>UNMAPPED</RigFile>
-              <CalibrationDirectory />
-            </Expression>
-          </Nodes>
-          <Edges>
-            <Edge From="0" To="3" Label="Source1" />
-            <Edge From="1" To="2" Label="Source1" />
-            <Edge From="2" To="3" Label="Source2" />
+            <Edge From="51" To="52" Label="Source1" />
+            <Edge From="53" To="54" Label="Source1" />
+            <Edge From="54" To="55" Label="Source1" />
+            <Edge From="55" To="56" Label="Source1" />
+            <Edge From="56" To="57" Label="Source1" />
+            <Edge From="55" To="58" Label="Source1" />
+            <Edge From="58" To="59" Label="Source1" />
+            <Edge From="59" To="60" Label="Source1" />
+            <Edge From="55" To="61" Label="Source1" />
+            <Edge From="61" To="62" Label="Source1" />
+            <Edge From="62" To="63" Label="Source1" />
+            <Edge From="55" To="64" Label="Source1" />
+            <Edge From="64" To="65" Label="Source1" />
+            <Edge From="66" To="67" Label="Source1" />
+            <Edge From="67" To="70" Label="Source1" />
+            <Edge From="68" To="70" Label="Source2" />
+            <Edge From="69" To="70" Label="Source3" />
+            <Edge From="70" To="71" Label="Source1" />
+            <Edge From="71" To="72" Label="Source1" />
+            <Edge From="72" To="73" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

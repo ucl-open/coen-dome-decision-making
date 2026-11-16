@@ -1,14 +1,14 @@
 ﻿using Bonsai;
 using Bonsai.Harp;
 using OpenRigs.Core;
+using OpenRigs.Devices;
+using OpenRigs.Devices.Rigs;
 using OpenRigs.Devices.Zapit;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reactive.Linq;
-using System.Xml.Serialization;
-using OpenRigs.Devices.Rigs;
 using UclOpenCoenDomeDecisionMakingTask;
 
 /// <summary>One trial as drawn: its fields are named as the trial log's columns where they are one.</summary>
@@ -26,14 +26,6 @@ public class Trial : IZapitTrial
     public bool bothSpouts;
     public int repeatCount;            // 0 for a new draw
     public double itiSeconds;          // the interval drawn for this trial: its start to the stimulus, with a quiet mouse
-    public double itiStartTime;        // Harp time that interval began: the last outcome after any timeout (trial 1: the first draw)
-    public double leadSeconds;         // the trial start to the stimulus: max(laserToStimulusSeconds, 0), in every experiment
-    public double triggerAfterStartSeconds; // the trial start to the trigger: max(-laserToStimulusSeconds, 0); read only with optogenetics
-    public double lickQuietSeconds;    // the stage's quiet waits (TrainingStage), 0: off
-    public double wheelQuietSeconds;
-    public double wheelQuietCm;
-    public double startTime;           // Harp time of the trial start (WaitForTrialStart): the trigger with a lead, the stimulus without; NaN before
-    public double quietWaitSeconds;    // how long the quiet waits put the trial start after the interval allowed it; NaN before it
     public double visualAzimuthDeg;
     public double visualElevationDeg;
     public double visualContrast;      // 0: grey screen
@@ -46,130 +38,24 @@ public class Trial : IZapitTrial
     public int laserCondition;         // 0 without optogenetics; on every optogenetics trial, laser on or off
     public bool laserOn;
     public double laserPowerMw;        // 0 with the laser off
-    public double laserTriggerTime = double.NaN; // Harp time the trigger line rose (FireLaser); NaN until then
     public bool autoReward;
     public bool spoutMovements;
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
 
-    // Whether the laser fired, decided once by whichever comes first (Pip, 13 Nov 2026): the trigger (UnlessAnswered fires
-    // it) or the outcome (the row forgoes it). Private, so never logged; each trial, a repeat included, decides afresh.
-    object laserGate = new object();
-    bool laserDecided, laserFired;
-
-    /// <summary>At the trigger (its Harp time): fires the laser unless the outcome came first, recording the time. Returns whether it fires.</summary>
-    public bool FireLaser(double seconds)
-    {
-        lock (laserGate)
-        {
-            var fired = DecideLaser(true);
-            if (fired) laserTriggerTime = seconds;
-            return fired;
-        }
-    }
-
-    /// <summary>At the outcome: whether the trigger came first and fired the laser; if not, it never will.</summary>
-    public bool LaserFiredByOutcome()
-    {
-        return DecideLaser(false);
-    }
-
-    bool DecideLaser(bool fire)
-    {
-        lock (laserGate)
-        {
-            if (!laserDecided)
-            {
-                laserDecided = true;
-                laserFired = fire;
-            }
-            return laserFired;
-        }
-    }
-
     public Trial Clone()
     {
-        var trial = (Trial)MemberwiseClone();
-        trial.laserGate = new object();
-        trial.laserDecided = false;
-        trial.laserFired = false;
-        trial.laserTriggerTime = double.NaN;
-        return trial;
-    }
-}
-
-/// <summary>How the last trial ended: its outcome and the Harp time its inter-trial interval began.</summary>
-public class TrialEnd
-{
-    public string Outcome;      // Correct, Incorrect or NoResponse; null before the first trial
-    public double ItiStartTime;
-
-    public static TrialEnd First(double seconds)
-    {
-        return new TrialEnd { Outcome = null, ItiStartTime = seconds };
+        return (Trial)MemberwiseClone();
     }
 }
 
 [Combinator]
-[Description("Starts the trial loop: one TrialEnd with no outcome for each input, the first trial's interval starting at the input's Harp time.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class StartTrials
-{
-    public IObservable<TrialEnd> Process<TSource>(IObservable<Timestamped<TSource>> source)
-    {
-        return source.Select(value => TrialEnd.First(value.Seconds));
-    }
-}
-
-[Combinator]
-[Description("Ends a trial once its timeout is over: its outcome, and the Harp time the next interval began, exactly the outcome plus the timeout (Consequence.ItiStartTime), not the clock tick the delay ended on. So the next trial is drawn and Zapit armed while the interval runs, and its start and stimulus are timed from the exact start.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class EndTrial
-{
-    public IObservable<TrialEnd> Process(IObservable<Timestamped<Consequence>> source)
-    {
-        return source.Select(value => new TrialEnd { Outcome = value.Value.Outcome, ItiStartTime = value.Value.ItiStartTime });
-    }
-}
-
-/// <summary>
-/// Draws every trial of an experiment from the task file: the trial type by the stage's weights, repeats by the
-/// stage's rules, the stimuli, the speaker that plays (rig.yml's nearest) and the Zapit condition. One instance draws
-/// every trial, so one random stream and one repeat history serve the experiment.
-/// </summary>
-[Combinator]
-[Description("Draws each trial from the task file and rig.yml's speakers, at the start of its interval. Input: the last trial's end (StartTrials before the first), the task and the speaker array. Checks the task at the first trial and stops the workflow on a stage past the table or a side with no stimulus or speaker.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class DrawTrial
-{
-    [Description("The task file's trainingStages row; a row past the end stops the workflow.")]
-    public int TrainingStage { get; set; }
-
-    public IObservable<Trial> Process(IObservable<Tuple<TrialEnd, UclOpenCoenDomeDecisionMakingTaskLogic, EqualisedSpeakerArray>> source)
-    {
-        return Observable.Defer(() =>
-        {
-            TrialDraw draw = null;
-            return source.Select(input =>
-            {
-                if (draw == null) draw = new TrialDraw(input.Item2.TaskParameters, input.Item3, TrainingStage, null);
-                return draw.Next(input.Item1);
-            });
-        });
-    }
-}
-
-[Combinator]
-[Description("Checks the task at Go, before the first trial: the stage is in the table and the draw's rules hold on rig.yml's speakers (TrialDraw.CheckTask). Input: the task, TrainingStage and the speaker array; stops the workflow naming every problem, else passes the task on.")]
+[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): the stage is in the table and the draw's rules hold on rig.yml's speakers (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task, TrainingStage and rig.yml; stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
-    public IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Process(IObservable<Tuple<UclOpenCoenDomeDecisionMakingTaskLogic, int, EqualisedSpeakerArray>> source)
+    public IObservable<TrialRules> Process(IObservable<Tuple<UclOpenCoenDomeDecisionMakingTaskLogic, int, LabRig>> source)
     {
-        return source.Select(input =>
-        {
-            TrialDraw.CheckTask(input.Item1.TaskParameters, input.Item2, input.Item3);
-            return input.Item1;
-        });
+        return source.Select(input => TrialRules.Create(input.Item1.TaskParameters, input.Item2, input.Item3, null));
     }
 }
 
@@ -190,6 +76,9 @@ public class TrialDraw
     /// <summary>The seed the random stream started from: the task's rngSeed, or one drawn when it is null.</summary>
     public int Seed { get; private set; }
 
+    /// <summary>The stage's row of the task file's trainingStages.</summary>
+    public TrainingStage Stage { get { return stage; } }
+
     public TrialDraw(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers, int stage, Func<string, int> zapitConditionCount)
     {
         this.task = task;
@@ -209,8 +98,8 @@ public class TrialDraw
         random = new Random(Seed);
     }
 
-    /// <summary>The stage's row, once the stage is in the table and the task can be run on these speakers (CheckTask
-    /// at Go, and the draw again at the first trial); throws naming every problem.</summary>
+    /// <summary>The stage's row, once the stage is in the table and the task can be run on these speakers; throws
+    /// naming every problem.</summary>
     public static TrainingStage CheckTask(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, EqualisedSpeakerArray speakers)
     {
         if (stage < 0 || stage >= task.TrainingStages.Count)
@@ -259,16 +148,20 @@ public class TrialDraw
         }
         if (task.AudioStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("audioStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
         var structure = task.TrialStructure;
-        // A NaN or infinite time (YAML's .nan or .inf) would hold the trial start for ever, with no error (as coen-dome-navigation's CorridorSetup).
+        // A NaN or infinite time (YAML's .nan or .inf) would hold the trial start for ever, with no error.
         Action<string, double> finite = (name, value) =>
         {
             if (!(value >= 0) || double.IsInfinity(value)) problems.Add(name + " must be a finite number, 0 or more");
+        };
+        Action<string, double> positive = (name, value) =>
+        {
+            if (!(value > 0) || double.IsInfinity(value)) problems.Add(name + " must be a finite number above 0");
         };
         finite("trialStructure.itiMinSeconds", structure.ItiMinSeconds);
         finite("trialStructure.itiMaxSeconds", structure.ItiMaxSeconds);
         finite("trialStructure.drinkSeconds", structure.DrinkSeconds);
         finite("trialStructure.openLoopSeconds", structure.OpenLoopSeconds);
-        finite("trialStructure.closedLoopSeconds", structure.ClosedLoopSeconds);
+        positive("trialStructure.closedLoopSeconds", structure.ClosedLoopSeconds);
         finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
@@ -276,7 +169,7 @@ public class TrialDraw
         // wheel's pair both set or both 0): a long wait and a licking mouse would hold the trial start with no message.
         foreach (var p in QuietWait.SettingsProblems(stage.LickQuietSeconds, stage.WheelQuietSeconds, stage.WheelQuietCm)) problems.Add("stage '" + stage.Label + "': " + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
-        if (task.Optogenetics.UseZapit) finite("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
+        if (task.Optogenetics.UseZapit) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.OpenLoopSeconds + structure.ClosedLoopSeconds) problems.Add("trialStructure.stimulusSeconds is longer than openLoopSeconds plus closedLoopSeconds");
         if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
         if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts go out drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
@@ -291,7 +184,7 @@ public class TrialDraw
         var longest = LongestLaserSeconds(task);
         if (opto.UseZapit && opto.LaserDurationSeconds > longest + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (openLoopSeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
+            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (openLoopSeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
         }
         // DeliverReward refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var multiplier = task.Reward.LargeRewardMultiplier;
@@ -302,17 +195,14 @@ public class TrialDraw
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
     }
 
-    /// <summary>The longest ramp-down a conditions file may have, in seconds: Zapit refuses the next StartStimulus while a
-    /// timed stimulus and its ramp-down play, so the next trial is armed only this long after the laser ends.</summary>
-    public const double ZapitRampDownSeconds = ZapitConditions.MaximumRampDownSeconds;
-
     /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least openLoopSeconds
-    /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, its ramp-down and Zapit's
-    /// reply margin must fit before the next trigger.</summary>
+    /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, the longest ramp-down a
+    /// conditions file may have (Zapit refuses the next StartStimulus until it has played) and Zapit's reply margin must fit
+    /// before the next trigger.</summary>
     public static double LongestLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         var s = task.TrialStructure;
-        return s.OpenLoopSeconds + s.ItiMinSeconds - ZapitRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
+        return s.OpenLoopSeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
     }
 
     public static int[] Weights(TrainingStage stage)
@@ -344,11 +234,11 @@ public class TrialDraw
         return Math.Acos(Math.Max(-1, Math.Min(1, cos)));
     }
 
-    /// <summary>The next trial, after the last one ended as <paramref name="end"/>.</summary>
-    public Trial Next(TrialEnd end)
+    /// <summary>The next trial, after the last one's outcome (Correct, Incorrect or NoResponse; null before the first).</summary>
+    public Trial Next(string lastOutcome)
     {
         Trial trial;
-        if (last != null && end.Outcome != null && ShouldRepeat(end.Outcome))
+        if (last != null && lastOutcome != null && ShouldRepeat(lastOutcome))
         {
             trial = last.Clone();
             trial.repeatCount = last.repeatCount + 1;
@@ -364,18 +254,9 @@ public class TrialDraw
         }
         trial.trialNumber = ++drawn;
         trial.rngSeed = Seed;
-        // Every trial, a repeat too, draws its own interval, from the end it is drawn at (Pip, 13 Nov 2026).
+        // Every trial, a repeat too, draws its own interval (Pip, 13 Nov 2026).
         var structure = task.TrialStructure;
         trial.itiSeconds = Uniform(structure.ItiMinSeconds, structure.ItiMaxSeconds);
-        trial.itiStartTime = end.ItiStartTime;
-        var lead = task.Optogenetics.LaserToStimulusSeconds;
-        trial.leadSeconds = Math.Max(lead, 0);
-        trial.triggerAfterStartSeconds = Math.Max(-lead, 0);
-        trial.lickQuietSeconds = stage.LickQuietSeconds;
-        trial.wheelQuietSeconds = stage.WheelQuietSeconds;
-        trial.wheelQuietCm = stage.WheelQuietCm;
-        trial.startTime = double.NaN;
-        trial.quietWaitSeconds = double.NaN;
         last = trial;
         return trial;
     }
@@ -533,243 +414,168 @@ public class TrialDraw
     }
 }
 
-[Combinator]
-[Description("Checks Zapit's reply to a trial's StartStimulus (input: the reply and the trial) and stops the workflow unless Zapit armed that condition with the laser as the trial asked.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class CheckZapitArmed
+/// <summary>The response as it stands after a lick: the net licks (left +1, right -1) and where they have moved the grating.</summary>
+public class DecisionUpdate
 {
-    public IObservable<ZapitReply> Process(IObservable<Tuple<ZapitReply, Trial>> source)
-    {
-        return source.Select(input =>
-        {
-            Check(input.Item1, input.Item2);
-            return input.Item1;
-        });
-    }
-
-    public static void Check(ZapitReply reply, Trial trial)
-    {
-        ZapitTrial.CheckArmed(reply, trial.trialNumber, trial.laserCondition, trial.laserOn);
-    }
+    public int DecisionVariable;
+    public double GratingAzimuthDeg;
 }
 
-/// <summary>Holds one trial at a time until its start; apart from Bonsai so a test can run it.</summary>
-public class TrialStartWaiter
+/// <summary>A trial's outcome: its row, and what it sets off (the reward, the spouts, the penalty sound, the timeout).</summary>
+public class TrialOutcome : ITrialOutcome
 {
-    Trial trial;
-    QuietWait wait;
-    double now = double.NaN, wheel = double.NaN;
-    readonly bool[] touched = new bool[2];   // each spout's lick detector: touched now
-
-    /// <summary>A trial drawn at its interval's start begins waiting: its start no sooner than the interval's end less its lead.</summary>
-    public void Start(Trial next)
-    {
-        if (trial != null)
-        {
-            throw new InvalidOperationException(string.Format("Trial {0} was drawn while trial {1} still waited for its start.", next.trialNumber, trial.trialNumber));
-        }
-        trial = next;
-        wait = new QuietWait(next.itiStartTime, next.itiStartTime + next.itiSeconds - next.leadSeconds, next.lickQuietSeconds, next.wheelQuietSeconds, next.wheelQuietCm, wheel, touched.Any(t => t));
-    }
-
-    /// <summary>A spout's lick detector changed (spout 0 left, 1 right): touched or released.</summary>
-    public void Lick(int spout, bool lick)
-    {
-        if (touched[spout] == lick) return;
-        touched[spout] = lick;
-        if (trial != null && !double.IsNaN(now)) wait.Lick(touched.Any(t => t), now);
-    }
-
-    public void Wheel(double cm)
-    {
-        wheel = cm;
-        if (trial != null && !double.IsNaN(now)) wait.Wheel(cm, now);
-    }
-
-    /// <summary>The Harp clock: the trial once its start has come, with startTime and quietWaitSeconds set; else null.</summary>
-    public Trial Clock(double seconds)
-    {
-        now = seconds;
-        if (trial == null || seconds < wait.TrialStartTime - 1e-9) return null;
-        var started = trial;
-        started.startTime = wait.TrialStartTime;
-        started.quietWaitSeconds = wait.TrialStartTime - wait.Earliest;
-        trial = null;
-        return started;
-    }
-}
-
-[Combinator]
-[Description("Each trial at its start: the interval's end less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds). Inputs: the trials, the Harp clock, the left and right lick states, the wheel's distance in cm. Sets the trial's startTime and quietWaitSeconds.")]
-[WorkflowElementCategory(ElementCategory.Combinator)]
-public class WaitForTrialStart
-{
-    public IObservable<Trial> Process(IObservable<Trial> trials, IObservable<double> clock, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<double> wheelCm)
-    {
-        return Observable.Create<Trial>(observer =>
-        {
-            var gate = new object();
-            var waiter = new TrialStartWaiter();
-            Action<Action> run = step =>
-            {
-                lock (gate)
-                {
-                    try { step(); }
-                    catch (Exception error) { observer.OnError(error); }
-                }
-            };
-            return new System.Reactive.Disposables.CompositeDisposable(
-                wheelCm.Subscribe(cm => run(() => waiter.Wheel(cm)), observer.OnError),
-                lickLeft.Subscribe(lick => run(() => waiter.Lick(0, lick)), observer.OnError),
-                lickRight.Subscribe(lick => run(() => waiter.Lick(1, lick)), observer.OnError),
-                trials.Subscribe(trial => run(() => waiter.Start(trial)), observer.OnError),
-                clock.Subscribe(seconds => run(() =>
-                {
-                    var started = waiter.Clock(seconds);
-                    if (started != null) observer.OnNext(started);
-                }), observer.OnError));
-        });
-    }
-}
-
-/// <summary>A moment of a trial timed from its start.</summary>
-public enum TrialMoment
-{
-    Stimulus,       // startTime + leadSeconds
-    LaserTrigger    // startTime + triggerAfterStartSeconds
-}
-
-[Combinator]
-[Description("The seconds from now (the input's Harp time) to the trial's stimulus or laser trigger, for a HarpDelay's DueSeconds: (trial, seconds). A moment up to ClockStepSeconds past (the trial start is seen on the first clock tick after it) comes at once; one further past stops the workflow, rather than shift it.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class SecondsUntil
-{
-    /// <summary>How far past a moment may be and still come at once: the trial start is exact, but is seen on a tick of the 1 kHz
-    /// Harp clock after it, and the timestamp generator's messages reach Bonsai with USB lag, so a moment at the trial start (the
-    /// trigger with a lead, the stimulus without) comes a few ms late. 10 ms covers both; a tighter bound would stop
-    /// experiments on trial 1.</summary>
-    public const double ClockStepSeconds = 0.01;
-
-    public TrialMoment Moment { get; set; }
-
-    public IObservable<Tuple<Trial, double>> Process(IObservable<Timestamped<Trial>> source)
-    {
-        var moment = Moment;
-        return source.Select(value => Tuple.Create(value.Value, Seconds(value.Value, moment, value.Seconds)));
-    }
-
-    public static double Seconds(Trial trial, TrialMoment moment, double now)
-    {
-        var due = trial.startTime + (moment == TrialMoment.Stimulus ? trial.leadSeconds : trial.triggerAfterStartSeconds);
-        if (double.IsNaN(due) || due < now - ClockStepSeconds)
-        {
-            throw new InvalidOperationException(string.Format("Trial {0}'s {1} was due at {2} s on the Harp clock, but its wait began at {3} s.", trial.trialNumber, moment == TrialMoment.Stimulus ? "stimulus" : "laser trigger", due, now));
-        }
-        return Math.Max(0, due - now);
-    }
-}
-
-[Combinator]
-[Description("The start of the input trial (first input, one trial) from the trial starts (second input, a subject that replays the latest): the one with its trialNumber, once.")]
-[WorkflowElementCategory(ElementCategory.Combinator)]
-public class TrialStartFor
-{
-    public IObservable<Trial> Process(IObservable<Trial> trial, IObservable<Trial> starts)
-    {
-        return trial.Take(1).SelectMany(t => starts.Where(started => started.trialNumber == t.trialNumber).Take(1));
-    }
-}
-
-[Combinator]
-[Description("Passes the trial on at its trigger (first input). On a hardware-triggered rig only if Zapit has armed it by then (second input: CheckZapitArmed's reply), stopping the workflow otherwise rather than shift the trigger; on a rig without, the trigger sends the command, so it passes at once and ends only once that reply is checked.")]
-[WorkflowElementCategory(ElementCategory.Combinator)]
-public class RequireZapitArmed
-{
-    [Description("Whether the Zapit DAQ waits for the ZapitTrigger line (rig.yml's zapit.hardwareTriggered).")]
-    public bool HardwareTriggered { get; set; }
-
-    public IObservable<Trial> Process(IObservable<Timestamped<Trial>> trigger, IObservable<ZapitReply> armed)
-    {
-        return Observable.Create<Trial>(observer =>
-        {
-            var hardwareTriggered = HardwareTriggered;
-            var gate = new object();
-            bool isArmed = false, passed = false, triggerDone = false;
-            // Without the trigger line, a trigger that passed sent the command: end only once its reply is checked.
-            Action completeIfDone = () =>
-            {
-                if (triggerDone && (hardwareTriggered || !passed || isArmed)) observer.OnCompleted();
-            };
-            var armedSubscription = armed.Subscribe(_ => { lock (gate) { isArmed = true; completeIfDone(); } }, observer.OnError);
-            var triggerSubscription = trigger.Subscribe(value =>
-            {
-                lock (gate)
-                {
-                    if (hardwareTriggered && !isArmed)
-                    {
-                        observer.OnError(ZapitTrial.NotArmedByTrigger(value.Value.trialNumber, value.Seconds));
-                        return;
-                    }
-                    passed = true;
-                }
-                observer.OnNext(value.Value);
-            }, observer.OnError, () => { lock (gate) { triggerDone = true; completeIfDone(); } });
-            return new System.Reactive.Disposables.CompositeDisposable(armedSubscription, triggerSubscription);
-        });
-    }
-}
-
-[Combinator]
-[Description("Passes the trial on at its laser trigger unless its outcome came first: a trial answered before a trigger after its stimulus gets no laser (Pip, 13 Nov 2026), as in coen-dome-navigation. The trial records which came first and the trigger's Harp time (Trial.FireLaser), and its row's laserPowerMw and laserTriggerTime read the same record. Completes with the trigger.")]
-[WorkflowElementCategory(ElementCategory.Combinator)]
-public class UnlessAnswered
-{
-    public IObservable<Timestamped<Trial>> Process(IObservable<Timestamped<Trial>> trigger)
-    {
-        return trigger.Where(value => value.Value.FireLaser(value.Seconds));
-    }
-}
-
-/// <summary>What a trial's outcome sets off: the reward, the spouts, the penalty sound and the timeout.</summary>
-public class Consequence
-{
-    public string Outcome;
+    public Timestamped<TrialRow> Row;      // the BonsaiData_Trial row, stamped with the outcome's Harp time
     public bool Rewarded;
-    public Tuple<string, double> Reward;   // (side, microlitres) for DeliverReward, the side as rig.yml's wiring names it (left, right); null without a reward
+    public Tuple<string, double> Reward;   // (side, microlitres) for RewardRequests, the side as rig.yml's wiring names it (left, right); null without a reward
     public bool MoveSpouts;
-    public OpenRigs.Devices.LickSpoutCommand SpoutCommand;
+    public LickSpoutCommand SpoutCommand;
     public bool PenaltySound;
-    public double TimeoutSeconds;
-    public double ItiStartTime;           // the outcome's Harp time plus the timeout: when the next interval begins, exactly
-    public bool WithdrawAfterDrink;       // the stage moves the spouts: they go out once the mouse has drunk
+
+    /// <summary>Gets the timeout after the trial, in seconds: the row's penaltyTimeoutSeconds.</summary>
+    public double TimeoutSeconds { get; private set; }
 
     /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target, the other spout drawn back; an
     /// error or a plain miss draws both back, with the row's penalty sound and timeout. A stage without spout
     /// movements leaves the spouts where they are.</summary>
-    public static Consequence Of(TrialRow row, Trial trial)
+    public static TrialOutcome Of(TrialRow row, Trial trial)
     {
-        var c = new Consequence { Outcome = row.outcome, PenaltySound = row.penaltySound, TimeoutSeconds = row.penaltyTimeoutSeconds };
-        // Timed from the outcome's own Harp time, as coen-dome-navigation's are: the timeout's HarpDelay counts from the
-        // tick the outcome reached it on, 0 to 14 ms after a lick (BLUE-OPTO-2, 14 Nov 2026).
-        c.ItiStartTime = row.outcomeTime + row.penaltyTimeoutSeconds;
-        c.Rewarded = row.outcome == "Correct" || row.autoRewarded;
-        c.Reward = c.Rewarded ? Tuple.Create(trial.target.ToLowerInvariant(), trial.rewardSizeUl) : null;
-        c.MoveSpouts = trial.spoutMovements;
-        c.SpoutCommand = !c.Rewarded ? OpenRigs.Devices.LickSpoutCommand.SpoutsOut
-            : trial.target == "Left" ? OpenRigs.Devices.LickSpoutCommand.LeftIn : OpenRigs.Devices.LickSpoutCommand.RightIn;
-        c.WithdrawAfterDrink = trial.spoutMovements;
-        return c;
+        var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, TimeoutSeconds = row.penaltyTimeoutSeconds };
+        o.Rewarded = row.outcome == "Correct" || row.autoRewarded;
+        o.Reward = o.Rewarded ? Tuple.Create(trial.target.ToLowerInvariant(), trial.rewardSizeUl) : null;
+        o.MoveSpouts = trial.spoutMovements;
+        o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
+            : trial.target == "Left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
+        return o;
+    }
+}
+
+/// <summary>
+/// Decision-making's part of each trial, which lib-open-rigs' TrialLoop runs (the interval, the quiet waits, the lead,
+/// the laser, the response window and the timeout are the loop's): the draw (TrialDraw), each trial's timing from the
+/// task file, and the response rule. In the response window, openLoopSeconds after the stimulus for closedLoopSeconds,
+/// each lick adds 1 (left) or -1 (right) to the decision variable, which moves the grating degreesPerLick per lick from
+/// its drawn azimuth; the choice is Left once it reaches thresholdLicks, Right once it reaches -thresholdLicks, else
+/// NoResponse at the window's end. A lick before the window is not counted. The answer is the trial's target: on
+/// audiovisualCoherent and audiovisualConflict trials the stimuli's side, the grating's side (TrialDraw).
+/// </summary>
+public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
+{
+    /// <summary>The cue that ends the grating, stimulusSeconds after the stimulus.</summary>
+    public const string GratingOffCue = "GratingOff";
+    /// <summary>The cue that brings the spouts in, stimulusToSpoutsInSeconds after the stimulus.</summary>
+    public const string SpoutsInCue = "SpoutsIn";
+    /// <summary>The cue that draws the spouts out, drinkSeconds into the next interval, on a stage with spout movements.</summary>
+    public const string DrinkCue = "Drink";
+
+    readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
+    readonly TrialDraw draw;
+    readonly LaserTiming laser;
+    int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
+
+    public TrialRules(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, int> zapitConditionCount)
+    {
+        this.task = task;
+        draw = new TrialDraw(task, speakers, stage, zapitConditionCount);
+        var optogenetics = task.Optogenetics;
+        // The line held laserDurationSeconds from the trigger; the next trial armed once the longest ramp-down a conditions
+        // file may have has played (Zapit refuses a StartStimulus until then).
+        laser = optogenetics.UseZapit ? LaserTiming.ForDuration(hardwareTriggered, optogenetics.LaserDurationSeconds, ZapitConditions.MaximumRampDownSeconds) : null;
+    }
+
+    /// <summary>The rules for a task file's stage on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
+    public static TrialRules Create(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, LabRig rig, Func<string, int> zapitConditionCount)
+    {
+        return new TrialRules(task, stage, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditionCount);
+    }
+
+    public LaserTiming Laser { get { return laser; } }
+
+    public Trial Draw(TrialOutcome previous)
+    {
+        return draw.Next(previous == null ? null : previous.Row.Value.outcome);
+    }
+
+    public TrialTiming Timing(Trial trial)
+    {
+        var structure = task.TrialStructure;
+        var stage = draw.Stage;
+        var cues = new List<TrialCue>
+        {
+            new TrialCue(GratingOffCue, CueAnchor.Stimulus, structure.StimulusSeconds),
+            new TrialCue(SpoutsInCue, CueAnchor.Stimulus, structure.StimulusToSpoutsInSeconds),
+        };
+        if (trial.spoutMovements) cues.Add(new TrialCue(DrinkCue, CueAnchor.NextInterval, structure.DrinkSeconds));
+        return new TrialTiming
+        {
+            IntervalSeconds = trial.itiSeconds,
+            LaserToStimulusSeconds = task.Optogenetics.LaserToStimulusSeconds,   // its lead in every experiment, so timing never reveals Zapit
+            LickQuietSeconds = stage.LickQuietSeconds,
+            WheelQuietSeconds = stage.WheelQuietSeconds,
+            WheelQuietCm = stage.WheelQuietCm,
+            Laser = trial.laserCondition > 0,                                    // every trial of an optogenetics experiment, laser on or off
+            ResponseDelaySeconds = structure.OpenLoopSeconds,
+            ResponseSeconds = structure.ClosedLoopSeconds,
+            Cues = cues,
+        };
+    }
+
+    public void Start(Trial trial, TrialTimes times, double wheelCm)
+    {
+    }
+
+    public void Stimulus(Trial trial, TrialTimes times, ICollection<DecisionUpdate> updates)
+    {
+        decision = 0;
+        updates.Add(Update(trial));
+    }
+
+    public TrialOutcome Tick(Trial trial, TrialTimes times, ICollection<DecisionUpdate> updates)
+    {
+        return null;
+    }
+
+    public TrialOutcome Lick(Trial trial, int spout, TrialTimes times, ICollection<DecisionUpdate> updates)
+    {
+        if (!times.Responding) return null;
+        decision += spout == 0 ? 1 : -1;
+        updates.Add(Update(trial));
+        var threshold = task.Response.ThresholdLicks;
+        if (decision >= threshold) return Outcome(trial, "Left", times);
+        if (decision <= -threshold) return Outcome(trial, "Right", times);
+        return null;
+    }
+
+    public TrialOutcome Wheel(Trial trial, double cm, TrialTimes times, ICollection<DecisionUpdate> updates)
+    {
+        return null;
+    }
+
+    public TrialOutcome ResponseEnd(Trial trial, TrialTimes times)
+    {
+        return Outcome(trial, "NoResponse", times);
+    }
+
+    DecisionUpdate Update(Trial trial)
+    {
+        return new DecisionUpdate { DecisionVariable = decision, GratingAzimuthDeg = decision * task.Response.DegreesPerLick + trial.visualAzimuthDeg };
+    }
+
+    TrialOutcome Outcome(Trial trial, string choice, TrialTimes times)
+    {
+        var row = TrialRow.Build(choice, trial, times, task.Penalty.TimeoutSeconds, task.Penalty.Sound.Enabled);
+        return TrialOutcome.Of(row, trial);
     }
 }
 
 [Combinator]
-[Description("What the trial's outcome sets off (Consequence.Of), from its row and the trial.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class TrialConsequence
+[Description("Runs the trials (lib-open-rigs TrialLoop on TrialRules). Inputs: the rules, the Harp clock, the wheel in cm, the left and right lick states, Zapit's replies.")]
+[WorkflowElementCategory(ElementCategory.Combinator)]
+public class RunTrials
 {
-    public IObservable<Consequence> Process(IObservable<Tuple<Timestamped<TrialRow>, Trial>> source)
+    public IObservable<TrialEvent<Trial, DecisionUpdate, TrialOutcome>> Process(IObservable<TrialRules> rules, IObservable<double> clock,
+        IObservable<double> wheelCm, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<ZapitReply> zapitReplies)
     {
-        return source.Select(value => Consequence.Of(value.Item1.Value, value.Item2));
+        return TrialLoop.Observe(rules, clock, wheelCm, lickLeft, lickRight, zapitReplies);
     }
 }
 
@@ -778,14 +584,14 @@ public class TrialConsequence
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SpoutsIn
 {
-    public IObservable<OpenRigs.Devices.LickSpoutCommand> Process(IObservable<Trial> source)
+    public IObservable<LickSpoutCommand> Process(IObservable<Trial> source)
     {
         return source.Select(Command);
     }
 
-    public static OpenRigs.Devices.LickSpoutCommand Command(Trial trial)
+    public static LickSpoutCommand Command(Trial trial)
     {
-        if (trial.bothSpouts) return OpenRigs.Devices.LickSpoutCommand.SpoutsIn;
-        return trial.target == "Left" ? OpenRigs.Devices.LickSpoutCommand.LeftIn : OpenRigs.Devices.LickSpoutCommand.RightIn;
+        if (trial.bothSpouts) return LickSpoutCommand.SpoutsIn;
+        return trial.target == "Left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
     }
 }
