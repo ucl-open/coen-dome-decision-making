@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -573,7 +573,7 @@ public class TrialStartTests
         var trial = new System.Reactive.Subjects.Subject<Trial>();
         var trigger = new System.Reactive.Subjects.Subject<Trial>();
         var sent = new List<OpenRigs.Devices.Zapit.ZapitCommand>();
-        new ZapitTrialCommand { HardwareTriggered = false, DurationSeconds = 1 }.Process(trial, trigger).Subscribe(sent.Add);
+        new OpenRigs.Devices.Zapit.ZapitTrialCommand { HardwareTriggered = false, DurationSeconds = 1 }.Process(trial, trigger).Subscribe(sent.Add);
         var laser = new Trial { trialNumber = 7, laserCondition = 1, laserOn = true, laserPowerMw = 3 };
         trial.OnNext(laser);
         Assert.AreEqual(0, sent.Count, "nothing at the interval's start");
@@ -583,7 +583,7 @@ public class TrialStartTests
 
         var hardware = new List<OpenRigs.Devices.Zapit.ZapitCommand>();
         var trial2 = new System.Reactive.Subjects.Subject<Trial>();
-        new ZapitTrialCommand { HardwareTriggered = true, DurationSeconds = 1 }.Process(trial2, trigger).Subscribe(hardware.Add);
+        new OpenRigs.Devices.Zapit.ZapitTrialCommand { HardwareTriggered = true, DurationSeconds = 1 }.Process(trial2, trigger).Subscribe(hardware.Add);
         trial2.OnNext(laser);
         trigger.OnNext(laser);
         Assert.AreEqual(1, hardware.Count, "a hardware-triggered rig is armed as the laser begins, not at the trigger");
@@ -635,19 +635,6 @@ public class ZapitTests
         reply.LaserOn = laserOn;
         reply.IsError = error;
         return reply;
-    }
-
-    [TestMethod]
-    public void ALaserOffTrialSendsItsConditionAtZeroPower()
-    {
-        var trial = new Trial { trialNumber = 3, laserCondition = 2, laserOn = false };
-        var off = ZapitTrialCommand.Build(trial, true, 1.5);
-        Assert.IsTrue(off.ConditionNumber == 2 && off.LaserOn == false && off.LaserPower == 0f && off.HardwareTriggered == true && off.StimDuration == 1.5f);
-        trial.laserOn = true;
-        trial.laserPowerMw = 3;
-        Assert.AreEqual(3f, ZapitTrialCommand.Build(trial, false, 1.5).LaserPower);
-        trial.laserCondition = 0;
-        StringAssert.Contains(Fixture.Refusal(() => ZapitTrialCommand.Build(trial, false, 1.5)), "1 to 254");
     }
 
     [TestMethod]

@@ -9,16 +9,10 @@
                  xmlns:dev="clr-namespace:OpenRigs.Devices;assembly=OpenRigs.Devices"
                  xmlns:zap="clr-namespace:OpenRigs.Devices.Zapit;assembly=OpenRigs.Devices"
                  xmlns:orcl="clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control"
-                 xmlns:orl="clr-namespace:OpenRigs.Logging;assembly=OpenRigs.Logging"
-                 xmlns:hd="clr-namespace:OpenRigs.HarpDevices;assembly=OpenRigs.HarpDevices"
-                 xmlns:mf="clr-namespace:OpenRigs.Manifest;assembly=OpenRigs.Manifest"
                  xmlns:lv="clr-namespace:OpenRigs.LiveView;assembly=OpenRigs.LiveView"
                  xmlns:gl="clr-namespace:Bonsai.Shaders;assembly=Bonsai.Shaders"
-                 xmlns:al="clr-namespace:Bonsai.Audio;assembly=Bonsai.Audio"
-                 xmlns:aud="clr-namespace:OpenRigs.Audio;assembly=OpenRigs.Audio"
-                 xmlns:p1="clr-namespace:;assembly=Extensions"
-                 xmlns:rig="clr-namespace:OpenRigs.Devices.Rigs;assembly=OpenRigs.Devices"
-                 xmlns:p6="clr-namespace:UclOpenCoenDomeDecisionMakingTask;assembly=Extensions"
+                 xmlns:ext="clr-namespace:;assembly=Extensions"
+                 xmlns:task="clr-namespace:UclOpenCoenDomeDecisionMakingTask;assembly=Extensions"
                  xmlns="https://bonsai-rx.org/2018/workflow">
   <Workflow>
     <Nodes>
@@ -100,8 +94,8 @@
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="core:ReadTextFile" />
             </Expression>
-            <Expression xsi:type="p6:DeserializeFromYaml">
-              <p6:Type xsi:type="TypeMapping" TypeArguments="p6:UclOpenCoenDomeDecisionMakingTaskLogic" />
+            <Expression xsi:type="task:DeserializeFromYaml">
+              <task:Type xsi:type="TypeMapping" TypeArguments="task:UclOpenCoenDomeDecisionMakingTaskLogic" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TaskConfig</Name>
@@ -112,8 +106,8 @@
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="core:ReadTextFile" />
             </Expression>
-            <Expression xsi:type="p6:DeserializeFromYaml">
-              <p6:Type xsi:type="TypeMapping" TypeArguments="p6:UclOpenCoenDomeDecisionMakingTaskLogic" />
+            <Expression xsi:type="task:DeserializeFromYaml">
+              <task:Type xsi:type="TypeMapping" TypeArguments="task:UclOpenCoenDomeDecisionMakingTaskLogic" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
               <Name>LaunchTaskConfig</Name>
@@ -138,13 +132,13 @@
         <Description>Subjects the groups share. Trial (each trial as drawn) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and PenaltySound start the stimuli; Zapit's commands and replies; RewardRequests, each (side, microlitres) reward, the side as rig.yml's wiring names it (left, right). Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
         <Workflow>
           <Nodes>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
               <rx:Name>Trial</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="p1:TrialEnd">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="ext:TrialEnd">
               <rx:Name>TrialEnds</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:Timestamped(p1:TrialRow)">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="harp:Timestamped(ext:TrialRow)">
               <rx:Name>TrialRow</rx:Name>
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Int32">
@@ -156,13 +150,13 @@
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:Double">
               <rx:Name>GratingAzimuthDeg</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
               <rx:Name>VisualStimulus</rx:Name>
             </Expression>
             <Expression xsi:type="rx:PublishSubject" TypeArguments="harp:Timestamped(sys:Double)">
               <rx:Name>VisualStimulusOff</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="p1:Trial">
+            <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
               <rx:Name>AuditoryStimulus</rx:Name>
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="sys:String">
@@ -457,9 +451,9 @@
                     <Name>Speakers</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:LoadAuditoryStimulusSet">
-                      <p1:Folder>LocalFiles\AuditoryStimuli</p1:Folder>
-                      <p1:FilePrefix>filtered_pink_pulse_train_</p1:FilePrefix>
+                    <Combinator xsi:type="ext:LoadAuditoryStimulusSet">
+                      <ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>
+                      <ext:FilePrefix>filtered_pink_pulse_train_</ext:FilePrefix>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="Combinator">
@@ -483,7 +477,7 @@
                     <Combinator xsi:type="rx:Zip" />
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:LevelAuditoryStimulusSet" />
+                    <Combinator xsi:type="ext:LevelAuditoryStimulusSet" />
                   </Expression>
                   <Expression xsi:type="rx:AsyncSubject">
                     <Name>LevelledStimulusSet</Name>
@@ -549,7 +543,7 @@
                     <Name>SoundTrial</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:SelectAuditoryStimulus" />
+                    <Combinator xsi:type="ext:SelectAuditoryStimulus" />
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
                     <Name>StimulusSounds</Name>
@@ -594,8 +588,8 @@
               <Name>TaskConfig</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="p6:SerializeToJson">
-                <p6:Formatting>Indented</p6:Formatting>
+              <Combinator xsi:type="task:SerializeToJson">
+                <task:Formatting>Indented</task:Formatting>
               </Combinator>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:TaskLogs.bonsai" />
@@ -705,11 +699,11 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>OnNextTick</Name>
-              <Description>The experiment folder stamped with the next Harp clock tick and given from the clock's thread (OnNextTick, tested C#), so the first draw runs as every later one does. WithLatestTimestamp here ran it under a lock the clock needs, and the clock stopped at trial 1 (BLUE-OPTO-2, 14 Nov 2026).</Description>
-              <Combinator xsi:type="p1:OnNextTick" />
+              <Description>The experiment folder stamped with the next Harp clock tick and given from the clock's thread (lib-open-rigs' OpenRigs.Core OnNextTick), so the first draw runs as every later one does. WithLatestTimestamp here ran it under a lock the clock needs, and the clock stopped at trial 1 (BLUE-OPTO-2, 14 Nov 2026).</Description>
+              <Combinator xsi:type="core:OnNextTick" />
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="p1:StartTrials" />
+              <Combinator xsi:type="ext:StartTrials" />
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Merge" />
@@ -740,8 +734,8 @@
             <Expression xsi:type="Combinator">
               <Name>DrawTrial</Name>
               <Description>Draws each trial (TrialDraw, tested C#) at the start of its interval, from the last trial's end, the task and rig.yml's speakers; the first once the experiment folder exists, its interval starting then.</Description>
-              <Combinator xsi:type="p1:DrawTrial">
-                <p1:TrainingStage>0</p1:TrainingStage>
+              <Combinator xsi:type="ext:DrawTrial">
+                <ext:TrainingStage>0</ext:TrainingStage>
               </Combinator>
             </Expression>
             <Expression xsi:type="MulticastSubject">
@@ -762,7 +756,7 @@
             <Expression xsi:type="Combinator">
               <Name>WaitForTrialStart</Name>
               <Description>Each trial's start (tested C#), on the Harp clock: the end of its interval less the lead (max(laserToStimulusSeconds, 0)), or later until the stage's quiet waits both hold (both spouts released for lickQuietSeconds, a held contact blocking the start; the wheel within wheelQuietCm, forward and back added, over the last wheelQuietSeconds; each counted from the interval's start). Sets startTime and quietWaitSeconds.</Description>
-              <Combinator xsi:type="p1:WaitForTrialStart" />
+              <Combinator xsi:type="ext:WaitForTrialStart" />
             </Expression>
             <Expression xsi:type="rx:BehaviorSubject">
               <Name>TrialStart</Name>
@@ -771,8 +765,8 @@
               <Name>Timestamp</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="p1:SecondsUntil">
-                <p1:Moment>Stimulus</p1:Moment>
+              <Combinator xsi:type="ext:SecondsUntil">
+                <ext:Moment>Stimulus</ext:Moment>
               </Combinator>
             </Expression>
             <Expression xsi:type="InputMapping">
@@ -901,7 +895,7 @@
                     <Name>ExecTrial</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:SpoutsIn" />
+                    <Combinator xsi:type="ext:SpoutsIn" />
                   </Expression>
                   <Expression xsi:type="MemberSelector">
                     <Selector>Item2</Selector>
@@ -1180,9 +1174,9 @@
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>BuildTrialRow</Name>
-                    <Combinator xsi:type="p1:CreateTrialRow">
-                      <p1:TimeoutSeconds>0</p1:TimeoutSeconds>
-                      <p1:PenaltySound>false</p1:PenaltySound>
+                    <Combinator xsi:type="ext:CreateTrialRow">
+                      <ext:TimeoutSeconds>0</ext:TimeoutSeconds>
+                      <ext:PenaltySound>false</ext:PenaltySound>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
@@ -1201,7 +1195,7 @@
                     <Name>ExecTrial</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:TrialConsequence" />
+                    <Combinator xsi:type="ext:TrialConsequence" />
                   </Expression>
                   <Expression xsi:type="rx:AsyncSubject">
                     <Name>Outcome</Name>
@@ -1372,7 +1366,7 @@
                     <Name>ItiStart</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:EndTrial" />
+                    <Combinator xsi:type="ext:EndTrial" />
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:Take">
@@ -1523,9 +1517,9 @@
                   <Expression xsi:type="Combinator">
                     <Name>ArmZapit</Name>
                     <Description>The trial's StartStimulus (its condition, laser on with the task's power or off at 0 mW, timed for laserDurationSeconds). On a hardware-triggered rig (rig.yml's zapit.hardwareTriggered) sent as this trial's laser begins: at the start of its interval, or once the last trial's laser and ramp-down have ended if later. Without, Zapit starts the laser on receipt, so it is sent at the trigger (RequireZapitArmed's output).</Description>
-                    <Combinator xsi:type="p1:ZapitTrialCommand">
-                      <p1:HardwareTriggered>false</p1:HardwareTriggered>
-                      <p1:DurationSeconds>0</p1:DurationSeconds>
+                    <Combinator xsi:type="zap:ZapitTrialCommand">
+                      <zap:HardwareTriggered>false</zap:HardwareTriggered>
+                      <zap:DurationSeconds>0</zap:DurationSeconds>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
@@ -1564,7 +1558,7 @@
                     <Name>LaserTrial</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:CheckZapitArmed" />
+                    <Combinator xsi:type="ext:CheckZapitArmed" />
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>LaserTrial</Name>
@@ -1573,14 +1567,14 @@
                     <Name>TrialStart</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:TrialStartFor" />
+                    <Combinator xsi:type="ext:TrialStartFor" />
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="Bonsai.Harp:WithLatestTimestamp.bonsai">
                     <Name>Timestamp</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:SecondsUntil">
-                      <p1:Moment>LaserTrigger</p1:Moment>
+                    <Combinator xsi:type="ext:SecondsUntil">
+                      <ext:Moment>LaserTrigger</ext:Moment>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="InputMapping">
@@ -1599,8 +1593,8 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="p1:RequireZapitArmed">
-                      <p1:HardwareTriggered>false</p1:HardwareTriggered>
+                    <Combinator xsi:type="ext:RequireZapitArmed">
+                      <ext:HardwareTriggered>false</ext:HardwareTriggered>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
@@ -1642,7 +1636,7 @@
                   <Expression xsi:type="Combinator">
                     <Name>UnlessAnswered</Name>
                     <Description>No laser on a trial answered before its trigger (a trigger after the stimulus, Pip 13 Nov 2026): the trial records whichever of its trigger and its outcome came first, and its row logs laserPowerMw 0 from the same record.</Description>
-                    <Combinator xsi:type="p1:UnlessAnswered" />
+                    <Combinator xsi:type="ext:UnlessAnswered" />
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -1713,7 +1707,7 @@
             <Expression xsi:type="Combinator">
               <Name>CheckTaskAtGo</Name>
               <Description>The task checked at Go (TrialDraw.CheckTask, tested C#): a stage past the table, a target modality with no trials or a laser that would outlast the next trigger stops the workflow here, before the first trial.</Description>
-              <Combinator xsi:type="p1:CheckTaskAtGo" />
+              <Combinator xsi:type="ext:CheckTaskAtGo" />
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TaskConfig</Name>

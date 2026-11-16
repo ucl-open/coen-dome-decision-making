@@ -59,12 +59,12 @@ def test_the_stimulus_is_commanded_as_execute_trial_starts():
 def test_the_trigger_rises_only_once_zapit_armed_the_trial():
     # Pip, 13 Nov 2026: Zapit is armed during the interval; a reply not in by the trigger stops the workflow (RequireZapitArmed).
     nodes, edges = _scope(_named("Laser"))
-    require = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:RequireZapitArmed")
-    check = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:CheckZapitArmed")
+    require = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:RequireZapitArmed")
+    check = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:CheckZapitArmed")
     trigger = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "Trigger")
     # Pip, 13 Nov 2026: no laser on a trial answered before its trigger. UnlessAnswered and the row read one per-trial
     # record of which came first (audit round 3), not the row's Harp time.
-    unless = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:UnlessAnswered")
+    unless = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:UnlessAnswered")
     assert [e for e in edges if e[1] == unless] == [(trigger, unless, "Source1")]
     assert (check, require, "Source2") in edges and (unless, require, "Source1") in edges
     # Audit round 3: without hardware triggering Zapit starts the laser on receipt, so ArmZapit sends at the trigger then.
@@ -76,7 +76,7 @@ def test_the_trigger_rises_only_once_zapit_armed_the_trial():
     assert any(nodes[i].findtext(W + "Name") == "ZapitReplies" for i in _upstream(edges, check))
     # The trigger is timed from the trial start, never from Zapit's reply.
     assert check not in _upstream(edges, trigger)
-    assert any(_kind(nodes[i]) == "p1:TrialStartFor" for i in _upstream(edges, trigger))
+    assert any(_kind(nodes[i]) == "ext:TrialStartFor" for i in _upstream(edges, trigger))
     line = next(i for i, n in enumerate(nodes) if n.get("Path") == lint.SET_ZAPIT_TRIGGER_LINE and n.findtext(W + "Set") == "true")
     assert require in _upstream(edges, line)
 
@@ -157,7 +157,7 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
             shapes.add((w.getnchannels(), w.getsampwidth(), w.getframerate()))
     assert len(shapes) == 1
     assert shapes.pop()[:3] == (1, 2, 48000)
-    assert r"<p1:Folder>LocalFiles\AuditoryStimuli</p1:Folder>" in TEXT
+    assert r"<ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>" in TEXT
 
 
 def test_the_trial_loop_starts_on_the_clock_thread():
@@ -167,9 +167,9 @@ def test_the_trial_loop_starts_on_the_clock_thread():
     task = next(g for g in MAIN.find(f"{W}Workflow/{W}Nodes") if g.findtext(f"{W}Name") == "TaskLogic")
     nodes = list(task.find(f"{W}Workflow/{W}Nodes"))
     edges = [(int(e.get("From")), int(e.get("To")), e.get("Label")) for e in task.find(f"{W}Workflow/{W}Edges")]
-    start = next(i for i, n in enumerate(nodes) if (n.find(f"{W}Combinator") is not None and n.find(f"{W}Combinator").get(XSI) == "p1:StartTrials"))
+    start = next(i for i, n in enumerate(nodes) if (n.find(f"{W}Combinator") is not None and n.find(f"{W}Combinator").get(XSI) == "ext:StartTrials"))
     (into,) = [f for f, t, _ in edges if t == start]
-    assert nodes[into].find(f"{W}Combinator").get(XSI) == "p1:OnNextTick"
+    assert nodes[into].find(f"{W}Combinator").get(XSI) == "core:OnNextTick"
     clock = [f for f, t, label in edges if t == into and label == "Source2"]
     assert [nodes[f].findtext(f"{W}Name") for f in clock] == ["Timestamp"]
 
@@ -206,7 +206,7 @@ def test_the_speakers_and_the_mixer_are_the_shared_block_s():
 def test_every_sound_plays_at_the_task_file_s_level():
     assert lint.sound_level_problems(WORKFLOW) == []
     nodes, edges = _scope(_named("LoadAudioFiles"))
-    level = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:LevelAuditoryStimulusSet")
+    level = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:LevelAuditoryStimulusSet")
     assert any(nodes[a].findtext(W + "Selector") == "TaskParameters.AudioStimulus.LevelDbfs" for a in _upstream(edges, level))
 
 
@@ -306,6 +306,6 @@ def test_each_trial_s_sound_carries_its_sync_copy():
     # SelectAuditoryStimulus gives the mixer's buffer at the task's level, sync copy and all (OpenRigs.Audio SpeakerSet.Layout),
     # straight to the mixer's StimulusSounds.
     nodes, edges = _scope(_named("PlayStim"))
-    select = next(i for i, n in enumerate(nodes) if _kind(n) == "p1:SelectAuditoryStimulus")
+    select = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:SelectAuditoryStimulus")
     assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == select] == ["StimulusSounds"]
     assert "Broadcast" not in TEXT and "ChannelActivation" not in TEXT and "PinkNoiseSync" not in TEXT

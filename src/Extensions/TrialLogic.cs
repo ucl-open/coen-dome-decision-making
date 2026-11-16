@@ -1,4 +1,4 @@
-using Bonsai;
+﻿using Bonsai;
 using Bonsai.Harp;
 using OpenRigs.Core;
 using OpenRigs.Devices.Zapit;
@@ -12,8 +12,13 @@ using OpenRigs.Devices.Rigs;
 using UclOpenCoenDomeDecisionMakingTask;
 
 /// <summary>One trial as drawn: its fields are named as the trial log's columns where they are one.</summary>
-public class Trial
+public class Trial : IZapitTrial
 {
+    int IZapitTrial.TrialNumber { get { return trialNumber; } }
+    int IZapitTrial.LaserCondition { get { return laserCondition; } }
+    bool IZapitTrial.LaserOn { get { return laserOn; } }
+    double IZapitTrial.LaserPowerMw { get { return laserPowerMw; } }
+
     public int trialNumber;            // from 1, repeats counted
     public string trialType;           // TrialDraw.TypeNames: what the trial shows
     public string target;              // Left or Right
@@ -112,34 +117,6 @@ public class StartTrials
     public IObservable<TrialEnd> Process<TSource>(IObservable<Timestamped<TSource>> source)
     {
         return source.Select(value => TrialEnd.First(value.Seconds));
-    }
-}
-
-[Combinator]
-[Description("Each input stamped with the next tick of the Harp clock, and given from the clock's own thread with no lock held, so what follows runs as every later trial does. Inputs: the values, the Harp clock. WithLatestTimestamp ran the first draw under its lock, which the clock's thread needs for every tick, so the clock stopped at the first trial and the workflow hung at Stop (BLUE-OPTO-2, 14 Nov 2026).")]
-[WorkflowElementCategory(ElementCategory.Combinator)]
-public class OnNextTick
-{
-    public IObservable<Timestamped<TSource>> Process<TSource>(IObservable<TSource> source, IObservable<double> clock)
-    {
-        return Observable.Create<Timestamped<TSource>>(observer =>
-        {
-            var gate = new object();
-            var waiting = new List<TSource>();
-            return new System.Reactive.Disposables.CompositeDisposable(
-                source.Subscribe(value => { lock (gate) waiting.Add(value); }, observer.OnError),
-                clock.Subscribe(seconds =>
-                {
-                    TSource[] due;
-                    lock (gate)
-                    {
-                        if (waiting.Count == 0) return;
-                        due = waiting.ToArray();
-                        waiting.Clear();
-                    }
-                    foreach (var value in due) observer.OnNext(Timestamped.Create(value, seconds));
-                }, observer.OnError));
-        });
     }
 }
 
@@ -553,40 +530,6 @@ public class TrialDraw
     double Uniform(double low, double high)
     {
         return low + random.NextDouble() * (high - low);
-    }
-}
-
-[Combinator]
-[Description("A trial's Zapit StartStimulus: its condition, the laser on or off (galvos and masking light either way), the trial's laserPowerMw (0 mW on laser-off trials), timed for the laser's duration. Sent as the trial's laser begins (first input) on a hardware-triggered rig, whose DAQ then waits for the ZapitTrigger line; at the trigger (second input) otherwise, as Zapit then starts the laser on receipt.")]
-[WorkflowElementCategory(ElementCategory.Combinator)]
-public class ZapitTrialCommand
-{
-    [Description("Whether the Zapit DAQ waits for the ZapitTrigger line (rig.yml's zapit.hardwareTriggered).")]
-    public bool HardwareTriggered { get; set; }
-
-    [Description("How long the stimulus lasts, in seconds (optogenetics.laserDurationSeconds).")]
-    public double DurationSeconds { get; set; }
-
-    public IObservable<ZapitCommand> Process(IObservable<Trial> trial, IObservable<Trial> trigger)
-    {
-        // Read at subscription, once rig.yml's mapping has set them.
-        return Observable.Defer(() =>
-        {
-            var hardwareTriggered = HardwareTriggered;
-            var duration = DurationSeconds;
-            return SendAt(trial, trigger, hardwareTriggered).Select(t => Build(t, hardwareTriggered, duration));
-        });
-    }
-
-    /// <summary>When the command goes: as the laser begins on a hardware-triggered rig, else at the trigger.</summary>
-    public static IObservable<Trial> SendAt(IObservable<Trial> trial, IObservable<Trial> trigger, bool hardwareTriggered)
-    {
-        return hardwareTriggered ? trial : trigger;
-    }
-
-    public static ZapitCommand Build(Trial trial, bool hardwareTriggered, double durationSeconds)
-    {
-        return ZapitTrial.Command(trial.trialNumber, trial.laserCondition, trial.laserOn, trial.laserPowerMw, hardwareTriggered, durationSeconds);
     }
 }
 
