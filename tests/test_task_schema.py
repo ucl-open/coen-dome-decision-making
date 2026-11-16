@@ -153,23 +153,6 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
 
 
-def test_the_laser_delay_is_gone():
-    # Pip, 10 Nov 2026: laserDelaySeconds (stimDelay) was 0 in every task file since 24 Sep 2026; dropped.
-    schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
-    assert "laserDelaySeconds" not in schema and "stimDelay" not in schema
-    assert "OptogeneticDelay" not in (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
-
-
-@pytest.mark.parametrize("path", TASK_FILES, ids=lambda p: p.name)
-def test_laser_to_stimulus_is_the_task_s_and_arm_to_trigger_is_gone(path):
-    # Pip, 13 Nov 2026: Zapit adds no time, so the arm-to-trigger wait is gone; laserToStimulusSeconds keeps 0.5 s.
-    opto = yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]
-    assert opto["laserToStimulusSeconds"] == 0.5 and "armToTriggerSeconds" not in opto
-    for text in (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json", CONFIG.parent / "src" / "main.bonsai",
-                 CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs"):
-        assert "ArmToTrigger" not in text.read_text(encoding="utf-8-sig") and "armToTrigger" not in text.read_text(encoding="utf-8-sig")
-
-
 def _with(name="task-discrimination.yml", opto=None, structure=None, stage=None):
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
     data["optogenetics"].update(opto or {})

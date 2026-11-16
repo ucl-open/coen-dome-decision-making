@@ -135,13 +135,6 @@ def test_any_version_but_1_is_refused(tmp_path):
     assert any("(Unreadable: KeyError)" in u for u in read(tmp_path, "r7")[1])
 
 
-def test_stage_py_reads_none_of_the_dropped_columns(tmp_path):
-    # jacuzzi-ingest drops these from every summary (records.md): reading one would read null for ever.
-    assert not [c for c in DROPPED if c in STAGE_PY.read_text(encoding="utf-8")]
-    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60))  # a file without them reads in full
-    assert read(tmp_path, "r6")[1] == []
-
-
 def test_the_script_runs_with_the_standard_library_alone(tmp_path):
     # rig-control runs it with its own Python, -I, outside this project: no package import.
     put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 3, 60))

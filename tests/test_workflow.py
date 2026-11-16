@@ -160,6 +160,13 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
     assert r"<ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>" in TEXT
 
 
+def test_the_metrics_are_the_view_s():
+    names = {c.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") for c in MAIN.iter(W + "Combinator") if c.get(XSI) == "orcl:ReportMetric"}
+    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "audioAzimuthDeg", "rewardSizeUl", "laserCondition"}
+    # trainingStage is OpenRigs.Control's TrainingStage's (16 Nov 2026).
+    assert lint.training_stage_problems(WORKFLOW) == []
+
+
 def test_zapit_s_hardware_triggering_is_rig_yml_s():
     # lib-open-rigs' ZapitTrialCommand, its HardwareTriggered mapped from rig.yml's zapit.hardwareTriggered, never typed in.
     assert TEXT.count('"zap:ZapitTrialCommand"') == 1 and "ext:ZapitTrialCommand" not in TEXT
