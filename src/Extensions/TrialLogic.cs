@@ -647,10 +647,10 @@ public class TrialStartWaiter
     public Trial Clock(double seconds)
     {
         now = seconds;
-        if (trial == null || seconds < wait.GoTime - 1e-9) return null;
+        if (trial == null || seconds < wait.TrialStartTime - 1e-9) return null;
         var started = trial;
-        started.startTime = wait.GoTime;
-        started.quietWaitSeconds = wait.GoTime - wait.Earliest;
+        started.startTime = wait.TrialStartTime;
+        started.quietWaitSeconds = wait.TrialStartTime - wait.Earliest;
         trial = null;
         return started;
     }
