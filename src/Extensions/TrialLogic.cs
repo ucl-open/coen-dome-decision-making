@@ -32,9 +32,9 @@ public class Trial : IZapitTrial
     public double visualPhaseRad;
     public bool audioEnabled;          // false: no sound (discrimination's visual and neutral trials)
     public int speakerChannel;         // the mixer channel of rig.yml's speaker nearest the drawn location; -1 when silent
-    public double audioAzimuthDeg;     // that speaker's azimuth; NaN when silent
-    public double audioElevationDeg;
-    public int audioWaveformIndex;
+    public double auditoryAzimuthDeg;     // that speaker's azimuth; NaN when silent
+    public double auditoryElevationDeg;
+    public int auditoryWaveformIndex;
     public int laserCondition;         // 0 without optogenetics; on every optogenetics trial, laser on or off
     public bool laserOn;
     public double laserPowerMw;        // 0 with the laser off
@@ -115,13 +115,13 @@ public class TrialDraw
         this.speakers = speakers;
         this.stage = CheckTask(task, stage, speakers);
         var optogenetics = task.Optogenetics;
-        if (optogenetics.UseZapit)
+        if (optogenetics.Enabled)
         {
             if (!(optogenetics.LaserPowerMw > 0))
             {
-                throw new InvalidOperationException("optogenetics.useZapit is on, so optogenetics.laserPowerMw must be a power in mW above 0.");
+                throw new InvalidOperationException("optogenetics is enabled, so optogenetics.laserPowerMw must be a power in mW above 0.");
             }
-            var path = optogenetics.ZapitConfigPath;
+            var path = optogenetics.ZapitConditionsPath;
             conditionCount = zapitConditionCount != null ? zapitConditionCount(path) : ZapitConditions.Check(path);
         }
         Seed = RngSeed.Resolve(task.RngSeed);
@@ -166,8 +166,8 @@ public class TrialDraw
         {
             var side = right ? "right" : "left";
             if (AzimuthCandidates(visual, right, true).Count == 0 && !HasRange(visual, right, true)) problems.Add("visualStimulus has no " + side + " azimuth within coherentAzimuthCapDeg");
-            var locations = task.AudioStimulus.SpeakerLocations.Where(l => right ? l.Azimuth > 0 : l.Azimuth < 0).ToList();
-            if (locations.Count == 0) problems.Add("audioStimulus.speakerLocations has none on the " + side);
+            var locations = task.AuditoryStimulus.SpeakerLocations.Where(l => right ? l.Azimuth > 0 : l.Azimuth < 0).ToList();
+            if (locations.Count == 0) problems.Add("auditoryStimulus.speakerLocations has none on the " + side);
             foreach (var location in locations)
             {
                 var speaker = NearestSpeaker(speakers, location.Azimuth, location.Elevation);
@@ -177,7 +177,7 @@ public class TrialDraw
                 }
             }
         }
-        if (task.AudioStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("audioStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
+        if (task.AuditoryStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("auditoryStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
         var structure = task.TrialStructure;
         // A NaN or infinite time (YAML's .nan or .inf) would hold the trial start for ever, with no error.
         Action<string, double> finite = (name, value) =>
@@ -200,7 +200,7 @@ public class TrialDraw
         // wheel's pair both set or both 0): a long wait and a licking mouse would hold the trial start with no message.
         foreach (var p in QuietWait.SettingsProblems(stage.LickQuietSeconds, stage.WheelQuietSeconds, stage.WheelQuietCm)) problems.Add("stage '" + stage.Label + "': " + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
-        if (task.Optogenetics.UseZapit) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
+        if (task.Optogenetics.Enabled) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds) problems.Add("trialStructure.stimulusSeconds is longer than responseDelaySeconds plus responseWindowSeconds");
         if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
         if (structure.StimulusSeconds > structure.ItiMinSeconds) problems.Add(string.Format("trialStructure.stimulusSeconds ({0} s) is longer than itiMinSeconds ({1} s): the grating would still show when the next trial's stimulus starts", structure.StimulusSeconds, structure.ItiMinSeconds));
@@ -214,11 +214,11 @@ public class TrialDraw
             problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (responseDelaySeconds + responseWindowSeconds, {1} s)", lead, structure.ResponseDelaySeconds + structure.ResponseWindowSeconds));
         }
         var longest = LongestLaserSeconds(task);
-        if (opto.UseZapit && opto.LaserDurationSeconds > longest + 1e-9)
+        if (opto.Enabled && opto.LaserDurationSeconds > longest + 1e-9)
         {
             problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (responseDelaySeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
         }
-        // DeliverReward refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
+        // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var multiplier = task.Reward.LargeRewardMultiplier;
         if (task.Reward.LargeRewardProbability > 0 && multiplier > 1 && stage.RewardSizeUl * multiplier > LoadRewardLine.DefaultMaxRewardUl + 1e-9)
         {
@@ -461,25 +461,25 @@ public class TrialDraw
         {
             var speaker = NearestSpeaker(speakers, soundAzimuth, soundElevation).Value;
             trial.speakerChannel = speaker.Channel;
-            trial.audioAzimuthDeg = speaker.Position.Azimuth;
-            trial.audioElevationDeg = speaker.Position.Elevation;
+            trial.auditoryAzimuthDeg = speaker.Position.Azimuth;
+            trial.auditoryElevationDeg = speaker.Position.Elevation;
         }
         else
         {
             trial.speakerChannel = -1;
-            trial.audioAzimuthDeg = double.NaN;
-            trial.audioElevationDeg = double.NaN;
+            trial.auditoryAzimuthDeg = double.NaN;
+            trial.auditoryElevationDeg = double.NaN;
         }
 
         var optogenetics = task.Optogenetics;
-        if (optogenetics.UseZapit)
+        if (optogenetics.Enabled)
         {
             // drawn + 1: this trial's number, which Next sets once it is drawn.
             ZapitTrial.Draw(random, drawn + 1, conditionCount, optogenetics.TrialsBeforeLaser, optogenetics.LaserOnProbability, optogenetics.LaserPowerMw.Value,
                 out trial.laserCondition, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
-        trial.audioWaveformIndex = random.Next(AuditoryStimulusSet.WaveformCount);
+        trial.auditoryWaveformIndex = random.Next(AuditoryStimulusSet.WaveformCount);
         return trial;
     }
 
@@ -538,7 +538,7 @@ public class TrialDraw
 
     void PickLocation(bool right, out double azimuth, out double elevation)
     {
-        var candidates = task.AudioStimulus.SpeakerLocations.Where(l => right ? l.Azimuth > 0 : l.Azimuth < 0).ToList();
+        var candidates = task.AuditoryStimulus.SpeakerLocations.Where(l => right ? l.Azimuth > 0 : l.Azimuth < 0).ToList();
         var picked = candidates[random.Next(candidates.Count)];
         azimuth = picked.Azimuth;
         elevation = picked.Elevation;
@@ -560,10 +560,10 @@ public class DecisionUpdate
 /// spouts it moves.</summary>
 public class TrialOutcome : OpenRigs.Devices.TrialOutcome<TrialRow>
 {
-    public bool MoveSpouts;
+    public bool SpoutMovements;
     public LickSpoutCommand SpoutCommand;
 
-    TrialOutcome(TrialRow row, string valve) : base(row, valve) { }
+    TrialOutcome(TrialRow row, string instance) : base(row, instance) { }
 
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
     /// (discriminationGoNoGo's: the left), a Random trial's at the spout chosen, the other spout drawn back. Anything else
@@ -571,12 +571,12 @@ public class TrialOutcome : OpenRigs.Devices.TrialOutcome<TrialRow>
     /// leaves the spouts where they are.</summary>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
-        // The valve as rig.yml's wiring names it; Go is answered at the left spout.
-        var valve = (trial.target == Answer.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
-        var o = new TrialOutcome(row, valve);
-        o.MoveSpouts = trial.spoutMovements;
+        // The valve's instance as rig.yml's wiring names it; Go is answered at the left spout.
+        var instance = (trial.target == Answer.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
+        var o = new TrialOutcome(row, instance);
+        o.SpoutMovements = trial.spoutMovements;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
-            : valve == "left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
+            : instance == "left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
         return o;
     }
 }
@@ -611,7 +611,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         var optogenetics = task.Optogenetics;
         // The line held laserDurationSeconds from the trigger; the next trial armed once the longest ramp-down a conditions
         // file may have has played (Zapit refuses a StartStimulus until then).
-        laser = optogenetics.UseZapit ? LaserTiming.ForDuration(hardwareTriggered, optogenetics.LaserDurationSeconds, ZapitConditions.MaximumRampDownSeconds) : null;
+        laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, optogenetics.LaserDurationSeconds, ZapitConditions.MaximumRampDownSeconds) : null;
     }
 
     /// <summary>The rules for a task file's stage on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>

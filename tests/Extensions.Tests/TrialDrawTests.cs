@@ -81,9 +81,9 @@ public class TrialDrawTests
             if (t.trialType == "visual" || t.trialType == "audiovisualCoherent")
                 Assert.AreEqual(t.visualAzimuthDeg > 0 ? "Right" : "Left", t.target, t.trialType);
             if (t.trialType == "auditory" || t.trialType == "audiovisualCoherent")
-                Assert.AreEqual(t.audioAzimuthDeg > 0 ? "Right" : "Left", t.target, t.trialType);
+                Assert.AreEqual(t.auditoryAzimuthDeg > 0 ? "Right" : "Left", t.target, t.trialType);
             if (t.trialType == "audiovisualConflict")
-                Assert.AreEqual(t.visualAzimuthDeg > 0, t.audioAzimuthDeg < 0);
+                Assert.AreEqual(t.visualAzimuthDeg > 0, t.auditoryAzimuthDeg < 0);
             if (t.trialType == "visual" || t.trialType == "neutral")
                 Assert.AreEqual(2, t.speakerChannel, "the centre speaker");
         }
@@ -99,7 +99,7 @@ public class TrialDrawTests
         var w = task.TrialWeights;
         w.Visual = w.Auditory = w.AudiovisualCoherent = w.Neutral = 0;
         var trials = Fixture.Draw(task, 4, 600);
-        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualAzimuthDeg > 0) == (t.audioAzimuthDeg < 0) && t.target == Answer.Random));
+        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualAzimuthDeg > 0) == (t.auditoryAzimuthDeg < 0) && t.target == Answer.Random));
         Assert.AreEqual(0.5, trials.Count(t => t.probeHeads) / 600.0, 0.07);
     }
 
@@ -109,8 +109,8 @@ public class TrialDrawTests
         foreach (var t in Fixture.Draw(Fixture.Task("task-localization.yml"), 4, 300))
         {
             var speaker = Fixture.Speakers().Speakers.Values.Single(s => s.Channel == t.speakerChannel);
-            Assert.AreEqual(speaker.Position.Azimuth, t.audioAzimuthDeg);
-            Assert.AreEqual(speaker.Position.Elevation, t.audioElevationDeg);
+            Assert.AreEqual(speaker.Position.Azimuth, t.auditoryAzimuthDeg);
+            Assert.AreEqual(speaker.Position.Elevation, t.auditoryElevationDeg);
         }
         var nearest = TrialDraw.NearestSpeaker(Fixture.Speakers(), -60, 15);
         Assert.AreEqual("left", nearest.Key);
@@ -128,7 +128,7 @@ public class TrialDrawTests
             {
                 if (t.trialType == "visual") Assert.IsTrue(!t.audioEnabled && t.visualContrast > 0 && t.target == (modality == Modality.Visual ? "Left" : "Right"));
                 if (t.trialType == "auditory") Assert.IsTrue(t.audioEnabled && t.visualContrast == 0 && t.target == (modality == Modality.Auditory ? "Left" : "Right"));
-                if (t.trialType == "neutral") Assert.IsTrue(!t.audioEnabled && double.IsNaN(t.audioAzimuthDeg) && t.speakerChannel == -1);
+                if (t.trialType == "neutral") Assert.IsTrue(!t.audioEnabled && double.IsNaN(t.auditoryAzimuthDeg) && t.speakerChannel == -1);
             }
         }
     }
@@ -177,7 +177,7 @@ public class TrialDrawTests
     [TestMethod]
     public void AStageWithoutSpoutMovementsNeedsBothSpouts()
     {
-        // Round 3 F14: the SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
+        // The SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
         var task = Fixture.Task("task-localization.yml");
         task.TrainingStages[0].SpoutMovements = false;
         task.TrainingStages[0].BothSpoutsProbability = 0.5;
@@ -188,7 +188,7 @@ public class TrialDrawTests
     [TestMethod]
     public void TheTypeNamesAreNavigationSAndTheDrawSConstants()
     {
-        // Round 3 F10: the draw names its trial types, coen-dome-navigation's names, never bare numbers.
+        // The draw names its trial types, coen-dome-navigation's names, never bare numbers.
         CollectionAssert.AreEqual(new[] { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral" }, TrialDraw.TypeNames);
         CollectionAssert.AreEqual(new[] { "go", "noGo", "audiovisualCoherent", "audiovisualConflict", "neutral" }, TrialDraw.Keys(TaskType.DiscriminationGoNoGo));
         Assert.IsTrue(TrialDraw.RandomRewardProbe(TaskType.Localization, TrialDraw.Neutral));
@@ -285,7 +285,7 @@ public class TrialDrawTests
     public void OptogeneticsSendsAConditionOnEveryTrial()
     {
         var task = Fixture.Task("task-localization.yml");
-        task.Optogenetics.UseZapit = true;
+        task.Optogenetics.Enabled = true;
         task.Optogenetics.TrialsBeforeLaser = 20;
         task.Optogenetics.LaserOnProbability = 0.5;
         var trials = Fixture.Draw(task, 4, 300, t => "NoResponse");
@@ -325,7 +325,7 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(task, 4), "needs contrasts");
 
         task = Fixture.Task("task-localization.yml");
-        task.AudioStimulus.SpeakerLocations.RemoveAll(l => l.Azimuth > 0);
+        task.AuditoryStimulus.SpeakerLocations.RemoveAll(l => l.Azimuth > 0);
         StringAssert.Contains(refusal(task, 4), "none on the right");
 
         task = Fixture.Task("task-localization.yml");
@@ -346,7 +346,7 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(task, 4), "is 'centre', not on the right");
 
         task = Fixture.Task("task-discrimination-left-right.yml");
-        task.Optogenetics.UseZapit = true;
+        task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = null;
         task.Optogenetics.LaserDurationSeconds = 0.8;
         StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(task, Fixture.Speakers(), 4, path => 2)), "laserPowerMw");
@@ -428,14 +428,14 @@ public class TrialDrawTests
     {
         // Discrimination: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s reply margin = 0.8 s.
         var task = Fixture.Task("task-discrimination-left-right.yml");
-        task.Optogenetics.UseZapit = true;
+        task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
         Assert.AreEqual(0.8, TrialDraw.LongestLaserSeconds(task), 1e-9);
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "laserDurationSeconds (2.5 s) must be at most 0.8 s");
         task.Optogenetics.LaserDurationSeconds = 0.8;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
         task.Optogenetics.LaserDurationSeconds = 2.5;
-        task.Optogenetics.UseZapit = false;
+        task.Optogenetics.Enabled = false;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
     }
 

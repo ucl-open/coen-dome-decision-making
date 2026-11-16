@@ -159,6 +159,6 @@ public class AuditoryStimulusSetTests
             for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(equalised[n] * gain, played[n], 1e-6);
         }
         Assert.AreEqual(-47.2, SoundLevel.RmsDbfs(unequalised) + 20 * Math.Log10(gain), 1e-9);
-        StringAssert.Contains(refusal(() => set.AtLevel(-3)), "on speaker 'left' at -3 dBFS RMS (audioStimulus.levelDbfs) peaks at");
+        StringAssert.Contains(refusal(() => set.AtLevel(-3)), "on speaker 'left' at -3 dBFS RMS (auditoryStimulus.levelDbfs) peaks at");
     }
 }

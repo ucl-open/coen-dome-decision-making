@@ -146,7 +146,7 @@ def test_the_script_runs_with_the_standard_library_alone(tmp_path):
 
 
 def test_one_reader_named_as_navigation_s():
-    # Round 3 F15: read_new outlived the old-format reader it was named against; both dome tasks call it read_experiment.
+    # Read_new outlived the old-format reader it was named against; both dome tasks call it read_experiment.
     assert not hasattr(stage, "read_new")
     e = read_experiment(summary("ses-002_2026-11-10T09-00-00", "r2", 3, 5))
     assert (e.stage, e.task_type, e.trials) == (3, "discriminationGoNoGo", 5)

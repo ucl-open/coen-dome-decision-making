@@ -133,20 +133,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
         ".task StimulusSound).")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class AudioStimulus
+    public partial class AuditoryStimulus
     {
     
         private double _levelDbfs;
     
         private System.Collections.Generic.List<SphericalPosition> _speakerLocations;
     
-        public AudioStimulus()
+        public AuditoryStimulus()
         {
             _levelDbfs = -30D;
             _speakerLocations = new System.Collections.Generic.List<SphericalPosition>();
         }
     
-        protected AudioStimulus(AudioStimulus other)
+        protected AuditoryStimulus(AuditoryStimulus other)
         {
             _levelDbfs = other._levelDbfs;
             _speakerLocations = other._speakerLocations;
@@ -191,14 +191,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
             }
         }
     
-        public System.IObservable<AudioStimulus> Generate()
+        public System.IObservable<AuditoryStimulus> Generate()
         {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new AudioStimulus(this)));
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new AuditoryStimulus(this)));
         }
     
-        public System.IObservable<AudioStimulus> Generate<TSource>(System.IObservable<TSource> source)
+        public System.IObservable<AuditoryStimulus> Generate<TSource>(System.IObservable<TSource> source)
         {
-            return System.Reactive.Linq.Observable.Select(source, _ => new AudioStimulus(this));
+            return System.Reactive.Linq.Observable.Select(source, _ => new AuditoryStimulus(this));
         }
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
@@ -351,9 +351,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     public partial class OptogeneticsSettings
     {
     
-        private bool _useZapit;
+        private bool _enabled;
     
-        private string _zapitConfigPath;
+        private string _zapitConditionsPath;
     
         private double? _laserPowerMw;
     
@@ -369,16 +369,16 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         public OptogeneticsSettings()
         {
-            _useZapit = false;
-            _zapitConfigPath = "";
+            _enabled = false;
+            _zapitConditionsPath = "";
             _laserDurationSeconds = 1.5D;
             _noLaserOnRepeats = true;
         }
     
         protected OptogeneticsSettings(OptogeneticsSettings other)
         {
-            _useZapit = other._useZapit;
-            _zapitConfigPath = other._zapitConfigPath;
+            _enabled = other._enabled;
+            _zapitConditionsPath = other._zapitConditionsPath;
             _laserPowerMw = other._laserPowerMw;
             _laserOnProbability = other._laserOnProbability;
             _laserToStimulusSeconds = other._laserToStimulusSeconds;
@@ -388,43 +388,40 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Whether Zapit runs this experiment: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go
+        /// Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("useZapit")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="useZapit")]
-        [System.ComponentModel.DescriptionAttribute("Whether Zapit runs this experiment: every trial sends it a condition from the con" +
-            "ditions file (laser off at 0 mW on laser-off trials: the galvos move and the mas" +
-            "king light shows), and the launching app checks Zapit is answering before Go")]
-        public bool UseZapit
+        [Newtonsoft.Json.JsonPropertyAttribute("enabled")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="enabled")]
+        [System.ComponentModel.DescriptionAttribute(@"Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go")]
+        public bool Enabled
         {
             get
             {
-                return _useZapit;
+                return _enabled;
             }
             set
             {
-                _useZapit = value;
+                _enabled = value;
             }
         }
     
         /// <summary>
-        /// Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. Named ...ConfigPath so the launching app keeps a copy beside the task file at Go
+        /// Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. The launching app keeps a copy beside the task file at Go
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("zapitConfigPath")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitConfigPath")]
+        [Newtonsoft.Json.JsonPropertyAttribute("zapitConditionsPath")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitConditionsPath")]
         [System.ComponentModel.DescriptionAttribute("Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01," +
             " stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. " +
-            "Named ...ConfigPath so the launching app keeps a copy beside the task file at Go" +
-            "")]
-        public string ZapitConfigPath
+            "The launching app keeps a copy beside the task file at Go")]
+        public string ZapitConditionsPath
         {
             get
             {
-                return _zapitConfigPath;
+                return _zapitConditionsPath;
             }
             set
             {
-                _zapitConfigPath = value;
+                _zapitConditionsPath = value;
             }
         }
     
@@ -551,8 +548,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("UseZapit = " + _useZapit + ", ");
-            stringBuilder.Append("ZapitConfigPath = " + _zapitConfigPath + ", ");
+            stringBuilder.Append("Enabled = " + _enabled + ", ");
+            stringBuilder.Append("ZapitConditionsPath = " + _zapitConditionsPath + ", ");
             stringBuilder.Append("LaserPowerMw = " + _laserPowerMw + ", ");
             stringBuilder.Append("LaserOnProbability = " + _laserOnProbability + ", ");
             stringBuilder.Append("LaserToStimulusSeconds = " + _laserToStimulusSeconds + ", ");
@@ -2224,7 +2221,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private VisualStimulus _visualStimulus;
     
-        private AudioStimulus _audioStimulus;
+        private AuditoryStimulus _auditoryStimulus;
     
         private ResponseSettings _response;
     
@@ -2247,7 +2244,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _trialWeights = new TrialTypeWeights();
             _trialStructure = new TrialStructure();
             _visualStimulus = new VisualStimulus();
-            _audioStimulus = new AudioStimulus();
+            _auditoryStimulus = new AuditoryStimulus();
             _response = new ResponseSettings();
             _backgroundNoise = new BackgroundNoise();
             _penalty = new Penalty();
@@ -2266,7 +2263,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _trialWeights = other._trialWeights;
             _trialStructure = other._trialStructure;
             _visualStimulus = other._visualStimulus;
-            _audioStimulus = other._audioStimulus;
+            _auditoryStimulus = other._auditoryStimulus;
             _response = other._response;
             _backgroundNoise = other._backgroundNoise;
             _penalty = other._penalty;
@@ -2411,18 +2408,18 @@ namespace UclOpenCoenDomeDecisionMakingTask
         /// Auditory stimulus parameters
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("audioStimulus", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audioStimulus")]
+        [Newtonsoft.Json.JsonPropertyAttribute("auditoryStimulus", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditoryStimulus")]
         [System.ComponentModel.DescriptionAttribute("Auditory stimulus parameters")]
-        public AudioStimulus AudioStimulus
+        public AuditoryStimulus AuditoryStimulus
         {
             get
             {
-                return _audioStimulus;
+                return _auditoryStimulus;
             }
             set
             {
-                _audioStimulus = value;
+                _auditoryStimulus = value;
             }
         }
     
@@ -2581,7 +2578,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("TrialWeights = " + _trialWeights + ", ");
             stringBuilder.Append("TrialStructure = " + _trialStructure + ", ");
             stringBuilder.Append("VisualStimulus = " + _visualStimulus + ", ");
-            stringBuilder.Append("AudioStimulus = " + _audioStimulus + ", ");
+            stringBuilder.Append("AuditoryStimulus = " + _auditoryStimulus + ", ");
             stringBuilder.Append("Response = " + _response + ", ");
             stringBuilder.Append("BackgroundNoise = " + _backgroundNoise + ", ");
             stringBuilder.Append("Penalty = " + _penalty + ", ");
@@ -2914,9 +2911,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<UclOpenCoenDomeDecisionMakingTaskLogic>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<AudioStimulus> source)
+        public System.IObservable<string> Process(System.IObservable<AuditoryStimulus> source)
         {
-            return Process<AudioStimulus>(source);
+            return Process<AuditoryStimulus>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<BackgroundNoise> source)
@@ -2999,7 +2996,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.ComponentModel.DefaultPropertyAttribute("Type")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Transform)]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioStimulus>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AuditoryStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BackgroundNoise>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Penalty>))]
@@ -3068,9 +3065,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<UclOpenCoenDomeDecisionMakingTaskLogic>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<AudioStimulus> source)
+        public System.IObservable<string> Process(System.IObservable<AuditoryStimulus> source)
         {
-            return Process<AudioStimulus>(source);
+            return Process<AuditoryStimulus>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<BackgroundNoise> source)
@@ -3153,7 +3150,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.ComponentModel.DefaultPropertyAttribute("Type")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Transform)]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AudioStimulus>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AuditoryStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BackgroundNoise>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Penalty>))]

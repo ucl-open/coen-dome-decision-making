@@ -233,7 +233,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="rx:AsyncSubject">
-                    <Name>GratingTrial</Name>
+                    <Name>VisualTrial</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>DrawStimuli</Name>
@@ -304,7 +304,7 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>GratingTrial</Name>
+                    <Name>VisualTrial</Name>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -403,7 +403,7 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>GratingTrial</Name>
+                    <Name>VisualTrial</Name>
                   </Expression>
                   <Expression xsi:type="MemberSelector">
                     <Selector>visualAzimuthDeg</Selector>
@@ -458,7 +458,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound (and TaskLogic's penalty sound) at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's audioStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound (and TaskLogic's penalty sound) at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's auditoryStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -485,7 +485,7 @@
               <Name>TaskConfig</Name>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>TaskParameters.AudioStimulus.LevelDbfs</Selector>
+              <Selector>TaskParameters.AuditoryStimulus.LevelDbfs</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Zip" />
@@ -500,7 +500,7 @@
               <Name>AuditoryStimulus</Name>
             </Expression>
             <Expression xsi:type="rx:Condition">
-              <Name>AudioEnabled?</Name>
+              <Name>AuditoryTrial?</Name>
               <Description>The discriminations' visual and neutral trials play no sound.</Description>
               <Workflow>
                 <Nodes>
@@ -520,7 +520,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>PlayAuditoryStimulus</Name>
-              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location), at the task's audioStimulus.levelDbfs, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
+              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location), at the task's auditoryStimulus.levelDbfs, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -532,7 +532,7 @@
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="rx:AsyncSubject">
-                    <Name>SoundTrial</Name>
+                    <Name>AuditoryTrial</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:Zip" />
@@ -541,7 +541,7 @@
                     <Name>LevelledStimulusSet</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>SoundTrial</Name>
+                    <Name>AuditoryTrial</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="ext:SelectAuditoryStimulus" />
@@ -606,7 +606,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Status</Name>
-        <Description>The current trial's facts as metrics, named as BonsaiData_Trial's columns (trialNumber, target, trialType, visualAzimuthDeg, audioAzimuthDeg, rewardOfferedUl, laserCondition; the trainingStage is TrainingStage's); rig-control computes counts, water and performance from the files.</Description>
+        <Description>The current trial's facts as metrics, named as BonsaiData_Trial's columns (trialNumber, target, trialType, visualAzimuthDeg, auditoryAzimuthDeg, rewardOfferedUl, laserCondition; the trainingStage is TrainingStage's); rig-control computes counts, water and performance from the files.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -645,11 +645,11 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>audioAzimuthDeg</Selector>
+              <Selector>auditoryAzimuthDeg</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="orcl:ReportMetric">
-                <orcl:Name>audioAzimuthDeg</orcl:Name>
+                <orcl:Name>auditoryAzimuthDeg</orcl:Name>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
@@ -774,7 +774,7 @@
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>Optogenetics?</Name>
-              <Description>An optogenetics experiment: the rules have a laser (optogenetics.useZapit).</Description>
+              <Description>An optogenetics experiment: the rules have a laser (optogenetics.enabled).</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -1013,14 +1013,14 @@
               <Name>RewardRequests</Name>
             </Expression>
             <Expression xsi:type="rx:Condition">
-              <Name>MoveSpouts?</Name>
+              <Name>SpoutMovementsAtOutcome?</Name>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>MoveSpouts</scr:Expression>
+                    <scr:Expression>SpoutMovements</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>

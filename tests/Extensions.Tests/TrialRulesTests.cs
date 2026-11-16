@@ -104,7 +104,7 @@ static class Rules
 
     public static void Optogenetics(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
-        task.Optogenetics.UseZapit = true;
+        task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
         task.Optogenetics.LaserDurationSeconds = 0.8;
         task.Optogenetics.TrialsBeforeLaser = 0;
@@ -213,8 +213,8 @@ public class ResponseRuleTests
         var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 3, looped.Count, t => "NoResponse");
         Assert.IsTrue(looped.Count >= 20);
         CollectionAssert.AreEqual(drawn.Select(t => t.visualPhaseRad).ToList(), looped.Select(t => t.visualPhaseRad).ToList());
-        CollectionAssert.AreEqual(drawn.Select(t => t.trialType + t.target + t.itiSeconds + t.audioWaveformIndex).ToList(),
-                                  looped.Select(t => t.trialType + t.target + t.itiSeconds + t.audioWaveformIndex).ToList());
+        CollectionAssert.AreEqual(drawn.Select(t => t.trialType + t.target + t.itiSeconds + t.auditoryWaveformIndex).ToList(),
+                                  looped.Select(t => t.trialType + t.target + t.itiSeconds + t.auditoryWaveformIndex).ToList());
     }
 
     [TestMethod]
@@ -360,7 +360,7 @@ public class CueTests
         var run = new Harness(Rules.Make(stage: 0)).RunTo(25);
         Assert.IsTrue(run.Outcomes.Count >= 2);
         Assert.IsFalse(run.Of(TrialEventKind.Cue).Any(e => e.Cue == TrialRules.DrinkCue));
-        Assert.IsTrue(run.Outcomes.All(o => !o.MoveSpouts));
+        Assert.IsTrue(run.Outcomes.All(o => !o.SpoutMovements));
     }
 }
 
@@ -591,7 +591,7 @@ public class ConsequenceTests
     {
         var c = Of("Right", false, true);
         Assert.IsTrue(c.Rewarded && c.Reward.Item1 == "right" && c.Reward.Item2 == 3 && c.SpoutCommand == LickSpoutCommand.RightIn);
-        Assert.IsTrue(c.MoveSpouts && !c.PenaltySound && c.PenaltyTimeoutSeconds == 0);
+        Assert.IsTrue(c.SpoutMovements && !c.PenaltySound && c.PenaltyTimeoutSeconds == 0);
     }
 
     [TestMethod]
@@ -602,7 +602,7 @@ public class ConsequenceTests
         var miss = Of("NoResponse", false, true);  // the sound comes with every timeout (Pip, 14 Nov 2026)
         Assert.IsTrue(!miss.Rewarded && miss.PenaltySound && miss.PenaltyTimeoutSeconds == 4);
         var auto = Of("NoResponse", true, false);
-        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.PenaltyTimeoutSeconds == 0 && !auto.PenaltySound && !auto.MoveSpouts);
+        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.PenaltyTimeoutSeconds == 0 && !auto.PenaltySound && !auto.SpoutMovements);
         Assert.IsTrue(!c.Row.Value.rewarded && c.Row.Value.penalised && c.Row.Value.rewardOfferedUl == 3, "an error: offered, penalised");
         Assert.IsTrue(!miss.Row.Value.rewarded && miss.Row.Value.penalised && miss.Row.Value.rewardOfferedUl == 3, "a miss keeps the offer");
         Assert.IsTrue(auto.Row.Value.rewarded && !auto.Row.Value.penalised);

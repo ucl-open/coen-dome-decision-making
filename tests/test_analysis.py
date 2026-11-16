@@ -1,5 +1,5 @@
 """analysis/modules/loading_functions.py: which sessions are this workflow's, what new-draw accuracy counts, and the
-trial weights a session ran with (round 3 F2, F3, F19)."""
+trial weights a session ran with."""
 
 import json
 import sys
@@ -28,7 +28,7 @@ def session(root: Path, name: str, repo: str, task_type: str | None = "localizat
 
 
 def test_switch_over_sessions_count_and_production_av_dome_and_lookalikes_do_not(tmp_path):
-    # F3: the README counts av-dome's switch-over branch; a substring match missed it and matched a lookalike repo.
+    # The README counts av-dome's switch-over branch; a substring match missed it and matched a lookalike repo.
     ours = session(tmp_path, "ses-001_a", "https://github.com/Coen-Lab/coen-dome-decision-making.git")
     switch = session(tmp_path, "ses-002_b", "https://github.com/ucl-open/av-dome")
     session(tmp_path, "ses-003_c", "https://github.com/ucl-open/av-dome", task_type=None)   # production av-dome
@@ -37,7 +37,7 @@ def test_switch_over_sessions_count_and_production_av_dome_and_lookalikes_do_not
 
 
 def test_trial_weights_read_the_session_s_stage(tmp_path):
-    # F19: the stage is the session's own TrainingStage (Settings_Experiment), its own weights replacing the task's.
+    # The stage is the session's own TrainingStage (Settings_Experiment), its own weights replacing the task's.
     assert lf.trial_weights(session(tmp_path, "ses-001_a", "av-dome", stage=0)) == {"visual": 9}
     assert lf.trial_weights(session(tmp_path, "ses-002_b", "av-dome", stage=1)) == WEIGHTS
 
@@ -48,7 +48,7 @@ def test_new_draw_accuracy_counts_choices_on_new_draws_only():
 
 
 def test_the_notebook_names_new_draw_accuracy_and_uses_every_import():
-    # F2: "performance" is lib-open-rigs' (summarise-experiment); F19: trial_weights was imported only for a comment.
+    # "performance" is lib-open-rigs' (summarise-experiment); trial_weights was imported only for a comment.
     cells = json.loads((ANALYSIS / "analysis.ipynb").read_text(encoding="utf-8"))["cells"]
     code = ["".join(c["source"]) for c in cells if c["cell_type"] == "code"]
     assert not hasattr(lf, "performance") and not any(".performance" in c for c in code)

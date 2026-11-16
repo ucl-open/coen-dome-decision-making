@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from ucl_open_coen_dome_decision_making.task import (
     RULE_KEYS,
     TRIAL_KEYS,
-    AudioStimulus,
+    AuditoryStimulus,
     TaskType,
     UclOpenCoenDomeDecisionMakingTaskLogic,
     UclOpenCoenDomeDecisionMakingTaskParameters,
@@ -31,7 +31,7 @@ def test_committed_task_files_validate(path):
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
 def test_committed_task_files_start_with_the_laser_off(path):
     # The laser is off unless the experimenter turns it on (Pip, 16 Nov 2026).
-    assert yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]["useZapit"] is False
+    assert yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]["enabled"] is False
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
@@ -71,7 +71,7 @@ def test_overwrite_azimuths_rejects_out_of_range():
 
 def test_speaker_locations_reject_a_centre_entry():
     with pytest.raises(ValidationError, match="azimuth-0"):
-        AudioStimulus(
+        AuditoryStimulus(
             speakerLocations=[
                 {"azimuth": -60, "elevation": 15},
                 {"azimuth": 0, "elevation": 15},
@@ -134,7 +134,7 @@ def test_go_no_go_refuses_both_spouts():
 
 @pytest.mark.parametrize("name", ["task-localization.yml", "task-discrimination-left-right.yml"])
 def test_a_stage_without_spout_movements_needs_both_spouts(name):
-    # Round 3 F14: the SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
+    # The SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
     data["trainingStages"][0].update(spoutMovements=False, bothSpoutsProbability=0.5)
     with pytest.raises(ValidationError, match="both_spouts_probability must be 1 with spout_movements false"):
@@ -142,7 +142,7 @@ def test_a_stage_without_spout_movements_needs_both_spouts(name):
 
 
 def test_no_text_says_a_probe_s_side_is_drawn_at_random():
-    # Round 3 F4/F5: a two-modality or neutral trial is a probe (target NoReward or Random, a coin on a Random trial's choice),
+    # A two-modality or neutral trial is a probe (target NoReward or Random, a coin on a Random trial's choice),
     # never a trial whose side is drawn at random; and a Random probe's tails is penalised.
     stale = ("drawn at random, left or right", "side drawn at random", "a probe never does", "`rewardSizeUl` 0 where", "`rewardSizeUl` above 0", "gain stays 20")
     for path in [SCHEMA, CONFIG.parent / "BACKLOG.md", CONFIG.parent / "README.md", *TASK_FILES]:
@@ -175,13 +175,13 @@ def test_rig_control_keeps_the_zapit_file(path):
     # rig-control copies a task field ending in ConfigPath beside the task file at Go (taskfile.keep_files):
     # a field not ending so is not kept.
     opto = yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]
-    assert [k for k in opto if k.endswith("Path")] == ["zapitConfigPath"]
+    assert [k for k in opto if k.endswith("Path")] == ["zapitConditionsPath"]
 
 
 def test_laser_power_is_required_with_optogenetics_on():
     # Pip, 10 Nov 2026: this workflow sends and logs laserPowerMw as coen-dome-navigation does, required when on.
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    on = {**data["optogenetics"], "useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml", "laserDurationSeconds": 0.8}
+    on = {**data["optogenetics"], "enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserDurationSeconds": 0.8}
     with pytest.raises(ValidationError, match="laser_power_mw is not set"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     with pytest.raises(ValidationError):
@@ -191,15 +191,15 @@ def test_laser_power_is_required_with_optogenetics_on():
     import json
     schema = json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8"))
     rule = schema["$defs"]["OptogeneticsSettings"]
-    assert rule["if"]["properties"]["useZapit"] == {"const": True} and rule["then"]["required"] == ["laserPowerMw"]
+    assert rule["if"]["properties"]["enabled"] == {"const": True} and rule["then"]["required"] == ["laserPowerMw"]
 
 
 def test_zapit_needs_its_file_in_the_model_and_the_schema():
-    # An empty zapitConfigPath with Zapit ticked must fail rig-control's schema check, not stop the experiment at its
+    # An empty zapitConditionsPath with Zapit ticked must fail rig-control's schema check, not stop the experiment at its
     # first trial; the form says to set it first, and coen-dome-navigation's schema refuses it too.
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    on = {**data["optogenetics"], "useZapit": True, "laserPowerMw": 2.0, "zapitConfigPath": ""}
-    with pytest.raises(ValidationError, match="zapit_config_path is empty"):
+    on = {**data["optogenetics"], "enabled": True, "laserPowerMw": 2.0, "zapitConditionsPath": ""}
+    with pytest.raises(ValidationError, match="zapit_conditions_path is empty"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     jsonschema = pytest.importorskip("jsonschema")
     import json
@@ -207,9 +207,9 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     task = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())
     task["taskParameters"]["optogenetics"] = on
     assert not jsonschema.Draft202012Validator(schema).is_valid(task)
-    task["taskParameters"]["optogenetics"] = {**on, "zapitConfigPath": "C:\\zapit\\conditions.yml"}
+    task["taskParameters"]["optogenetics"] = {**on, "zapitConditionsPath": "C:\\zapit\\conditions.yml"}
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
-    task["taskParameters"]["optogenetics"] = {**on, "useZapit": False}
+    task["taskParameters"]["optogenetics"] = {**on, "enabled": False}
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
 
 
@@ -235,11 +235,11 @@ def test_a_lead_outside_them_is_refused(lead, words):
 
 def test_a_laser_that_would_delay_the_next_arm_is_refused():
     # TrialDraw.LongestLaserSeconds' rule: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s margin = 0.8 s.
-    on = {"useZapit": True, "zapitConfigPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
+    on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
     _with(opto={**on, "laserDurationSeconds": 0.8})
     with pytest.raises(ValidationError, match="laser_duration_seconds"):
         _with(opto={**on, "laserDurationSeconds": 0.81})
-    _with(opto={**on, "useZapit": False, "laserDurationSeconds": 2.5})
+    _with(opto={**on, "enabled": False, "laserDurationSeconds": 2.5})
 
 
 @pytest.mark.parametrize(
@@ -446,7 +446,7 @@ def test_training_stage_s_maximum_is_the_task_file_s_last_row(path):
 @pytest.mark.parametrize("where, key, value", [
     (("response",), "thresholdLicks", 0), (("repeats",), "maxRepeats", -1), (("trainingStages", 0), "rewardSizeUl", 0)])
 def test_the_bounds_hold_with_the_lab_s_types(where, key, value):
-    # Round 3 F17: open_rigs' Int carried its own range, which dropped thresholdLicks' ge=1 and maxRepeats' ge=0; a reward
+    # Open_rigs' Int carried its own range, which dropped thresholdLicks' ge=1 and maxRepeats' ge=0; a reward
     # is above 0, as navigation's.
     data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
     block = data

@@ -11,7 +11,7 @@
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
 # unit (itiSeconds, rewardOfferedUl); never a stored latency.
 #
-# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the opto and quietWait blocks (Pip, 14 Nov 2026):
+# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the optogenetics and quietWait blocks (Pip, 14 Nov 2026):
 # coen-dome-decision-making and coen-dome-navigation list them in this order with these types, units and
 # descriptions, word for word (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
 # trialType and outcome are described per task, and which trials are rewarded and penalised in those columns' notes. This task's own columns follow.
@@ -135,14 +135,17 @@ visualPhaseRad:
   type: double
   unit: rad
   description: Grating phase.
-audioAzimuthDeg:
+auditoryAzimuthDeg:
   type: double
   unit: deg
   description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played.
-audioElevationDeg:
+  history: audioAzimuthDeg until 16 Nov 2026, the same value.
+auditoryElevationDeg:
   type: double
   unit: deg
   description: Elevation of the speaker that played; NaN when none played.
-audioWaveformIndex:
+  history: audioElevationDeg until 16 Nov 2026, the same value.
+auditoryWaveformIndex:
   type: int
   description: Index into the auditory stimulus set (src\LocalFiles\AuditoryStimuli\filtered_pink_pulse_train_<index>.wav).
+  history: audioWaveformIndex until 16 Nov 2026, the same value.

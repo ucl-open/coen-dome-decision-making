@@ -47,7 +47,7 @@ public class AuditoryStimulusSet
     }
 
     /// <summary>
-    /// The set at the task's level (audioStimulus.levelDbfs): each waveform's gain from its unequalised self, every
+    /// The set at the task's level (auditoryStimulus.levelDbfs): each waveform's gain from its unequalised self, every
     /// equalised copy's peak checked against the lab's -1 dBFS, so a level too loud stops the workflow when the task file
     /// is read, naming the waveform and the speaker, not at the trial that plays it.
     /// </summary>
@@ -62,7 +62,7 @@ public class AuditoryStimulusSet
                 {
                     CV.ConvertScale(equalised[speaker.Channel][i], played, levelled.gains[i], 0);
                     SoundLevel.CheckPeak(played, "Auditory stimulus " + i + " on speaker '" + speaker.Name + "' at " +
-                        levelDbfs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " dBFS RMS (audioStimulus.levelDbfs)");
+                        levelDbfs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " dBFS RMS (auditoryStimulus.levelDbfs)");
                 }
             }
         }
@@ -162,7 +162,7 @@ public class LoadAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The auditory stimulus set at the task's level (audioStimulus.levelDbfs, in dBFS RMS): stops the workflow, naming the waveform and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the level.")]
+[Description("The auditory stimulus set at the task's level (auditoryStimulus.levelDbfs, in dBFS RMS): stops the workflow, naming the waveform and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the level.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LevelAuditoryStimulusSet
 {
@@ -173,12 +173,12 @@ public class LevelAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's audioWaveformIndex, equalised for its speaker, on that speaker's channel, at the set's level, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the set at its level (LevelAuditoryStimulusSet) and the trial.")]
+[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditoryWaveformIndex, equalised for its speaker, on that speaker's channel, at the set's level, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the set at its level (LevelAuditoryStimulusSet) and the trial.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {
     public IObservable<Mat> Process(IObservable<Tuple<AuditoryStimulusSet, Trial>> source)
     {
-        return source.Select(input => input.Item1.Buffer(input.Item2.audioWaveformIndex, input.Item2.speakerChannel));
+        return source.Select(input => input.Item1.Buffer(input.Item2.auditoryWaveformIndex, input.Item2.speakerChannel));
     }
 }

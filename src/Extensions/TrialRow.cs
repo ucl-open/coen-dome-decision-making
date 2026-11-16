@@ -4,7 +4,7 @@ using OpenRigs.Devices;
 // (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
 // means, lists it; the order is the file's. The row travels Timestamped at its outcome, which the
 // lab's CsvWriter writes first as harpTime. The columns up to laserTriggerTime are the lab's
-// shared block (its core, opto and quietWait), in coen-dome-navigation's order and words (Pip, 14 Nov 2026); this task's own follow.
+// shared block (its core, optogenetics and quietWait), in coen-dome-navigation's order and words (Pip, 14 Nov 2026); this task's own follow.
 public class TrialRow
 {
     public int trialNumber;
@@ -33,9 +33,9 @@ public class TrialRow
     public double visualElevationDeg;
     public double visualContrast;
     public double visualPhaseRad;
-    public double audioAzimuthDeg;
-    public double audioElevationDeg;
-    public int audioWaveformIndex;
+    public double auditoryAzimuthDeg;
+    public double auditoryElevationDeg;
+    public int auditoryWaveformIndex;
 
     // Left or Right against the target; in discriminationGoNoGo, Lick or NoResponse against Go or NoGo (a withheld
     // NoGo is Correct), and a probe's outcome is Probe whatever the choice.
@@ -99,9 +99,9 @@ public class TrialRow
             visualElevationDeg = trial.visualElevationDeg,
             visualContrast = trial.visualContrast,
             visualPhaseRad = trial.visualPhaseRad,
-            audioAzimuthDeg = trial.audioAzimuthDeg,
-            audioElevationDeg = trial.audioElevationDeg,
-            audioWaveformIndex = trial.audioWaveformIndex,
+            auditoryAzimuthDeg = trial.auditoryAzimuthDeg,
+            auditoryElevationDeg = trial.auditoryElevationDeg,
+            auditoryWaveformIndex = trial.auditoryWaveformIndex,
         };
         return SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised, timeoutSeconds, penaltySound);
     }

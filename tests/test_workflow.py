@@ -15,9 +15,6 @@ W = "{https://bonsai-rx.org/2018/workflow}"
 XSI = "{http://www.w3.org/2001/XMLSchema-instance}type"
 TEXT = (ROOT / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
 MAIN = ET.fromstring(TEXT.encode("utf-8"))
-FINITE = ("rx:Take", "rx:TakeLast", "rx:First", "rx:Last")
-WALL_CLOCK = ("rx:Timer", "rx:Delay", "rx:DelaySubscription", "rx:Throttle", "rx:Timeout", "rx:Interval", "rx:TimeInterval",
-              "rx:Timestamp", "gl:Timer", "gl:Delay", "TimeOfDay")
 
 
 def _kind(node):
@@ -118,7 +115,7 @@ def test_each_trial_event_reaches_its_hardware():
     assert _reached("Update") == {"GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"VisualStimulusOff"}
     assert _reached("Cue", "SpoutsIn") == _reached("Cue", "Drink") == {"LickSpoutStage.Commands"}
-    # Round 3 F13: the cue's command is SpoutsInCommand, apart from the cue and lib's LickSpoutCommand.SpoutsIn.
+    # The cue's command is SpoutsInCommand, apart from the cue and lib's LickSpoutCommand.SpoutsIn.
     assert TEXT.count('"ext:SpoutsInCommand"') == 1 and '"ext:SpoutsIn"' not in TEXT
     assert _reached("Outcome") == {"TrialRow", "RewardRequests", "LickSpoutStage.Commands", "PlayPenaltySound.bonsai"}
     assert _reached("Trigger") == {"BehaviorBoard.SetZapitTriggerLine.bonsai Set=true"}
@@ -199,7 +196,7 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
 
 def test_the_metrics_are_the_view_s():
     names = {c.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") for c in MAIN.iter(W + "Combinator") if c.get(XSI) == "orcl:ReportMetric"}
-    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "audioAzimuthDeg", "rewardOfferedUl", "laserCondition"}
+    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition"}
     # trainingStage is OpenRigs.Control's TrainingStage's (16 Nov 2026).
     assert lint.training_stage_problems(WORKFLOW) == []
 
@@ -243,7 +240,7 @@ def test_every_sound_plays_at_the_task_file_s_level():
     assert lint.sound_level_problems(WORKFLOW) == []
     nodes, edges = _scope(_named("Audio"))
     level = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:LevelAuditoryStimulusSet")
-    assert any(nodes[a].findtext(W + "Selector") == "TaskParameters.AudioStimulus.LevelDbfs" for a in _upstream(edges, level))
+    assert any(nodes[a].findtext(W + "Selector") == "TaskParameters.AuditoryStimulus.LevelDbfs" for a in _upstream(edges, level))
 
 
 def test_the_background_noise_is_the_shared_include():
@@ -349,7 +346,7 @@ def test_each_trial_s_sound_carries_its_sync_copy():
 
 
 def test_the_extensions_readme_names_every_public_class():
-    # Round 3 F18: the README had fallen behind the code (classes left out, the lick inputs misdescribed).
+    # The README had fallen behind the code (classes left out, the lick inputs misdescribed).
     import re
 
     folder = Path(__file__).parents[1] / "src" / "Extensions"

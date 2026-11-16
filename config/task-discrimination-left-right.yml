@@ -33,7 +33,7 @@ taskParameters:
     orientationDeg: 0         # deg
     spatialFrequencyCpd: 0.066666667   # cycles/deg
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
-  audioStimulus:
+  auditoryStimulus:
     levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
     speakerLocations:      # lateral positions, one drawn per audio trial; no centre entry (fixed in code); playback uses the nearest wired speaker
       - { azimuth: -60, elevation: 15 }
@@ -56,11 +56,11 @@ taskParameters:
     maxRepeats: 5
     rulesPerType: { left: onFailure, right: onFailure }   # only a trial with a right answer repeats: two-modality and neutral trials (random-reward probes) never do
   optogenetics:
-    useZapit: false
-    zapitConfigPath: ""
+    enabled: false
+    zapitConditionsPath: ""
     laserPowerMw: null             # mW on laser-on trials, every condition; required with optogenetics on
     laserOnProbability: 0.5
-    laserDurationSeconds: 2.5      # s; with optogenetics on at most responseDelaySeconds + itiMinSeconds - 0.7 (0.8 here), so ticking useZapit is refused until this is shortened
+    laserDurationSeconds: 2.5      # s; with optogenetics on at most responseDelaySeconds + itiMinSeconds - 0.7 (0.8 here), so ticking optogenetics.enabled is refused until this is shortened
     laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     noLaserOnRepeats: true
     trialsBeforeLaser: 20

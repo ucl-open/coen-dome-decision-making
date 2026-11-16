@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import Literal
 
 from open_rigs.components import SphericalPosition
-# Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt (round 3 F17).
+# Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt.
 from open_rigs.core.base import Bool, Double, String
 from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskBlock, TaskParameters
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
@@ -87,7 +87,7 @@ class VisualStimulus(TaskBlock):
         return self
 
 
-class AudioStimulus(StimulusSound):
+class AuditoryStimulus(StimulusSound):
     """Auditory stimulus parameters common to all trials: every waveform of the set (src/LocalFiles/AuditoryStimuli)
     plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound)."""
 
@@ -275,7 +275,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     )
     trial_structure: TrialStructure = Field(description="Timing of each trial")
     visual_stimulus: VisualStimulus = Field(description="Grating stimulus parameters")
-    audio_stimulus: AudioStimulus = Field(description="Auditory stimulus parameters")
+    auditory_stimulus: AuditoryStimulus = Field(description="Auditory stimulus parameters")
     response: ResponseSettings = Field(description="Lick-accumulation response rule")
     background_noise: BackgroundNoise = Field(
         default=BackgroundNoise(), description="The lab's background white noise (rig.yml's speakerArray.backgroundNoise) on every speaker, from Ready at the level of the task file as launched (open_rigs.core.task BackgroundNoise)"
