@@ -170,7 +170,7 @@ public class ResponseRuleTests
         var row = run.Row();
         Assert.IsTrue(row.choice == "NoResponse" && row.outcome == "NoResponse" && row.outcomeTime == 14.0);
         Assert.IsTrue(row.penaltySound && row.penaltyTimeoutSeconds == 4, "a miss: the sound and the timeout");
-        Assert.AreEqual(18.0, run.Of(TrialEventKind.Interval)[1].Seconds, 1e-9, "the next interval at the outcome plus the timeout");
+        Assert.AreEqual(18.0, run.Of(TrialEventKind.Iti)[1].Seconds, 1e-9, "the next interval at the outcome plus the timeout");
     }
 
     [TestMethod]
@@ -239,15 +239,15 @@ public class ResponseRuleTests
         Assert.AreEqual(Tuple.Create("left", 3.0), hit.Reward);
         Assert.AreEqual(LickSpoutCommand.LeftIn, hit.SpoutCommand);
         var miss = score(Answer.Go, "NoResponse");
-        Assert.IsTrue(miss.Row.Value.outcome == "NoResponse" && !miss.Rewarded && miss.TimeoutSeconds == 0 && !miss.PenaltySound);
+        Assert.IsTrue(miss.Row.Value.outcome == "NoResponse" && !miss.Rewarded && miss.PenaltyTimeoutSeconds == 0 && !miss.PenaltySound);
         var falseAlarm = score(Answer.NoGo, Choice.Lick);
-        Assert.IsTrue(falseAlarm.Row.Value.outcome == "Incorrect" && !falseAlarm.Rewarded && falseAlarm.TimeoutSeconds == 4 && falseAlarm.PenaltySound);
+        Assert.IsTrue(falseAlarm.Row.Value.outcome == "Incorrect" && !falseAlarm.Rewarded && falseAlarm.PenaltyTimeoutSeconds == 4 && falseAlarm.PenaltySound);
         var rejection = score(Answer.NoGo, "NoResponse");
-        Assert.IsTrue(rejection.Row.Value.outcome == "Correct" && !rejection.Rewarded && rejection.TimeoutSeconds == 0 && rejection.Reward == null);
+        Assert.IsTrue(rejection.Row.Value.outcome == "Correct" && !rejection.Rewarded && rejection.PenaltyTimeoutSeconds == 0 && rejection.Reward == null);
         foreach (var choice in new[] { Choice.Lick, "NoResponse" })
         {
             var probe = score(Answer.Probe, choice);
-            Assert.IsTrue(probe.Row.Value.outcome == Answer.Probe && !probe.Rewarded && probe.TimeoutSeconds == 0 && !probe.PenaltySound, choice);
+            Assert.IsTrue(probe.Row.Value.outcome == Answer.Probe && !probe.Rewarded && probe.PenaltyTimeoutSeconds == 0 && !probe.PenaltySound, choice);
         }
     }
 
@@ -269,7 +269,7 @@ public class ResponseRuleTests
 public class CueTests
 {
     [TestMethod]
-    public void TheGratingOffAndSpoutsInComeFromTheStimulusAndTheDrinkFromTheNextInterval()
+    public void TheGratingOffComesFromTheStimulusTheDrinkFromTheNextItiAndSpoutsInIsDroppedAtTheOutcome()
     {
         // stimulusSeconds 1.5, stimulusToSpoutsInSeconds 0.5, drinkSeconds 1.5; a correct lick at 12.2 s, no timeout.
         var run = new Harness(Rules.Make());
@@ -277,14 +277,26 @@ public class CueTests
         var right = run.Spout(true);
         run.At(12.2, h => h.Lick(right)).RunTo(16);
         var cues = run.Of(TrialEventKind.Cue).Where(e => e.Trial.trialNumber == 1).ToDictionary(e => e.Cue, e => e.Seconds);
-        Assert.AreEqual(12.5, cues[TrialRules.SpoutsInCue], 1e-12);
+        Assert.IsFalse(cues.ContainsKey(TrialRules.SpoutsInCue), "the outcome came at 12.2 s, before its 12.5 s: dropped, so the spouts are not sent in after the answer");
         Assert.AreEqual(13.5, cues[TrialRules.GratingOffCue], 1e-12, "after the outcome: the grating stays its stimulusSeconds");
         Assert.AreEqual(13.7, cues[TrialRules.DrinkCue], 1e-9, "drinkSeconds into the interval after the outcome");
         Assert.AreEqual(12.0, run.Of(TrialEventKind.Stimulus)[0].Seconds, 1e-12);
     }
 
     [TestMethod]
-    public void AfterATimeoutTheDrinkComesDrinkSecondsIntoTheNextInterval()
+    public void TheSpoutsInComesWhenTheOutcomeIsLaterThanItsMoment()
+    {
+        // The same cue, an outcome at 12.7 s: SpoutsIn was due at 12.5 s, before it.
+        var run = new Harness(Rules.Make());
+        run.RunTo(12.05);
+        var right = run.Spout(true);
+        run.At(12.7, h => h.Lick(right)).RunTo(16);
+        var cues = run.Of(TrialEventKind.Cue).Where(e => e.Trial.trialNumber == 1).ToDictionary(e => e.Cue, e => e.Seconds);
+        Assert.AreEqual(12.5, cues[TrialRules.SpoutsInCue], 1e-12);
+    }
+
+    [TestMethod]
+    public void AfterATimeoutTheDrinkComesDrinkSecondsIntoTheNextIti()
     {
         var run = new Harness(Rules.Make());
         run.RunTo(12.05);
@@ -471,7 +483,7 @@ public class TrialRowTests
 {
     static TrialTimes Times(double now)
     {
-        return new TrialTimes { IntervalStartTime = 50, IntervalSeconds = 3, QuietWaitSeconds = 0.2, TrialStartTime = 8.5, StimulusOnsetTime = 9, LaserTriggerTime = double.NaN, Now = now };
+        return new TrialTimes { ItiStartTime = 50, ItiSeconds = 3, QuietWaitSeconds = 0.2, TrialStartTime = 8.5, StimulusOnsetTime = 9, LaserTriggerTime = double.NaN, Now = now };
     }
 
     [TestMethod]
@@ -530,18 +542,18 @@ public class ConsequenceTests
     {
         var c = Of("Right", false, true);
         Assert.IsTrue(c.Rewarded && c.Reward.Item1 == "right" && c.Reward.Item2 == 3 && c.SpoutCommand == LickSpoutCommand.RightIn);
-        Assert.IsTrue(c.MoveSpouts && !c.PenaltySound && c.TimeoutSeconds == 0);
+        Assert.IsTrue(c.MoveSpouts && !c.PenaltySound && c.PenaltyTimeoutSeconds == 0);
     }
 
     [TestMethod]
     public void AnErrorDrawsBothSpoutsBackWithTheSoundAndTimeout()
     {
         var c = Of("Left", false, true);
-        Assert.IsTrue(!c.Rewarded && c.Reward == null && c.SpoutCommand == LickSpoutCommand.SpoutsOut && c.PenaltySound && c.TimeoutSeconds == 4);
+        Assert.IsTrue(!c.Rewarded && c.Reward == null && c.SpoutCommand == LickSpoutCommand.SpoutsOut && c.PenaltySound && c.PenaltyTimeoutSeconds == 4);
         var miss = Of("NoResponse", false, true);  // the sound comes with every timeout (Pip, 14 Nov 2026)
-        Assert.IsTrue(!miss.Rewarded && miss.PenaltySound && miss.TimeoutSeconds == 4);
+        Assert.IsTrue(!miss.Rewarded && miss.PenaltySound && miss.PenaltyTimeoutSeconds == 4);
         var auto = Of("NoResponse", true, false);
-        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.TimeoutSeconds == 0 && !auto.PenaltySound && !auto.MoveSpouts);
+        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.PenaltyTimeoutSeconds == 0 && !auto.PenaltySound && !auto.MoveSpouts);
     }
 
     [TestMethod]
@@ -576,7 +588,7 @@ public class CheckTaskAtGoTests
         var events = new List<Event>();
         new RunTrials().Process(rules, clock, new Subject<double>(), new Subject<bool>(), new Subject<bool>(), new Subject<ZapitReply>()).Subscribe(events.Add);
         for (int ms = 10000; ms <= 12000; ms++) clock.OnNext(ms / 1000.0);
-        CollectionAssert.AreEqual(new[] { TrialEventKind.Interval, TrialEventKind.Start, TrialEventKind.Stimulus, TrialEventKind.Update },
+        CollectionAssert.AreEqual(new[] { TrialEventKind.Iti, TrialEventKind.Start, TrialEventKind.Stimulus, TrialEventKind.Update },
                                   events.Select(e => e.Kind).Take(4).ToList());
     }
 }

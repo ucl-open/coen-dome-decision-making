@@ -259,7 +259,8 @@ def test_the_constants_are_the_c_sharp_s():
     assert "ZapitTrial.ReplyMarginSeconds" in logic and not re.search(r"const double \w*Margin", logic)
     task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
     # The ramp-down and reward caps are lib-open-rigs' too, each tied there to its C# value.
-    assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS" in task_py
+    assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS" in task_py
+    assert "check_zapit_free_in_time" in task_py
     assert "from open_rigs.rigs.lab_rig import MAX_REWARD_UL" in task_py
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task QuietWait in task.py,
     # OpenRigs.Core QuietWait.SettingsProblems at Go).

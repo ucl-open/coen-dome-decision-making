@@ -4,7 +4,7 @@ from typing import Literal
 from open_rigs.components import SphericalPosition
 from open_rigs.core.base import Bool, Double, Int, String
 from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskBlock, TaskParameters
-from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
+from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
 from open_rigs.rigs.lab_rig import MAX_REWARD_UL
 from pydantic import Field, field_validator, model_validator
 
@@ -252,14 +252,12 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
                 f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "
                 f"(response_delay_seconds + response_window_seconds, {s.response_delay_seconds + s.response_window_seconds:g} s)"
             )
-        # Trigger to the next trigger is at least response_delay + iti_min (a response at once, no timeout, a quiet mouse); the
-        # next arm waits for this laser and its ramp-down, and its reply needs the margin before that next trigger.
-        longest = s.response_delay_seconds + s.iti_min_seconds - ZAPIT_MAX_RAMP_DOWN_SECONDS - ZAPIT_REPLY_MARGIN_SECONDS
-        if opto.use_zapit and opto.laser_duration_seconds > longest + 1e-9:
-            raise ValueError(
-                f"optogenetics.laser_duration_seconds ({opto.laser_duration_seconds} s) must be at most {longest:g} s (response_delay_seconds + "
-                f"iti_min_seconds - {ZAPIT_MAX_RAMP_DOWN_SECONDS} s ramp-down - {ZAPIT_REPLY_MARGIN_SECONDS} s reply margin), so Zapit can be armed for the next trial in time"
-            )
+        opto.check_zapit_free_in_time(
+            s.iti_min_seconds,
+            laser_duration_seconds=opto.laser_duration_seconds,
+            ramp_down_seconds=ZAPIT_MAX_RAMP_DOWN_SECONDS,
+            response_delay_seconds=s.response_delay_seconds,
+        )
         return self
 
     @model_validator(mode="after")

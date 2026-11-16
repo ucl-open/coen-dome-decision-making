@@ -61,23 +61,13 @@ public class TrialRow
     {
         var outcome = Outcome(choice, trial);
         var penalised = Penalised(outcome, trial);
-        return new TrialRow
+        // The shared block (trial number, the loop's times, the penalty, the laser: 0 mW when answered before its trigger,
+        // Pip 13 Nov 2026; the sound comes with every timeout, Pip 14 Nov 2026) is lib-open-rigs' SharedTrialColumns.Fill.
+        var row = new TrialRow
         {
-            trialNumber = trial.trialNumber,
             trialType = trial.trialType,
             outcome = outcome,
-            itiStartTime = times.IntervalStartTime,
-            itiSeconds = times.IntervalSeconds,
-            quietWaitSeconds = times.QuietWaitSeconds,
-            trialStartTime = times.TrialStartTime,
-            stimulusOnsetTime = times.StimulusOnsetTime,
-            outcomeTime = times.Now,
             rewardSizeUl = trial.rewardSizeUl,
-            penaltySound = penalised && penaltySound,  // the sound comes with every timeout, as in coen-dome-navigation (Pip, 14 Nov 2026)
-            penaltyTimeoutSeconds = penalised ? timeoutSeconds : 0.0,
-            laserCondition = trial.laserCondition,
-            laserPowerMw = times.LaserFired ? trial.laserPowerMw : 0,  // answered before its trigger: no laser (Pip, 13 Nov 2026)
-            laserTriggerTime = times.LaserTriggerTime,
             target = trial.target,
             choice = choice,
             repeatCount = trial.repeatCount,
@@ -91,5 +81,6 @@ public class TrialRow
             audioElevationDeg = trial.audioElevationDeg,
             audioWaveformIndex = trial.audioWaveformIndex,
         };
+        return SharedTrialColumns.Fill(row, trial, times, penalised, timeoutSeconds, penaltySound);
     }
 }

@@ -14,7 +14,7 @@ using UclOpenCoenDomeDecisionMakingTask;
 /// <summary>One trial as drawn: its fields are named as the trial log's columns where they are one.</summary>
 public class Trial : IZapitTrial
 {
-    int IZapitTrial.TrialNumber { get { return trialNumber; } }
+    int ITrial.TrialNumber { get { return trialNumber; } }
     int IZapitTrial.LaserCondition { get { return laserCondition; } }
     bool IZapitTrial.LaserOn { get { return laserOn; } }
     double IZapitTrial.LaserPowerMw { get { return laserPowerMw; } }
@@ -463,14 +463,14 @@ public class TrialOutcome : ITrialOutcome
     public bool PenaltySound;
 
     /// <summary>Gets the timeout after the trial, in seconds: the row's penaltyTimeoutSeconds.</summary>
-    public double TimeoutSeconds { get; private set; }
+    public double PenaltyTimeoutSeconds { get; private set; }
 
     /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target's spout (discriminationGoNoGo's:
     /// the left), the other spout drawn back; a correct NoGo is not rewarded. Anything else draws both back, with the
     /// row's penalty sound and timeout if it was penalised. A stage without spout movements leaves the spouts where they are.</summary>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
-        var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, TimeoutSeconds = row.penaltyTimeoutSeconds };
+        var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, PenaltyTimeoutSeconds = row.penaltyTimeoutSeconds };
         o.Rewarded = (row.outcome == "Correct" && trial.target != Answer.NoGo) || row.autoRewarded;
         var side = trial.target == Choice.Right ? "right" : "left";   // Go is answered at the left spout
         o.Reward = o.Rewarded ? Tuple.Create(side, trial.rewardSizeUl) : null;
@@ -534,12 +534,12 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         var cues = new List<TrialCue>
         {
             new TrialCue(GratingOffCue, CueAnchor.Stimulus, structure.StimulusSeconds),
-            new TrialCue(SpoutsInCue, CueAnchor.Stimulus, structure.StimulusToSpoutsInSeconds),
+            new TrialCue(SpoutsInCue, CueAnchor.Stimulus, structure.StimulusToSpoutsInSeconds, true),
         };
-        if (trial.spoutMovements) cues.Add(new TrialCue(DrinkCue, CueAnchor.NextInterval, structure.DrinkSeconds));
+        if (trial.spoutMovements) cues.Add(new TrialCue(DrinkCue, CueAnchor.NextIti, structure.DrinkSeconds));
         return new TrialTiming
         {
-            IntervalSeconds = trial.itiSeconds,
+            ItiSeconds = trial.itiSeconds,
             LaserToStimulusSeconds = task.Optogenetics.LaserToStimulusSeconds,   // its lead in every experiment, so timing never reveals Zapit
             LickQuietSeconds = stage.LickQuietSeconds,
             WheelQuietSeconds = stage.WheelQuietSeconds,
