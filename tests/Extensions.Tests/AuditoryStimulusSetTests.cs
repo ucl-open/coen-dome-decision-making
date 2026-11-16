@@ -59,7 +59,7 @@ public class AuditoryStimulusSetTests
         }
         var path = Path.Combine(rig, "rig.yml");
         File.WriteAllText(path, "speakerArray:\n  device:\n    sampleRate: 48000\n    channelCount: 32\n  speakers:\n" + speakers +
-            (sync ? "  syncChannel: 31\n" : "") + "  penaltySoundChannel: 2\n");
+            (sync ? "  syncChannel: 31\n" : "") + "  penaltySoundChannel: 2\n  backgroundNoise: ../shared/sounds/background_noise.wav\n");
         return SpeakerSet.Load(path, "THIS-RIG");
     }
 
@@ -126,9 +126,12 @@ public class AuditoryStimulusSetTests
     }
 
     [TestMethod]
-    public void TheBackgroundNoiseIsAtTheMixersRateAndThePenaltySoundIsTheLabs()
+    public void TheBackgroundNoiseAndThePenaltySoundAreTheLabs()
     {
-        CheckWaveRate.Check(Path.Combine(Fixture.Repo(), "src", "LocalFiles", "background_white_noise.wav"), 48000);
+        // Pip, 16 Nov 2026: one background noise for every dome task, RigConfigs\shared\sounds\background_noise.wav beside
+        // the rig's folder, named by rig.yml's speakerArray.backgroundNoise; the task keeps none.
+        var expected = Path.GetFullPath(Path.Combine(rig, "..", "shared", "sounds", "background_noise.wav"));
+        Assert.AreEqual(expected, Speakers().BackgroundNoiseFile);
         Assert.AreEqual(32, PenaltySound.Buffer(Speakers(), -44.6).Rows);
     }
 

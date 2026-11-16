@@ -222,7 +222,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     audio_stimulus: AudioStimulus = Field(description="Auditory stimulus parameters")
     response: ResponseSettings = Field(description="Lick-accumulation response rule")
     background_noise: BackgroundNoise = Field(
-        default=BackgroundNoise(), description="The background white noise (src/LocalFiles/background_white_noise.wav) on every speaker, from Ready at the level of the task file as launched (open_rigs.core.task BackgroundNoise)"
+        default=BackgroundNoise(), description="The lab's background white noise (rig.yml's speakerArray.backgroundNoise) on every speaker, from Ready at the level of the task file as launched (open_rigs.core.task BackgroundNoise)"
     )
     penalty: Penalty = Field(
         description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), open_rigs.core.task Penalty"

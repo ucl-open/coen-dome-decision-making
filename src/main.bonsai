@@ -752,8 +752,7 @@
         </Workflow>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:BackgroundNoise.bonsai">
-        <Description>The background noise, LocalFiles\background_white_noise.wav (mono 16-bit PCM at 48 kHz), unequalised on every speaker at the launched task file's backgroundNoise.levelDbfs from Ready; Go stops if the task file changed backgroundNoise after launch.</Description>
-        <FileName>LocalFiles\background_white_noise.wav</FileName>
+        <Description>The background noise, the lab's one file, rig.yml's speakerArray.backgroundNoise (60 s of white noise, 32-bit float), unequalised on every speaker at the launched task file's backgroundNoise.levelDbfs from Ready; Go stops if the task file changed backgroundNoise after launch.</Description>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:Zapit.ConnectForTask.bonsai" />
       <Expression xsi:type="GroupWorkflow">

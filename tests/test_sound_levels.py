@@ -28,5 +28,7 @@ def test_the_task_files_state_the_levels_played_until_15_nov_2026(path):
     assert sorted(stimuli) == sorted((SOUNDS / "AuditoryStimuli").glob("*.wav"))
     for stimulus in stimuli:
         assert abs(p["audioStimulus"]["levelDbfs"] - _dbfs_rms(stimulus)) < 0.05, stimulus.name
-    noise = _dbfs_rms(SOUNDS / "background_white_noise.wav") + 20 * math.log10(BACKGROUND_SCALE_UNTIL_15_NOV_2026)
-    assert abs(p["backgroundNoise"]["levelDbfs"] - noise) < 0.05
+    # The old noise (LocalFiles\background_white_noise.wav, -34.1 dBFS RMS) at its 0.05 gain; since 16 Nov 2026 the lab's
+    # noise (rig.yml's speakerArray.backgroundNoise) plays at the same level, and the old file is gone.
+    assert abs(p["backgroundNoise"]["levelDbfs"] - (-34.1 + 20 * math.log10(BACKGROUND_SCALE_UNTIL_15_NOV_2026))) < 0.05
+    assert not (SOUNDS / "background_white_noise.wav").exists()

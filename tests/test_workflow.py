@@ -213,15 +213,11 @@ def test_every_sound_plays_at_the_task_file_s_level():
 
 def test_the_background_noise_is_the_shared_include():
     # OpenRigs.Audio's BackgroundNoise (16 Nov 2026): the noise unequalised on every speaker at the launched task file's
-    # level from Ready, Go stopping on a backgroundNoise changed after launch. ReadWave takes a mono 16-bit PCM or 32-bit
-    # float WAV at the mixer's rate.
-    import wave
-
+    # level from Ready, Go stopping on a backgroundNoise changed after launch. The noise is rig.yml's speakerArray.backgroundNoise (16 Nov 2026,
+    # the lab's one, in place of LocalFiles\background_white_noise.wav): the include takes no file and the repo keeps none.
     assert lint.background_noise_problems(WORKFLOW) == []
     (noise,) = [e for e in MAIN.iter(W + "Expression") if e.get("Path") == lint.BACKGROUND_NOISE]
-    assert noise.findtext(W + "FileName") == r"LocalFiles\background_white_noise.wav"
-    with wave.open(str(ROOT / "src" / "LocalFiles" / "background_white_noise.wav")) as w:
-        assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 48000)
+    assert noise.find(W + "FileName") is None
 
 
 def test_the_training_stage_is_read_at_go_on_its_own():

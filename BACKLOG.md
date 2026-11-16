@@ -1,5 +1,11 @@
 # Backlog
 
+## 2026-11-16 One background noise for every dome task (lib-open-rigs a5120a4; Audio .12, Devices .24; Pip: "It should be literally the same file")
+
+- **Changed for the mice:** the background noise is rig.yml's `speakerArray.backgroundNoise`, `../shared/sounds/background_noise.wav` from the rig's folder: the server's `K:\config\shared\sounds\background_noise.wav` (coen-dome-navigation's 60 s of 32-bit float white noise, byte for byte, SHA-256 762999848f9152e400e2ac7c452a729a2cf980056a59c34d44e148681b177704), which app-rig-control's upkeep copies down to `RigConfigs\shared\`. The include takes no `FileName`, stops at Start naming the file when it is missing or at another rate, and `LocalFiles\background_white_noise.wav` is deleted. The manifest hashes the noise with rig.yml's other files (`{RigFiles}`).
+- It plays at the same `backgroundNoise.levelDbfs` (-60.1), but its spectrum differs from the old file's: at equal RMS it is 0.5 dB lower from 0 to 19 kHz and louder above 20 kHz, where the old file (resampled from 44.1 kHz) had little energy: +1.3 dB over 16-24 kHz as a whole, +1.0 dB at 20-21 kHz, rising to +13 dB at 23-24 kHz (measured 16 Nov 2026, 4096-point Hann FFT, 1 kHz bands). Pip's approval named up to +1.9 dB at 16-24 kHz; shown these numbers, Pip accepted them (16 Nov 2026).
+- Open: each dome's rig.yml on the share needs the `backgroundNoise` line and the share the file before a rig runs this version.
+
 ## 2026-11-16 Task-side includes (lib-open-rigs 5ea5729; Audio .11, Control .12, Core .19, Devices .22, Logging .15, Manifest .23, Video .17)
 
 - `LaunchSettings` (OpenRigs.Control) publishes `SubjectId`, `TaskFilePath` and `RunSettings` (subject, session); Initialization keeps ExperimentControl and the training stage, now `ParameterValue TrainingStage` at Go into its own `TrainingStage` AsyncSubject, as coen-dome-navigation's, instead of `RunSettings`' third item. One inner `ExternalizedMapping` maps `SubjectId` onto ExperimentControl and LaunchSettings.
