@@ -1,0 +1,57 @@
+"""analysis/modules/loading_functions.py: which sessions are this workflow's, what new-draw accuracy counts, and the
+trial weights a session ran with (round 3 F2, F3, F19)."""
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+pd = pytest.importorskip("pandas")
+ANALYSIS = Path(__file__).parents[1] / "analysis"
+sys.path.insert(0, str(ANALYSIS))
+from modules import loading_functions as lf  # noqa: E402
+
+WEIGHTS = {"visual": 1, "auditory": 1, "audiovisualCoherent": 1, "audiovisualConflict": 0, "neutral": 0}
+
+
+def session(root: Path, name: str, repo: str, task_type: str | None = "localization", stage: int = 1) -> Path:
+    s = root / "sub-GN1" / name
+    (s / "Settings").mkdir(parents=True)
+    (s / "manifest.json").write_text(json.dumps({"source": {"repo": repo}}), encoding="utf-8")
+    task = {"trialWeights": WEIGHTS, "trainingStages": [{"trialWeights": {"visual": 9}}, {"trialWeights": None}]}
+    if task_type:
+        task["taskType"] = task_type
+    (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(json.dumps({"taskParameters": task}), encoding="utf-8")
+    (s / "Settings" / "Settings_Experiment_2026-11-16T10-00-00.json").write_text(json.dumps({"parameters": {"TrainingStage": str(stage)}}), encoding="utf-8")
+    return s
+
+
+def test_switch_over_sessions_count_and_production_av_dome_and_lookalikes_do_not(tmp_path):
+    # F3: the README counts av-dome's switch-over branch; a substring match missed it and matched a lookalike repo.
+    ours = session(tmp_path, "ses-001_a", "https://github.com/Coen-Lab/coen-dome-decision-making.git")
+    switch = session(tmp_path, "ses-002_b", "https://github.com/ucl-open/av-dome")
+    session(tmp_path, "ses-003_c", "https://github.com/ucl-open/av-dome", task_type=None)   # production av-dome
+    session(tmp_path, "ses-004_d", "https://github.com/x/coen-dome-decision-making-2p")
+    assert lf.find_sessions(tmp_path) == [ours, switch]
+
+
+def test_trial_weights_read_the_session_s_stage(tmp_path):
+    # F19: the stage is the session's own TrainingStage (Settings_Experiment), its own weights replacing the task's.
+    assert lf.trial_weights(session(tmp_path, "ses-001_a", "av-dome", stage=0)) == {"visual": 9}
+    assert lf.trial_weights(session(tmp_path, "ses-002_b", "av-dome", stage=1)) == WEIGHTS
+
+
+def test_new_draw_accuracy_counts_choices_on_new_draws_only():
+    df = pd.DataFrame({"outcome": ["Correct", "Incorrect", "Correct", "NoResponse", "Probe"], "repeatCount": [0, 0, 1, 0, 0]})
+    assert lf.new_draw_accuracy(df) == (0.5, 2)
+
+
+def test_the_notebook_names_new_draw_accuracy_and_uses_every_import():
+    # F2: "performance" is lib-open-rigs' (summarise-experiment); F19: trial_weights was imported only for a comment.
+    cells = json.loads((ANALYSIS / "analysis.ipynb").read_text(encoding="utf-8"))["cells"]
+    code = ["".join(c["source"]) for c in cells if c["cell_type"] == "code"]
+    assert not hasattr(lf, "performance") and not any(".performance" in c for c in code)
+    used = "\n".join(c for c in code[1:] if not c.lstrip().startswith("#"))
+    for name in ("load_sessions", "probe_rates", "session_summary", "trial_weights"):
+        assert f"{name}(" in used, name

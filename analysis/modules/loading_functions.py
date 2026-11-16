@@ -9,8 +9,10 @@ from pathlib import Path
 import pandas as pd
 from open_rigs import trials
 
-WORKFLOW = "coen-dome-decision-making"
-SCORED = ("Correct", "Incorrect")   # outcome Probe has no right answer and NoResponse is no choice: neither is performance
+# The repositories whose sessions count, by name alone (stage.py's OURS): this workflow and av-dome's switch-over branch,
+# which wrote this workflow's files before the move (README); production av-dome's are told apart by their task file.
+OURS = ("coen-dome-decision-making", "av-dome")
+SCORED = ("Correct", "Incorrect")   # outcome Probe has no right answer and NoResponse is no choice: neither is counted
 
 
 def _manifest(session):
@@ -20,10 +22,20 @@ def _manifest(session):
         return {}
 
 
+def _settings(session, kind):
+    """The session's Settings_<kind>_*.json (the first, as stage.py's summaries carry), or {} when it has none."""
+    files = sorted((Path(session) / "Settings").glob(f"Settings_{kind}_*.json"))
+    return json.loads(files[0].read_text(encoding="utf-8-sig")) if files else {}
+
+
 def is_this_workflow(session):
-    """True when the session's manifest names this workflow's repository (Live-Data holds every workflow's sessions)."""
-    source = _manifest(session).get("source") or {}
-    return WORKFLOW in f"{source.get('repo', '')} {source.get('workflow', '')} {source.get('root', '')}".lower()
+    """True for this workflow's sessions (Live-Data holds every workflow's): the manifest's source.repo named as stage.py's
+    rule (any owner, fork or branch), and a Settings_Task with taskType, so production av-dome's are left out."""
+    repo = ((_manifest(session).get("source") or {}).get("repo") or "").rstrip("/").rsplit("/", 1)[-1].lower().removesuffix(".git")
+    if repo not in OURS:
+        return False
+    task = _settings(session, "Task")
+    return "taskType" in task.get("taskParameters", task)
 
 
 def find_sessions(root, subjects=None):
@@ -53,13 +65,15 @@ def load_sessions(root, subjects=None):
 
 
 def scored(df):
-    """The trials that count towards performance: a Correct or Incorrect choice on a new draw (no repeat, no auto-reward).
-    Probe trials (target NoReward or Random) are never in it."""
-    return df[df["outcome"].isin(SCORED) & (df["repeatCount"] == 0) & ~df["autoRewarded"].astype(bool)]
+    """The trials new_draw_accuracy counts: a Correct or Incorrect choice on a new draw (no repeat). An auto-rewarded trial
+    is a NoResponse, and a Probe (target NoReward or Random) has no right answer: neither is in it."""
+    return df[df["outcome"].isin(SCORED) & (df["repeatCount"] == 0)]
 
 
-def performance(df):
-    """(fraction Correct, number of scored trials) for one session's trials."""
+def new_draw_accuracy(df):
+    """(fraction Correct, number of scored trials) for one session's trials: every new draw with a choice, one spout or
+    two. Not lib-open-rigs' performance (summarise-experiment, app-rig-control), which counts the both-spout and go/no-go
+    trials, repeats included."""
     s = scored(df)
     return (float((s["outcome"] == "Correct").mean()) if len(s) else float("nan")), len(s)
 
@@ -81,13 +95,13 @@ def probe_rates(df):
 
 
 def session_summary(df):
-    """One row per session: trials, scored trials, performance, water (ul) and the probe rates."""
+    """One row per session: trials, scored trials, new-draw accuracy, water (ul) and the probe rates."""
     rows = []
     for (subject, session), s in df.groupby(["subject", "session"], sort=True):
-        perf, n = performance(s)
+        accuracy, n = new_draw_accuracy(s)
         probes = s[s["outcome"] == "Probe"]
         rows.append({
-            "subject": subject, "session": session, "trials": len(s), "scored": n, "performance": perf,
+            "subject": subject, "session": session, "trials": len(s), "scored": n, "newDrawAccuracy": accuracy,
             "waterUl": water_ul(s), "probes": len(probes),
             "probeRewardedRate": float(probes["rewarded"].astype(bool).mean()) if len(probes) else float("nan"),
             "probePenalisedRate": float(probes["penalised"].astype(bool).mean()) if len(probes) else float("nan"),
@@ -95,15 +109,13 @@ def session_summary(df):
     return pd.DataFrame(rows)
 
 
-def trial_weights(session, stage=None):
-    """The trialWeights a session ran with, from its Settings_Task_*.json: the stage's own when it has them, else the
-    top-level one (stage: the TrainingStage row, or None for the top level)."""
-    files = sorted((Path(session) / "Settings").glob("Settings_Task_*.json"))
-    if not files:
+def trial_weights(session):
+    """The trialWeights a session ran with, from its Settings_Task_*.json at its TrainingStage (Settings_Experiment_*.json's
+    parameters): the stage's own when it has them, else the top-level one; None without a task file."""
+    task = _settings(session, "Task")
+    if not task:
         return None
-    task = json.loads(files[0].read_text(encoding="utf-8-sig"))
     task = task.get("taskParameters", task)
-    stages = task.get("trainingStages") or []
-    if stage is not None and 0 <= stage < len(stages) and stages[stage].get("trialWeights"):
-        return stages[stage]["trialWeights"]
-    return task.get("trialWeights")
+    stage = int(float(_settings(session, "Experiment")["parameters"]["TrainingStage"]))
+    own = (task.get("trainingStages") or [])[stage].get("trialWeights")
+    return own or task.get("trialWeights")
