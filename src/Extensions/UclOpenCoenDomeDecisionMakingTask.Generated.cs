@@ -1665,12 +1665,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window
+        /// How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("stimulusSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="stimulusSeconds")]
         [System.ComponentModel.DescriptionAttribute("How long the grating shows, in seconds from onset; at most responseDelaySeconds p" +
-            "lus responseWindowSeconds, so it never outlasts the response window")]
+            "lus responseWindowSeconds, so it never outlasts the response window, and at most" +
+            " itiMinSeconds, so it is off before the next stimulus")]
         public double StimulusSeconds
         {
             get
@@ -2152,11 +2153,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right
+        /// localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
-        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right")]
+        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right")]
         public TaskType TaskType
         {
             get

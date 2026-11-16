@@ -132,8 +132,7 @@ public class ResponseRuleTests
         }
         run.RunTo(13);
         var updates = run.Of(TrialEventKind.Update).Select(e => e.Update).ToList();
-        CollectionAssert.AreEqual(new[] { 0, 1, 0, 1, 2, 3 }, updates.Select(u => u.DecisionVariable).ToList(), "the stimulus resets it; each lick in the window moves it");
-        CollectionAssert.AreEqual(updates.Select(u => run.First.visualAzimuthDeg + 10 * u.DecisionVariable).ToList(), updates.Select(u => u.GratingAzimuthDeg).ToList(), "degreesPerLick per net lick");
+        CollectionAssert.AreEqual(new[] { 0, 1, 0, 1, 2, 3 }.Select(n => run.First.visualAzimuthDeg + 10 * n).ToList(), updates.Select(u => u.GratingAzimuthDeg).ToList(), "the stimulus resets it; each lick in the window moves it degreesPerLick");
         Assert.AreEqual(1, run.Outcomes.Count);
         Assert.AreEqual("Left", run.Row().choice);
         Assert.AreEqual(12.5, run.Row().outcomeTime, 1e-12);
@@ -144,7 +143,7 @@ public class ResponseRuleTests
         right.RunTo(13);
         Assert.AreEqual("Right", right.Row().choice);
         Assert.AreEqual(12.3, right.Row().outcomeTime, 1e-12);
-        Assert.AreEqual(-3, right.Of(TrialEventKind.Update).Last().Update.DecisionVariable);
+        Assert.AreEqual(right.First.visualAzimuthDeg - 30, right.Of(TrialEventKind.Update).Last().Update.GratingAzimuthDeg, 1e-9);
     }
 
     [TestMethod]
@@ -235,17 +234,17 @@ public class ResponseRuleTests
             var t = new Trial { target = target, rewardSizeUl = target == Answer.Go ? 3 : 0, spoutMovements = true };
             return TrialOutcome.Of(TrialRow.Build(choice, t, times, 4, true), t);
         };
-        var hit = score(Answer.Go, Answer.Lick);
+        var hit = score(Answer.Go, Choice.Lick);
         Assert.AreEqual("Correct", hit.Row.Value.outcome);
         Assert.AreEqual(Tuple.Create("left", 3.0), hit.Reward);
         Assert.AreEqual(LickSpoutCommand.LeftIn, hit.SpoutCommand);
         var miss = score(Answer.Go, "NoResponse");
         Assert.IsTrue(miss.Row.Value.outcome == "NoResponse" && !miss.Rewarded && miss.TimeoutSeconds == 0 && !miss.PenaltySound);
-        var falseAlarm = score(Answer.NoGo, Answer.Lick);
+        var falseAlarm = score(Answer.NoGo, Choice.Lick);
         Assert.IsTrue(falseAlarm.Row.Value.outcome == "Incorrect" && !falseAlarm.Rewarded && falseAlarm.TimeoutSeconds == 4 && falseAlarm.PenaltySound);
         var rejection = score(Answer.NoGo, "NoResponse");
         Assert.IsTrue(rejection.Row.Value.outcome == "Correct" && !rejection.Rewarded && rejection.TimeoutSeconds == 0 && rejection.Reward == null);
-        foreach (var choice in new[] { Answer.Lick, "NoResponse" })
+        foreach (var choice in new[] { Choice.Lick, "NoResponse" })
         {
             var probe = score(Answer.Probe, choice);
             Assert.IsTrue(probe.Row.Value.outcome == Answer.Probe && !probe.Rewarded && probe.TimeoutSeconds == 0 && !probe.PenaltySound, choice);
@@ -261,7 +260,7 @@ public class ResponseRuleTests
         run.At(12.2, h => h.Lick(1)).RunTo(12.3);
         Assert.AreEqual(0, run.Outcomes.Count, "a right lick is not counted");
         run.At(12.4, h => h.Lick(0)).RunTo(12.5);
-        Assert.AreEqual(Answer.Lick, run.Row(0).choice);
+        Assert.AreEqual(Choice.Lick, run.Row(0).choice);
         Assert.AreEqual(trial.target == Answer.Go ? "Correct" : trial.target == Answer.NoGo ? "Incorrect" : Answer.Probe, run.Row(0).outcome);
     }
 }
@@ -378,6 +377,12 @@ public class TrialStartTests
         var run = Run(0.5, 0, 1.0, 1.0);
         for (int i = 1; i <= 4; i++) { var cm = 0.3 * i; run.At(Math.Round(9.8 + 0.4 * i, 3), h => h.Wheel(cm)); }
         Assert.AreEqual(11.5, Start(run), 1e-9);
+    }
+
+    [TestMethod]
+    public void TheChoicesAreTheWordsTheChoiceColumnRecords()
+    {
+        CollectionAssert.AreEqual(new[] { "Left", "Right", "Lick", "NoResponse" }, new[] { Choice.Left, Choice.Right, Choice.Lick, Choice.NoResponse });
     }
 
     [TestMethod]

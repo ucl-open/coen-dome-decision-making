@@ -15,7 +15,7 @@ taskParameters:
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
     itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5; Pip, 13 Nov 2026). Stage 0: set both to 1.5 on the form
-    drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
+    drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; a false alarm (a lick on a NoGo trial): timeoutSeconds first
     responseDelaySeconds: 0.0     # s, from stimulus onset to the response window; licks before it do not count
     responseWindowSeconds: 1.5    # s, the response window: NoResponse at its end
     stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
@@ -43,7 +43,7 @@ taskParameters:
     enabled: true
     levelDbfs: -60.1       # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
   penalty:
-    timeoutSeconds: 4.0   # s, after an incorrect choice or a miss (not after an auto-rewarded miss)
+    timeoutSeconds: 4.0   # s, after a false alarm (a lick on a NoGo trial); a miss on a Go trial has none, nor does a probe
     sound:               # the penalty sound, with every timeout
       enabled: true
       levelDbfs: -44.6   # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)

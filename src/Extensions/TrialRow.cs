@@ -42,9 +42,9 @@ public class TrialRow
         switch (trial.target)
         {
             case Answer.Probe: return Answer.Probe;
-            case Answer.Go: return choice == Answer.Lick ? "Correct" : "NoResponse";
-            case Answer.NoGo: return choice == Answer.Lick ? "Incorrect" : "Correct";
-            default: return choice == "NoResponse" ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
+            case Answer.Go: return choice == Choice.Lick ? "Correct" : "NoResponse";
+            case Answer.NoGo: return choice == Choice.Lick ? "Incorrect" : "Correct";
+            default: return choice == Choice.NoResponse ? "NoResponse" : choice == trial.target ? "Correct" : "Incorrect";
         }
     }
 
@@ -81,7 +81,7 @@ public class TrialRow
             target = trial.target,
             choice = choice,
             repeatCount = trial.repeatCount,
-            autoRewarded = trial.autoReward && choice == "NoResponse",
+            autoRewarded = trial.autoReward && choice == Choice.NoResponse,
             bothSpouts = trial.bothSpouts,
             visualAzimuthDeg = trial.visualAzimuthDeg,
             visualElevationDeg = trial.visualElevationDeg,

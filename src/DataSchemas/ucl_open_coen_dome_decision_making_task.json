@@ -449,7 +449,7 @@
         },
         "stimulusSeconds": {
           "default": 1.5,
-          "description": "How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window",
+          "description": "How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus",
           "exclusiveMinimum": 0,
           "title": "StimulusSeconds",
           "type": "number"
@@ -593,7 +593,7 @@
         },
         "taskType": {
           "$ref": "#/$defs/TaskType",
-          "description": "localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right"
+          "description": "localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities has its answer drawn at random, left or right"
         },
         "goModality": {
           "$ref": "#/$defs/Modality",

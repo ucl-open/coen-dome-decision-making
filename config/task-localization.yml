@@ -3,7 +3,7 @@
 # Read by src/main.bonsai at Go and published as the TaskConfig subject (and at Start, as launched, for the background noise).
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
-  taskType: localization   # localization or discrimination
+  taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
   rngSeed: null           # null = the workflow draws one at Go; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
     itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included

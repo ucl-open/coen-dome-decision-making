@@ -70,13 +70,13 @@ rewardSizeUl:
   history: largeReward said which trials were large until 9 Nov 2026.
 penaltySound:
   type: bool
-  description: "True when the penalty sound played: on every penalised trial (an incorrect choice, or a miss that was not auto-rewarded) with the task's penalty.sound enabled, whatever penalty.timeoutSeconds is. The sound is the lab's (OpenRigs.Audio), on rig.yml's penaltySoundChannel."
+  description: "True when the penalty sound played: on every penalised trial (an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial, as a miss on a Go trial is unpenalised) with the task's penalty.sound enabled, whatever penalty.timeoutSeconds is. The sound is the lab's (OpenRigs.Audio), on rig.yml's penaltySoundChannel."
   history: Until 14 Nov 2026 only after an incorrect choice.
 penaltyTimeoutSeconds:
   type: double
   unit: s
   description: "The timeout after this trial: the task's penalty.timeoutSeconds when the trial was penalised, else 0. The next interval starts after it (itiStartTime)."
-  note: Penalised - an incorrect choice, or a miss that was not auto-rewarded.
+  note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a Go miss is unpenalised).
 laserCondition:
   type: int
   description: "The Zapit condition sent to Zapit this trial (its conditions file's number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics."
@@ -108,7 +108,7 @@ autoRewarded:
   description: True when a miss on an auto-reward trial was rewarded at the target spout.
 bothSpouts:
   type: bool
-  description: True when both spouts were offered (otherwise only the correct one).
+  description: True when both spouts were offered (otherwise only the target's; in discriminationGoNoGo the left, for NoGo and Probe trials too).
 visualAzimuthDeg:
   type: double
   unit: deg

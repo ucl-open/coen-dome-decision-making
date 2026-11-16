@@ -25,7 +25,7 @@ class TrialStructure(TaskBlock):
     response_delay_seconds: Double = Field(default=0.0, ge=0, description="The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted")
     response_window_seconds: Double = Field(default=1.5, gt=0, description="The response window: how long it stays open, from responseDelaySeconds after stimulus onset, in seconds; with no choice by its end the trial is NoResponse")
     stimulus_seconds: Double = Field(
-        default=1.5, gt=0, description="How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window"
+        default=1.5, gt=0, description="How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus"
     )
     stimulus_to_spouts_in_seconds: Double = Field(default=0.5, ge=0, description="From stimulus onset to moving the response spouts in, in seconds")
 
@@ -37,6 +37,8 @@ class TrialStructure(TaskBlock):
             raise ValueError("iti_min_seconds must be >= drink_seconds: the spouts are drawn back drink_seconds into the interval, before the stimulus")
         if self.stimulus_seconds > self.response_delay_seconds + self.response_window_seconds:
             raise ValueError("stimulus_seconds must not exceed response_delay_seconds + response_window_seconds")
+        if self.stimulus_seconds > self.iti_min_seconds:
+            raise ValueError("stimulus_seconds must not exceed iti_min_seconds: the grating would still show when the next trial's stimulus starts")
         return self
 
 
@@ -217,7 +219,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
         description=(
             "localization: the answer is the side the stimulus came from, at that side's spout. "
             "discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); "
-            "a trial showing both modalities is a probe, never rewarded or penalised. "
+            "a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. "
             "discriminationLeftRight: the left spout for leftModality, the right spout for the other; "
             "a trial showing both modalities has its answer drawn at random, left or right"
         ),

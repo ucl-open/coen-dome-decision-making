@@ -1,4 +1,4 @@
-"""The training stage to suggest for a mouse's next experiment: the stage of its last one.
+"""The training stage to suggest for a mouse's next experiment: the stage of its last one of the same task type.
 
 Nothing in this repository, its README or BACKLOG says when a mouse should move up a stage (production
 av-dome's stage was picked by hand in its window), so this suggests no advance: it repeats the last stage,
@@ -14,8 +14,8 @@ rig-control runs it (standard library only) when a mouse is chosen, and fills Tr
 
 --summaries is the folder holding the sub-<lab ID> folders and --expected a JSON list of the run ids the
 mouse has had (rig-control writes it). Prints one JSON line, {"value": 3, "why": "..."}: the contract of
-rig-control's [task.suggest]. Only an experiment with trials counts. If the last one's task type is not
---task-type, its stage means another table's row: value is null. If the folder does not answer, an expected
+rig-control's [task.suggest]. Only an experiment with trials counts. The stage is that of the newest
+experiment of --task-type (a stage is a row of that task's table); value is null when it has none. If the folder does not answer, an expected
 run has no file, or a file cannot be read, value is null and why names it. A skipped file (a run too short
 or old to count) is accounted for and otherwise ignored.
 """

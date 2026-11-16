@@ -59,13 +59,22 @@ public class CheckTaskAtGo
     }
 }
 
-/// <summary>discriminationGoNoGo's answers and choice: the target column's Go, NoGo and Probe, and the choice Lick.</summary>
+/// <summary>discriminationGoNoGo's answers: the target column's Go, NoGo and Probe.</summary>
 public static class Answer
 {
     public const string Go = "Go";
     public const string NoGo = "NoGo";
     public const string Probe = "Probe";
+}
+
+/// <summary>What the mouse chose (the choice column), and in discriminationLeftRight the target's two sides: Left or Right, in
+/// discriminationGoNoGo Lick at the one spout, and NoResponse when the window closed with none.</summary>
+public static class Choice
+{
+    public const string Left = "Left";
+    public const string Right = "Right";
     public const string Lick = "Lick";
+    public const string NoResponse = "NoResponse";
 }
 
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
@@ -185,6 +194,7 @@ public class TrialDraw
         if (task.Optogenetics.UseZapit) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds) problems.Add("trialStructure.stimulusSeconds is longer than responseDelaySeconds plus responseWindowSeconds");
         if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
+        if (structure.StimulusSeconds > structure.ItiMinSeconds) problems.Add(string.Format("trialStructure.stimulusSeconds ({0} s) is longer than itiMinSeconds ({1} s): the grating would still show when the next trial's stimulus starts", structure.StimulusSeconds, structure.ItiMinSeconds));
         if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts are drawn back drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
@@ -328,7 +338,7 @@ public class TrialDraw
                 right = random.NextDouble() >= 0.5;
                 break;
         }
-        trial.target = right ? "Right" : "Left";
+        trial.target = right ? Choice.Right : Choice.Left;
         if (task.TaskType == TaskType.DiscriminationGoNoGo)
         {
             // Lick for goModality (Go), withhold for the other modality (NoGo); a trial showing both modalities or neither
@@ -346,8 +356,8 @@ public class TrialDraw
         {
             // The answer is the modality: leftModality's trials at the left spout, the other's at the right. A trial showing
             // both has no right answer, so its side is drawn at random, apart from the stimuli's (Pip, 16 Nov 2026).
-            if (type == 0 || type == 1) trial.target = (type == 0) == (task.LeftModality == Modality.Visual) ? "Left" : "Right";
-            else if (type == 2 || type == 3) trial.target = random.NextDouble() >= 0.5 ? "Right" : "Left";
+            if (type == 0 || type == 1) trial.target = (type == 0) == (task.LeftModality == Modality.Visual) ? Choice.Left : Choice.Right;
+            else if (type == 2 || type == 3) trial.target = random.NextDouble() >= 0.5 ? Choice.Right : Choice.Left;
         }
 
         trial.audioEnabled = showsSound;
@@ -436,10 +446,9 @@ public class TrialDraw
     }
 }
 
-/// <summary>The response as it stands after a lick: the net licks (left +1, right -1) and where they have moved the grating.</summary>
+/// <summary>The response as it stands after a lick: where the net licks (left +1, right -1) have moved the grating.</summary>
 public class DecisionUpdate
 {
-    public int DecisionVariable;
     public double GratingAzimuthDeg;
 }
 
@@ -463,7 +472,7 @@ public class TrialOutcome : ITrialOutcome
     {
         var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, TimeoutSeconds = row.penaltyTimeoutSeconds };
         o.Rewarded = (row.outcome == "Correct" && trial.target != Answer.NoGo) || row.autoRewarded;
-        var side = trial.target == "Right" ? "right" : "left";   // Go is answered at the left spout
+        var side = trial.target == Choice.Right ? "right" : "left";   // Go is answered at the left spout
         o.Reward = o.Rewarded ? Tuple.Create(side, trial.rewardSizeUl) : null;
         o.MoveSpouts = trial.spoutMovements;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
@@ -565,8 +574,8 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         decision += spout == 0 ? 1 : -1;
         updates.Add(Update(trial));
         var threshold = task.Response.ThresholdLicks;
-        if (decision >= threshold) return Outcome(trial, goNoGo ? Answer.Lick : "Left", times);
-        if (decision <= -threshold) return Outcome(trial, "Right", times);
+        if (decision >= threshold) return Outcome(trial, goNoGo ? Choice.Lick : Choice.Left, times);
+        if (decision <= -threshold) return Outcome(trial, Choice.Right, times);
         return null;
     }
 
@@ -577,12 +586,12 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     public TrialOutcome ResponseEnd(Trial trial, TrialTimes times)
     {
-        return Outcome(trial, "NoResponse", times);
+        return Outcome(trial, Choice.NoResponse, times);
     }
 
     DecisionUpdate Update(Trial trial)
     {
-        return new DecisionUpdate { DecisionVariable = decision, GratingAzimuthDeg = decision * task.Response.DegreesPerLick + trial.visualAzimuthDeg };
+        return new DecisionUpdate { GratingAzimuthDeg = decision * task.Response.DegreesPerLick + trial.visualAzimuthDeg };
     }
 
     TrialOutcome Outcome(Trial trial, string choice, TrialTimes times)
@@ -617,6 +626,6 @@ public class SpoutsIn
     public static LickSpoutCommand Command(Trial trial)
     {
         if (trial.bothSpouts) return LickSpoutCommand.SpoutsIn;
-        return trial.target == "Right" ? LickSpoutCommand.RightIn : LickSpoutCommand.LeftIn;   // go-no-go: the left
+        return trial.target == Choice.Right ? LickSpoutCommand.RightIn : LickSpoutCommand.LeftIn;   // go-no-go: the left
     }
 }

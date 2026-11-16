@@ -315,6 +315,13 @@ def test_the_stimulus_never_outlasts_the_response_window():
         TrialStructure(stimulusSeconds=2.0, responseDelaySeconds=0, responseWindowSeconds=1.5)
 
 
+def test_the_stimulus_is_off_before_the_next_one_starts():
+    from ucl_open_coen_dome_decision_making.task import TrialStructure
+    TrialStructure(stimulusSeconds=1.5, itiMinSeconds=1.5, itiMaxSeconds=2, drinkSeconds=1, responseDelaySeconds=0, responseWindowSeconds=3)
+    with pytest.raises(ValidationError, match="stimulus_seconds must not exceed iti_min_seconds"):
+        TrialStructure(stimulusSeconds=1.6, itiMinSeconds=1.5, itiMaxSeconds=2, drinkSeconds=1, responseDelaySeconds=0, responseWindowSeconds=3)
+
+
 def test_weights_and_repeat_rules_are_keyed_by_trial_type_name():
     names = {"visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral"}
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))

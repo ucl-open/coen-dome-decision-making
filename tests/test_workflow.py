@@ -115,7 +115,7 @@ def test_the_task_is_checked_once_at_go_into_the_rules():
 def test_each_trial_event_reaches_its_hardware():
     assert _reached("Start") == {"Trial", "LogRngSeed.bonsai"}   # A2: Trial at the trial's start
     assert _reached("Stimulus") == {"VisualStimulus", "AuditoryStimulus"}
-    assert _reached("Update") == {"DecisionVariable", "GratingAzimuthDeg"}
+    assert _reached("Update") == {"GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"VisualStimulusOff"}
     assert _reached("Cue", "SpoutsIn") == _reached("Cue", "Drink") == {"LickSpoutStage.Commands"}
     assert _reached("Outcome") == {"TrialRow", "RewardRequests", "LickSpoutStage.Commands", "PlayPenaltySound.bonsai"}
