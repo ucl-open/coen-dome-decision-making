@@ -304,7 +304,7 @@ public class TrialDraw
 
     /// <summary>The longest ramp-down a conditions file may have, in seconds: Zapit refuses the next StartStimulus while a
     /// timed stimulus and its ramp-down play, so the next trial is armed only this long after the laser ends.</summary>
-    public const double ZapitRampDownSeconds = ZapitConditions.MaximumRampDownMs / 1000;
+    public const double ZapitRampDownSeconds = ZapitConditions.MaximumRampDownSeconds;
 
     /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least openLoopSeconds
     /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, its ramp-down and Zapit's

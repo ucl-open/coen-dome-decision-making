@@ -132,7 +132,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. Trial (each trial as drawn) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and PenaltySound start the stimuli; Zapit's commands and replies; RewardRequests, each (side, microlitres) reward, the side as rig.yml's wiring names it (left, right). Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
+        <Description>Subjects the groups share. Trial (each trial as drawn) and TrialRow (each trial's BonsaiData_Trial row, built when the outcome is known); TrialEnds closes the trial loop; DecisionVariable and the grating's azimuth carry the response; VisualStimulus, VisualStimulusOff, AuditoryStimulus and PenaltySound start the stimuli; Zapit's commands and replies; RewardRequests, each (side, microlitres) reward, the side as rig.yml's wiring names it (left, right). Every subject a per-trial graph multicasts into is a BehaviorSubject: Bonsai passes a multicast's completion to a PublishSubject, so the first trial's graph closed it and the grating, the sound and the spouts ran on trial 1 only (BLUE-OPTO-2, 14 Nov 2026). VisualStimulusOff (subscribed per grating) and the blocks' LickSpoutStage-Main.Commands and BehaviorBoard-Main.Commands are fed through VisualStimulusOffFeed, LickSpoutStageFeed and BehaviorBoardFeed, each relayed once at TaskLogic's top level.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
@@ -1627,7 +1627,7 @@
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>RampDown</Name>
-                    <Description>The longest ramp-down a Zapit conditions file may have (lib-open-rigs ZapitConditions.MaximumRampDownMs, TrialDraw.ZapitRampDownSeconds): Zapit refuses the next StartStimulus until it has played.</Description>
+                    <Description>The longest ramp-down a Zapit conditions file may have (lib-open-rigs ZapitConditions.MaximumRampDownSeconds, TrialDraw.ZapitRampDownSeconds): Zapit refuses the next StartStimulus until it has played.</Description>
                     <Combinator xsi:type="core:HarpDelay">
                       <core:DueSeconds>0.5</core:DueSeconds>
                     </Combinator>
@@ -1761,7 +1761,7 @@
               <Name>LickSpoutStageFeed</Name>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage.Commands</Name>
+              <Name>LickSpoutStage-Main.Commands</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>BehaviorBoardFeed</Name>

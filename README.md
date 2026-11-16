@@ -31,7 +31,7 @@ Each lib-open-rigs block the workflow uses, its job here and where it lives. `te
 
 | Block | Job in this task | File |
 |---|---|---|
-| `DomeHardware` | Every dome device as a piece, each logging itself once the experiment folder exists: the three cameras (triggered once all three acquire), the lick spout stage, `Timestamp`, `HarpClockSet`, `ZapitTriggerLine`, the lick states, and Ready once the clock is set, the spouts are homed, each camera has sent a frame and the mixer has started (`ReadyWaitsFor`; a stop naming what never came after 180 s) | `OpenRigs.Devices:DomeHardware.bonsai` |
+| `DomeHardware` | Every dome device as a piece, each logging itself once the experiment folder exists: the three cameras (triggered once all three acquire), the lick spout stage, `Timestamp`, `HarpClockSet`, `ZapitTriggerLine`, the lick states, and Ready once the clock is set, the spouts are homed, each camera has sent a frame and the mixer has started (`PieceStages`; a stop naming what never came after 180 s) | `OpenRigs.Devices:DomeHardware.bonsai` |
 | `ManualRewards` | `RewardLeft` and `RewardRight`, 2.5 µl on that side before and during a run | `OpenRigs.Devices:BehaviorBoard.ManualRewards.bonsai` |
 | `ExperimentRecords` | The experiment's records, last but the live view: `DeliverReward`, `LogControlEvents`, `RecordHarpDevices` and `ExperimentManifest`, with this task's `IngestScript` and `ExpectedFiles` | `OpenRigs.Logging:ExperimentRecords.bonsai` |
 | `DeliverReward` | In `ExperimentRecords`: every reward (side, microlitres) on the valve's calibration, fired on the Harp clock, logged as `RewardDelivered`; a reward over `MaxRewardUl` (20 µl, `LoadRewardLine`) stops the workflow | `OpenRigs.Devices:BehaviorBoard.DeliverReward.bonsai` |

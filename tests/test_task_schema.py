@@ -247,7 +247,7 @@ def test_the_constants_are_the_c_sharp_s():
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task QuietWait in task.py,
     # OpenRigs.Core QuietWait.SettingsProblems at Go).
     assert not re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) and "QuietWait.SettingsProblems" in logic
-    assert "ZapitConditions.MaximumRampDownMs / 1000" in logic
+    assert "ZapitConditions.MaximumRampDownSeconds" in logic
 
 
 def test_a_reward_over_the_cap_is_refused():
