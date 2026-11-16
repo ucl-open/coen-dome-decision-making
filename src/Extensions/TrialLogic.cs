@@ -537,7 +537,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             WheelQuietCm = stage.WheelQuietCm,
             Laser = trial.laserCondition > 0,                                    // every trial of an optogenetics experiment, laser on or off
             ResponseDelaySeconds = structure.ResponseDelaySeconds,
-            ResponseSeconds = structure.ResponseWindowSeconds,
+            ResponseWindowSeconds = structure.ResponseWindowSeconds,
             Cues = cues,
         };
     }

@@ -559,7 +559,7 @@ public class CheckTaskAtGoTests
         var rules = TrialRules.Create(Fixture.Task("task-discrimination-left-right.yml"), 4, rig, null);
         Assert.IsNull(rules.Laser, "no optogenetics");
         var timing = rules.Timing(rules.Draw(null));
-        Assert.IsTrue(timing.LaserToStimulusSeconds == 0.5 && !timing.Laser && timing.ResponseDelaySeconds == 0 && timing.ResponseSeconds == 1.5);
+        Assert.IsTrue(timing.LaserToStimulusSeconds == 0.5 && !timing.Laser && timing.ResponseDelaySeconds == 0 && timing.ResponseWindowSeconds == 1.5);
         CollectionAssert.AreEqual(new[] { TrialRules.GratingOffCue, TrialRules.SpoutsInCue, TrialRules.DrinkCue }, timing.Cues.Select(c => c.Name).ToList());
     }
 
