@@ -21,7 +21,7 @@ public class Trial : IZapitTrial
 
     public int trialNumber;            // from 1, repeats counted
     public string trialType;           // TrialDraw.TypeNames: what the trial shows
-    public string target;              // Left or Right; in discriminationGoNoGo an Answer (Go, NoGo or Probe)
+    public string target;              // Left or Right; Probe on a trial with no right answer; in discriminationGoNoGo Go or NoGo too
     public double rewardSizeUl;
     public bool bothSpouts;
     public int repeatCount;            // 0 for a new draw
@@ -39,6 +39,8 @@ public class Trial : IZapitTrial
     public bool laserOn;
     public double laserPowerMw;        // 0 with the laser off
     public bool autoReward;
+    public bool randomRewardProbe;     // no right answer: a choice is rewarded or penalised on the coin (TrialDraw.RandomRewardProbe)
+    public bool probeHeads;            // that coin: heads rewards the choice, tails penalises it
     public bool spoutMovements;
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
 
@@ -59,7 +61,8 @@ public class CheckTaskAtGo
     }
 }
 
-/// <summary>discriminationGoNoGo's answers: the target column's Go, NoGo and Probe.</summary>
+/// <summary>The target column's answers other than a side: discriminationGoNoGo's Go and NoGo, and Probe, a trial with no right
+/// answer (go/no-go's pay nothing; localization's and left-right's pay at random, RandomRewardProbe).</summary>
 public static class Answer
 {
     public const string Go = "Go";
@@ -134,23 +137,18 @@ public class TrialDraw
     static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage, EqualisedSpeakerArray speakers)
     {
         var problems = new List<string>();
-        var weights = Weights(stage);
-        if (weights.Any(w => w < 0) || weights.Sum() <= 0) problems.Add("stage '" + stage.Label + "' needs trialWeights of 0 or more, one above 0");
-        if (task.TaskType != TaskType.Localization)
+        // Each block names exactly the task type's keys (task.py's same rule), the stage's weights only when it sets its own.
+        var weightKeys = KeyIndices(task.TaskType);
+        KeyProblems(problems, "trialWeights", task.TaskType, weightKeys, task.TrialWeights == null ? null : AllKeys(task.TrialWeights));
+        if (stage.TrialWeights != null) KeyProblems(problems, "stage '" + stage.Label + "' trialWeights", task.TaskType, weightKeys, AllKeys(stage.TrialWeights));
+        if (problems.Count == 0)
         {
-            // The stage tables are written for a visual go (or left) modality: with the other set, a stage that gives it no
-            // trials would train only the other modality's answer.
-            bool goNoGo = task.TaskType == TaskType.DiscriminationGoNoGo;
-            if (goNoGo && stage.BothSpoutsProbability != 0) problems.Add("stage '" + stage.Label + "' needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
-            string key = goNoGo ? "goModality" : "leftModality";
-            bool visualModality = (goNoGo ? task.GoModality : task.LeftModality) == Modality.Visual;
-            int mine = visualModality ? weights[0] : weights[1], other = visualModality ? weights[1] : weights[0];
-            if (mine == 0 && other > 0)
-            {
-                string m = visualModality ? "visual" : "auditory", o = visualModality ? "auditory" : "visual";
-                problems.Add(string.Format("stage '{0}' gives {1} {2} no trials (trialWeights.{2} 0), so every trial would be a {3} one: swap the {2} and {3} weights on the form", stage.Label, key, m, o));
-            }
+            var roles = RoleWeights(task, stage);
+            if (roles.Any(w => w < 0) || roles.Sum() <= 0) problems.Add("stage '" + stage.Label + "' needs trial weights of 0 or more, one above 0");
+            if (task.TaskType == TaskType.DiscriminationGoNoGo && roles[0] == 0) problems.Add("stage '" + stage.Label + "' has no Go trials: its trial weights' go is 0");
         }
+        KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeyIndices(task.TaskType), task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
+        if (task.TaskType == TaskType.DiscriminationGoNoGo && stage.BothSpoutsProbability != 0) problems.Add("stage '" + stage.Label + "' needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
         if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add("stage '" + stage.Label + "' needs contrasts, each above 0");
         var visual = task.VisualStimulus;
         foreach (var right in new[] { false, true })
@@ -228,16 +226,94 @@ public class TrialDraw
         return s.ResponseDelaySeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
     }
 
-    public static int[] Weights(TrainingStage stage)
+    // Every key trialWeights and rulesPerType may have, and which five each task type gives, in its order (task.py TRIAL_KEYS):
+    // localization's by what a trial shows, the discriminations' by role, goModality or leftModality filling go or left.
+    static readonly string[] AllKeyNames = { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral", "go", "noGo", "left", "right" };
+
+    static int[] KeyIndices(TaskType type)
     {
-        var w = stage.TrialWeights;
-        return new[] { w.Visual, w.Auditory, w.AudiovisualCoherent, w.AudiovisualConflict, w.Neutral };
+        switch (type)
+        {
+            case TaskType.DiscriminationGoNoGo: return new[] { 5, 6, 2, 3, 4 };
+            case TaskType.DiscriminationLeftRight: return new[] { 7, 8, 2, 3, 4 };
+            default: return new[] { 0, 1, 2, 3, 4 };
+        }
     }
 
-    static RepeatRule Rule(RepeatSettings repeats, int type)
+    /// <summary>The five keys of trialWeights and rulesPerType in a task type: localization's TypeNames; discriminationGoNoGo's
+    /// go, noGo, audiovisualCoherent, audiovisualConflict, neutral; discriminationLeftRight's left, right and the same three.</summary>
+    public static string[] Keys(TaskType type)
     {
-        var r = repeats.RulesPerType;
-        return new[] { r.Visual, r.Auditory, r.AudiovisualCoherent, r.AudiovisualConflict, r.Neutral }[type];
+        return KeyIndices(type).Select(i => AllKeyNames[i]).ToArray();
+    }
+
+    static int?[] AllKeys(TrialTypeWeights w)
+    {
+        return new[] { w.Visual, w.Auditory, w.AudiovisualCoherent, w.AudiovisualConflict, w.Neutral, w.Go, w.NoGo, w.Left, w.Right };
+    }
+
+    static RepeatRule?[] AllKeys(TrialTypeRules r)
+    {
+        return new[] { r.Visual, r.Auditory, r.AudiovisualCoherent, null, null, r.Go, r.NoGo, r.Left, r.Right };
+    }
+
+    // rulesPerType's keys (task.py RULE_KEYS): only a trial with a right answer repeats, so localization names visual,
+    // auditory, audiovisualCoherent and the discriminations their two one-modality roles (Pip, 16 Nov 2026).
+    static int[] RuleKeyIndices(TaskType type)
+    {
+        switch (type)
+        {
+            case TaskType.DiscriminationGoNoGo: return new[] { 5, 6 };
+            case TaskType.DiscriminationLeftRight: return new[] { 7, 8 };
+            default: return new[] { 0, 1, 2 };
+        }
+    }
+
+    static void KeyProblems<T>(List<string> problems, string name, TaskType type, int[] indices, T?[] values) where T : struct
+    {
+        var keys = indices.Select(i => AllKeyNames[i]).ToArray();
+        var given = values == null ? new string[0] : AllKeyNames.Where((k, i) => values[i].HasValue).ToArray();
+        if (!given.OrderBy(k => k).SequenceEqual(keys.OrderBy(k => k)))
+        {
+            problems.Add(string.Format("{0} must give exactly {1} in {2} (it gives {3})", name, string.Join(", ", keys), TaskTypeName(type), given.Length == 0 ? "none" : string.Join(", ", given)));
+        }
+    }
+
+    static string TaskTypeName(TaskType type)
+    {
+        return type == TaskType.DiscriminationGoNoGo ? "discriminationGoNoGo" : type == TaskType.DiscriminationLeftRight ? "discriminationLeftRight" : "localization";
+    }
+
+    /// <summary>The stage's trial mix in its task type's key order (Keys): the stage's own trialWeights, else the task's.</summary>
+    public static int[] RoleWeights(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage)
+    {
+        var all = AllKeys(stage.TrialWeights ?? task.TrialWeights);
+        return KeyIndices(task.TaskType).Select(i => all[i].GetValueOrDefault()).ToArray();
+    }
+
+    /// <summary>The stage's trial mix by what each trial shows, in TypeNames' order: in the discriminations goModality's or
+    /// leftModality's modality takes the go or left weight, the other modality the noGo or right.</summary>
+    public static int[] Weights(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage)
+    {
+        return ByStimulus(task, RoleWeights(task, stage));
+    }
+
+    // Key order to TypeNames' order: only the first two differ, swapped when the go or left modality is auditory.
+    static T[] ByStimulus<T>(UclOpenCoenDomeDecisionMakingTaskParameters task, T[] byKey)
+    {
+        var modality = task.TaskType == TaskType.DiscriminationGoNoGo ? task.GoModality : task.LeftModality;
+        if (task.TaskType == TaskType.Localization || modality == Modality.Visual) return byKey;
+        var swapped = (T[])byKey.Clone();
+        swapped[0] = byKey[1];
+        swapped[1] = byKey[0];
+        return swapped;
+    }
+
+    static RepeatRule Rule(UclOpenCoenDomeDecisionMakingTaskParameters task, int type)
+    {
+        var all = AllKeys(task.Repeats.RulesPerType);
+        var byStimulus = ByStimulus(task, RuleKeyIndices(task.TaskType).Select(i => all[i].GetValueOrDefault()).ToArray());
+        return type < byStimulus.Length ? byStimulus[type] : RepeatRule.Never;   // no right answer: never repeated
     }
 
     /// <summary>The speaker in rig.yml at the smallest angle from the location.</summary>
@@ -288,7 +364,7 @@ public class TrialDraw
     {
         if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == Answer.Probe) return false;
         var type = Array.IndexOf(TypeNames, last.trialType);
-        switch (Rule(task.Repeats, type))
+        switch (Rule(task, type))
         {
             case RepeatRule.OnFailure: return outcome != "Correct";
             case RepeatRule.OnNoResponse: return outcome == "NoResponse";
@@ -329,12 +405,12 @@ public class TrialDraw
                 SetVisual(trial, right, true);
                 PickLocation(right, out soundAzimuth, out soundElevation);
                 break;
-            case 3: // conflict: the grating's side is the answer, the sound on the other
+            case 3: // conflict: the grating on one side, the sound on the other
                 right = random.NextDouble() >= 0.5;
                 SetVisual(trial, right, false);
                 PickLocation(!right, out soundAzimuth, out soundElevation);
                 break;
-            default: // neutral: grey screen, a random answer
+            default: // neutral: grey screen (the draw kept, so the stream of draws is as before)
                 right = random.NextDouble() >= 0.5;
                 break;
         }
@@ -354,10 +430,21 @@ public class TrialDraw
         }
         else if (task.TaskType == TaskType.DiscriminationLeftRight)
         {
-            // The answer is the modality: leftModality's trials at the left spout, the other's at the right. A trial showing
-            // both has no right answer, so its side is drawn at random, apart from the stimuli's (Pip, 16 Nov 2026).
+            // The answer is the modality: leftModality's trials at the left spout, the other's at the right.
             if (type == 0 || type == 1) trial.target = (type == 0) == (task.LeftModality == Modality.Visual) ? Choice.Left : Choice.Right;
-            else if (type == 2 || type == 3) trial.target = random.NextDouble() >= 0.5 ? Choice.Right : Choice.Left;
+        }
+        if (RandomRewardProbe(task.TaskType, type))
+        {
+            // No right answer (left-right's two-modality and neutral trials, localization's conflict and neutral): a
+            // random-reward probe. Both spouts move in, and a coin drawn now, from the seeded stream, decides a choice at
+            // either: heads rewarded at that spout, tails penalised as an incorrect choice; no choice, neither. It never
+            // repeats (Pip, 16 Nov 2026).
+            trial.target = Answer.Probe;
+            trial.randomRewardProbe = true;
+            trial.bothSpouts = true;
+            trial.autoReward = false;
+            trial.probeHeads = random.NextDouble() < 0.5;
+            if (!trial.probeHeads) trial.rewardSizeUl = 0;   // tails: no reward on offer
         }
 
         trial.audioEnabled = showsSound;
@@ -387,9 +474,17 @@ public class TrialDraw
         return trial;
     }
 
+    /// <summary>Whether a trial type has no right answer and pays at random: localization's audiovisualConflict and neutral,
+    /// discriminationLeftRight's two-modality and neutral trials. discriminationGoNoGo's probes pay nothing.</summary>
+    public static bool RandomRewardProbe(TaskType taskType, int type)
+    {
+        if (taskType == TaskType.Localization) return type == 3 || type == 4;
+        return taskType == TaskType.DiscriminationLeftRight && type >= 2;
+    }
+
     int WeightedType()
     {
-        var weights = Weights(stage);
+        var weights = Weights(task, stage);
         int draw = random.Next(weights.Sum());
         for (int type = 0; type < weights.Length; type++)
         {
@@ -466,13 +561,16 @@ public class TrialOutcome : ITrialOutcome
     public double PenaltyTimeoutSeconds { get; private set; }
 
     /// <summary>A correct choice or an auto-rewarded miss is rewarded at the target's spout (discriminationGoNoGo's:
-    /// the left), the other spout drawn back; a correct NoGo is not rewarded. Anything else draws both back, with the
+    /// the left), the other spout drawn back, and a random-reward probe whose coin offered a reward at the spout chosen; a correct NoGo is not rewarded. Anything else draws both back, with the
     /// row's penalty sound and timeout if it was penalised. A stage without spout movements leaves the spouts where they are.</summary>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
         var o = new TrialOutcome { Row = new Timestamped<TrialRow>(row, row.outcomeTime), PenaltySound = row.penaltySound, PenaltyTimeoutSeconds = row.penaltyTimeoutSeconds };
-        o.Rewarded = (row.outcome == "Correct" && trial.target != Answer.NoGo) || row.autoRewarded;
-        var side = trial.target == Choice.Right ? "right" : "left";   // Go is answered at the left spout
+        bool chose = row.choice == Choice.Left || row.choice == Choice.Right;
+        // A random-reward probe pays at the spout chosen when its coin offered a reward (go/no-go's probes offer none).
+        bool probePaid = trial.randomRewardProbe && chose && trial.probeHeads;
+        o.Rewarded = (row.outcome == "Correct" && trial.target != Answer.NoGo) || row.autoRewarded || probePaid;
+        var side = (trial.target == Answer.Probe ? row.choice : trial.target) == Choice.Right ? "right" : "left";   // Go is answered at the left spout
         o.Reward = o.Rewarded ? Tuple.Create(side, trial.rewardSizeUl) : null;
         o.MoveSpouts = trial.spoutMovements;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut

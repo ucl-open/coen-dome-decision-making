@@ -4,13 +4,16 @@
 # withhold on the other modality's (NoGo). Go and a lick: Correct, rewarded. Go and none: NoResponse,
 # no penalty. NoGo and a lick: Incorrect, the penalty. NoGo and none: Correct, unrewarded. A trial showing both
 # modalities (audiovisualCoherent, audiovisualConflict) or neither (neutral) is a Probe, never rewarded or penalised (Song et al. 2017;
-# Pip, 16 Nov 2026). trialWeights and rulesPerType name each trial type by what it shows; the stages are written for
-# goModality visual (swap the visual and auditory weights for an auditory-go mouse). Visual-only and neutral trials
-# are silent. bothSpoutsProbability must be 0: only the left spout moves in.
+# Pip, 16 Nov 2026). trialWeights names each kind of trial by its role: go (goModality alone), noGo (the other modality
+# alone), audiovisualCoherent, audiovisualConflict, neutral; goModality, set per mouse, decides which modality fills go
+# (Pip, 16 Nov 2026). The top-level trialWeights is per mouse; a stage's own replaces it for that stage. A stage with
+# go 0 is refused at Go. rulesPerType names go and noGo alone: a probe never repeats. Visual-only and neutral trials are silent.
+# bothSpoutsProbability must be 0: only the left spout moves in.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: discriminationGoNoGo
   goModality: visual       # visual or auditory: the modality to lick for; set per mouse on the form
+  trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage's own trialWeights replaces it for that stage
   rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
@@ -52,7 +55,7 @@ taskParameters:
     largeRewardProbability: 0.0
   repeats:
     maxRepeats: 5
-    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onNoResponse, neutral: onNoResponse }
+    rulesPerType: { go: onFailure, noGo: onFailure }   # only a trial with a right answer repeats: the probes (audiovisualCoherent, audiovisualConflict, neutral) never do
   optogenetics:
     useZapit: false
     zapitConfigPath: ""
@@ -64,7 +67,7 @@ taskParameters:
     trialsBeforeLaser: 20
   trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
     - label: Stage 0       # habituation: Go trials only, every miss auto-rewarded, spouts stay in
-      trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
+      trialWeights: { go: 10, noGo: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3      # ul, planned from the valve's calibration
@@ -75,7 +78,7 @@ taskParameters:
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
       spoutMovements: false
     - label: Stage 1       # Go trials only, every miss auto-rewarded
-      trialWeights: { visual: 10, auditory: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
+      trialWeights: { go: 10, noGo: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3
@@ -85,7 +88,7 @@ taskParameters:
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     - label: Stage 2       # NoGo and coherent (probe) trials added
-      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
+      trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3
@@ -94,8 +97,7 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 3       # conflict and neutral (probe) trials added
-      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
+    - label: Stage 3       # conflict and neutral (probe) trials added: the task's trialWeights
       autoRewardProbability: 0.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3
@@ -105,7 +107,6 @@ taskParameters:
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     - label: Stage 4       # as stage 3, wider contrasts (Gerion's default row)
-      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 0.0
       rewardSizeUl: 3

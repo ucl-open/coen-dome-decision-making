@@ -86,12 +86,18 @@ class Harness
 static class Rules
 {
     // Discrimination stage 4 with every interval exactly 2 s: trial 1's interval from 10 s, its start at 11.5 (the 0.5 s
-    // lead), the stimulus at 12 and, with no open loop, its response window 12 to 13.5.
+    // lead), the stimulus at 12 and, with no open loop, its response window 12 to 13.5. Stage 4 takes the task's weights,
+    // here scored trials alone in the two-spout tasks, so every trial has a side to answer (the probes' own test below).
     public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, bool hardwareTriggered = true, string file = "task-discrimination-left-right.yml", int stage = 4)
     {
         var task = Fixture.Task(file);
         task.TrialStructure.ItiMinSeconds = 2;
         task.TrialStructure.ItiMaxSeconds = 2;
+        if (task.TaskType != TaskType.DiscriminationGoNoGo)
+        {
+            task.TrialWeights.AudiovisualConflict = task.TrialWeights.Neutral = 0;
+            if (task.TaskType == TaskType.DiscriminationLeftRight) task.TrialWeights.AudiovisualCoherent = 0;
+        }
         if (edit != null) edit(task);
         return new TrialRules(task, stage, Fixture.Speakers(), hardwareTriggered, path => 2);
     }
@@ -176,11 +182,11 @@ public class ResponseRuleTests
     [TestMethod]
     public void ARepeatFollowsTheOutcome()
     {
-        // Localization stage 4 with every type repeated on failure: a wrong answer repeats the trial, a right one draws anew.
+        // Localization stage 4 with every type that has a right answer repeated on failure: a wrong answer repeats the trial, a right one draws anew.
         var run = new Harness(Rules.Make(t =>
         {
             var r = t.Repeats.RulesPerType;
-            r.Visual = r.Auditory = r.AudiovisualCoherent = r.AudiovisualConflict = r.Neutral = RepeatRule.OnFailure;
+            r.Visual = r.Auditory = r.AudiovisualCoherent = RepeatRule.OnFailure;
         }, file: "task-localization.yml"));
         run.RunTo(12.05);
         var wrong = run.Spout(false);
@@ -212,15 +218,50 @@ public class ResponseRuleTests
     }
 
     [TestMethod]
-    public void LeftRightTwoModalityTrialsHaveTheirSideDrawnApartFromTheStimuli()
+    public void ATrialWithNoRightAnswerRewardsOrPenalisesEitherChoiceOnACoin()
     {
-        // A trial showing both modalities has no right answer: its side is a coin flip, not the stimuli's (Pip, 16 Nov 2026).
-        var two = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 4, 4000)
-            .Where(t => t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict").ToList();
-        Assert.AreEqual(0.5, two.Count(t => t.target == "Right") / (double)two.Count, 0.05);
-        Assert.AreEqual(0.5, two.Count(t => t.target == "Right" == t.visualAzimuthDeg > 0) / (double)two.Count, 0.05, "the side is not the grating's");
+        // Random-reward probes (Pip, 16 Nov 2026): left-right's two-modality and neutral trials, localization's conflict and
+        // neutral. Both spouts in; a choice at either is rewarded there on heads, penalised as an incorrect choice on tails;
+        // a miss as a scored trial's miss; outcome and target Probe.
         var times = new TrialTimes { Now = 1 };
-        Assert.AreEqual("Correct", TrialRow.Build(two[0].target, two[0], times, 4, true).outcome);
+        foreach (var file in new[] { "task-discrimination-left-right.yml", "task-localization.yml" })
+        {
+            var task = Fixture.Task(file);
+            var all = Fixture.Draw(task, 4, 4000);
+            var probes = all.Where(t => t.target == Answer.Probe).ToList();
+            var kinds = file.Contains("left-right") ? new[] { "audiovisualCoherent", "audiovisualConflict", "neutral" } : new[] { "audiovisualConflict", "neutral" };
+            CollectionAssert.AreEquivalent(kinds, probes.Select(t => t.trialType).Distinct().ToArray(), file);
+            Assert.IsTrue(all.Where(t => t.target != Answer.Probe).All(t => !kinds.Contains(t.trialType)), file);
+            Assert.IsTrue(probes.All(t => t.bothSpouts && !t.autoReward && SpoutsIn.Command(t) == LickSpoutCommand.SpoutsIn), file);
+            int rewarded = 0, penalised = 0;
+            for (int i = 0; i < probes.Count; i++)
+            {
+                var t = probes[i];
+                var choice = i % 2 == 0 ? Choice.Left : Choice.Right;
+                var o = TrialOutcome.Of(TrialRow.Build(choice, t, times, 4, true), t);
+                Assert.AreEqual(Answer.Probe, o.Row.Value.outcome);
+                Assert.AreNotEqual(o.Rewarded, o.PenaltySound, "rewarded or penalised, never both or neither");
+                if (o.Rewarded)
+                {
+                    rewarded++;
+                    Assert.AreEqual(Tuple.Create(choice == Choice.Left ? "left" : "right", t.rewardSizeUl), o.Reward, "at the spout chosen");
+                    Assert.IsTrue(o.Row.Value.rewardSizeUl > 0 && o.PenaltyTimeoutSeconds == 0);
+                }
+                else
+                {
+                    penalised++;
+                    Assert.IsTrue(o.Row.Value.rewardSizeUl == 0 && o.PenaltyTimeoutSeconds == 4 && o.SpoutCommand == LickSpoutCommand.SpoutsOut);
+                }
+                // A miss: exactly a scored miss (a penalty in these tasks), whatever the coin.
+                var miss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, t, times, 4, true), t);
+                var scored = all.First(s => s.target != Answer.Probe && !s.autoReward);
+                var scoredMiss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, scored, times, 4, true), scored);
+                Assert.IsTrue(miss.Row.Value.outcome == Answer.Probe && !miss.Rewarded && miss.Row.Value.rewardSizeUl == 0, "no choice, nothing paid");
+                Assert.IsTrue(miss.PenaltySound == scoredMiss.PenaltySound && miss.PenaltyTimeoutSeconds == scoredMiss.PenaltyTimeoutSeconds && scoredMiss.PenaltySound, file);
+            }
+            Assert.AreEqual(0.5, rewarded / (double)probes.Count, 0.06, file + ": about half rewarded");
+            Assert.IsTrue(probes.Count > 200 && rewarded + penalised == probes.Count);
+        }
     }
 
     [TestMethod]

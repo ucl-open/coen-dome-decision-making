@@ -219,17 +219,13 @@
         },
         "rulesPerType": {
           "$ref": "#/$defs/TrialTypeRules",
-          "default": {
-            "visual": "onFailure",
-            "auditory": "onFailure",
-            "audiovisualCoherent": "onFailure",
-            "audiovisualConflict": "onNoResponse",
-            "neutral": "onNoResponse"
-          },
-          "description": "Repeat rule per trial type",
+          "description": "Repeat rule per kind of trial with a right answer: localization visual, auditory, audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight left, right. The others never repeat",
           "title": "RulesPerType"
         }
       },
+      "required": [
+        "rulesPerType"
+      ],
       "title": "RepeatSettings",
       "type": "object"
     },
@@ -351,8 +347,16 @@
           "type": "string"
         },
         "trialWeights": {
-          "$ref": "#/$defs/TrialTypeWeights",
-          "description": "Relative draw weight per trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrialTypeWeights"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights",
           "title": "TrialWeights"
         },
         "autoRewardProbability": {
@@ -399,7 +403,6 @@
       },
       "required": [
         "label",
-        "trialWeights",
         "autoRewardProbability",
         "bothSpoutsProbability",
         "rewardSizeUl",
@@ -466,88 +469,244 @@
       "type": "object"
     },
     "TrialTypeRules": {
-      "description": "The repeat rule of each trial type, by the name the trial log gives it.",
+      "additionalProperties": false,
+      "description": "The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),\nthe others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral\ntrial in the discriminations (go/no-go's probes; left-right's side drawn at random). A key it lacks is refused, as Bonsai's\nreader refuses it at Go.",
       "properties": {
         "visual": {
-          "$ref": "#/$defs/RepeatRule",
-          "default": "onFailure",
-          "description": "The grating alone",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "localization only: the grating alone",
           "title": "Visual"
         },
         "auditory": {
-          "$ref": "#/$defs/RepeatRule",
-          "default": "onFailure",
-          "description": "The sound alone",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "localization only: the sound alone",
           "title": "Auditory"
         },
         "audiovisualCoherent": {
-          "$ref": "#/$defs/RepeatRule",
-          "default": "onFailure",
-          "description": "Grating and sound on the same side",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "localization only: grating and sound on the same side",
           "title": "AudiovisualCoherent"
         },
-        "audiovisualConflict": {
-          "$ref": "#/$defs/RepeatRule",
-          "default": "onNoResponse",
-          "description": "Grating and sound on opposite sides",
-          "title": "AudiovisualConflict"
+        "go": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationGoNoGo only: goModality alone (Go)",
+          "title": "Go"
         },
-        "neutral": {
-          "$ref": "#/$defs/RepeatRule",
-          "default": "onNoResponse",
-          "description": "Grey screen",
-          "title": "Neutral"
+        "noGo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationGoNoGo only: the other modality alone (NoGo)",
+          "title": "NoGo"
+        },
+        "left": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationLeftRight only: leftModality alone",
+          "title": "Left"
+        },
+        "right": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationLeftRight only: the other modality alone",
+          "title": "Right"
         }
       },
       "title": "TrialTypeRules",
       "type": "object"
     },
     "TrialTypeWeights": {
-      "description": "Relative draw weight of each trial type, by the name the trial log gives it (what the trial showed).",
+      "additionalProperties": false,
+      "description": "Relative draw weight of each kind of trial: exactly the task type's five keys (TRIAL_KEYS), the others left out.\nlocalization: by what the trial shows. discriminationGoNoGo: go, noGo, audiovisualCoherent, audiovisualConflict, neutral.\ndiscriminationLeftRight: left, right, audiovisualCoherent, audiovisualConflict, neutral.",
       "properties": {
         "visual": {
-          "description": "The grating alone",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
-          "title": "Visual",
-          "type": "integer"
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "localization only: the grating alone",
+          "title": "Visual"
         },
         "auditory": {
-          "description": "The sound alone",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
-          "title": "Auditory",
-          "type": "integer"
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "localization only: the sound alone",
+          "title": "Auditory"
         },
         "audiovisualCoherent": {
-          "description": "Grating and sound on the same side",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
-          "title": "AudiovisualCoherent",
-          "type": "integer"
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Every task type: grating and sound on the same side",
+          "title": "AudiovisualCoherent"
         },
         "audiovisualConflict": {
-          "description": "Grating and sound on opposite sides",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
-          "title": "AudiovisualConflict",
-          "type": "integer"
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Every task type: grating and sound on opposite sides",
+          "title": "AudiovisualConflict"
+        },
+        "go": {
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationGoNoGo only: goModality alone (Go)",
+          "title": "Go"
+        },
+        "noGo": {
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationGoNoGo only: the other modality alone (NoGo)",
+          "title": "NoGo"
+        },
+        "left": {
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationLeftRight only: leftModality alone (answered at the left spout)",
+          "title": "Left"
+        },
+        "right": {
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "discriminationLeftRight only: the other modality alone (answered at the right spout)",
+          "title": "Right"
         },
         "neutral": {
-          "description": "Grey screen, centre sound in localization, silent in the discriminations",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
-          "title": "Neutral",
-          "type": "integer"
+          "anyOf": [
+            {
+              "maximum": 2147483647,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Every task type: grey screen, centre sound in localization, silent in the discriminations",
+          "title": "Neutral"
         }
       },
-      "required": [
-        "visual",
-        "auditory",
-        "audiovisualCoherent",
-        "audiovisualConflict",
-        "neutral"
-      ],
       "title": "TrialTypeWeights",
       "type": "object"
     },
@@ -598,14 +757,19 @@
         "goModality": {
           "$ref": "#/$defs/Modality",
           "default": "visual",
-          "description": "discriminationGoNoGo only: the modality to lick for; the other modality's trials are NoGo",
+          "description": "discriminationGoNoGo only: the modality to lick for, shown on the stages' go trials; the other modality's (noGo) trials are NoGo",
           "title": "GoModality"
         },
         "leftModality": {
           "$ref": "#/$defs/Modality",
           "default": "visual",
-          "description": "discriminationLeftRight only: the modality answered at the left spout; the other is answered at the right",
+          "description": "discriminationLeftRight only: the modality answered at the left spout, shown on the stages' left trials; the other (right) is answered at the right",
           "title": "LeftModality"
+        },
+        "trialWeights": {
+          "$ref": "#/$defs/TrialTypeWeights",
+          "description": "Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right",
+          "title": "TrialWeights"
         },
         "trialStructure": {
           "$ref": "#/$defs/TrialStructure",
@@ -663,6 +827,7 @@
       },
       "required": [
         "taskType",
+        "trialWeights",
         "trialStructure",
         "visualStimulus",
         "audioStimulus",

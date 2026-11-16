@@ -6,7 +6,7 @@ from open_rigs.core.base import Bool, Double, Int, String
 from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskBlock, TaskParameters
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
 from open_rigs.rigs.lab_rig import MAX_REWARD_UL
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
 
@@ -141,37 +141,69 @@ class RepeatRule(StrEnum):
     ON_NO_RESPONSE = "onNoResponse"
 
 
-class TrialTypeWeights(TaskBlock):
-    """Relative draw weight of each trial type, by the name the trial log gives it (what the trial showed)."""
+# The keys of trialWeights and rulesPerType for each task type (TrialDraw.Keys): localization's name what a trial shows;
+# the discriminations' name its role, the mouse's goModality or leftModality choosing which modality fills it (Pip, 16 Nov 2026).
+TRIAL_KEYS = {
+    TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral"),
+    TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo", "audiovisualCoherent", "audiovisualConflict", "neutral"),
+    TaskType.DISCRIMINATION_LEFT_RIGHT: ("left", "right", "audiovisualCoherent", "audiovisualConflict", "neutral"),
+}
+# rulesPerType's keys: only a trial with a right answer repeats (Pip, 16 Nov 2026).
+RULE_KEYS = {
+    TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent"),
+    TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo"),
+    TaskType.DISCRIMINATION_LEFT_RIGHT: ("left", "right"),
+}
 
-    visual: Int = Field(ge=0, description="The grating alone")
-    auditory: Int = Field(ge=0, description="The sound alone")
-    audiovisual_coherent: Int = Field(ge=0, description="Grating and sound on the same side")
-    audiovisual_conflict: Int = Field(ge=0, description="Grating and sound on opposite sides")
-    neutral: Int = Field(ge=0, description="Grey screen, centre sound in localization, silent in the discriminations")
+
+class TrialTypeWeights(TaskBlock):
+    """Relative draw weight of each kind of trial: exactly the task type's five keys (TRIAL_KEYS), the others left out.
+    localization: by what the trial shows. discriminationGoNoGo: go, noGo, audiovisualCoherent, audiovisualConflict, neutral.
+    discriminationLeftRight: left, right, audiovisualCoherent, audiovisualConflict, neutral."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    visual: Int | None = Field(default=None, ge=0, description="localization only: the grating alone")
+    auditory: Int | None = Field(default=None, ge=0, description="localization only: the sound alone")
+    audiovisual_coherent: Int | None = Field(default=None, ge=0, description="Every task type: grating and sound on the same side")
+    audiovisual_conflict: Int | None = Field(default=None, ge=0, description="Every task type: grating and sound on opposite sides")
+    go: Int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: goModality alone (Go)")
+    no_go: Int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: the other modality alone (NoGo)")
+    left: Int | None = Field(default=None, ge=0, description="discriminationLeftRight only: leftModality alone (answered at the left spout)")
+    right: Int | None = Field(default=None, ge=0, description="discriminationLeftRight only: the other modality alone (answered at the right spout)")
+    neutral: Int | None = Field(default=None, ge=0, description="Every task type: grey screen, centre sound in localization, silent in the discriminations")
 
     @model_validator(mode="after")
     def _some_weight(self) -> "TrialTypeWeights":
-        if not any(self.model_dump().values()):
+        if not any(self.model_dump(exclude_none=True).values()):
             raise ValueError("trial_weights needs a trial type with a weight above 0")
         return self
 
 
 class TrialTypeRules(TaskBlock):
-    """The repeat rule of each trial type, by the name the trial log gives it."""
+    """The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
+    the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
+    trial in the discriminations (go/no-go's probes; left-right's side drawn at random). A key it lacks is refused, as Bonsai's
+    reader refuses it at Go."""
 
-    visual: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="The grating alone")
-    auditory: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="The sound alone")
-    audiovisual_coherent: RepeatRule = Field(default=RepeatRule.ON_FAILURE, description="Grating and sound on the same side")
-    audiovisual_conflict: RepeatRule = Field(default=RepeatRule.ON_NO_RESPONSE, description="Grating and sound on opposite sides")
-    neutral: RepeatRule = Field(default=RepeatRule.ON_NO_RESPONSE, description="Grey screen")
+    model_config = ConfigDict(extra="forbid")
+
+    visual: RepeatRule | None = Field(default=None, description="localization only: the grating alone")
+    auditory: RepeatRule | None = Field(default=None, description="localization only: the sound alone")
+    audiovisual_coherent: RepeatRule | None = Field(default=None, description="localization only: grating and sound on the same side")
+    go: RepeatRule | None = Field(default=None, description="discriminationGoNoGo only: goModality alone (Go)")
+    no_go: RepeatRule | None = Field(default=None, description="discriminationGoNoGo only: the other modality alone (NoGo)")
+    left: RepeatRule | None = Field(default=None, description="discriminationLeftRight only: leftModality alone")
+    right: RepeatRule | None = Field(default=None, description="discriminationLeftRight only: the other modality alone")
 
 
 class RepeatSettings(TaskBlock):
     """Trial repetition policy."""
 
     max_repeats: Int = Field(default=5, ge=0, description="Maximum number of consecutive repeats of the same trial")
-    rules_per_type: TrialTypeRules = Field(default=TrialTypeRules(), description="Repeat rule per trial type")
+    rules_per_type: TrialTypeRules = Field(
+        description="Repeat rule per kind of trial with a right answer: localization visual, auditory, audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight left, right. The others never repeat"
+    )
 
 
 class OptogeneticsSettings(Optogenetics):
@@ -190,8 +222,9 @@ class TrainingStage(QuietWait):
     """One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits the lab's (open_rigs.core.task QuietWait)."""
 
     label: String = Field(description="Human-readable stage name, for documentation and logs")
-    trial_weights: TrialTypeWeights = Field(
-        description="Relative draw weight per trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)"
+    trial_weights: TrialTypeWeights | None = Field(
+        default=None,
+        description="This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights",
     )
     auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats")
     both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
@@ -224,8 +257,18 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             "a trial showing both modalities has its answer drawn at random, left or right"
         ),
     )
-    go_modality: Modality = Field(default=Modality.VISUAL, description="discriminationGoNoGo only: the modality to lick for; the other modality's trials are NoGo")
-    left_modality: Modality = Field(default=Modality.VISUAL, description="discriminationLeftRight only: the modality answered at the left spout; the other is answered at the right")
+    go_modality: Modality = Field(default=Modality.VISUAL, description="discriminationGoNoGo only: the modality to lick for, shown on the stages' go trials; the other modality's (noGo) trials are NoGo")
+    left_modality: Modality = Field(
+        default=Modality.VISUAL, description="discriminationLeftRight only: the modality answered at the left spout, shown on the stages' left trials; the other (right) is answered at the right"
+    )
+    trial_weights: TrialTypeWeights = Field(
+        description=(
+            "Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as "
+            "relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, "
+            "audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight "
+            "(left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right"
+        )
+    )
     trial_structure: TrialStructure = Field(description="Timing of each trial")
     visual_stimulus: VisualStimulus = Field(description="Grating stimulus parameters")
     audio_stimulus: AudioStimulus = Field(description="Auditory stimulus parameters")
@@ -259,6 +302,26 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             response_delay_seconds=s.response_delay_seconds,
         )
         return self
+
+    @model_validator(mode="after")
+    def _keys_of_the_task_type(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # TrialDraw.CheckTask's same rules: each block names exactly its task type's keys, and a go/no-go stage has Go trials.
+        weights, rules = TRIAL_KEYS[self.task_type], RULE_KEYS[self.task_type]
+        blocks = [("trial_weights", self.trial_weights, weights), ("repeats.rules_per_type", self.repeats.rules_per_type, rules)]
+        blocks += [(f"training_stages[{i}] ({s.label}).trial_weights", s.trial_weights, weights) for i, s in enumerate(self.training_stages) if s.trial_weights is not None]
+        for where, block, keys in blocks:
+            given = set(block.model_dump(by_alias=True, exclude_none=True))
+            if given != set(keys):
+                raise ValueError(f"{where} must give exactly {', '.join(keys)} in {self.task_type.value} (it gives {', '.join(sorted(given)) or 'none'})")
+        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
+            for index, stage in enumerate(self.training_stages):
+                if self.weights_of(stage).go == 0:
+                    raise ValueError(f"training_stages[{index}] ({stage.label}): its trial weights' go is 0, so the stage has no Go trials")
+        return self
+
+    def weights_of(self, stage: TrainingStage) -> TrialTypeWeights:
+        """The stage's trial mix: its own trial_weights, else the task's (TrialDraw.Weights)."""
+        return self.trial_weights if stage.trial_weights is None else stage.trial_weights
 
     @model_validator(mode="after")
     def _one_spout_in_go_no_go(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":

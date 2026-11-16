@@ -49,10 +49,21 @@ public class TrialRow
     }
 
     // Penalised (the penalty sound and timeout): an incorrect choice, or a miss that was not auto-rewarded, except a
-    // discriminationGoNoGo miss, which has neither (Song et al. 2017; Pip, 16 Nov 2026).
-    public static bool Penalised(string outcome, Trial trial)
+    // discriminationGoNoGo miss, which has neither (Song et al. 2017; Pip, 16 Nov 2026). On a random-reward probe a choice
+    // is penalised when its coin came up tails, and a miss as a scored trial's miss, by the same rule (Pip, 16 Nov 2026).
+    public static bool Penalised(string outcome, string choice, Trial trial)
     {
-        return outcome == "Incorrect" || (outcome == "NoResponse" && !trial.autoReward && trial.target != Answer.Go);
+        if (choice == Choice.NoResponse) return MissPenalised(trial);
+        if (trial.randomRewardProbe) return !trial.probeHeads;
+        return outcome == "Incorrect";
+    }
+
+    // A miss's penalty, on every trial that can be penalised: none when auto-rewarded or on a Go trial; never on
+    // discriminationGoNoGo's other trials (a withheld NoGo is Correct, a probe pays nothing and costs nothing).
+    static bool MissPenalised(Trial trial)
+    {
+        if (trial.target == Answer.Go || trial.target == Answer.NoGo || (trial.target == Answer.Probe && !trial.randomRewardProbe)) return false;
+        return !trial.autoReward;
     }
 
     // The trial's row at its outcome, the choice made now (times.Now: the lick, or the end of the response window,
@@ -60,14 +71,15 @@ public class TrialRow
     public static TrialRow Build(string choice, Trial trial, TrialTimes times, double timeoutSeconds, bool penaltySound)
     {
         var outcome = Outcome(choice, trial);
-        var penalised = Penalised(outcome, trial);
+        var penalised = Penalised(outcome, choice, trial);
         // The shared block (trial number, the loop's times, the penalty, the laser: 0 mW when answered before its trigger,
         // Pip 13 Nov 2026; the sound comes with every timeout, Pip 14 Nov 2026) is lib-open-rigs' SharedTrialColumns.Fill.
         var row = new TrialRow
         {
             trialType = trial.trialType,
             outcome = outcome,
-            rewardSizeUl = trial.rewardSizeUl,
+            // On a random-reward probe, above 0 only when a choice was paid (heads), so the column says whether it paid.
+            rewardSizeUl = trial.randomRewardProbe && choice == Choice.NoResponse ? 0 : trial.rewardSizeUl,
             target = trial.target,
             choice = choice,
             repeatCount = trial.repeatCount,

@@ -1,9 +1,13 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making audiovisual localization task.
 # Read by src/main.bonsai at Go and published as the TaskConfig subject (and at Start, as launched, for the background noise).
+# trialWeights names each kind of trial by what it shows; the top-level one is per mouse, and a stage's own replaces it for
+# that stage. rulesPerType names visual, auditory and audiovisualCoherent alone: audiovisualConflict and neutral trials have
+# no right answer and never repeat (Pip, 16 Nov 2026).
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
+  trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage's own trialWeights replaces it for that stage
   rngSeed: null           # null = the workflow draws one at Go; each seed used is a RngSeed event in BonsaiData_Async
   trialStructure:
     itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included
@@ -45,7 +49,7 @@ taskParameters:
     largeRewardProbability: 0.0
   repeats:
     maxRepeats: 5
-    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure, audiovisualConflict: onNoResponse, neutral: onNoResponse }
+    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure }   # only a trial with a right answer repeats: audiovisualConflict and neutral never do
   optogenetics:
     useZapit: false
     zapitConfigPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
@@ -96,8 +100,7 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 4       # conflict and neutral trials added
-      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
+    - label: Stage 4       # conflict and neutral trials added: the task's trialWeights
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
       rewardSizeUl: 3

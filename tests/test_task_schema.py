@@ -8,7 +8,10 @@ import yaml
 from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
+    RULE_KEYS,
+    TRIAL_KEYS,
     AudioStimulus,
+    TaskType,
     UclOpenCoenDomeDecisionMakingTaskLogic,
     UclOpenCoenDomeDecisionMakingTaskParameters,
     VisualStimulus,
@@ -106,12 +109,17 @@ def test_the_discrimination_files_keep_the_spouts_in_for_habituation():
 
 
 def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
-    # Same stages and timing (Gerion's); go-no-go names goModality and offers one spout.
+    # Same stages, mixes and timing (Gerion's), go and noGo where left-right has left and right; go-no-go names goModality,
+    # offers one spout and repeats go and noGo alone, as left-right left and right.
     lr = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     gng = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
     assert all(s["bothSpoutsProbability"] == 0 for s in gng["trainingStages"])
+    roles = {"go": "left", "noGo": "right"}
     for data, key in ((lr, "leftModality"), (gng, "goModality")):
         del data["taskType"], data[key]
+        for block, name in [(data, "trialWeights"), (data["repeats"], "rulesPerType")] + [(s, "trialWeights") for s in data["trainingStages"]]:
+            if name in block:
+                block[name] = {roles.get(k, k): v for k, v in block[name].items()}
         for s in data["trainingStages"]:
             del s["bothSpoutsProbability"]
     assert lr == gng
@@ -323,14 +331,57 @@ def test_the_stimulus_is_off_before_the_next_one_starts():
         TrialStructure(stimulusSeconds=1.6, itiMinSeconds=1.5, itiMaxSeconds=2, drinkSeconds=1, responseDelaySeconds=0, responseWindowSeconds=3)
 
 
-def test_weights_and_repeat_rules_are_keyed_by_trial_type_name():
-    names = {"visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral"}
+def test_weights_and_repeat_rules_are_keyed_by_the_task_type_s_keys():
+    # Localization by what a trial shows (the trialType column's words), the discriminations by role (Pip, 16 Nov 2026);
+    # rulesPerType names only the trials with a right answer.
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
-    assert set(columns["trialType"]["values"]) == names
+    assert tuple(columns["trialType"]["values"]) == TRIAL_KEYS[TaskType.LOCALIZATION]
+    assert RULE_KEYS == {
+        TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent"),
+        TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo"),
+        TaskType.DISCRIMINATION_LEFT_RIGHT: ("left", "right"),
+    }
     for path in TASK_FILES:
         task = yaml.safe_load(path.read_text())["taskParameters"]
-        assert set(task["repeats"]["rulesPerType"]) == names
-        assert all(set(stage["trialWeights"]) == names for stage in task["trainingStages"])
+        task_type = TaskType(task["taskType"])
+        assert set(task["trialWeights"]) == set(TRIAL_KEYS[task_type]), path.name
+        assert set(task["repeats"]["rulesPerType"]) == set(RULE_KEYS[task_type]), path.name
+        assert all(set(s["trialWeights"]) == set(TRIAL_KEYS[task_type]) for s in task["trainingStages"] if "trialWeights" in s), path.name
+
+
+def test_the_top_level_weights_are_the_last_stage_s_mix_and_the_earlier_stages_keep_theirs():
+    # Today's shaping unchanged (Pip, 16 Nov 2026): the last stage takes the task's weights.
+    for path in TASK_FILES:
+        task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(yaml.safe_load(path.read_text())["taskParameters"])
+        assert task.training_stages[-1].trial_weights is None
+        assert task.weights_of(task.training_stages[-1]) == task.trial_weights
+        assert task.training_stages[0].trial_weights is not None
+
+
+@pytest.mark.parametrize(
+    "name, where, block, words",
+    [
+        ("task-discrimination-go-no-go.yml", "trialWeights", {"visual": 10, "auditory": 10, "audiovisualCoherent": 5, "audiovisualConflict": 5, "neutral": 1}, "trial_weights must give exactly go, noGo"),
+        ("task-discrimination-left-right.yml", "trialWeights", {"go": 10, "noGo": 10, "audiovisualCoherent": 5, "audiovisualConflict": 5, "neutral": 1}, "trial_weights must give exactly left, right"),
+        ("task-discrimination-go-no-go.yml", "rulesPerType", {"go": "onFailure", "noGo": "onFailure", "neutral": "onNoResponse"}, r"rulesPerType.neutral\s+Extra inputs are not permitted"),
+        ("task-localization.yml", "rulesPerType", {"visual": "onFailure", "auditory": "onFailure", "audiovisualCoherent": "onFailure", "neutral": "never"}, r"rulesPerType.neutral\s+Extra inputs are not permitted"),
+    ],
+)
+def test_keys_of_another_task_type_or_a_probe_s_repeat_rule_are_refused(name, where, block, words):
+    data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
+    if where == "rulesPerType":
+        data["repeats"]["rulesPerType"] = block
+    else:
+        data[where] = block
+    with pytest.raises(ValidationError, match=words):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
+def test_a_go_no_go_stage_with_no_go_trials_is_refused():
+    data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    data["trialWeights"]["go"] = 0   # stages 3 and 4 take it
+    with pytest.raises(ValidationError, match=r"training_stages\[3\] \(Stage 3\): its trial weights' go is 0"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 

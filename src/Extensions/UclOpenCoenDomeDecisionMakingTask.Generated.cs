@@ -837,12 +837,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Repeat rule per trial type
+        /// Repeat rule per kind of trial with a right answer: localization visual, auditory, audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight left, right. The others never repeat
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("rulesPerType")]
+        [Newtonsoft.Json.JsonPropertyAttribute("rulesPerType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="rulesPerType")]
-        [System.ComponentModel.DescriptionAttribute("Repeat rule per trial type")]
+        [System.ComponentModel.DescriptionAttribute("Repeat rule per kind of trial with a right answer: localization visual, auditory," +
+            " audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight lef" +
+            "t, right. The others never repeat")]
         public TrialTypeRules RulesPerType
         {
             get
@@ -1255,7 +1257,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _lickQuietSeconds = 0D;
             _wheelQuietSeconds = 0D;
             _wheelQuietCm = 0D;
-            _trialWeights = new TrialTypeWeights();
             _contrasts = new System.Collections.Generic.List<double>();
             _spoutMovements = true;
         }
@@ -1350,14 +1351,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Relative draw weight per trial type: each new trial draws its type at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat)
+        /// This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("trialWeights", Required=Newtonsoft.Json.Required.Always)]
+        [Newtonsoft.Json.JsonPropertyAttribute("trialWeights")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialWeights")]
-        [System.ComponentModel.DescriptionAttribute("Relative draw weight per trial type: each new trial draws its type at random with" +
-            " these as relative chances, independently of every other trial (repeats copy the" +
-            " trial they repeat)")]
+        [System.ComponentModel.DescriptionAttribute("This stage\'s own trial mix, keyed as the task\'s trialWeights, replacing it for th" +
+            "is stage; null or left out: the task\'s trialWeights")]
         public TrialTypeWeights TrialWeights
         {
             get
@@ -1740,32 +1740,37 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The repeat rule of each trial type, by the name the trial log gives it.
+    /// The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
+    ///the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
+    ///trial in the discriminations (go/no-go's probes; left-right's side drawn at random). A key it lacks is refused, as Bonsai's
+    ///reader refuses it at Go.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The repeat rule of each trial type, by the name the trial log gives it.")]
+    [System.ComponentModel.DescriptionAttribute(@"The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
+    the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
+    trial in the discriminations (go/no-go's probes; left-right's side drawn at random). A key it lacks is refused, as Bonsai's
+    reader refuses it at Go.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialTypeRules
     {
     
-        private RepeatRule _visual;
+        private RepeatRule? _visual;
     
-        private RepeatRule _auditory;
+        private RepeatRule? _auditory;
     
-        private RepeatRule _audiovisualCoherent;
+        private RepeatRule? _audiovisualCoherent;
     
-        private RepeatRule _audiovisualConflict;
+        private RepeatRule? _go;
     
-        private RepeatRule _neutral;
+        private RepeatRule? _noGo;
+    
+        private RepeatRule? _left;
+    
+        private RepeatRule? _right;
     
         public TrialTypeRules()
         {
-            _visual = RepeatRule.OnFailure;
-            _auditory = RepeatRule.OnFailure;
-            _audiovisualCoherent = RepeatRule.OnFailure;
-            _audiovisualConflict = RepeatRule.OnNoResponse;
-            _neutral = RepeatRule.OnNoResponse;
         }
     
         protected TrialTypeRules(TrialTypeRules other)
@@ -1773,17 +1778,19 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _visual = other._visual;
             _auditory = other._auditory;
             _audiovisualCoherent = other._audiovisualCoherent;
-            _audiovisualConflict = other._audiovisualConflict;
-            _neutral = other._neutral;
+            _go = other._go;
+            _noGo = other._noGo;
+            _left = other._left;
+            _right = other._right;
         }
     
         /// <summary>
-        /// The grating alone
+        /// localization only: the grating alone
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("visual")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
-        [System.ComponentModel.DescriptionAttribute("The grating alone")]
-        public RepeatRule Visual
+        [System.ComponentModel.DescriptionAttribute("localization only: the grating alone")]
+        public RepeatRule? Visual
         {
             get
             {
@@ -1796,12 +1803,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The sound alone
+        /// localization only: the sound alone
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("auditory")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
-        [System.ComponentModel.DescriptionAttribute("The sound alone")]
-        public RepeatRule Auditory
+        [System.ComponentModel.DescriptionAttribute("localization only: the sound alone")]
+        public RepeatRule? Auditory
         {
             get
             {
@@ -1814,12 +1821,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Grating and sound on the same side
+        /// localization only: grating and sound on the same side
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("audiovisualCoherent")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
-        [System.ComponentModel.DescriptionAttribute("Grating and sound on the same side")]
-        public RepeatRule AudiovisualCoherent
+        [System.ComponentModel.DescriptionAttribute("localization only: grating and sound on the same side")]
+        public RepeatRule? AudiovisualCoherent
         {
             get
             {
@@ -1832,38 +1839,74 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Grating and sound on opposite sides
+        /// discriminationGoNoGo only: goModality alone (Go)
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualConflict")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualConflict")]
-        [System.ComponentModel.DescriptionAttribute("Grating and sound on opposite sides")]
-        public RepeatRule AudiovisualConflict
+        [Newtonsoft.Json.JsonPropertyAttribute("go")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
+        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: goModality alone (Go)")]
+        public RepeatRule? Go
         {
             get
             {
-                return _audiovisualConflict;
+                return _go;
             }
             set
             {
-                _audiovisualConflict = value;
+                _go = value;
             }
         }
     
         /// <summary>
-        /// Grey screen
+        /// discriminationGoNoGo only: the other modality alone (NoGo)
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("neutral")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
-        [System.ComponentModel.DescriptionAttribute("Grey screen")]
-        public RepeatRule Neutral
+        [Newtonsoft.Json.JsonPropertyAttribute("noGo")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
+        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the other modality alone (NoGo)")]
+        public RepeatRule? NoGo
         {
             get
             {
-                return _neutral;
+                return _noGo;
             }
             set
             {
-                _neutral = value;
+                _noGo = value;
+            }
+        }
+    
+        /// <summary>
+        /// discriminationLeftRight only: leftModality alone
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("left")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
+        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: leftModality alone")]
+        public RepeatRule? Left
+        {
+            get
+            {
+                return _left;
+            }
+            set
+            {
+                _left = value;
+            }
+        }
+    
+        /// <summary>
+        /// discriminationLeftRight only: the other modality alone
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("right")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
+        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the other modality alone")]
+        public RepeatRule? Right
+        {
+            get
+            {
+                return _right;
+            }
+            set
+            {
+                _right = value;
             }
         }
     
@@ -1882,8 +1925,10 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Visual = " + _visual + ", ");
             stringBuilder.Append("Auditory = " + _auditory + ", ");
             stringBuilder.Append("AudiovisualCoherent = " + _audiovisualCoherent + ", ");
-            stringBuilder.Append("AudiovisualConflict = " + _audiovisualConflict + ", ");
-            stringBuilder.Append("Neutral = " + _neutral);
+            stringBuilder.Append("Go = " + _go + ", ");
+            stringBuilder.Append("NoGo = " + _noGo + ", ");
+            stringBuilder.Append("Left = " + _left + ", ");
+            stringBuilder.Append("Right = " + _right);
             return true;
         }
     
@@ -1903,25 +1948,36 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Relative draw weight of each trial type, by the name the trial log gives it (what the trial showed).
+    /// Relative draw weight of each kind of trial: exactly the task type's five keys (TRIAL_KEYS), the others left out.
+    ///localization: by what the trial shows. discriminationGoNoGo: go, noGo, audiovisualCoherent, audiovisualConflict, neutral.
+    ///discriminationLeftRight: left, right, audiovisualCoherent, audiovisualConflict, neutral.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Relative draw weight of each trial type, by the name the trial log gives it (what" +
-        " the trial showed).")]
+    [System.ComponentModel.DescriptionAttribute(@"Relative draw weight of each kind of trial: exactly the task type's five keys (TRIAL_KEYS), the others left out.
+    localization: by what the trial shows. discriminationGoNoGo: go, noGo, audiovisualCoherent, audiovisualConflict, neutral.
+    discriminationLeftRight: left, right, audiovisualCoherent, audiovisualConflict, neutral.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialTypeWeights
     {
     
-        private int _visual;
+        private int? _visual;
     
-        private int _auditory;
+        private int? _auditory;
     
-        private int _audiovisualCoherent;
+        private int? _audiovisualCoherent;
     
-        private int _audiovisualConflict;
+        private int? _audiovisualConflict;
     
-        private int _neutral;
+        private int? _go;
+    
+        private int? _noGo;
+    
+        private int? _left;
+    
+        private int? _right;
+    
+        private int? _neutral;
     
         public TrialTypeWeights()
         {
@@ -1933,16 +1989,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _auditory = other._auditory;
             _audiovisualCoherent = other._audiovisualCoherent;
             _audiovisualConflict = other._audiovisualConflict;
+            _go = other._go;
+            _noGo = other._noGo;
+            _left = other._left;
+            _right = other._right;
             _neutral = other._neutral;
         }
     
         /// <summary>
-        /// The grating alone
+        /// localization only: the grating alone
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("visual", Required=Newtonsoft.Json.Required.Always)]
+        [Newtonsoft.Json.JsonPropertyAttribute("visual")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
-        [System.ComponentModel.DescriptionAttribute("The grating alone")]
-        public int Visual
+        [System.ComponentModel.DescriptionAttribute("localization only: the grating alone")]
+        public int? Visual
         {
             get
             {
@@ -1955,12 +2015,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The sound alone
+        /// localization only: the sound alone
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("auditory", Required=Newtonsoft.Json.Required.Always)]
+        [Newtonsoft.Json.JsonPropertyAttribute("auditory")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
-        [System.ComponentModel.DescriptionAttribute("The sound alone")]
-        public int Auditory
+        [System.ComponentModel.DescriptionAttribute("localization only: the sound alone")]
+        public int? Auditory
         {
             get
             {
@@ -1973,12 +2033,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Grating and sound on the same side
+        /// Every task type: grating and sound on the same side
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualCoherent", Required=Newtonsoft.Json.Required.Always)]
+        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualCoherent")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
-        [System.ComponentModel.DescriptionAttribute("Grating and sound on the same side")]
-        public int AudiovisualCoherent
+        [System.ComponentModel.DescriptionAttribute("Every task type: grating and sound on the same side")]
+        public int? AudiovisualCoherent
         {
             get
             {
@@ -1991,12 +2051,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Grating and sound on opposite sides
+        /// Every task type: grating and sound on opposite sides
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualConflict", Required=Newtonsoft.Json.Required.Always)]
+        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualConflict")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualConflict")]
-        [System.ComponentModel.DescriptionAttribute("Grating and sound on opposite sides")]
-        public int AudiovisualConflict
+        [System.ComponentModel.DescriptionAttribute("Every task type: grating and sound on opposite sides")]
+        public int? AudiovisualConflict
         {
             get
             {
@@ -2009,12 +2069,86 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Grey screen, centre sound in localization, silent in the discriminations
+        /// discriminationGoNoGo only: goModality alone (Go)
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("neutral", Required=Newtonsoft.Json.Required.Always)]
+        [Newtonsoft.Json.JsonPropertyAttribute("go")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
+        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: goModality alone (Go)")]
+        public int? Go
+        {
+            get
+            {
+                return _go;
+            }
+            set
+            {
+                _go = value;
+            }
+        }
+    
+        /// <summary>
+        /// discriminationGoNoGo only: the other modality alone (NoGo)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("noGo")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
+        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the other modality alone (NoGo)")]
+        public int? NoGo
+        {
+            get
+            {
+                return _noGo;
+            }
+            set
+            {
+                _noGo = value;
+            }
+        }
+    
+        /// <summary>
+        /// discriminationLeftRight only: leftModality alone (answered at the left spout)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("left")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
+        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: leftModality alone (answered at the left spout)")]
+        public int? Left
+        {
+            get
+            {
+                return _left;
+            }
+            set
+            {
+                _left = value;
+            }
+        }
+    
+        /// <summary>
+        /// discriminationLeftRight only: the other modality alone (answered at the right spout)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("right")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
+        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the other modality alone (answered at the right spo" +
+            "ut)")]
+        public int? Right
+        {
+            get
+            {
+                return _right;
+            }
+            set
+            {
+                _right = value;
+            }
+        }
+    
+        /// <summary>
+        /// Every task type: grey screen, centre sound in localization, silent in the discriminations
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("neutral")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
-        [System.ComponentModel.DescriptionAttribute("Grey screen, centre sound in localization, silent in the discriminations")]
-        public int Neutral
+        [System.ComponentModel.DescriptionAttribute("Every task type: grey screen, centre sound in localization, silent in the discrim" +
+            "inations")]
+        public int? Neutral
         {
             get
             {
@@ -2042,6 +2176,10 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Auditory = " + _auditory + ", ");
             stringBuilder.Append("AudiovisualCoherent = " + _audiovisualCoherent + ", ");
             stringBuilder.Append("AudiovisualConflict = " + _audiovisualConflict + ", ");
+            stringBuilder.Append("Go = " + _go + ", ");
+            stringBuilder.Append("NoGo = " + _noGo + ", ");
+            stringBuilder.Append("Left = " + _left + ", ");
+            stringBuilder.Append("Right = " + _right + ", ");
             stringBuilder.Append("Neutral = " + _neutral);
             return true;
         }
@@ -2080,6 +2218,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private Modality _leftModality;
     
+        private TrialTypeWeights _trialWeights;
+    
         private TrialStructure _trialStructure;
     
         private VisualStimulus _visualStimulus;
@@ -2104,6 +2244,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
         {
             _goModality = Modality.Visual;
             _leftModality = Modality.Visual;
+            _trialWeights = new TrialTypeWeights();
             _trialStructure = new TrialStructure();
             _visualStimulus = new VisualStimulus();
             _audioStimulus = new AudioStimulus();
@@ -2122,6 +2263,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _taskType = other._taskType;
             _goModality = other._goModality;
             _leftModality = other._leftModality;
+            _trialWeights = other._trialWeights;
             _trialStructure = other._trialStructure;
             _visualStimulus = other._visualStimulus;
             _audioStimulus = other._audioStimulus;
@@ -2171,12 +2313,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// discriminationGoNoGo only: the modality to lick for; the other modality's trials are NoGo
+        /// discriminationGoNoGo only: the modality to lick for, shown on the stages' go trials; the other modality's (noGo) trials are NoGo
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("goModality")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="goModality")]
-        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the modality to lick for; the other modality\'s trials " +
-            "are NoGo")]
+        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the modality to lick for, shown on the stages\' go tria" +
+            "ls; the other modality\'s (noGo) trials are NoGo")]
         public Modality GoModality
         {
             get
@@ -2190,12 +2332,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// discriminationLeftRight only: the modality answered at the left spout; the other is answered at the right
+        /// discriminationLeftRight only: the modality answered at the left spout, shown on the stages' left trials; the other (right) is answered at the right
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("leftModality")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="leftModality")]
-        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the modality answered at the left spout; the other " +
-            "is answered at the right")]
+        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the modality answered at the left spout, shown on t" +
+            "he stages\' left trials; the other (right) is answered at the right")]
         public Modality LeftModality
         {
             get
@@ -2205,6 +2347,25 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _leftModality = value;
+            }
+        }
+    
+        /// <summary>
+        /// Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [Newtonsoft.Json.JsonPropertyAttribute("trialWeights", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialWeights")]
+        [System.ComponentModel.DescriptionAttribute(@"Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right")]
+        public TrialTypeWeights TrialWeights
+        {
+            get
+            {
+                return _trialWeights;
+            }
+            set
+            {
+                _trialWeights = value;
             }
         }
     
@@ -2419,6 +2580,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("TaskType = " + _taskType + ", ");
             stringBuilder.Append("GoModality = " + _goModality + ", ");
             stringBuilder.Append("LeftModality = " + _leftModality + ", ");
+            stringBuilder.Append("TrialWeights = " + _trialWeights + ", ");
             stringBuilder.Append("TrialStructure = " + _trialStructure + ", ");
             stringBuilder.Append("VisualStimulus = " + _visualStimulus + ", ");
             stringBuilder.Append("AudioStimulus = " + _audioStimulus + ", ");
