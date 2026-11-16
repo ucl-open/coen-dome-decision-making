@@ -1,196 +1,109 @@
-import pandas as pd
-import numpy as np
-import re
+"""Load coen-dome-decision-making sessions and score them from BonsaiData_Trial (schemas/trial-columns.yml).
 
+Nothing here runs on import. A session is `<root>/sub-<mouse>/ses-<id>_<DateTime>`, as the lab's ingest puts them
+on jacuzzi (Live-Data); its columns come from the session's own manifest.json (open_rigs.trials)."""
+
+import json
+from pathlib import Path
+
+import pandas as pd
 from open_rigs import trials
 
-
-def load_experiment_trials(experiment_folder):
-    """An open-rigs experiment's BonsaiData_Trial as one DataFrame: hour files joined, each column typed
-    and trialType decoded, by the trial columns its manifest.json carries (lib-open-rigs open_rigs.trials).
-    load_sessions below reads production av-dome's TrialSettings layout."""
-    return pd.DataFrame(trials.read(experiment_folder))
+WORKFLOW = "coen-dome-decision-making"
+SCORED = ("Correct", "Incorrect")   # outcome Probe has no right answer and NoResponse is no choice: neither is performance
 
 
-def load_sessions(root_folder, all_subjects, show_warnings=False):
-    df = pd.DataFrame()
-    master_columns = None
-
-    for subject in all_subjects:
-        sessionFolders = [p for p in (root_folder / f"sub-{subject}").iterdir() if p.is_dir()]
-
-        for session in sessionFolders:
-            # try to load session data
-            try:
-                data = pd.read_csv(session / "TrialSettings" / "TrialSettings.csv", header=None)
-            except Exception as e:
-                if show_warnings:
-                    print(f"Loading error: {session} -> {e}")
-                continue
-
-            # skip session if no trials data loaded
-            if data.empty:
-                continue
-            #
-            
-            if len(data.keys()) < 38:  # Initally not all variables were saved
-                continue
-            #
-            # print(len(data.keys()))
-            
-            # Use the first row as the header row, then remove any later rows that repeat it.
-            header_row = data.iloc[0].astype(str).tolist()
-            new_column_names = header_row.copy()
-            
-            # Rename fileds saved incorrectly:
-            try: new_column_names[new_column_names.index("Value.Item1")] = "correctResponse"
-            except: pass
-            
-            try: new_column_names[new_column_names.index("Value.Item1")] = "response"
-            except: pass
-
-            try: new_column_names[new_column_names.index("Value.Item2")] = "target_side"
-            except: pass
-            
-            data = data.iloc[1:].copy()
-            data.columns = new_column_names
-
-            repeated_header_mask = data.apply(
-                lambda row: row.astype(str).tolist() == header_row,
-                axis=1
-            )
-            data = data.loc[~repeated_header_mask].copy()
-
-            # Clean column names by keeping only the final segment after the last dot.
-            data = data.rename(columns=lambda col: col.rsplit(".", 1)[-1] if isinstance(col, str) else col)
-
-            # Add the session identifier as a column.
-            data["session_path"] = str(session)
-            data["subject"] = subject
-            data["dateTime"] = str(session).split("_date-")[-1]  # Extract the dateTime from the session path
-            date_token = str(session).split("_date-")[-1]
-            data["date"] = date_token.split("T")[0]  # Extract the date from the session path
-
-            try:
-                data["trainingStage"] = np.int32(str(session).split("Stage ")[-1].split("_date")[0])
-            except:
-                # This wasn't part of the session name for the first few Stage 0 sessions. So, 0 as default...
-                data["trainingStage"] = 0
-            #
-            
-
-            if master_columns is None:
-                master_columns = list(data.columns)
-                df = data.copy()
-            else:
-                new_columns = [col for col in data.columns if col not in master_columns]
-                if new_columns:
-                    master_columns = master_columns + new_columns
-                    df = df.reindex(columns=master_columns)
-                    data = data.reindex(columns=master_columns)
-
-                missing_columns = [col for col in master_columns if col not in data.columns]
-                for col in missing_columns:
-                    data[col] = np.nan
-
-                df = df.reindex(columns=master_columns)
-                data = data.reindex(columns=master_columns)
-
-                df = pd.concat([df, data], ignore_index=True)
-        #
-    #
-
-    # Fix column name ("Response" is actually "trial ID", "Item1" is "Response", "Item2" is "target_side")
-    # df = df.rename(columns={"Response": "trial_id", "Item1": "response", "Item2": "target_side"})
-    
-    df = edit_columns(df)  # update/remame set columns as needed
-    
-    return df
-# 
-
-def edit_columns(df):
-    # Add a column "training_stage" with integers given as "Stage #" and default to 0 if not found.
-    if "training_stage" not in df.columns:
-        df["training_stage"] = 0
+def _manifest(session):
+    try:
+        return json.loads((session / "manifest.json").read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return {}
 
 
-    def get_column_series(frame, col_name):
-        if not isinstance(col_name, str):
-            return None
-        try:
-            result = frame[col_name]
-        except Exception:
-            return None
+def is_this_workflow(session):
+    """True when the session's manifest names this workflow's repository (Live-Data holds every workflow's sessions)."""
+    source = _manifest(session).get("source") or {}
+    return WORKFLOW in f"{source.get('repo', '')} {source.get('workflow', '')} {source.get('root', '')}".lower()
 
-        if isinstance(result, pd.Series):
-            return result
-        if isinstance(result, pd.DataFrame) and result.shape[1] == 1:
-            return result.iloc[:, 0]
+
+def find_sessions(root, subjects=None):
+    """The session folders of this workflow under root, by `sub-` folder (all mice when subjects is None)."""
+    root = Path(root)
+    found = []
+    for mouse in sorted(root.glob("sub-*")):
+        if subjects is not None and mouse.name[4:] not in subjects:
+            continue
+        found += [s for s in sorted(mouse.glob("ses-*")) if s.is_dir() and is_this_workflow(s)]
+    return found
+
+
+def load_sessions(root, subjects=None):
+    """Every trial of this workflow's sessions as one DataFrame: the typed columns plus subject, session and session_path."""
+    frames = []
+    for session in find_sessions(root, subjects):
+        rows = trials.read(session)
+        if not rows:
+            continue
+        frame = pd.DataFrame(rows)
+        frame["subject"] = session.parent.name[4:]
+        frame["session"] = session.name
+        frame["session_path"] = str(session)
+        frames.append(frame)
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def scored(df):
+    """The trials that count towards performance: a Correct or Incorrect choice on a new draw (no repeat, no auto-reward).
+    Probe trials (target NoReward or Random) are never in it."""
+    return df[df["outcome"].isin(SCORED) & (df["repeatCount"] == 0) & ~df["autoRewarded"].astype(bool)]
+
+
+def performance(df):
+    """(fraction Correct, number of scored trials) for one session's trials."""
+    s = scored(df)
+    return (float((s["outcome"] == "Correct").mean()) if len(s) else float("nan")), len(s)
+
+
+def water_ul(df):
+    """Microlitres offered and rewarded: the sum of rewardOfferedUl over the trials that were rewarded."""
+    return float(df.loc[df["rewarded"].astype(bool), "rewardOfferedUl"].sum())
+
+
+def probe_rates(df):
+    """Per probe target (NoReward, Random): trials, fraction rewarded and fraction penalised."""
+    p = df[df["outcome"] == "Probe"].copy()
+    if p.empty:
+        return pd.DataFrame(columns=["target", "trials", "rewardedRate", "penalisedRate"])
+    p["rewarded"] = p["rewarded"].astype(bool)
+    p["penalised"] = p["penalised"].astype(bool)
+    out = p.groupby("target").agg(trials=("outcome", "size"), rewardedRate=("rewarded", "mean"), penalisedRate=("penalised", "mean"))
+    return out.reset_index()
+
+
+def session_summary(df):
+    """One row per session: trials, scored trials, performance, water (ul) and the probe rates."""
+    rows = []
+    for (subject, session), s in df.groupby(["subject", "session"], sort=True):
+        perf, n = performance(s)
+        probes = s[s["outcome"] == "Probe"]
+        rows.append({
+            "subject": subject, "session": session, "trials": len(s), "scored": n, "performance": perf,
+            "waterUl": water_ul(s), "probes": len(probes),
+            "probeRewardedRate": float(probes["rewarded"].astype(bool).mean()) if len(probes) else float("nan"),
+            "probePenalisedRate": float(probes["penalised"].astype(bool).mean()) if len(probes) else float("nan"),
+        })
+    return pd.DataFrame(rows)
+
+
+def trial_weights(session, stage=None):
+    """The trialWeights a session ran with, from its Settings_Task_*.json: the stage's own when it has them, else the
+    top-level one (stage: the TrainingStage row, or None for the top level)."""
+    files = sorted((Path(session) / "Settings").glob("Settings_Task_*.json"))
+    if not files:
         return None
-
-
-    stage_col = None
-    for col in df.columns:
-        if isinstance(col, str) and col.lower().startswith("stage"):
-            stage_col = col
-            break
-
-    if stage_col is None:
-        for col in df.columns:
-            series = get_column_series(df, col)
-            if series is None:
-                continue
-            if pd.api.types.is_object_dtype(series.dtype):
-                sample = series.dropna().astype(str)
-                if sample.str.contains(r"stage", case=False, na=False).any():
-                    stage_col = col
-                    break
-
-    if stage_col is not None:
-        def extract_stage(value):
-            if pd.isna(value):
-                return 0
-            if isinstance(value, str):
-                m = re.search(r"stage\s*(\d+)", value.lower())
-                if m:
-                    return int(m.group(1))
-            return 0
-
-        df["training_stage"] = df[stage_col].apply(extract_stage)
-
-    # Assign session_id from the date field, ordered by actual session date.
-    if "date" in df.columns:
-        session_dates = df["date"].dropna().astype(str).unique()
-
-        def parse_date_token(date_str):
-            try:
-                return pd.to_datetime(date_str, errors="coerce")
-            except Exception:
-                return pd.NaT
-
-        ordered_dates = sorted(session_dates, key=parse_date_token)
-        date_id_map = {date: i for i, date in enumerate(ordered_dates)}
-        df["session_id"] = df["date"].astype(str).map(date_id_map).astype("int64")
-    elif "session_path" in df.columns:
-        # Fallback behavior if date is not present.
-        session_paths = df["session_path"].dropna().astype(str).unique()
-
-        def parse_session_id(path):
-            try:
-                token = str(path).split("/")[-1]
-                match = re.search(r"(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})", token)
-                if match:
-                    digits = re.sub(r"\D", "", match.group(1))
-                    return int(digits)
-                digits = re.sub(r"\D", "", token)
-                return int(digits) if digits else -1
-            except Exception:
-                return -1
-
-        ordered_sessions = sorted(session_paths, key=parse_session_id)
-        session_id_map = {path: i for i, path in enumerate(ordered_sessions)}
-        df["session_id"] = df["session_path"].astype(str).map(session_id_map).astype("int64")
-    #
-
-    return df
-# 
+    task = json.loads(files[0].read_text(encoding="utf-8-sig"))
+    task = task.get("taskParameters", task)
+    stages = task.get("trainingStages") or []
+    if stage is not None and 0 <= stage < len(stages) and stages[stage].get("trialWeights"):
+        return stages[stage]["trialWeights"]
+    return task.get("trialWeights")
