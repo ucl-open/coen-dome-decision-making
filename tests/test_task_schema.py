@@ -441,3 +441,19 @@ def test_training_stage_s_maximum_is_the_task_file_s_last_row(path):
     # A row added to trainingStages is reachable only once ExperimentControl's TrainingStage Maximum (main.bonsai) says so.
     declared = re.search(r"<Name>TrainingStage</Name>.*?<Maximum>(\d+)</Maximum>", (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig"), re.S)
     assert int(declared.group(1)) == len(yaml.safe_load(path.read_text(encoding="utf-8"))["taskParameters"]["trainingStages"]) - 1
+
+
+@pytest.mark.parametrize("where, key, value", [
+    (("response",), "thresholdLicks", 0), (("repeats",), "maxRepeats", -1), (("trainingStages", 0), "rewardSizeUl", 0)])
+def test_the_bounds_hold_with_the_lab_s_types(where, key, value):
+    # Round 3 F17: open_rigs' Int carried its own range, which dropped thresholdLicks' ge=1 and maxRepeats' ge=0; a reward
+    # is above 0, as navigation's.
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    block = data
+    for step in where:
+        block = block[step]
+    block[key] = value
+    with pytest.raises(ValidationError):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    source = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
+    assert not re.search(r"\w: (float|bool|str|Int)\b", source)

@@ -212,8 +212,7 @@
         "maxRepeats": {
           "default": 5,
           "description": "Maximum number of consecutive repeats of the same trial",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
+          "minimum": 0,
           "title": "MaxRepeats",
           "type": "integer"
         },
@@ -235,8 +234,7 @@
         "thresholdLicks": {
           "default": 1,
           "description": "Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)",
-          "maximum": 2147483647,
-          "minimum": -2147483648,
+          "minimum": 1,
           "title": "ThresholdLicks",
           "type": "integer"
         },
@@ -375,8 +373,8 @@
         },
         "rewardSizeUl": {
           "description": "Reward size, in microlitres; the valve's calibration plans the pulses. At most 20, the most one reward may ask for, with largeRewardMultiplier applied",
+          "exclusiveMinimum": 0,
           "maximum": 20,
-          "minimum": 0,
           "title": "RewardSizeUl",
           "type": "number"
         },
@@ -574,7 +572,6 @@
         "visual": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -589,7 +586,6 @@
         "auditory": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -604,7 +600,6 @@
         "audiovisualCoherent": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -619,7 +614,6 @@
         "audiovisualConflict": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -634,7 +628,6 @@
         "go": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -649,7 +642,6 @@
         "noGo": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -664,7 +656,6 @@
         "left": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -679,7 +670,6 @@
         "right": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },
@@ -694,7 +684,6 @@
         "neutral": {
           "anyOf": [
             {
-              "maximum": 2147483647,
               "minimum": 0,
               "type": "integer"
             },

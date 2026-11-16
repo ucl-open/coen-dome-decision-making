@@ -2,7 +2,8 @@ from enum import StrEnum
 from typing import Literal
 
 from open_rigs.components import SphericalPosition
-from open_rigs.core.base import Bool, Double, Int, String
+# Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt (round 3 F17).
+from open_rigs.core.base import Bool, Double, String
 from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskBlock, TaskParameters
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
 from open_rigs.rigs.lab_rig import MAX_REWARD_UL
@@ -114,7 +115,7 @@ class RewardSettings(TaskBlock):
 class ResponseSettings(TaskBlock):
     """Lick-accumulation response rule; thresholdLicks 1 with degreesPerLick 0 is classic first-lick 2AFC."""
 
-    threshold_licks: Int = Field(default=1, ge=1, description="Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)")
+    threshold_licks: int = Field(default=1, ge=1, description="Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)")
     degrees_per_lick: Double = Field(default=0.0, description="Degrees the grating azimuth moves per net lick difference; 0 keeps the stimulus fixed")
 
 
@@ -163,15 +164,15 @@ class TrialTypeWeights(TaskBlock):
 
     model_config = ConfigDict(extra="forbid")
 
-    visual: Int | None = Field(default=None, ge=0, description="localization only: the grating alone")
-    auditory: Int | None = Field(default=None, ge=0, description="localization only: the sound alone")
-    audiovisual_coherent: Int | None = Field(default=None, ge=0, description="Every task type: grating and sound on the same side")
-    audiovisual_conflict: Int | None = Field(default=None, ge=0, description="Every task type: grating and sound on opposite sides")
-    go: Int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: goModality alone (Go)")
-    no_go: Int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: the other modality alone (NoGo)")
-    left: Int | None = Field(default=None, ge=0, description="discriminationLeftRight only: leftModality alone (answered at the left spout)")
-    right: Int | None = Field(default=None, ge=0, description="discriminationLeftRight only: the other modality alone (answered at the right spout)")
-    neutral: Int | None = Field(default=None, ge=0, description="Every task type: grey screen, centre sound in localization, silent in the discriminations")
+    visual: int | None = Field(default=None, ge=0, description="localization only: the grating alone")
+    auditory: int | None = Field(default=None, ge=0, description="localization only: the sound alone")
+    audiovisual_coherent: int | None = Field(default=None, ge=0, description="Every task type: grating and sound on the same side")
+    audiovisual_conflict: int | None = Field(default=None, ge=0, description="Every task type: grating and sound on opposite sides")
+    go: int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: goModality alone (Go)")
+    no_go: int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: the other modality alone (NoGo)")
+    left: int | None = Field(default=None, ge=0, description="discriminationLeftRight only: leftModality alone (answered at the left spout)")
+    right: int | None = Field(default=None, ge=0, description="discriminationLeftRight only: the other modality alone (answered at the right spout)")
+    neutral: int | None = Field(default=None, ge=0, description="Every task type: grey screen, centre sound in localization, silent in the discriminations")
 
     @model_validator(mode="after")
     def _some_weight(self) -> "TrialTypeWeights":
@@ -200,7 +201,7 @@ class TrialTypeRules(TaskBlock):
 class RepeatSettings(TaskBlock):
     """Trial repetition policy."""
 
-    max_repeats: Int = Field(default=5, ge=0, description="Maximum number of consecutive repeats of the same trial")
+    max_repeats: int = Field(default=5, ge=0, description="Maximum number of consecutive repeats of the same trial")
     rules_per_type: TrialTypeRules = Field(
         description="Repeat rule per kind of trial with a right answer: localization visual, auditory, audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight left, right. The others never repeat"
     )
@@ -229,7 +230,7 @@ class TrainingStage(QuietWait):
     auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats")
     both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
     reward_size_ul: Double = Field(
-        ge=0, le=MAX_REWARD_UL, description=f"Reward size, in microlitres; the valve's calibration plans the pulses. At most {MAX_REWARD_UL}, the most one reward may ask for, with largeRewardMultiplier applied"
+        gt=0, le=MAX_REWARD_UL, description=f"Reward size, in microlitres; the valve's calibration plans the pulses. At most {MAX_REWARD_UL}, the most one reward may ask for, with largeRewardMultiplier applied"
     )
     contrasts: list[Double] = Field(min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
     allow_repeats: Bool = Field(description="Whether failed trials may be repeated in this stage")
