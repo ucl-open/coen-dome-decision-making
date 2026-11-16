@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making go/no-go modality discrimination (Gerion's, from
 # ActiveExperiemntsWithDiscrimination; his mice ran one spout). One spout, the left: lick on a goModality trial (Go),
-# withhold on the other modality's and the grey screen's (NoGo). Go and a lick: Correct, rewarded. Go and none: NoResponse,
+# withhold on the other modality's (NoGo). Go and a lick: Correct, rewarded. Go and none: NoResponse,
 # no penalty. NoGo and a lick: Incorrect, the penalty. NoGo and none: Correct, unrewarded. A trial showing both
-# modalities (audiovisualCoherent, audiovisualConflict) is a Probe, never rewarded or penalised (Song et al. 2017;
+# modalities (audiovisualCoherent, audiovisualConflict) or neither (neutral) is a Probe, never rewarded or penalised (Song et al. 2017;
 # Pip, 16 Nov 2026). trialWeights and rulesPerType name each trial type by what it shows; the stages are written for
 # goModality visual (swap the visual and auditory weights for an auditory-go mouse). Visual-only and neutral trials
 # are silent. bothSpoutsProbability must be 0: only the left spout moves in.
@@ -94,7 +94,7 @@ taskParameters:
       lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
       wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
       wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    - label: Stage 3       # conflict (probe) and neutral (NoGo) trials added
+    - label: Stage 3       # conflict and neutral (probe) trials added
       trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 0.0

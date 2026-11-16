@@ -139,9 +139,9 @@ public class TrialDrawTests
             task.TrainingStages[3].AutoRewardProbability = 1;
             foreach (var t in Fixture.Draw(task, 3, 600))
             {
-                var expected = t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" ? Answer.Probe
+                var expected = t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" || t.trialType == "neutral" ? Answer.Probe
                     : (t.trialType == "visual" && modality == Modality.Visual) || (t.trialType == "auditory" && modality == Modality.Auditory) ? Answer.Go
-                    : Answer.NoGo;   // the other modality and the grey screen
+                    : Answer.NoGo;   // the other modality
                 Assert.AreEqual(expected, t.target, t.trialType);
                 Assert.AreEqual(expected == Answer.Go, t.autoReward, "auto-reward only on Go");
                 Assert.AreEqual(expected == Answer.Go, t.rewardSizeUl > 0, "a reward on offer only on Go");

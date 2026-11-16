@@ -94,7 +94,7 @@ laserTriggerTime:
 target:
   type: string
   values: [Left, Right, Go, NoGo, Probe]
-  description: The answer the trial rewards - the side in localization and discriminationLeftRight (on a trial showing both modalities in discriminationLeftRight, drawn at random); in discriminationGoNoGo Go (lick, goModality shown), NoGo (withhold, the other modality or the grey screen) or Probe (both modalities, never rewarded or penalised).
+  description: The answer the trial rewards - the side in localization and discriminationLeftRight (on a trial showing both modalities in discriminationLeftRight, drawn at random); in discriminationGoNoGo Go (lick, goModality shown), NoGo (withhold, the other modality) or Probe (both modalities or neither, the neutral grey screen; never rewarded or penalised).
   history: Go, NoGo and Probe from 16 Nov 2026, when discrimination split into discriminationGoNoGo and discriminationLeftRight; until then discrimination's target was Left (targetModality) or Right, and a two-modality trial's the stimuli's side.
 choice:
   type: string

@@ -331,10 +331,10 @@ public class TrialDraw
         trial.target = right ? "Right" : "Left";
         if (task.TaskType == TaskType.DiscriminationGoNoGo)
         {
-            // Lick for goModality (Go), withhold for the other modality and the grey screen (NoGo); a trial showing both
-            // is a probe, never rewarded or penalised (Song et al. 2017; Pip, 16 Nov 2026).
+            // Lick for goModality (Go), withhold for the other modality (NoGo); a trial showing both modalities or neither
+            // (neutral, the grey screen) is a probe, never rewarded or penalised (Song et al. 2017; Pip, 16 Nov 2026).
             bool goShown = (type == 0 || type == 1) && (type == 0) == (task.GoModality == Modality.Visual);
-            trial.target = type == 2 || type == 3 ? Answer.Probe : goShown ? Answer.Go : Answer.NoGo;
+            trial.target = type == 2 || type == 3 || type == 4 ? Answer.Probe : goShown ? Answer.Go : Answer.NoGo;
             trial.bothSpouts = false;                                   // one spout, the left
             if (trial.target != Answer.Go)
             {
