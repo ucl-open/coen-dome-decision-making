@@ -49,4 +49,4 @@ ignore-words-list = 'nd'
 required-version = '>=0.8.4'
 
 [tool.uv.sources]
-open-rigs = {git = "https://github.com/Coen-Lab/lib-open-rigs", rev = "25aa824c45f44786717a14f2df0745687c11aaca"}
+open-rigs = {git = "https://github.com/Coen-Lab/lib-open-rigs", rev = "7c4b3af2f69cd4e9815def48707357c5ebddddae"}
