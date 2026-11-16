@@ -951,7 +951,7 @@
               <Combinator xsi:type="ext:SpoutsIn" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage-Main.Commands</Name>
+              <Name>LickSpoutStage.Commands</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialEvents</Name>
@@ -968,7 +968,7 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage-Main.Commands</Name>
+              <Name>LickSpoutStage.Commands</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialEvents</Name>
@@ -1033,7 +1033,7 @@
               <Selector>SpoutCommand</Selector>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage-Main.Commands</Name>
+              <Name>LickSpoutStage.Commands</Name>
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>PenaltySound?</Name>
@@ -1096,7 +1096,7 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage-Main.Commands</Name>
+              <Name>LickSpoutStage.Commands</Name>
             </Expression>
           </Nodes>
           <Edges>

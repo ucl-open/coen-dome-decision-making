@@ -117,8 +117,8 @@ def test_each_trial_event_reaches_its_hardware():
     assert _reached("Stimulus") == {"VisualStimulus", "AuditoryStimulus"}
     assert _reached("Update") == {"DecisionVariable", "GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"VisualStimulusOff"}
-    assert _reached("Cue", "SpoutsIn") == _reached("Cue", "Drink") == {"LickSpoutStage-Main.Commands"}
-    assert _reached("Outcome") == {"TrialRow", "RewardRequests", "LickSpoutStage-Main.Commands", "PlayPenaltySound.bonsai"}
+    assert _reached("Cue", "SpoutsIn") == _reached("Cue", "Drink") == {"LickSpoutStage.Commands"}
+    assert _reached("Outcome") == {"TrialRow", "RewardRequests", "LickSpoutStage.Commands", "PlayPenaltySound.bonsai"}
     assert _reached("Trigger") == {"BehaviorBoard.SetZapitTriggerLine.bonsai Set=true"}
     assert _reached("TriggerOff") == {"BehaviorBoard.SetZapitTriggerLine.bonsai Set=false"}
     assert _reached("Arm", group="Zapit") == _reached("Trigger", group="Zapit") == {"ArmZapit", "ZapitCommands"}
