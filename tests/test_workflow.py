@@ -346,3 +346,14 @@ def test_each_trial_s_sound_carries_its_sync_copy():
     select = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:SelectAuditoryStimulus")
     assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == select] == ["StimulusSounds"]
     assert "Broadcast" not in TEXT and "ChannelActivation" not in TEXT and "PinkNoiseSync" not in TEXT
+
+
+def test_the_extensions_readme_names_every_public_class():
+    # Round 3 F18: the README had fallen behind the code (classes left out, the lick inputs misdescribed).
+    import re
+
+    folder = Path(__file__).parents[1] / "src" / "Extensions"
+    readme = (folder / "README.md").read_text(encoding="utf-8-sig")
+    code = "".join(f.read_text(encoding="utf-8-sig") for f in folder.glob("*.cs") if not f.name.endswith(".Generated.cs"))
+    classes = set(re.findall(r"^public (?:static )?class (\w+)", code, re.M))
+    assert sorted(c for c in classes if f"`{c}`" not in readme) == []
