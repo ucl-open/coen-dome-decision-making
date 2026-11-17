@@ -4,10 +4,10 @@
 # withhold on the other modality's (NoGo). Go and a lick: Correct, rewarded. Go and none: NoResponse,
 # no penalty. NoGo and a lick: Incorrect, the penalty. NoGo and none: Correct, unrewarded. A trial showing both
 # modalities (audiovisualCoherent, audiovisualConflict) or neither (neutral) is a Probe, never rewarded or penalised (Song et al. 2017).
-# trialWeights names each kind of trial by its role: go (goModality alone), noGo (the other modality
+# trialConditions' types name each kind of trial by its role: go (goModality alone), noGo (the other modality
 # alone), audiovisualCoherent, audiovisualConflict, neutral; goModality, set per mouse, decides which modality fills go.
-# trialWeights is per mouse; a stage that sets it sets the whole map. A trialWeights with
-# go 0 is refused at Go. rulesPerType names go and noGo alone: a probe never repeats. Visual-only and neutral trials are silent.
+# A stage's conditions replace trialConditions whole. Conditions with no
+# go weight are refused at Go. rulesPerType names go and noGo alone: a probe never repeats. Visual-only and neutral trials are silent.
 # bothSpoutsProbability must be 0: only the left spout moves in.
 # The training stages are the share's pipeline (config/training-pipelines/coen-dome-decision-making/<this file's name>):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills trainingPipeline.
@@ -15,7 +15,12 @@
 taskParameters:
   taskType: discriminationGoNoGo
   goModality: visual       # visual or auditory: the modality to lick for; set per mouse on the form
-  trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage that sets trialWeights sets the whole map
+  trialConditions:         # the trial mix, one whole value: a pipeline stage's conditions replace it; set: condition-level values (x-conditionFields)
+    - { type: go, weight: 10, set: {} }
+    - { type: noGo, weight: 10, set: {} }
+    - { type: audiovisualCoherent, weight: 5, set: {} }
+    - { type: audiovisualConflict, weight: 5, set: {} }
+    - { type: neutral, weight: 1, set: {} }
   rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
@@ -29,21 +34,14 @@ taskParameters:
     stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
-    azimuthMinDeg: -60        # deg, grating azimuth drawn uniformly in [min, max]
-    azimuthMaxDeg: 60         # deg
-    fixedAzimuthsDeg: [-60, 60]   # deg, discrete grating azimuths; when set, used instead of [min, max]
-    elevationMinDeg: 15       # deg, grating elevation drawn uniformly in [min, max]
-    elevationMaxDeg: 15       # deg
-    coherentAzimuthCapDeg: 80 # deg, |azimuth| kept below this on coherent trials
+    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial with a stimulus; never 0. The grating starts there, the sound on the speaker nearest it (conflict: the mirrored azimuth)
+    elevationDeg: 15          # deg, the grating's and the sound position's elevation
     gaussianWindowSigmaDeg: 20   # deg
     orientationDeg: 0         # deg
     spatialFrequencyCpd: 0.066666667   # cycles/deg
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
     levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
-    speakerLocations:      # lateral positions, one drawn per auditory trial; no centre entry (fixed in code); playback uses the nearest wired speaker
-      - { azimuth: -60, elevation: 15 }
-      - { azimuth: 60, elevation: 15 }
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed

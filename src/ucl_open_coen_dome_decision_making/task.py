@@ -1,7 +1,7 @@
+import copy
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
-from open_rigs.components import SphericalPosition
 # Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt.
 from open_rigs.core.base import Bool, Double, String
 from open_rigs.core.task import (
@@ -21,7 +21,7 @@ from open_rigs.core.task import (
     WheelQuietWait,
 )
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
-from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, ValidationError, ValidationInfo, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
 
@@ -55,65 +55,39 @@ class TrialStructure(Iti, ResponseWindow, LickQuietWait, WheelQuietWait):
 
 
 class VisualStimulus(TaskBlock):
-    """Grating stimulus parameters common to all trials; the contrasts are taskParameters' own."""
+    """Grating stimulus parameters and the stimulus positions; the contrasts are taskParameters' own."""
 
-    azimuth_min_deg: Double = Field(default=-60.0, ge=-180, le=180, description="Lower bound of the uniformly drawn grating azimuth, in degrees")
-    azimuth_max_deg: Double = Field(default=60.0, ge=-180, le=180, description="Upper bound of the uniformly drawn grating azimuth, in degrees")
-    fixed_azimuths_deg: list[Double] | None = Field(
-        default=None,
-        description="Discrete grating azimuths, in degrees; when set and non-empty, every trial draws from this list (filtered to the trial's side, capped on coherent trials) instead of [azimuthMinDeg, azimuthMaxDeg]",
+    start_azimuths_deg: list[Double] = Field(
+        default=[-60.0, 60.0],
+        min_length=1,
+        description=(
+            "Signed azimuths a trial's stimulus starts at, in degrees, one picked per trial with a stimulus: positive is right, negative left, "
+            "never 0. The grating starts there exactly and the sound plays on rig.yml's speaker nearest it (an audiovisualConflict trial's sound "
+            "at the mirrored azimuth); the picked azimuth's sign is the trial's side"
+        ),
     )
-    elevation_min_deg: Double = Field(default=15.0, ge=-90, le=90, description="Lower bound of the uniformly drawn grating elevation, in degrees")
-    elevation_max_deg: Double = Field(default=15.0, ge=-90, le=90, description="Upper bound of the uniformly drawn grating elevation, in degrees")
-    coherent_azimuth_cap_deg: Double = Field(default=80.0, ge=0, le=180, description="On coherent trials the grating azimuth magnitude is kept below this cap, in degrees")
+    elevation_deg: Double = Field(default=15.0, ge=-90, le=90, description="Elevation of the grating and of the sound's position, in degrees")
     gaussian_window_sigma_deg: Double = Field(default=20.0, description="Sigma of the Gaussian aperture window, in degrees")
     orientation_deg: Double = Field(default=0.0, description="Grating stripe orientation, in degrees; drift direction is orthogonal to it (orientationDeg + 90 degrees)")
     spatial_frequency_cpd: Double = Field(default=0.066666667, description="Grating spatial frequency, in cycles per degree")
     temporal_frequency_hz: Double = Field(default=0.0, ge=0, description="Unsigned grating drift rate, in Hz, drifting orthogonal to orientationDeg (orientationDeg + 90 degrees); 0 is static")
 
-    @model_validator(mode="after")
-    def _each_side_has_a_range(self) -> "VisualStimulus":
-        # Side-restricted trials draw from one side each; TrialDraw.CheckTask refuses the same at Go,
-        # since Bonsai reads the YAML without pydantic.
-        if self.azimuth_max_deg < self.azimuth_min_deg:
-            raise ValueError("azimuth_max_deg must be >= azimuth_min_deg")
-        if self.elevation_max_deg < self.elevation_min_deg:
-            raise ValueError("elevation_max_deg must be >= elevation_min_deg")
-        values = self.fixed_azimuths_deg
-        cap = self.coherent_azimuth_cap_deg
-        if not values:
-            low, high = self.azimuth_min_deg, self.azimuth_max_deg
-            if not max(low, 0) < min(high, cap):
-                raise ValueError("azimuth_min_deg to azimuth_max_deg needs a right-side range within coherent_azimuth_cap_deg")
-            if not max(low, -cap) < min(high, 0):
-                raise ValueError("azimuth_min_deg to azimuth_max_deg needs a left-side range within coherent_azimuth_cap_deg")
-            return self
-        for value in values:
-            if not -180 <= value <= 180:
-                raise ValueError(f"fixed_azimuths_deg value {value} is outside [-180, 180]")
-        if not any(0 < value <= cap for value in values):
-            raise ValueError(f"fixed_azimuths_deg needs a value in (0, {cap}] (coherent_azimuth_cap_deg) for right-side trials")
-        if not any(-cap <= value < 0 for value in values):
-            raise ValueError(f"fixed_azimuths_deg needs a value in [-{cap}, 0) (coherent_azimuth_cap_deg) for left-side trials")
-        return self
+    @field_validator("start_azimuths_deg")
+    @classmethod
+    def _signed(cls, value: list[float]) -> list[float]:
+        # TrialDraw.CheckTask's same rule, with each azimuth's nearest speaker on its side.
+        for azimuth in value:
+            if not -180 <= azimuth <= 180:
+                raise ValueError(f"start_azimuths_deg value {azimuth} is outside [-180, 180]")
+            if azimuth == 0:
+                raise ValueError("start_azimuths_deg must not hold 0: the sign is the trial's side")
+        return value
 
 
 class AuditoryStimulus(StimulusSound):
     """Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)
-    plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound)."""
-
-    speaker_locations: list[SphericalPosition] = Field(
-        description="Candidate lateral sound positions, one drawn per auditory trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker"
-    )
-
-    @field_validator("speaker_locations")
-    @classmethod
-    def _both_sides(cls, value: list[SphericalPosition]) -> list[SphericalPosition]:
-        if any(location.azimuth == 0 for location in value):
-            raise ValueError("speaker_locations must not have an azimuth-0 entry; the centre sound is fixed in code")
-        if not any(location.azimuth < 0 for location in value) or not any(location.azimuth > 0 for location in value):
-            raise ValueError("speaker_locations needs at least one location on each side")
-        return value
+    plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound). Where it plays is visualStimulus'
+    startAzimuthsDeg and elevationDeg, on rig.yml's nearest speaker."""
 
 
 class RewardSettings(RewardSize):
@@ -153,7 +127,7 @@ class RepeatRule(StrEnum):
     ON_NO_RESPONSE = "onNoResponse"
 
 
-# The keys of trialWeights and rulesPerType for each task type (TrialDraw.Keys): localization's name what a trial shows;
+# The trial condition types and rulesPerType keys for each task type (TrialDraw.Keys): localization's name what a trial shows;
 # the discriminations' name its role, the mouse's goModality or leftModality choosing which modality fills it.
 TRIAL_KEYS = {
     TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral"),
@@ -168,32 +142,65 @@ RULE_KEYS = {
 }
 
 
-class TrialTypeWeights(TaskBlock):
-    """Relative draw weight of each kind of trial: exactly the task type's five keys (TRIAL_KEYS), the others left out.
-    localization: by what the trial shows. discriminationGoNoGo: go, noGo, audiovisualCoherent, audiovisualConflict, neutral.
-    discriminationLeftRight: left, right, audiovisualCoherent, audiovisualConflict, neutral."""
+# The fields a pipeline may make condition-level (its conditionFields), each with the trial types it applies to (a
+# condition of another type gives it no value): only what TrialDraw.New() alone reads per trial, never what is fixed at
+# Go. The schema's x-conditionFields; TrialDraw.ConditionFields is the same (a test holds both).
+_ALL = ("visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral", "go", "noGo", "left", "right")
+_STIMULUS = tuple(key for key in _ALL if key != "neutral")
+_GRATING = tuple(key for key in _STIMULUS if key != "auditory")
+CONDITION_FIELDS = {
+    "contrasts": _GRATING,
+    "visualStimulus.startAzimuthsDeg": _STIMULUS,
+    "visualStimulus.elevationDeg": _STIMULUS,
+    "optogenetics.laserOnProbability": _ALL,
+    "reward.rewardSizeUl": _ALL,
+    "autoRewardProbability": _ALL,
+    "bothSpoutsProbability": _ALL,
+}
+# The most combinations of list-valued scalar cells one condition may expand into (TrialDraw.MaxCombinations).
+MAX_COMBINATIONS = 64
+
+
+class TrialCondition(TaskBlock):
+    """One kind of trial in the mix: its type, its relative weight and its condition-level values (set), by dotted path.
+    A list in a scalar field's cell is one value picked at random per trial; a list field (contrasts,
+    visualStimulus.startAzimuthsDeg) takes the list as is, one entry picked per trial as at task level."""
 
     model_config = ConfigDict(extra="forbid")
 
-    visual: int | None = Field(default=None, ge=0, description="localization only: the grating alone")
-    auditory: int | None = Field(default=None, ge=0, description="localization only: the sound alone")
-    audiovisual_coherent: int | None = Field(default=None, ge=0, description="Every task type: grating and sound on the same side")
-    audiovisual_conflict: int | None = Field(default=None, ge=0, description="Every task type: grating and sound on opposite sides")
-    go: int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: goModality alone (Go)")
-    no_go: int | None = Field(default=None, ge=0, description="discriminationGoNoGo only: the other modality alone (NoGo)")
-    left: int | None = Field(default=None, ge=0, description="discriminationLeftRight only: leftModality alone (answered at the left spout)")
-    right: int | None = Field(default=None, ge=0, description="discriminationLeftRight only: the other modality alone (answered at the right spout)")
-    neutral: int | None = Field(default=None, ge=0, description="Every task type: grey screen, centre sound in localization, silent in the discriminations")
+    type: String = Field(description="The trial type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three)")
+    weight: int = Field(ge=0, description="Relative draw weight: each new trial picks a condition with these as relative chances")
+    set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path (x-conditionFields' paths that apply to the type); the rest are the task's")
 
-    @model_validator(mode="after")
-    def _some_weight(self) -> "TrialTypeWeights":
-        if not any(self.model_dump(exclude_none=True).values()):
-            raise ValueError("trial_weights needs a trial type with a weight above 0")
-        return self
+
+def _put(data: dict, dotted, value: Any) -> None:
+    *parents, key = dotted.split(".")
+    for part in parents:
+        data = data[part]
+    if key not in data:
+        raise KeyError(dotted)
+    data[key] = value
+
+
+def _get(data: dict, dotted) -> Any:
+    for part in dotted.split("."):
+        data = data[part]
+    return data
+
+
+def condition_combinations(base: dict, values: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every combination of a condition's set: a list in a cell whose task-level value is not a list is one pick each."""
+    combos: list[dict[str, Any]] = [{}]
+    for path, value in values.items():
+        options = value if isinstance(value, list) and not isinstance(_get(base, path), list) else [value]
+        if not options:
+            raise ValueError(f"{path} is an empty list")
+        combos = [{**combo, path: option} for combo in combos for option in options]
+    return combos
 
 
 class TrialTypeRules(TaskBlock):
-    """The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
+    """The repeat rule of each kind of trial with a right answer, by trialConditions' types: exactly the task type's (RULE_KEYS),
     the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
     trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
     reader refuses it at Go."""
@@ -242,6 +249,8 @@ class TrainingPipeline(TaskBlock):
 class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
+    model_config = ConfigDict(json_schema_extra={"x-conditionFields": {path: list(types) for path, types in CONDITION_FIELDS.items()}})
+
     task_type: TaskType = Field(
         description=(
             "localization: the answer is the side the stimulus came from, at that side's spout. "
@@ -258,13 +267,17 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     left_modality: Modality = Field(
         default=Modality.VISUAL, description="discriminationLeftRight only: the modality answered at the left spout, shown on left trials; the other (right) is answered at the right"
     )
-    trial_weights: TrialTypeWeights = Field(
+    trial_conditions: list[TrialCondition] = Field(
+        min_length=1,
         description=(
-            "Relative draw weight per kind of trial: each new trial draws one at random with these as "
-            "relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, "
-            "audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight "
-            "(left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right"
-        )
+            "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other "
+            "trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. Types: "
+            "localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo "
+            "by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, "
+            "audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left. One whole value: a pipeline "
+            "stage's conditions replace it; the trialCondition column is its 0-based index"
+        ),
+        json_schema_extra={"x-whole": True},
     )
     trial_structure: TrialStructure = Field(description="Timing of each trial")
     visual_stimulus: VisualStimulus = Field(description="Grating stimulus parameters")
@@ -325,15 +338,48 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
 
     @model_validator(mode="after")
     def _keys_of_the_task_type(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # TrialDraw.CheckTask's same rules: each block names exactly its task type's keys, and a go/no-go task has Go trials.
-        weights, rules = TRIAL_KEYS[self.task_type], RULE_KEYS[self.task_type]
-        blocks = [("trial_weights", self.trial_weights, weights), ("repeats.rules_per_type", self.repeats.rules_per_type, rules)]
-        for where, block, keys in blocks:
-            given = set(block.model_dump(by_alias=True, exclude_none=True))
-            if given != set(keys):
-                raise ValueError(f"{where} must give exactly {', '.join(keys)} in {self.task_type.value} (it gives {', '.join(sorted(given)) or 'none'})")
-        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO and self.trial_weights.go == 0:
-            raise ValueError("trial_weights' go is 0, so the task has no Go trials")
+        # TrialDraw.CheckTask's same rules: rulesPerType names exactly its task type's keys; each condition is of one of
+        # them, a go/no-go task has Go trials.
+        rules = RULE_KEYS[self.task_type]
+        given = set(self.repeats.rules_per_type.model_dump(by_alias=True, exclude_none=True))
+        if given != set(rules):
+            raise ValueError(f"repeats.rules_per_type must give exactly {', '.join(rules)} in {self.task_type.value} (it gives {', '.join(sorted(given)) or 'none'})")
+        keys = TRIAL_KEYS[self.task_type]
+        for i, condition in enumerate(self.trial_conditions):
+            if condition.type not in keys:
+                raise ValueError(f"trial_conditions[{i}]'s type {condition.type} is not one of {', '.join(keys)} in {self.task_type.value}")
+        if not sum(condition.weight for condition in self.trial_conditions) > 0:
+            raise ValueError("trial_conditions needs a condition with a weight above 0")
+        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO and not any(c.type == "go" and c.weight > 0 for c in self.trial_conditions):
+            raise ValueError("trial_conditions has no go condition with a weight above 0, so the task has no Go trials")
+        return self
+
+    @model_validator(mode="after")
+    def _conditions_run(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # TrialDraw's same build: each condition's set over the task's values, every combination of its list cells
+        # (at most MAX_COMBINATIONS), each a task that must validate.
+        if (info.context or {}).get("condition") or not any(c.set for c in self.trial_conditions):
+            return self
+        base = self.model_dump(by_alias=True, mode="json")
+        for i, condition in enumerate(self.trial_conditions):
+            where = f"trial_conditions[{i}] ({condition.type})"
+            for path in condition.set:
+                if condition.type not in CONDITION_FIELDS.get(path, ()):
+                    raise ValueError(f"{where} sets {path}, which is not a condition field of {condition.type} (x-conditionFields)")
+                if path.startswith("optogenetics.") and not self.optogenetics.enabled:
+                    raise ValueError(f"{where} sets {path} with optogenetics off")
+            combos = condition_combinations(base, condition.set)
+            if len(combos) > MAX_COMBINATIONS:
+                raise ValueError(f"{where} expands into {len(combos)} combinations, more than {MAX_COMBINATIONS}")
+            for combo in combos:
+                data = copy.deepcopy(base)
+                for path, value in combo.items():
+                    _put(data, path, value)
+                data["trialConditions"] = [{"type": condition.type, "weight": 1}]
+                try:
+                    type(self).model_validate(data, context={"condition": True})
+                except ValidationError as e:
+                    raise ValueError(f"{where} with {combo}: {e}") from None
         return self
 
     @model_validator(mode="after")

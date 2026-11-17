@@ -125,12 +125,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
     /// <summary>
     /// Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)
-    ///plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound).
+    ///plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound). Where it plays is visualStimulus'
+    ///startAzimuthsDeg and elevationDeg, on rig.yml's nearest speaker.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Auditory stimulus parameters common to all trials: every waveform of the set (src" +
-        "/sounds)\nplays at levelDbfs, the lab\'s block (open_rigs.core.task StimulusSound)" +
-        ".")]
+    [System.ComponentModel.DescriptionAttribute(@"Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)
+    plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound). Where it plays is visualStimulus'
+    startAzimuthsDeg and elevationDeg, on rig.yml's nearest speaker.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class AuditoryStimulus
@@ -138,18 +139,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _levelDbfs;
     
-        private System.Collections.Generic.List<SphericalPosition> _speakerLocations;
-    
         public AuditoryStimulus()
         {
             _levelDbfs = -30D;
-            _speakerLocations = new System.Collections.Generic.List<SphericalPosition>();
         }
     
         protected AuditoryStimulus(AuditoryStimulus other)
         {
             _levelDbfs = other._levelDbfs;
-            _speakerLocations = other._speakerLocations;
         }
     
         /// <summary>
@@ -170,27 +167,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             }
         }
     
-        /// <summary>
-        /// Candidate lateral sound positions, one drawn per auditory trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker
-        /// </summary>
-        [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("speakerLocations", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="speakerLocations")]
-        [System.ComponentModel.DescriptionAttribute("Candidate lateral sound positions, one drawn per auditory trial, at least one on " +
-            "each side; no azimuth-0 entry: visual-only and neutral trials play from the cent" +
-            "re. Each plays on rig.yml\'s nearest speaker")]
-        public System.Collections.Generic.List<SphericalPosition> SpeakerLocations
-        {
-            get
-            {
-                return _speakerLocations;
-            }
-            set
-            {
-                _speakerLocations = value;
-            }
-        }
-    
         public System.IObservable<AuditoryStimulus> Generate()
         {
             return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new AuditoryStimulus(this)));
@@ -203,8 +179,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("LevelDbfs = " + _levelDbfs + ", ");
-            stringBuilder.Append("SpeakerLocations = " + _speakerLocations);
+            stringBuilder.Append("LevelDbfs = " + _levelDbfs);
             return true;
         }
     
@@ -1103,121 +1078,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// A position on a sphere centred on the subject.
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("A position on a sphere centred on the subject.")]
-    [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
-    [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class SphericalPosition
-    {
-    
-        private double _azimuth;
-    
-        private double _elevation;
-    
-        private double _radius;
-    
-        public SphericalPosition()
-        {
-            _radius = 1D;
-        }
-    
-        protected SphericalPosition(SphericalPosition other)
-        {
-            _azimuth = other._azimuth;
-            _elevation = other._elevation;
-            _radius = other._radius;
-        }
-    
-        /// <summary>
-        /// Azimuth, in degrees. Zero is straight ahead, positive to the right.
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("azimuth", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="azimuth")]
-        [System.ComponentModel.DescriptionAttribute("Azimuth, in degrees. Zero is straight ahead, positive to the right.")]
-        public double Azimuth
-        {
-            get
-            {
-                return _azimuth;
-            }
-            set
-            {
-                _azimuth = value;
-            }
-        }
-    
-        /// <summary>
-        /// Elevation, in degrees. Zero is the horizontal plane.
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("elevation", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="elevation")]
-        [System.ComponentModel.DescriptionAttribute("Elevation, in degrees. Zero is the horizontal plane.")]
-        public double Elevation
-        {
-            get
-            {
-                return _elevation;
-            }
-            set
-            {
-                _elevation = value;
-            }
-        }
-    
-        /// <summary>
-        /// Distance from the subject, in metres.
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("radius")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="radius")]
-        [System.ComponentModel.DescriptionAttribute("Distance from the subject, in metres.")]
-        public double Radius
-        {
-            get
-            {
-                return _radius;
-            }
-            set
-            {
-                _radius = value;
-            }
-        }
-    
-        public System.IObservable<SphericalPosition> Generate()
-        {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new SphericalPosition(this)));
-        }
-    
-        public System.IObservable<SphericalPosition> Generate<TSource>(System.IObservable<TSource> source)
-        {
-            return System.Reactive.Linq.Observable.Select(source, _ => new SphericalPosition(this));
-        }
-    
-        protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
-        {
-            stringBuilder.Append("Azimuth = " + _azimuth + ", ");
-            stringBuilder.Append("Elevation = " + _elevation + ", ");
-            stringBuilder.Append("Radius = " + _radius);
-            return true;
-        }
-    
-        public override string ToString()
-        {
-            System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
-            stringBuilder.Append(GetType().Name);
-            stringBuilder.Append(" { ");
-            if (PrintMembers(stringBuilder))
-            {
-                stringBuilder.Append(" ");
-            }
-            stringBuilder.Append("}");
-            return stringBuilder.ToString();
-        }
-    }
-
-
-    /// <summary>
     /// What the mouse answers.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
@@ -1339,6 +1199,129 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Id = " + _id + ", ");
             stringBuilder.Append("Label = " + _label + ", ");
             stringBuilder.Append("Sha256 = " + _sha256);
+            return true;
+        }
+    
+        public override string ToString()
+        {
+            System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
+            stringBuilder.Append(GetType().Name);
+            stringBuilder.Append(" { ");
+            if (PrintMembers(stringBuilder))
+            {
+                stringBuilder.Append(" ");
+            }
+            stringBuilder.Append("}");
+            return stringBuilder.ToString();
+        }
+    }
+
+
+    /// <summary>
+    /// One kind of trial in the mix: its type, its relative weight and its condition-level values (set), by dotted path.
+    ///A list in a scalar field's cell is one value picked at random per trial; a list field (contrasts,
+    ///visualStimulus.startAzimuthsDeg) takes the list as is, one entry picked per trial as at task level.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
+    [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its type, its relative weight and its condition-level values (set), by dotted path.
+    A list in a scalar field's cell is one value picked at random per trial; a list field (contrasts,
+    visualStimulus.startAzimuthsDeg) takes the list as is, one entry picked per trial as at task level.")]
+    [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
+    [Bonsai.CombinatorAttribute(MethodName="Generate")]
+    public partial class TrialCondition
+    {
+    
+        private string _type;
+    
+        private int _weight;
+    
+        private object _set;
+    
+        public TrialCondition()
+        {
+        }
+    
+        protected TrialCondition(TrialCondition other)
+        {
+            _type = other._type;
+            _weight = other._weight;
+            _set = other._set;
+        }
+    
+        /// <summary>
+        /// The trial type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("type", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="type")]
+        [System.ComponentModel.DescriptionAttribute("The trial type: one of the task type\'s keys (localization visual, auditory, audio" +
+            "visualCoherent, audiovisualConflict, neutral; the discriminations by role, go/no" +
+            "Go or left/right, and the last three)")]
+        public string Type
+        {
+            get
+            {
+                return _type;
+            }
+            set
+            {
+                _type = value;
+            }
+        }
+    
+        /// <summary>
+        /// Relative draw weight: each new trial picks a condition with these as relative chances
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("weight", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="weight")]
+        [System.ComponentModel.DescriptionAttribute("Relative draw weight: each new trial picks a condition with these as relative cha" +
+            "nces")]
+        public int Weight
+        {
+            get
+            {
+                return _weight;
+            }
+            set
+            {
+                _weight = value;
+            }
+        }
+    
+        /// <summary>
+        /// Condition-level values by dotted path (x-conditionFields' paths that apply to the type); the rest are the task's
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [Newtonsoft.Json.JsonPropertyAttribute("set")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="set")]
+        [System.ComponentModel.DescriptionAttribute("Condition-level values by dotted path (x-conditionFields\' paths that apply to the" +
+            " type); the rest are the task\'s")]
+        public object Set
+        {
+            get
+            {
+                return _set;
+            }
+            set
+            {
+                _set = value;
+            }
+        }
+    
+        public System.IObservable<TrialCondition> Generate()
+        {
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new TrialCondition(this)));
+        }
+    
+        public System.IObservable<TrialCondition> Generate<TSource>(System.IObservable<TSource> source)
+        {
+            return System.Reactive.Linq.Observable.Select(source, _ => new TrialCondition(this));
+        }
+    
+        protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
+        {
+            stringBuilder.Append("Type = " + _type + ", ");
+            stringBuilder.Append("Weight = " + _weight + ", ");
+            stringBuilder.Append("Set = " + _set);
             return true;
         }
     
@@ -1650,13 +1633,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
+    /// The repeat rule of each kind of trial with a right answer, by trialConditions' types: exactly the task type's (RULE_KEYS),
     ///the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
     ///trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
     ///reader refuses it at Go.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"The repeat rule of each kind of trial with a right answer, by trialWeights' keys: exactly the task type's (RULE_KEYS),
+    [System.ComponentModel.DescriptionAttribute(@"The repeat rule of each kind of trial with a right answer, by trialConditions' types: exactly the task type's (RULE_KEYS),
     the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
     trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
     reader refuses it at Go.")]
@@ -1858,258 +1841,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Relative draw weight of each kind of trial: exactly the task type's five keys (TRIAL_KEYS), the others left out.
-    ///localization: by what the trial shows. discriminationGoNoGo: go, noGo, audiovisualCoherent, audiovisualConflict, neutral.
-    ///discriminationLeftRight: left, right, audiovisualCoherent, audiovisualConflict, neutral.
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"Relative draw weight of each kind of trial: exactly the task type's five keys (TRIAL_KEYS), the others left out.
-    localization: by what the trial shows. discriminationGoNoGo: go, noGo, audiovisualCoherent, audiovisualConflict, neutral.
-    discriminationLeftRight: left, right, audiovisualCoherent, audiovisualConflict, neutral.")]
-    [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
-    [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class TrialTypeWeights
-    {
-    
-        private int? _visual;
-    
-        private int? _auditory;
-    
-        private int? _audiovisualCoherent;
-    
-        private int? _audiovisualConflict;
-    
-        private int? _go;
-    
-        private int? _noGo;
-    
-        private int? _left;
-    
-        private int? _right;
-    
-        private int? _neutral;
-    
-        public TrialTypeWeights()
-        {
-        }
-    
-        protected TrialTypeWeights(TrialTypeWeights other)
-        {
-            _visual = other._visual;
-            _auditory = other._auditory;
-            _audiovisualCoherent = other._audiovisualCoherent;
-            _audiovisualConflict = other._audiovisualConflict;
-            _go = other._go;
-            _noGo = other._noGo;
-            _left = other._left;
-            _right = other._right;
-            _neutral = other._neutral;
-        }
-    
-        /// <summary>
-        /// localization only: the grating alone
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("visual")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
-        [System.ComponentModel.DescriptionAttribute("localization only: the grating alone")]
-        public int? Visual
-        {
-            get
-            {
-                return _visual;
-            }
-            set
-            {
-                _visual = value;
-            }
-        }
-    
-        /// <summary>
-        /// localization only: the sound alone
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("auditory")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
-        [System.ComponentModel.DescriptionAttribute("localization only: the sound alone")]
-        public int? Auditory
-        {
-            get
-            {
-                return _auditory;
-            }
-            set
-            {
-                _auditory = value;
-            }
-        }
-    
-        /// <summary>
-        /// Every task type: grating and sound on the same side
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualCoherent")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
-        [System.ComponentModel.DescriptionAttribute("Every task type: grating and sound on the same side")]
-        public int? AudiovisualCoherent
-        {
-            get
-            {
-                return _audiovisualCoherent;
-            }
-            set
-            {
-                _audiovisualCoherent = value;
-            }
-        }
-    
-        /// <summary>
-        /// Every task type: grating and sound on opposite sides
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualConflict")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualConflict")]
-        [System.ComponentModel.DescriptionAttribute("Every task type: grating and sound on opposite sides")]
-        public int? AudiovisualConflict
-        {
-            get
-            {
-                return _audiovisualConflict;
-            }
-            set
-            {
-                _audiovisualConflict = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationGoNoGo only: goModality alone (Go)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("go")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
-        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: goModality alone (Go)")]
-        public int? Go
-        {
-            get
-            {
-                return _go;
-            }
-            set
-            {
-                _go = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationGoNoGo only: the other modality alone (NoGo)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("noGo")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
-        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the other modality alone (NoGo)")]
-        public int? NoGo
-        {
-            get
-            {
-                return _noGo;
-            }
-            set
-            {
-                _noGo = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationLeftRight only: leftModality alone (answered at the left spout)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("left")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
-        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: leftModality alone (answered at the left spout)")]
-        public int? Left
-        {
-            get
-            {
-                return _left;
-            }
-            set
-            {
-                _left = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationLeftRight only: the other modality alone (answered at the right spout)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("right")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
-        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the other modality alone (answered at the right spo" +
-            "ut)")]
-        public int? Right
-        {
-            get
-            {
-                return _right;
-            }
-            set
-            {
-                _right = value;
-            }
-        }
-    
-        /// <summary>
-        /// Every task type: grey screen, centre sound in localization, silent in the discriminations
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("neutral")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
-        [System.ComponentModel.DescriptionAttribute("Every task type: grey screen, centre sound in localization, silent in the discrim" +
-            "inations")]
-        public int? Neutral
-        {
-            get
-            {
-                return _neutral;
-            }
-            set
-            {
-                _neutral = value;
-            }
-        }
-    
-        public System.IObservable<TrialTypeWeights> Generate()
-        {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new TrialTypeWeights(this)));
-        }
-    
-        public System.IObservable<TrialTypeWeights> Generate<TSource>(System.IObservable<TSource> source)
-        {
-            return System.Reactive.Linq.Observable.Select(source, _ => new TrialTypeWeights(this));
-        }
-    
-        protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
-        {
-            stringBuilder.Append("Visual = " + _visual + ", ");
-            stringBuilder.Append("Auditory = " + _auditory + ", ");
-            stringBuilder.Append("AudiovisualCoherent = " + _audiovisualCoherent + ", ");
-            stringBuilder.Append("AudiovisualConflict = " + _audiovisualConflict + ", ");
-            stringBuilder.Append("Go = " + _go + ", ");
-            stringBuilder.Append("NoGo = " + _noGo + ", ");
-            stringBuilder.Append("Left = " + _left + ", ");
-            stringBuilder.Append("Right = " + _right + ", ");
-            stringBuilder.Append("Neutral = " + _neutral);
-            return true;
-        }
-    
-        public override string ToString()
-        {
-            System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
-            stringBuilder.Append(GetType().Name);
-            stringBuilder.Append(" { ");
-            if (PrintMembers(stringBuilder))
-            {
-                stringBuilder.Append(" ");
-            }
-            stringBuilder.Append("}");
-            return stringBuilder.ToString();
-        }
-    }
-
-
-    /// <summary>
     /// Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
@@ -2130,7 +1861,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private Modality _leftModality;
     
-        private TrialTypeWeights _trialWeights;
+        private System.Collections.Generic.List<TrialCondition> _trialConditions;
     
         private TrialStructure _trialStructure;
     
@@ -2165,7 +1896,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _autoRewardProbability = 0D;
             _goModality = Modality.Visual;
             _leftModality = Modality.Visual;
-            _trialWeights = new TrialTypeWeights();
+            _trialConditions = new System.Collections.Generic.List<TrialCondition>();
             _trialStructure = new TrialStructure();
             _visualStimulus = new VisualStimulus();
             _auditoryStimulus = new AuditoryStimulus();
@@ -2188,7 +1919,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _taskType = other._taskType;
             _goModality = other._goModality;
             _leftModality = other._leftModality;
-            _trialWeights = other._trialWeights;
+            _trialConditions = other._trialConditions;
             _trialStructure = other._trialStructure;
             _visualStimulus = other._visualStimulus;
             _auditoryStimulus = other._auditoryStimulus;
@@ -2300,21 +2031,21 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Relative draw weight per kind of trial: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right
+        /// The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. Types: localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("trialWeights", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialWeights")]
-        [System.ComponentModel.DescriptionAttribute(@"Relative draw weight per kind of trial: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right")]
-        public TrialTypeWeights TrialWeights
+        [Newtonsoft.Json.JsonPropertyAttribute("trialConditions", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialConditions")]
+        [System.ComponentModel.DescriptionAttribute(@"The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. Types: localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index")]
+        public System.Collections.Generic.List<TrialCondition> TrialConditions
         {
             get
             {
-                return _trialWeights;
+                return _trialConditions;
             }
             set
             {
-                _trialWeights = value;
+                _trialConditions = value;
             }
         }
     
@@ -2603,7 +2334,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("TaskType = " + _taskType + ", ");
             stringBuilder.Append("GoModality = " + _goModality + ", ");
             stringBuilder.Append("LeftModality = " + _leftModality + ", ");
-            stringBuilder.Append("TrialWeights = " + _trialWeights + ", ");
+            stringBuilder.Append("TrialConditions = " + _trialConditions + ", ");
             stringBuilder.Append("TrialStructure = " + _trialStructure + ", ");
             stringBuilder.Append("VisualStimulus = " + _visualStimulus + ", ");
             stringBuilder.Append("AuditoryStimulus = " + _auditoryStimulus + ", ");
@@ -2637,27 +2368,19 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Grating stimulus parameters common to all trials; the contrasts are taskParameters' own.
+    /// Grating stimulus parameters and the stimulus positions; the contrasts are taskParameters' own.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Grating stimulus parameters common to all trials; the contrasts are taskParameter" +
-        "s\' own.")]
+    [System.ComponentModel.DescriptionAttribute("Grating stimulus parameters and the stimulus positions; the contrasts are taskPar" +
+        "ameters\' own.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class VisualStimulus
     {
     
-        private double _azimuthMinDeg;
+        private System.Collections.Generic.List<double> _startAzimuthsDeg;
     
-        private double _azimuthMaxDeg;
-    
-        private System.Collections.Generic.List<double> _fixedAzimuthsDeg;
-    
-        private double _elevationMinDeg;
-    
-        private double _elevationMaxDeg;
-    
-        private double _coherentAzimuthCapDeg;
+        private double _elevationDeg;
     
         private double _gaussianWindowSigmaDeg;
     
@@ -2669,11 +2392,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         public VisualStimulus()
         {
-            _azimuthMinDeg = -60D;
-            _azimuthMaxDeg = 60D;
-            _elevationMinDeg = 15D;
-            _elevationMaxDeg = 15D;
-            _coherentAzimuthCapDeg = 80D;
+            _startAzimuthsDeg = new System.Collections.Generic.List<double>();
+            _elevationDeg = 15D;
             _gaussianWindowSigmaDeg = 20D;
             _orientationDeg = 0D;
             _spatialFrequencyCpd = 0.066666667D;
@@ -2682,12 +2402,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected VisualStimulus(VisualStimulus other)
         {
-            _azimuthMinDeg = other._azimuthMinDeg;
-            _azimuthMaxDeg = other._azimuthMaxDeg;
-            _fixedAzimuthsDeg = other._fixedAzimuthsDeg;
-            _elevationMinDeg = other._elevationMinDeg;
-            _elevationMaxDeg = other._elevationMaxDeg;
-            _coherentAzimuthCapDeg = other._coherentAzimuthCapDeg;
+            _startAzimuthsDeg = other._startAzimuthsDeg;
+            _elevationDeg = other._elevationDeg;
             _gaussianWindowSigmaDeg = other._gaussianWindowSigmaDeg;
             _orientationDeg = other._orientationDeg;
             _spatialFrequencyCpd = other._spatialFrequencyCpd;
@@ -2695,114 +2411,39 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Lower bound of the uniformly drawn grating azimuth, in degrees
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("azimuthMinDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="azimuthMinDeg")]
-        [System.ComponentModel.DescriptionAttribute("Lower bound of the uniformly drawn grating azimuth, in degrees")]
-        public double AzimuthMinDeg
-        {
-            get
-            {
-                return _azimuthMinDeg;
-            }
-            set
-            {
-                _azimuthMinDeg = value;
-            }
-        }
-    
-        /// <summary>
-        /// Upper bound of the uniformly drawn grating azimuth, in degrees
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("azimuthMaxDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="azimuthMaxDeg")]
-        [System.ComponentModel.DescriptionAttribute("Upper bound of the uniformly drawn grating azimuth, in degrees")]
-        public double AzimuthMaxDeg
-        {
-            get
-            {
-                return _azimuthMaxDeg;
-            }
-            set
-            {
-                _azimuthMaxDeg = value;
-            }
-        }
-    
-        /// <summary>
-        /// Discrete grating azimuths, in degrees; when set and non-empty, every trial draws from this list (filtered to the trial's side, capped on coherent trials) instead of [azimuthMinDeg, azimuthMaxDeg]
+        /// Signed azimuths a trial's stimulus starts at, in degrees, one picked per trial with a stimulus: positive is right, negative left, never 0. The grating starts there exactly and the sound plays on rig.yml's speaker nearest it (an audiovisualConflict trial's sound at the mirrored azimuth); the picked azimuth's sign is the trial's side
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("fixedAzimuthsDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="fixedAzimuthsDeg")]
-        [System.ComponentModel.DescriptionAttribute("Discrete grating azimuths, in degrees; when set and non-empty, every trial draws " +
-            "from this list (filtered to the trial\'s side, capped on coherent trials) instead" +
-            " of [azimuthMinDeg, azimuthMaxDeg]")]
-        public System.Collections.Generic.List<double> FixedAzimuthsDeg
+        [Newtonsoft.Json.JsonPropertyAttribute("startAzimuthsDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="startAzimuthsDeg")]
+        [System.ComponentModel.DescriptionAttribute(@"Signed azimuths a trial's stimulus starts at, in degrees, one picked per trial with a stimulus: positive is right, negative left, never 0. The grating starts there exactly and the sound plays on rig.yml's speaker nearest it (an audiovisualConflict trial's sound at the mirrored azimuth); the picked azimuth's sign is the trial's side")]
+        public System.Collections.Generic.List<double> StartAzimuthsDeg
         {
             get
             {
-                return _fixedAzimuthsDeg;
+                return _startAzimuthsDeg;
             }
             set
             {
-                _fixedAzimuthsDeg = value;
+                _startAzimuthsDeg = value;
             }
         }
     
         /// <summary>
-        /// Lower bound of the uniformly drawn grating elevation, in degrees
+        /// Elevation of the grating and of the sound's position, in degrees
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("elevationMinDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="elevationMinDeg")]
-        [System.ComponentModel.DescriptionAttribute("Lower bound of the uniformly drawn grating elevation, in degrees")]
-        public double ElevationMinDeg
+        [Newtonsoft.Json.JsonPropertyAttribute("elevationDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="elevationDeg")]
+        [System.ComponentModel.DescriptionAttribute("Elevation of the grating and of the sound\'s position, in degrees")]
+        public double ElevationDeg
         {
             get
             {
-                return _elevationMinDeg;
+                return _elevationDeg;
             }
             set
             {
-                _elevationMinDeg = value;
-            }
-        }
-    
-        /// <summary>
-        /// Upper bound of the uniformly drawn grating elevation, in degrees
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("elevationMaxDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="elevationMaxDeg")]
-        [System.ComponentModel.DescriptionAttribute("Upper bound of the uniformly drawn grating elevation, in degrees")]
-        public double ElevationMaxDeg
-        {
-            get
-            {
-                return _elevationMaxDeg;
-            }
-            set
-            {
-                _elevationMaxDeg = value;
-            }
-        }
-    
-        /// <summary>
-        /// On coherent trials the grating azimuth magnitude is kept below this cap, in degrees
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("coherentAzimuthCapDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="coherentAzimuthCapDeg")]
-        [System.ComponentModel.DescriptionAttribute("On coherent trials the grating azimuth magnitude is kept below this cap, in degre" +
-            "es")]
-        public double CoherentAzimuthCapDeg
-        {
-            get
-            {
-                return _coherentAzimuthCapDeg;
-            }
-            set
-            {
-                _coherentAzimuthCapDeg = value;
+                _elevationDeg = value;
             }
         }
     
@@ -2892,12 +2533,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("AzimuthMinDeg = " + _azimuthMinDeg + ", ");
-            stringBuilder.Append("AzimuthMaxDeg = " + _azimuthMaxDeg + ", ");
-            stringBuilder.Append("FixedAzimuthsDeg = " + _fixedAzimuthsDeg + ", ");
-            stringBuilder.Append("ElevationMinDeg = " + _elevationMinDeg + ", ");
-            stringBuilder.Append("ElevationMaxDeg = " + _elevationMaxDeg + ", ");
-            stringBuilder.Append("CoherentAzimuthCapDeg = " + _coherentAzimuthCapDeg + ", ");
+            stringBuilder.Append("StartAzimuthsDeg = " + _startAzimuthsDeg + ", ");
+            stringBuilder.Append("ElevationDeg = " + _elevationDeg + ", ");
             stringBuilder.Append("GaussianWindowSigmaDeg = " + _gaussianWindowSigmaDeg + ", ");
             stringBuilder.Append("OrientationDeg = " + _orientationDeg + ", ");
             stringBuilder.Append("SpatialFrequencyCpd = " + _spatialFrequencyCpd + ", ");
@@ -2983,14 +2620,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<RewardSettings>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<SphericalPosition> source)
-        {
-            return Process<SphericalPosition>(source);
-        }
-
         public System.IObservable<string> Process(System.IObservable<TrainingPipeline> source)
         {
             return Process<TrainingPipeline>(source);
+        }
+
+        public System.IObservable<string> Process(System.IObservable<TrialCondition> source)
+        {
+            return Process<TrialCondition>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<TrialStructure> source)
@@ -3001,11 +2638,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         public System.IObservable<string> Process(System.IObservable<TrialTypeRules> source)
         {
             return Process<TrialTypeRules>(source);
-        }
-
-        public System.IObservable<string> Process(System.IObservable<TrialTypeWeights> source)
-        {
-            return Process<TrialTypeWeights>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> source)
@@ -3036,11 +2668,10 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RepeatSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<SphericalPosition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialCondition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeRules>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeWeights>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<VisualStimulus>))]
     public partial class DeserializeFromJson : Bonsai.Expressions.SingleArgumentExpressionBuilder
@@ -3137,14 +2768,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<RewardSettings>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<SphericalPosition> source)
-        {
-            return Process<SphericalPosition>(source);
-        }
-
         public System.IObservable<string> Process(System.IObservable<TrainingPipeline> source)
         {
             return Process<TrainingPipeline>(source);
+        }
+
+        public System.IObservable<string> Process(System.IObservable<TrialCondition> source)
+        {
+            return Process<TrialCondition>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<TrialStructure> source)
@@ -3155,11 +2786,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         public System.IObservable<string> Process(System.IObservable<TrialTypeRules> source)
         {
             return Process<TrialTypeRules>(source);
-        }
-
-        public System.IObservable<string> Process(System.IObservable<TrialTypeWeights> source)
-        {
-            return Process<TrialTypeWeights>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> source)
@@ -3190,11 +2816,10 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RepeatSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<SphericalPosition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialCondition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeRules>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeWeights>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<VisualStimulus>))]
     public partial class DeserializeFromYaml : Bonsai.Expressions.SingleArgumentExpressionBuilder
