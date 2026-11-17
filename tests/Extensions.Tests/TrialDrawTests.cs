@@ -493,7 +493,7 @@ public class TrialDrawTests
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "wheelQuietSeconds is NaN, not from 0 to 10 s");
         task = Fixture.Task("task-localization.yml");
         task.TrialStructure.ItiMaxSeconds = double.PositiveInfinity;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "itiMaxSeconds must be a finite number, 0 or more");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "trialStructure.itiMaxSeconds is ");
         task = Fixture.Task("task-localization.yml");
         task.Penalty.TimeoutSeconds = double.NaN;
         task.Optogenetics.LaserToStimulusSeconds = double.NaN;
@@ -540,6 +540,9 @@ public class TrialDrawTests
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 3, Fixture.Speakers())), "trial weights of 0 or more, one above 0");
         task = Fixture.Task("task-localization.yml");
         task.TrialStructure.ItiMaxSeconds = task.TrialStructure.ItiMinSeconds - 0.1;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "itiMaxSeconds is below itiMinSeconds");
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "trialStructure.itiMaxSeconds (");
+        task = Fixture.Task("task-localization.yml");
+        task.TrainingStages[4].AutoRewardProbability = 1.5;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "stage 4: autoRewardProbability is 1.5, not from 0 to 1");
     }
 }

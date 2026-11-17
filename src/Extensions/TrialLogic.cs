@@ -190,12 +190,13 @@ public class TrialDraw
         {
             if (!(value > 0) || double.IsInfinity(value)) problems.Add(name + " must be a finite number above 0");
         };
-        finite("trialStructure.itiMinSeconds", structure.ItiMinSeconds);
-        finite("trialStructure.itiMaxSeconds", structure.ItiMaxSeconds);
+        // The lab's blocks, checked by their one C# check each (OpenRigs.Core TaskBlocks, QuietWait).
+        foreach (var p in TaskBlocks.ItiProblems(structure.ItiMinSeconds, structure.ItiMaxSeconds)) problems.Add("trialStructure." + p);
         finite("trialStructure.drinkSeconds", structure.DrinkSeconds);
         finite("trialStructure.responseDelaySeconds", structure.ResponseDelaySeconds);
         if (structure.ResponseWindowSeconds == null) problems.Add("trialStructure.responseWindowSeconds must be given: this task's response window always closes");
-        else positive("trialStructure.responseWindowSeconds", structure.ResponseWindowSeconds.Value);
+        foreach (var p in TaskBlocks.ResponseWindowProblems(structure.ResponseWindowSeconds)) problems.Add("trialStructure." + p);
+        foreach (var p in TaskBlocks.AutoRewardProblems(stage.AutoRewardProbability)) problems.Add(who + ": " + p);
         finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
@@ -205,7 +206,6 @@ public class TrialDraw
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.Enabled) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds) problems.Add("trialStructure.stimulusSeconds is longer than responseDelaySeconds plus responseWindowSeconds");
-        if (structure.ItiMaxSeconds < structure.ItiMinSeconds) problems.Add("trialStructure.itiMaxSeconds is below itiMinSeconds");
         if (structure.StimulusSeconds > structure.ItiMinSeconds) problems.Add(string.Format("trialStructure.stimulusSeconds ({0} s) is longer than itiMinSeconds ({1} s): the grating would still show when the next trial's stimulus starts", structure.StimulusSeconds, structure.ItiMinSeconds));
         if (structure.ItiMinSeconds < structure.DrinkSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below drinkSeconds ({1} s): the spouts are drawn back drinkSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.DrinkSeconds));
         var opto = task.Optogenetics;
