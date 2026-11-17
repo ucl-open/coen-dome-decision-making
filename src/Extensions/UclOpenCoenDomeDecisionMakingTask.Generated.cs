@@ -1527,14 +1527,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// <summary>
     /// Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
     ///(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
-    ///so itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts
-    ///responseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused.
+    ///so itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the
+    ///response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
     (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
-    so itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts
-    responseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused.")]
+    so itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the
+    response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialStructure

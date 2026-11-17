@@ -414,7 +414,7 @@
       "type": "object"
     },
     "TrialStructure": {
-      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts\nresponseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused.",
+      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the\nresponse window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
       "properties": {
         "responseWindowSeconds": {
           "anyOf": [

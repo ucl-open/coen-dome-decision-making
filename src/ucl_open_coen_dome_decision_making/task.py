@@ -29,8 +29,8 @@ from ucl_open_coen_dome_decision_making import __semver__
 class TrialStructure(Iti, ResponseWindow):
     """Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
     (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
-    so itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts
-    responseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused."""
+    so itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the
+    response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused."""
 
     drink_seconds: Double = Field(default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval")
     response_delay_seconds: Double = Field(default=0.0, ge=0, description="The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted")
