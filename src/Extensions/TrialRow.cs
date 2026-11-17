@@ -1,4 +1,4 @@
-using OpenRigs.Devices;
+﻿using OpenRigs.Devices;
 using OpenRigs.Trials;
 
 // One row of WorkflowData_Trials. Each field is a column, named and typed as the Data Dictionary
@@ -25,6 +25,7 @@ public class TrialRow
     public int laserCondition;
     public double laserPowerMw;
     public double laserTriggerTime;
+    public int trialCondition;
     public string target;
     public string choice;
     public int repeatCount;
@@ -90,6 +91,7 @@ public class TrialRow
         var row = new TrialRow
         {
             trialType = trial.trialType,
+            trialCondition = trial.trialCondition,
             outcome = outcome,
             target = trial.target,
             choice = choice,

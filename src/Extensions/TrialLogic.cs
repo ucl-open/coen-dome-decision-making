@@ -1,4 +1,4 @@
-using Bonsai;
+﻿using Bonsai;
 using Bonsai.Harp;
 using OpenRigs.Core;
 using OpenRigs.Devices;
@@ -8,9 +8,11 @@ using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
 using UclOpenCoenDomeDecisionMakingTask;
+using YamlDotNet.RepresentationModel;
 
 /// <summary>One trial as drawn: its fields are named as the trial log's columns where they are one.</summary>
 public class Trial : IZapitTrial
@@ -22,6 +24,7 @@ public class Trial : IZapitTrial
 
     public int trialNumber;            // from 1, repeats counted
     public string trialType;           // TrialDraw.TypeNames: what the trial shows
+    public int trialCondition;         // the 0-based index of its condition in the task's trialConditions
     public string target;              // Left or Right; in discriminationGoNoGo Go or NoGo; on a trial with no right answer NoReward or Random (Target)
     public double rewardOfferedUl;     // what a reward on this trial gives, on every trial; 0 where none is on offer
     public bool bothSpoutsOffered;
@@ -51,13 +54,13 @@ public class Trial : IZapitTrial
 }
 
 [Combinator]
-[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): trainingPipeline names TrainingStage's stage and the draw's rules hold on rig.yml's speakers (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task, TrainingStage and rig.yml; stops the workflow naming every problem.")]
+[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): trainingPipeline names TrainingStage's stage, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task file's text, TrainingStage and rig.yml; stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
-    public IObservable<TrialRules> Process(IObservable<Tuple<UclOpenCoenDomeDecisionMakingTaskLogic, int, LabRig>> source)
+    public IObservable<TrialRules> Process(IObservable<Tuple<string, int, LabRig>> source)
     {
-        return source.Select(input => TrialRules.Create(input.Item1.TaskParameters, input.Item2, input.Item3, null));
+        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, input.Item3, null));
     }
 }
 
@@ -82,6 +85,30 @@ public static class Choice
     public const string NoResponse = "NoResponse";
 }
 
+/// <summary>One of the task's trialConditions as built at Go (TrialDraw.BuildConditions).</summary>
+public class TrialConditionDraw
+{
+    /// <summary>The condition's type (TrialDraw.Keys).</summary>
+    public string Type;
+    /// <summary>What its trials show (TrialDraw.TypeNames): the type, a role filled by goModality or leftModality.</summary>
+    public string TrialType;
+    /// <summary>Its relative draw weight.</summary>
+    public int Weight;
+    /// <summary>Where it is, for a message: trialConditions[index] (type).</summary>
+    public string Where;
+    /// <summary>The task with its set over it, one per combination of its list cells, picked uniformly per trial.</summary>
+    public List<TrialConditionVariant> Variants;
+}
+
+/// <summary>One combination of a condition's list cells: the task with the condition's set over it.</summary>
+public class TrialConditionVariant
+{
+    /// <summary>The task as this combination's trials draw it.</summary>
+    public UclOpenCoenDomeDecisionMakingTaskParameters Task;
+    /// <summary>The picks that make it, for a message ("" with no list cell).</summary>
+    public string Cells;
+}
+
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
 public class TrialDraw
 {
@@ -90,13 +117,29 @@ public class TrialDraw
     public const string AudiovisualCoherent = "audiovisualCoherent"; // both on one side
     public const string AudiovisualConflict = "audiovisualConflict"; // the grating on one side, the sound on the other
     public const string Neutral = "neutral";                         // grey screen
-    /// <summary>The trial types, the trial row's trialType and localization's trialWeights keys (coen-dome-navigation's names).</summary>
+    /// <summary>The trial types, the trial row's trialType and localization's trialConditions types (coen-dome-navigation's names).</summary>
     public static readonly string[] TypeNames = { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral };
-    // The discriminations' trialWeights and rulesPerType keys by role, goModality or leftModality filling go or left.
+    // The discriminations' trialConditions types and rulesPerType keys by role, goModality or leftModality filling go or left.
     public const string GoKey = "go", NoGoKey = "noGo", LeftKey = "left", RightKey = "right";
     const double CentreAzimuth = 0, CentreElevation = 15;  // the sound of visual and neutral trials in localization
 
+    /// <summary>The fields a pipeline may make condition-level, each with the trial types (Keys) it applies to: task.py's
+    /// CONDITION_FIELDS, the schema's x-conditionFields (a test holds them equal). Only what New alone reads per trial.</summary>
+    public static readonly Dictionary<string, string[]> ConditionFields = new Dictionary<string, string[]>
+    {
+        { "contrasts", new[] { Visual, AudiovisualCoherent, AudiovisualConflict, GoKey, NoGoKey, LeftKey, RightKey } },
+        { "visualStimulus.startAzimuthsDeg", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, GoKey, NoGoKey, LeftKey, RightKey } },
+        { "visualStimulus.elevationDeg", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, GoKey, NoGoKey, LeftKey, RightKey } },
+        { "optogenetics.laserOnProbability", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
+        { "reward.rewardSizeUl", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
+        { "autoRewardProbability", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
+        { "bothSpoutsProbability", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
+    };
+    /// <summary>The most combinations of list-valued scalar cells one condition may expand into (task.py MAX_COMBINATIONS).</summary>
+    public const int MaxCombinations = 64;
+
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
+    readonly List<TrialConditionDraw> conditions;
     readonly EqualisedSpeakerArray speakers;
     readonly Random random;
     readonly int conditionCount;
@@ -106,11 +149,17 @@ public class TrialDraw
     /// <summary>The seed the random stream started from: the task's rngSeed, or one drawn when it is null.</summary>
     public int Seed { get; private set; }
 
-    public TrialDraw(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers, int stage, Func<string, int> zapitConditionCount)
+    /// <summary>The task as the file gives it, before any condition's set.</summary>
+    public UclOpenCoenDomeDecisionMakingTaskParameters Task { get { return task; } }
+
+    /// <summary>The conditions as built at Go, in trialConditions' order.</summary>
+    public IList<TrialConditionDraw> Conditions { get { return conditions; } }
+
+    /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers; throws naming every problem.</summary>
+    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, int stage, Func<string, int> zapitConditionCount)
     {
-        this.task = task;
+        conditions = CheckTask(taskText, stage, speakers, out task);
         this.speakers = speakers;
-        CheckTask(task, stage, speakers);
         var optogenetics = task.Optogenetics;
         if (optogenetics.Enabled)
         {
@@ -125,10 +174,12 @@ public class TrialDraw
         random = new Random(Seed);
     }
 
-    /// <summary>Throws unless the task file's values are TrainingStage's pipeline stage (trainingPipeline, which
-    /// app-rig-control fills at launch) and the task can be run on these speakers, naming every problem.</summary>
-    public static void CheckTask(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, EqualisedSpeakerArray speakers)
+    /// <summary>The task the text holds and its conditions as drawn (BuildConditions); throws unless the values are TrainingStage's
+    /// pipeline stage (trainingPipeline, which app-rig-control fills at launch) and the task and every condition can be run on
+    /// these speakers, naming every problem.</summary>
+    public static List<TrialConditionDraw> CheckTask(string taskText, int stage, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
+        task = Read(taskText).TaskParameters;
         var pipeline = task.TrainingPipeline;
         if (pipeline == null || string.IsNullOrEmpty(pipeline.Sha256))
         {
@@ -140,43 +191,185 @@ public class TrialDraw
             throw new InvalidOperationException(string.Format(
                 "TrainingStage is {0}, but the task file's values are training pipeline stage {1} ({2}).", stage, pipeline.Id, pipeline.Label));
         }
-        Check(task, speakers);
+        var problems = new List<string>();
+        Check(problems, task, speakers);
+        var built = problems.Count == 0 ? BuildConditions(taskText, task, problems) : null;
+        if (built != null)
+        {
+            // Every combination of every condition, each problem named by its condition (a value the task's own check
+            // already named is said once).
+            foreach (var condition in built)
+            {
+                foreach (var variant in condition.Variants)
+                {
+                    var own = new List<string>();
+                    Check(own, variant.Task, speakers);
+                    problems.AddRange(own.Select(p => condition.Where + (variant.Cells.Length == 0 ? "" : " with " + variant.Cells) + ": " + p));
+                }
+            }
+        }
+        if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems.Distinct()) + ".");
+        return built;
+    }
+
+    /// <summary>The task file's text read as Bonsai's DeserializeFromYaml reads it.</summary>
+    public static UclOpenCoenDomeDecisionMakingTaskLogic Read(string text)
+    {
+        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+            .WithTypeConverter(new YamlDotNet.Serialization.Converters.DateTimeOffsetConverter())
+            .Build();
+        return deserializer.Deserialize<UclOpenCoenDomeDecisionMakingTaskLogic>(new YamlDotNet.Core.MergingParser(new YamlDotNet.Core.Parser(new StringReader(text))));
+    }
+
+    /// <summary>Each trial condition as drawn: its set written over a copy of the task file's text at its dotted paths and read
+    /// back, once for every combination of its list-valued scalar cells (a list in a cell whose task-level value is a scalar,
+    /// one picked per trial; a list field such as contrasts takes the list as is), at most MaxCombinations. Adds a problem
+    /// for each condition that cannot be built, and returns null then.</summary>
+    public static List<TrialConditionDraw> BuildConditions(string taskText, UclOpenCoenDomeDecisionMakingTaskParameters task, List<string> problems)
+    {
+        var keys = Keys(task.TaskType);
+        var nodes = Parameters(Load(taskText)).Children;
+        YamlNode sequence;
+        var conditionNodes = nodes.TryGetValue(new YamlScalarNode("trialConditions"), out sequence) && sequence is YamlSequenceNode
+            ? ((YamlSequenceNode)sequence).Children : new List<YamlNode>();
+        var typed = task.TrialConditions ?? new List<TrialCondition>();
+        if (typed.Count == 0) problems.Add("trialConditions needs a condition");
+        var built = new List<TrialConditionDraw>();
+        for (int i = 0; i < typed.Count; i++)
+        {
+            var c = typed[i];
+            var where = string.Format("trialConditions[{0}] ({1})", i, c.Type);
+            var before = problems.Count;
+            if (!keys.Contains(c.Type)) problems.Add(string.Format("{0}: its type is not one of {1} in {2}", where, string.Join(", ", keys), TaskTypeName(task.TaskType)));
+            if (c.Weight < 0) problems.Add(where + ": its weight is below 0");
+            var cells = new List<KeyValuePair<string, List<YamlNode>>>();
+            YamlNode set;
+            if (((YamlMappingNode)conditionNodes[i]).Children.TryGetValue(new YamlScalarNode("set"), out set) && set is YamlMappingNode)
+            {
+                foreach (var cell in ((YamlMappingNode)set).Children)
+                {
+                    var path = ((YamlScalarNode)cell.Key).Value;
+                    string[] types;
+                    if (!ConditionFields.TryGetValue(path, out types) || !types.Contains(c.Type))
+                    {
+                        problems.Add(string.Format("{0} sets {1}, which is not a condition field of {2} (x-conditionFields)", where, path, c.Type));
+                        continue;
+                    }
+                    if (path.StartsWith("optogenetics.") && !task.Optogenetics.Enabled) problems.Add(string.Format("{0} sets {1} with optogenetics off", where, path));
+                    var list = cell.Value as YamlSequenceNode;
+                    var options = list != null && At(nodes, path) is YamlScalarNode ? list.Children.ToList() : new List<YamlNode> { cell.Value };
+                    if (options.Count == 0) problems.Add(string.Format("{0}: {1} is an empty list", where, path));
+                    cells.Add(new KeyValuePair<string, List<YamlNode>>(path, options));
+                }
+            }
+            var count = cells.Aggregate(1L, (n, cell) => n * cell.Value.Count);
+            if (count > MaxCombinations) problems.Add(string.Format("{0} expands into {1} combinations, more than {2}", where, count, MaxCombinations));
+            if (problems.Count > before) continue;
+            var draw = new TrialConditionDraw { Type = c.Type, TrialType = StimulusType(task, c.Type), Weight = c.Weight, Where = where, Variants = new List<TrialConditionVariant>() };
+            for (int n = 0; n < count; n++)
+            {
+                var stream = Load(taskText);
+                var parameters = Parameters(stream).Children;
+                var named = new List<string>();
+                int rest = n;
+                foreach (var cell in cells)
+                {
+                    var value = cell.Value[rest % cell.Value.Count];
+                    rest /= cell.Value.Count;
+                    Put(parameters, cell.Key, value);
+                    if (cell.Value.Count > 1) named.Add(cell.Key + " " + value);
+                }
+                var writer = new StringWriter();
+                stream.Save(writer, false);
+                try
+                {
+                    draw.Variants.Add(new TrialConditionVariant { Task = Read(writer.ToString()).TaskParameters, Cells = string.Join(", ", named) });
+                }
+                catch (YamlDotNet.Core.YamlException e)
+                {
+                    problems.Add(string.Format("{0}: {1}", where, e.InnerException != null ? e.InnerException.Message : e.Message));
+                    break;
+                }
+            }
+            built.Add(draw);
+        }
+        if (problems.Count == 0)
+        {
+            if (built.Sum(c => c.Weight) <= 0) problems.Add("trialConditions needs a condition with a weight above 0");
+            if (task.TaskType == TaskType.DiscriminationGoNoGo && !built.Any(c => c.Type == GoKey && c.Weight > 0)) problems.Add("trialConditions has no Go trials: no go condition has a weight above 0");
+        }
+        return problems.Count == 0 ? built : null;
+    }
+
+    static YamlStream Load(string text)
+    {
+        var stream = new YamlStream();
+        stream.Load(new StringReader(text));
+        return stream;
+    }
+
+    static YamlMappingNode Parameters(YamlStream stream)
+    {
+        return (YamlMappingNode)((YamlMappingNode)stream.Documents[0].RootNode).Children[new YamlScalarNode("taskParameters")];
+    }
+
+    // The node at a dotted path under taskParameters; a key the file leaves out is read as null, a scalar.
+    static YamlNode At(IDictionary<YamlNode, YamlNode> nodes, string path)
+    {
+        var parts = path.Split('.');
+        for (int i = 0; i < parts.Length - 1; i++) nodes = ((YamlMappingNode)nodes[new YamlScalarNode(parts[i])]).Children;
+        YamlNode node;
+        return nodes.TryGetValue(new YamlScalarNode(parts[parts.Length - 1]), out node) ? node : new YamlScalarNode();
+    }
+
+    static void Put(IDictionary<YamlNode, YamlNode> nodes, string path, YamlNode value)
+    {
+        var parts = path.Split('.');
+        for (int i = 0; i < parts.Length - 1; i++) nodes = ((YamlMappingNode)nodes[new YamlScalarNode(parts[i])]).Children;
+        nodes[new YamlScalarNode(parts[parts.Length - 1])] = value;
+    }
+
+    /// <summary>What a condition type shows (TypeNames): localization's types and the two-modality and neutral types are
+    /// themselves; go or left is goModality's or leftModality's modality alone, noGo or right the other's.</summary>
+    public static string StimulusType(UclOpenCoenDomeDecisionMakingTaskParameters task, string type)
+    {
+        bool first = type == GoKey || type == LeftKey;
+        if (!first && type != NoGoKey && type != RightKey) return type;
+        var modality = type == GoKey || type == NoGoKey ? task.GoModality : task.LeftModality;
+        return (modality == Modality.Visual) == first ? Visual : Auditory;
     }
 
     // Bonsai reads the task file without pydantic, so the rules the draw needs are checked again here.
-    static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
+    static void Check(List<string> problems, UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
     {
-        var problems = new List<string>();
-        // Each block names exactly the task type's keys (task.py's same rule).
-        KeyProblems(problems, "trialWeights", task.TaskType, Keys(task.TaskType), task.TrialWeights == null ? null : AllKeys(task.TrialWeights));
-        if (problems.Count == 0)
-        {
-            var roles = RoleWeights(task);
-            if (roles.Any(w => w < 0) || roles.Sum() <= 0) problems.Add("trialWeights needs weights of 0 or more, one above 0");
-            if (task.TaskType == TaskType.DiscriminationGoNoGo && roles[0] == 0) problems.Add("trialWeights has no Go trials: its go is 0");
-        }
         KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeys(task.TaskType),task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
         if (task.TaskType == TaskType.DiscriminationGoNoGo && task.BothSpoutsProbability != 0) problems.Add("bothSpoutsProbability must be 0 in discriminationGoNoGo: only the left spout moves in");
         // The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a task without spout movements never returns.
         if (task.TaskType != TaskType.DiscriminationGoNoGo && !task.SpoutMovements && task.BothSpoutsProbability != 1) problems.Add("bothSpoutsProbability must be 1 with spoutMovements false: a one-spout trial draws the other spout back");
         if (task.Contrasts == null || task.Contrasts.Count == 0 || task.Contrasts.Any(c => !(c > 0))) problems.Add("contrasts must each be above 0, at least one");
+        // The positions (task.py's same rules): each azimuth signed and never 0 (its sign is the side), the speaker nearest it
+        // and nearest its mirror (a conflict trial's sound) each on its side.
         var visual = task.VisualStimulus;
-        foreach (var right in new[] { false, true })
+        var elevation = visual.ElevationDeg;
+        bool elevationOk = elevation >= -90 && elevation <= 90;
+        if (!elevationOk) problems.Add("visualStimulus.elevationDeg must be in [-90, 90]");
+        if (visual.StartAzimuthsDeg == null || visual.StartAzimuthsDeg.Count == 0) problems.Add("visualStimulus.startAzimuthsDeg needs an azimuth");
+        foreach (var listed in visual.StartAzimuthsDeg ?? new List<double>())
         {
-            var side = right ? "right" : "left";
-            if (AzimuthCandidates(visual, right, true).Count == 0 && !HasRange(visual, right, true)) problems.Add("visualStimulus has no " + side + " azimuth within coherentAzimuthCapDeg");
-            var locations = task.AuditoryStimulus.SpeakerLocations.Where(l => right ? l.Azimuth > 0 : l.Azimuth < 0).ToList();
-            if (locations.Count == 0) problems.Add("auditoryStimulus.speakerLocations has none on the " + side);
-            foreach (var location in locations)
+            if (!(listed >= -180 && listed <= 180)) problems.Add(string.Format("visualStimulus.startAzimuthsDeg value {0} is outside [-180, 180]", listed));
+            else if (listed == 0) problems.Add("visualStimulus.startAzimuthsDeg must not hold 0: the sign is the trial's side");
+            else if (elevationOk)
             {
-                var speaker = NearestSpeaker(speakers, location.Azimuth, location.Elevation);
-                if (right ? speaker.Value.Position.Azimuth <= 0 : speaker.Value.Position.Azimuth >= 0)
+                foreach (var azimuth in new[] { listed, -listed })
                 {
-                    problems.Add(string.Format("rig.yml's speaker nearest the {0} location ({1}, {2}) is '{3}', not on the {0}", side, location.Azimuth, location.Elevation, speaker.Key));
+                    var speaker = NearestSpeaker(speakers, azimuth, elevation);
+                    if (azimuth > 0 ? speaker.Value.Position.Azimuth <= 0 : speaker.Value.Position.Azimuth >= 0)
+                    {
+                        problems.Add(string.Format("rig.yml's speaker nearest azimuth {0} (elevation {1}) is '{2}', not on the {3}", azimuth, elevation, speaker.Key, azimuth > 0 ? "right" : "left"));
+                    }
                 }
             }
         }
-        if (task.AuditoryStimulus.SpeakerLocations.Any(l => l.Azimuth == 0)) problems.Add("auditoryStimulus.speakerLocations has an azimuth-0 entry; the centre sound is fixed in code");
         var structure = task.TrialStructure;
         // A NaN or infinite time (YAML's .nan or .inf) would hold the trial start for ever, with no error.
         Action<string, double> finite = (name, value) =>
@@ -225,7 +418,10 @@ public class TrialDraw
         {
             problems.Add(string.Format("reward.rewardSizeUl ({0} ul) x reward.largeRewardMultiplier ({1}) is {2} ul, more than {3} ul, the most one reward may ask for", reward.RewardSizeUl, reward.LargeRewardMultiplier, reward.RewardSizeUl * reward.LargeRewardMultiplier, LoadRewardLine.DefaultMaxRewardUl));
         }
-        if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
+        // The condition fields' bounds (a condition's cell is not checked by pydantic before Go).
+        if (!(reward.RewardSizeUl > 0 && reward.RewardSizeUl <= LoadRewardLine.DefaultMaxRewardUl)) problems.Add(string.Format("reward.rewardSizeUl must be above 0 and at most {0} ul", LoadRewardLine.DefaultMaxRewardUl));
+        if (!(task.BothSpoutsProbability >= 0 && task.BothSpoutsProbability <= 1)) problems.Add("bothSpoutsProbability must be in [0, 1]");
+        if (!(opto.LaserOnProbability >= 0 && opto.LaserOnProbability <= 1)) problems.Add("optogenetics.laserOnProbability must be in [0, 1]");
     }
 
     /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least responseDelaySeconds
@@ -238,11 +434,11 @@ public class TrialDraw
         return s.ResponseDelaySeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
     }
 
-    // Every key trialWeights and rulesPerType may have, and which five each task type gives, in its order (task.py TRIAL_KEYS):
+    // Every condition type and rulesPerType key, and the five each task type has, in its order (task.py TRIAL_KEYS):
     // localization's by what a trial shows, the discriminations' by role, goModality or leftModality filling go or left.
     static readonly string[] AllKeyNames = { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey };
 
-    /// <summary>The five keys of trialWeights and rulesPerType in a task type: localization's TypeNames; discriminationGoNoGo's
+    /// <summary>The five condition types (and rulesPerType's keys among them) in a task type: localization's TypeNames; discriminationGoNoGo's
     /// go, noGo, audiovisualCoherent, audiovisualConflict, neutral; discriminationLeftRight's left, right and the same three.</summary>
     public static string[] Keys(TaskType type)
     {
@@ -254,12 +450,7 @@ public class TrialDraw
         }
     }
 
-    // Each block's values in AllKeyNames' order, null where it gives none.
-    static int?[] AllKeys(TrialTypeWeights w)
-    {
-        return new[] { w.Visual, w.Auditory, w.AudiovisualCoherent, w.AudiovisualConflict, w.Neutral, w.Go, w.NoGo, w.Left, w.Right };
-    }
-
+    // rulesPerType's values in AllKeyNames' order, null where it gives none.
     static RepeatRule?[] AllKeys(TrialTypeRules r)
     {
         return new[] { r.Visual, r.Auditory, r.AudiovisualCoherent, null, null, r.Go, r.NoGo, r.Left, r.Right };
@@ -294,19 +485,6 @@ public class TrialDraw
     static string TaskTypeName(TaskType type)
     {
         return type == TaskType.DiscriminationGoNoGo ? "discriminationGoNoGo" : type == TaskType.DiscriminationLeftRight ? "discriminationLeftRight" : "localization";
-    }
-
-    /// <summary>The task's trial mix (trialWeights) in its task type's key order (Keys).</summary>
-    public static int[] RoleWeights(UclOpenCoenDomeDecisionMakingTaskParameters task)
-    {
-        return Pick(AllKeys(task.TrialWeights), Keys(task.TaskType));
-    }
-
-    /// <summary>The task's trial mix by what each trial shows, in TypeNames' order: in the discriminations goModality's or
-    /// leftModality's modality takes the go or left weight, the other modality the noGo or right.</summary>
-    public static int[] Weights(UclOpenCoenDomeDecisionMakingTaskParameters task)
-    {
-        return ByStimulus(task, RoleWeights(task));
     }
 
     // Key order to TypeNames' order: only the first two differ, swapped when the go or left modality is auditory.
@@ -385,47 +563,43 @@ public class TrialDraw
 
     Trial New()
     {
+        // The condition by weight, then one of its combinations (its list cells' picks), whose values the trial draws from.
+        int index = WeightedCondition();
+        var condition = conditions[index];
+        var p = condition.Variants.Count == 1 ? condition.Variants[0].Task : condition.Variants[random.Next(condition.Variants.Count)].Task;
         var trial = new Trial();
-        trial.autoReward = random.NextDouble() < task.AutoRewardProbability;
+        trial.trialCondition = index;
+        trial.autoReward = random.NextDouble() < p.AutoRewardProbability;
         trial.spoutMovements = task.SpoutMovements;
-        trial.bothSpoutsOffered = random.NextDouble() < task.BothSpoutsProbability;
-        var large = random.NextDouble() < task.Reward.LargeRewardProbability;
-        trial.rewardOfferedUl = large ? task.Reward.RewardSizeUl * task.Reward.LargeRewardMultiplier : task.Reward.RewardSizeUl;
+        trial.bothSpoutsOffered = random.NextDouble() < p.BothSpoutsProbability;
+        var large = random.NextDouble() < p.Reward.LargeRewardProbability;
+        trial.rewardOfferedUl = large ? p.Reward.RewardSizeUl * p.Reward.LargeRewardMultiplier : p.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
-        string type = TypeNames[WeightedType()];
+        string type = condition.TrialType;
         trial.trialType = type;
         bool discrimination = task.TaskType != TaskType.Localization;
         // Localization plays a centre sound on visual and neutral trials; the discriminations' are silent.
         bool showsSound = !discrimination || (type != Visual && type != Neutral);
 
-        bool right;
+        // The start azimuth, one of the condition's: its sign is the side. The grating starts there; the sound plays on
+        // the speaker nearest it, a conflict trial's nearest its mirror.
+        var visual = p.VisualStimulus;
+        double azimuth = type == Neutral ? 0 : visual.StartAzimuthsDeg[random.Next(visual.StartAzimuthsDeg.Count)];
+        double elevation = visual.ElevationDeg;
         double soundAzimuth = CentreAzimuth, soundElevation = CentreElevation;
-        switch (type)
+        if (type == Visual || type == AudiovisualCoherent || type == AudiovisualConflict)
         {
-            case Visual: // the grating alone; in localization a centre sound
-                right = random.NextDouble() >= 0.5;
-                SetVisual(trial, right, false);
-                break;
-            case Auditory: // the sound alone
-                right = random.NextDouble() >= 0.5;
-                PickLocation(right, out soundAzimuth, out soundElevation);
-                break;
-            case AudiovisualCoherent: // both on one side, the grating capped
-                right = random.NextDouble() >= 0.5;
-                SetVisual(trial, right, true);
-                PickLocation(right, out soundAzimuth, out soundElevation);
-                break;
-            case AudiovisualConflict: // the grating on one side, the sound on the other
-                right = random.NextDouble() >= 0.5;
-                SetVisual(trial, right, false);
-                PickLocation(!right, out soundAzimuth, out soundElevation);
-                break;
-            default: // neutral: grey screen (the draw kept, so the stream of draws is as before)
-                right = random.NextDouble() >= 0.5;
-                break;
+            trial.visualAzimuthDeg = azimuth;
+            trial.visualElevationDeg = elevation;
+            trial.visualContrast = p.Contrasts[random.Next(p.Contrasts.Count)];
         }
-        trial.target = right ? Choice.Right : Choice.Left;
+        if (type == Auditory || type == AudiovisualCoherent || type == AudiovisualConflict)
+        {
+            soundAzimuth = type == AudiovisualConflict ? -azimuth : azimuth;
+            soundElevation = elevation;
+        }
+        trial.target = azimuth > 0 ? Choice.Right : Choice.Left;
         if (task.TaskType == TaskType.DiscriminationGoNoGo)
         {
             // Lick for goModality (Go), withhold for the other modality (NoGo); a trial showing both modalities or neither
@@ -476,7 +650,7 @@ public class TrialDraw
         if (optogenetics.Enabled)
         {
             // drawn + 1: this trial's number, which Next sets once it is drawn.
-            ZapitTrial.Draw(random, drawn + 1, conditionCount, optogenetics.TrialsBeforeLaser, optogenetics.LaserOnProbability, optogenetics.LaserPowerMw.Value,
+            ZapitTrial.Draw(random, drawn + 1, conditionCount, optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, optogenetics.LaserPowerMw.Value,
                 out trial.laserCondition, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
@@ -492,57 +666,15 @@ public class TrialDraw
         return taskType == TaskType.DiscriminationLeftRight && trialType != Visual && trialType != Auditory;
     }
 
-    int WeightedType()
+    int WeightedCondition()
     {
-        var weights = Weights(task);
-        int draw = random.Next(weights.Sum());
-        for (int type = 0; type < weights.Length; type++)
+        int draw = random.Next(conditions.Sum(c => c.Weight));
+        for (int i = 0; i < conditions.Count; i++)
         {
-            draw -= weights[type];
-            if (draw < 0) return type;
+            draw -= conditions[i].Weight;
+            if (draw < 0) return i;
         }
-        throw new InvalidOperationException("No trial type drawn.");
-    }
-
-    void SetVisual(Trial trial, bool right, bool capped)
-    {
-        var visual = task.VisualStimulus;
-        var fixedAzimuths = AzimuthCandidates(visual, right, capped);
-        if (visual.FixedAzimuthsDeg != null && visual.FixedAzimuthsDeg.Count > 0)
-        {
-            trial.visualAzimuthDeg = fixedAzimuths[random.Next(fixedAzimuths.Count)];
-        }
-        else
-        {
-            double cap = capped ? visual.CoherentAzimuthCapDeg : 180;
-            trial.visualAzimuthDeg = right
-                ? Uniform(Math.Max(visual.AzimuthMinDeg, 0), Math.Min(visual.AzimuthMaxDeg, cap))
-                : Uniform(Math.Max(visual.AzimuthMinDeg, -cap), Math.Min(visual.AzimuthMaxDeg, 0));
-        }
-        trial.visualElevationDeg = Uniform(visual.ElevationMinDeg, visual.ElevationMaxDeg);
-        trial.visualContrast = task.Contrasts[random.Next(task.Contrasts.Count)];
-    }
-
-    static List<double> AzimuthCandidates(VisualStimulus visual, bool right, bool capped)
-    {
-        var values = visual.FixedAzimuthsDeg ?? new List<double>();
-        return values.Where(a => (right ? a > 0 : a < 0) && (!capped || Math.Abs(a) <= visual.CoherentAzimuthCapDeg)).ToList();
-    }
-
-    static bool HasRange(VisualStimulus visual, bool right, bool capped)
-    {
-        if (visual.FixedAzimuthsDeg != null && visual.FixedAzimuthsDeg.Count > 0) return false;
-        double cap = capped ? visual.CoherentAzimuthCapDeg : 180;
-        return right ? Math.Max(visual.AzimuthMinDeg, 0) < Math.Min(visual.AzimuthMaxDeg, cap)
-                     : Math.Max(visual.AzimuthMinDeg, -cap) < Math.Min(visual.AzimuthMaxDeg, 0);
-    }
-
-    void PickLocation(bool right, out double azimuth, out double elevation)
-    {
-        var candidates = task.AuditoryStimulus.SpeakerLocations.Where(l => right ? l.Azimuth > 0 : l.Azimuth < 0).ToList();
-        var picked = candidates[random.Next(candidates.Count)];
-        azimuth = picked.Azimuth;
-        elevation = picked.Elevation;
+        throw new InvalidOperationException("No trial condition drawn.");
     }
 
     double Uniform(double low, double high)
@@ -605,20 +737,20 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     readonly LaserTiming laser;
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, int> zapitConditionCount)
+    public TrialRules(string taskText, int stage, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, int> zapitConditionCount)
     {
-        this.task = task;
-        draw = new TrialDraw(task, speakers, stage, zapitConditionCount);
+        draw = new TrialDraw(taskText, speakers, stage, zapitConditionCount);
+        task = draw.Task;
         var optogenetics = task.Optogenetics;
         // The line held laserDurationSeconds from the trigger; the next trial armed once the longest ramp-down a conditions
         // file may have has played (Zapit refuses a StartStimulus until then).
         laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, optogenetics.LaserDurationSeconds, ZapitConditions.MaximumRampDownSeconds) : null;
     }
 
-    /// <summary>The rules for a task file's stage on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
-    public static TrialRules Create(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, LabRig rig, Func<string, int> zapitConditionCount)
+    /// <summary>The rules for a task file's text and stage on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
+    public static TrialRules Create(string taskText, int stage, LabRig rig, Func<string, int> zapitConditionCount)
     {
-        return new TrialRules(task, stage, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditionCount);
+        return new TrialRules(taskText, stage, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditionCount);
     }
 
     public LaserTiming Laser { get { return laser; } }

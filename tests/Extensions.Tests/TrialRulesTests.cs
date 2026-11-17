@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Devices.Zapit;
@@ -96,11 +96,12 @@ static class Rules
         task.TrialStructure.ItiMaxSeconds = 2;
         if (task.TaskType != TaskType.DiscriminationGoNoGo)
         {
-            task.TrialWeights.AudiovisualConflict = task.TrialWeights.Neutral = 0;
-            if (task.TaskType == TaskType.DiscriminationLeftRight) task.TrialWeights.AudiovisualCoherent = 0;
+            Fixture.Weight(task, "audiovisualConflict", 0);
+            Fixture.Weight(task, "neutral", 0);
+            if (task.TaskType == TaskType.DiscriminationLeftRight) Fixture.Weight(task, "audiovisualCoherent", 0);
         }
         if (edit != null) edit(task);
-        return new TrialRules(task, stage, Fixture.Speakers(), hardwareTriggered, path => 2);
+        return new TrialRules(Fixture.Text(task), stage, Fixture.Speakers(), hardwareTriggered, path => 2);
     }
 
     public static void Optogenetics(UclOpenCoenDomeDecisionMakingTaskParameters task)
@@ -208,7 +209,7 @@ public class ResponseRuleTests
     public void TheLoopRunsTheDrawsTrialsInOrder()
     {
         // The same seed draws the same trials through the loop as TrialDraw alone, every trial a miss.
-        var run = new Harness(new TrialRules(Fixture.Task("task-discrimination-left-right.yml", 3), 3, Fixture.Speakers(), true, path => 2));
+        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), 3, Fixture.Speakers(), true, path => 2));
         run.RunTo(200);
         var looped = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), 3, looped.Count, t => "NoResponse");
@@ -648,8 +649,8 @@ public class CheckTaskAtGoTests
     public void TheTaskIsCheckedOnceAtGoOnTheRigsSpeakers()
     {
         var rig = new LabRig { SpeakerArray = Fixture.Speakers() };
-        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Task("task-localization.yml", 4), 5, rig, null)), "TrainingStage is 5, but");
-        var rules = TrialRules.Create(Fixture.Task("task-discrimination-left-right.yml", 4), 4, rig, null);
+        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(Fixture.Task("task-localization.yml", 4)), 5, rig, null)), "TrainingStage is 5, but");
+        var rules = TrialRules.Create(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), 4, rig, null);
         Assert.IsNull(rules.Laser, "no optogenetics");
         var timing = rules.Timing(rules.Draw(null));
         Assert.IsTrue(timing.LaserToStimulusSeconds == 0.5 && !timing.Laser && timing.ResponseDelaySeconds == 0 && timing.ResponseWindowSeconds == 1.5);

@@ -26,7 +26,7 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral]
-  description: What the trial showed, in words (TrialDraw.TypeNames, also localization's trialWeights keys; the discriminations' keys are roles, go or left for goModality or leftModality alone and noGo or right for the other, the two-modality and neutral keys these words) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in the discriminations). In the discriminations each one-modality trial says which modality it showed; the task file's goModality or leftModality (in the manifest) says which modality was Go or answered at the left.
+  description: What the trial showed, in words (TrialDraw.TypeNames, also localization's trialConditions types; the discriminations' keys are roles, go or left for goModality or leftModality alone and noGo or right for the other, the two-modality and neutral keys these words) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in the discriminations). In the discriminations each one-modality trial says which modality it showed; the task file's goModality or leftModality (in the manifest) says which modality was Go or answered at the left.
   history: In earlier experiments a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning.
 outcome:
   type: string
@@ -90,6 +90,9 @@ laserTriggerTime:
   type: double
   unit: s
   description: "Harp time the workflow raised the Zapit trigger line (the laser, or at 0 mW the galvos and masking light alone): the first tick of the 1 ms Harp clock at or after laserToStimulusSeconds before the stimulus was due. NaN without optogenetics and on a trial that ended before its trigger, so a laser-off trial (a time, laserPowerMw 0) and one answered first (NaN) differ."
+trialCondition:
+  type: int
+  description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its type, weight and condition-level values (set). A repeat keeps the condition of the trial it repeats.
 target:
   type: string
   values: [Left, Right, Go, NoGo, NoReward, Random]

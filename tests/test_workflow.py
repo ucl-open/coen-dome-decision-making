@@ -106,7 +106,7 @@ def test_the_task_is_checked_once_at_go_into_the_rules():
     (check,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:CheckTaskAtGo"]
     assert [(nodes[b].get(XSI), nodes[b].findtext(W + "Name")) for a, b, _ in edges if a == check] == [("rx:AsyncSubject", "TrialRules")]
     assert {nodes[i].findtext(W + "Name") for i in _upstream(edges, check) if nodes[i].get(XSI) == "SubscribeSubject"} == {
-        "TaskConfig", "TrainingStage", "RigConfigs"}
+        "TaskText", "TrainingStage", "RigConfigs"}
 
 
 def test_each_trial_event_reaches_its_hardware():
