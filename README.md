@@ -31,7 +31,7 @@ The trial is one state machine on the Harp clock, lib-open-rigs' `TrialLoop` (th
 | `schemas\trial-columns.yml` | What each `WorkflowData_Trials` column means |
 | `src\sounds` | The 100 stimulus waveforms (`filtered_pink_pulse_train_<n>.wav`), the same on every rig, checked against the mixer's rate at Start |
 | `src\ucl_open_coen_dome_decision_making` | The task model (`regenerate-schemas` makes `src\DataSchemas` and its C#; the rig model is lib-open-rigs' `open_rigs.rigs.lab_rig`, its C# OpenRigs.Devices' and its template open-rigs' `rigs\rig-template.yml`), stage suggestion |
-| `analysis` | `analysis.ipynb` and `modules\loading_functions.py`: this workflow's sessions from `ROOT` (default jacuzzi's `J:\data\RDSS\Live-Data`, or `DOME_DECISION_ROOT`), av-dome switch-over sessions included (by repository name and a task file with `taskType`, as `stage.py`), new-draw accuracy per session (Correct over Correct plus Incorrect on new draws; not lib-open-rigs' performance), water, probe reward and penalty rates, and each session's trial weights at its stage |
+| `analysis` | `analysis.ipynb` and `modules\loading_functions.py`: this workflow's sessions from `ROOT` (default jacuzzi's `J:\data\RDSS\Live-Data`, or `DOME_DECISION_ROOT`), av-dome switch-over sessions included (by repository name and a task file with `taskType`), new-draw accuracy per session (Correct over Correct plus Incorrect on new draws; not lib-open-rigs' performance), water, probe reward and penalty rates, and each session's trial weights at its stage |
 | `local_packages` | The lab's OpenRigs packages from `Coen-Lab/lib-open-rigs`; never edited here |
 
 ## Shared Blocks

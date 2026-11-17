@@ -28,7 +28,6 @@ dev = [
 
 [project.scripts]
 regenerate-schemas = "ucl_open_coen_dome_decision_making.regenerate:main"
-suggest-stage = "ucl_open_coen_dome_decision_making.stage:main"
 summarise-experiment = "open_rigs.rigs.trials:main"
 
 [tool.ruff]

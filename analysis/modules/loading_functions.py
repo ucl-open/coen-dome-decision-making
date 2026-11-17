@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 from open_rigs import trial_log
 
-# The repositories whose sessions count, by name alone (stage.py's OURS): this workflow and av-dome's switch-over branch,
+# The repositories whose sessions count, by name alone: this workflow and av-dome's switch-over branch,
 # which wrote this workflow's files before the move (README); production av-dome's are told apart by their task file.
 OURS = ("coen-dome-decision-making", "av-dome")
 SCORED = ("Correct", "Incorrect")   # outcome Probe has no right answer and NoResponse is no choice: neither is counted
@@ -23,14 +23,14 @@ def _manifest(session):
 
 
 def _settings(session, kind):
-    """The session's Settings_<kind>_*.json (the first, as stage.py's summaries carry), or {} when it has none."""
+    """The session's Settings_<kind>_*.json (the first), or {} when it has none."""
     files = sorted((Path(session) / "Settings").glob(f"Settings_{kind}_*.json"))
     return json.loads(files[0].read_text(encoding="utf-8-sig")) if files else {}
 
 
 def is_this_workflow(session):
-    """True for this workflow's sessions (Live-Data holds every workflow's): the manifest's source.repo named as stage.py's
-    rule (any owner, fork or branch), and a Settings_Task with taskType, so production av-dome's are left out."""
+    """True for this workflow's sessions (Live-Data holds every workflow's): the manifest's source.repo named in
+    OURS (any owner, fork or branch), and a Settings_Task with taskType, so production av-dome's are left out."""
     repo = ((_manifest(session).get("source") or {}).get("repo") or "").rstrip("/").rsplit("/", 1)[-1].lower().removesuffix(".git")
     if repo not in OURS:
         return False

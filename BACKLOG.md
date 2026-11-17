@@ -38,7 +38,6 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 
 ## Audit round 3 (16 Nov 2026): not recommended
 
-- `stage.py` helpers stay duplicated with coen-dome-navigation: the script must run standard-library only, so it cannot import lib.
 - Commit-subject style differs from coen-dome-navigation: pushed history is never rewritten.
 
 ## Audit round 5 (17 Nov 2026): not recommended
