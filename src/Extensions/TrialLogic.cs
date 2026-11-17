@@ -51,7 +51,7 @@ public class Trial : IZapitTrial
 }
 
 [Combinator]
-[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): the stage is in the table and the draw's rules hold on rig.yml's speakers (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task, TrainingStage and rig.yml; stops the workflow naming every problem.")]
+[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): trainingPipeline names TrainingStage's stage and the draw's rules hold on rig.yml's speakers (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task, TrainingStage and rig.yml; stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
@@ -98,7 +98,6 @@ public class TrialDraw
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly EqualisedSpeakerArray speakers;
-    readonly TrainingStage stage;
     readonly Random random;
     readonly int conditionCount;
     Trial last;
@@ -107,14 +106,11 @@ public class TrialDraw
     /// <summary>The seed the random stream started from: the task's rngSeed, or one drawn when it is null.</summary>
     public int Seed { get; private set; }
 
-    /// <summary>The stage's row of the task file's trainingStages.</summary>
-    public TrainingStage Stage { get { return stage; } }
-
     public TrialDraw(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers, int stage, Func<string, int> zapitConditionCount)
     {
         this.task = task;
         this.speakers = speakers;
-        this.stage = CheckTask(task, stage, speakers);
+        CheckTask(task, stage, speakers);
         var optogenetics = task.Optogenetics;
         if (optogenetics.Enabled)
         {
@@ -129,40 +125,41 @@ public class TrialDraw
         random = new Random(Seed);
     }
 
-    /// <summary>The stage's row, once the stage is in the table and the task can be run on these speakers; throws
-    /// naming every problem.</summary>
-    public static TrainingStage CheckTask(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, EqualisedSpeakerArray speakers)
+    /// <summary>Throws unless the task file's values are TrainingStage's pipeline stage (trainingPipeline, which
+    /// app-rig-control fills at launch) and the task can be run on these speakers, naming every problem.</summary>
+    public static void CheckTask(UclOpenCoenDomeDecisionMakingTaskParameters task, int stage, EqualisedSpeakerArray speakers)
     {
-        if (stage < 0 || stage >= task.TrainingStages.Count)
+        var pipeline = task.TrainingPipeline;
+        if (pipeline == null || string.IsNullOrEmpty(pipeline.Sha256))
         {
             throw new InvalidOperationException(string.Format(
-                "TrainingStage is {0}, but the task file's trainingStages has rows 0 to {1}.", stage, task.TrainingStages.Count - 1));
+                "TrainingStage is {0}, but the task file's trainingPipeline is empty: launch it from app-rig-control, which writes the stage's values and fills it.", stage));
         }
-        var row = task.TrainingStages[stage];
-        Check(task, row, speakers);
-        return row;
+        if (pipeline.Id != stage)
+        {
+            throw new InvalidOperationException(string.Format(
+                "TrainingStage is {0}, but the task file's values are training pipeline stage {1} ({2}).", stage, pipeline.Id, pipeline.Label));
+        }
+        Check(task, speakers);
     }
 
     // Bonsai reads the task file without pydantic, so the rules the draw needs are checked again here.
-    static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage, EqualisedSpeakerArray speakers)
+    static void Check(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
     {
         var problems = new List<string>();
-        var who = "stage " + task.TrainingStages.IndexOf(stage);
-        // Each block names exactly the task type's keys (task.py's same rule), the stage's weights only when it sets its own.
-        var weightKeys = Keys(task.TaskType);
-        KeyProblems(problems, "trialWeights", task.TaskType, weightKeys, task.TrialWeights == null ? null : AllKeys(task.TrialWeights));
-        if (stage.TrialWeights != null) KeyProblems(problems, who + " trialWeights", task.TaskType, weightKeys, AllKeys(stage.TrialWeights));
+        // Each block names exactly the task type's keys (task.py's same rule).
+        KeyProblems(problems, "trialWeights", task.TaskType, Keys(task.TaskType), task.TrialWeights == null ? null : AllKeys(task.TrialWeights));
         if (problems.Count == 0)
         {
-            var roles = RoleWeights(task, stage);
-            if (roles.Any(w => w < 0) || roles.Sum() <= 0) problems.Add(who + " needs trial weights of 0 or more, one above 0");
-            if (task.TaskType == TaskType.DiscriminationGoNoGo && roles[0] == 0) problems.Add(who + " has no Go trials: its trial weights' go is 0");
+            var roles = RoleWeights(task);
+            if (roles.Any(w => w < 0) || roles.Sum() <= 0) problems.Add("trialWeights needs weights of 0 or more, one above 0");
+            if (task.TaskType == TaskType.DiscriminationGoNoGo && roles[0] == 0) problems.Add("trialWeights has no Go trials: its go is 0");
         }
         KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeys(task.TaskType),task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
-        if (task.TaskType == TaskType.DiscriminationGoNoGo && stage.BothSpoutsProbability != 0) problems.Add(who + " needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
-        // The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a stage without spout movements never returns.
-        if (task.TaskType != TaskType.DiscriminationGoNoGo && !stage.SpoutMovements && stage.BothSpoutsProbability != 1) problems.Add(who + " needs bothSpoutsProbability 1 with spoutMovements false: a one-spout trial draws the other spout back");
-        if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add(who + " needs contrasts, each above 0");
+        if (task.TaskType == TaskType.DiscriminationGoNoGo && task.BothSpoutsProbability != 0) problems.Add("bothSpoutsProbability must be 0 in discriminationGoNoGo: only the left spout moves in");
+        // The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a task without spout movements never returns.
+        if (task.TaskType != TaskType.DiscriminationGoNoGo && !task.SpoutMovements && task.BothSpoutsProbability != 1) problems.Add("bothSpoutsProbability must be 1 with spoutMovements false: a one-spout trial draws the other spout back");
+        if (task.Contrasts == null || task.Contrasts.Count == 0 || task.Contrasts.Any(c => !(c > 0))) problems.Add("contrasts must each be above 0, at least one");
         var visual = task.VisualStimulus;
         foreach (var right in new[] { false, true })
         {
@@ -196,7 +193,7 @@ public class TrialDraw
         finite("trialStructure.responseDelaySeconds", structure.ResponseDelaySeconds);
         if (structure.ResponseWindowSeconds == null) problems.Add("trialStructure.responseWindowSeconds must be given: this task's response window always closes");
         foreach (var p in TaskBlocks.ResponseWindowProblems(structure.ResponseWindowSeconds)) problems.Add("trialStructure." + p);
-        foreach (var p in TaskBlocks.AutoRewardProblems(stage.AutoRewardProbability)) problems.Add(who + ": " + p);
+        foreach (var p in TaskBlocks.AutoRewardProblems(task.AutoRewardProbability)) problems.Add(p);
         finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
@@ -299,17 +296,17 @@ public class TrialDraw
         return type == TaskType.DiscriminationGoNoGo ? "discriminationGoNoGo" : type == TaskType.DiscriminationLeftRight ? "discriminationLeftRight" : "localization";
     }
 
-    /// <summary>The stage's trial mix in its task type's key order (Keys): the stage's own trialWeights, else the task's.</summary>
-    public static int[] RoleWeights(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage)
+    /// <summary>The task's trial mix (trialWeights) in its task type's key order (Keys).</summary>
+    public static int[] RoleWeights(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
-        return Pick(AllKeys(stage.TrialWeights ?? task.TrialWeights), Keys(task.TaskType));
+        return Pick(AllKeys(task.TrialWeights), Keys(task.TaskType));
     }
 
-    /// <summary>The stage's trial mix by what each trial shows, in TypeNames' order: in the discriminations goModality's or
+    /// <summary>The task's trial mix by what each trial shows, in TypeNames' order: in the discriminations goModality's or
     /// leftModality's modality takes the go or left weight, the other modality the noGo or right.</summary>
-    public static int[] Weights(UclOpenCoenDomeDecisionMakingTaskParameters task, TrainingStage stage)
+    public static int[] Weights(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
-        return ByStimulus(task, RoleWeights(task, stage));
+        return ByStimulus(task, RoleWeights(task));
     }
 
     // Key order to TypeNames' order: only the first two differ, swapped when the go or left modality is auditory.
@@ -377,7 +374,7 @@ public class TrialDraw
 
     bool ShouldRepeat(string outcome)
     {
-        if (!stage.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == TrialOutcomes.Probe) return false;
+        if (!task.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == TrialOutcomes.Probe) return false;
         switch (Rule(task, last.trialType))
         {
             case RepeatRule.OnFailure: return outcome != TrialOutcomes.Correct;
@@ -389,9 +386,9 @@ public class TrialDraw
     Trial New()
     {
         var trial = new Trial();
-        trial.autoReward = random.NextDouble() < stage.AutoRewardProbability;
-        trial.spoutMovements = stage.SpoutMovements;
-        trial.bothSpoutsOffered = random.NextDouble() < stage.BothSpoutsProbability;
+        trial.autoReward = random.NextDouble() < task.AutoRewardProbability;
+        trial.spoutMovements = task.SpoutMovements;
+        trial.bothSpoutsOffered = random.NextDouble() < task.BothSpoutsProbability;
         var large = random.NextDouble() < task.Reward.LargeRewardProbability;
         trial.rewardOfferedUl = large ? task.Reward.RewardSizeUl * task.Reward.LargeRewardMultiplier : task.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
@@ -497,7 +494,7 @@ public class TrialDraw
 
     int WeightedType()
     {
-        var weights = Weights(task, stage);
+        var weights = Weights(task);
         int draw = random.Next(weights.Sum());
         for (int type = 0; type < weights.Length; type++)
         {
@@ -523,7 +520,7 @@ public class TrialDraw
                 : Uniform(Math.Max(visual.AzimuthMinDeg, -cap), Math.Min(visual.AzimuthMaxDeg, 0));
         }
         trial.visualElevationDeg = Uniform(visual.ElevationMinDeg, visual.ElevationMaxDeg);
-        trial.visualContrast = stage.Contrasts[random.Next(stage.Contrasts.Count)];
+        trial.visualContrast = task.Contrasts[random.Next(task.Contrasts.Count)];
     }
 
     static List<double> AzimuthCandidates(VisualStimulus visual, bool right, bool capped)
@@ -571,7 +568,7 @@ public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
     /// (discriminationGoNoGo's: the left), a Random trial's at the spout chosen, the other spout drawn back. Anything else
-    /// draws both back, with the row's penalty sound and timeout if it was penalised. A stage without spout movements
+    /// draws both back, with the row's penalty sound and timeout if it was penalised. A task without spout movements
     /// leaves the spouts where they are.</summary>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
@@ -600,7 +597,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public const string GratingOffCue = "GratingOff";
     /// <summary>The cue that brings the spouts in, stimulusToSpoutsInSeconds after the stimulus.</summary>
     public const string SpoutsInCue = "SpoutsIn";
-    /// <summary>The cue that draws the spouts out, drinkSeconds into the next interval, on a stage with spout movements.</summary>
+    /// <summary>The cue that draws the spouts out, drinkSeconds into the next interval, with spout movements.</summary>
     public const string DrinkCue = "Drink";
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
@@ -634,7 +631,6 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public TrialTiming Timing(Trial trial)
     {
         var structure = task.TrialStructure;
-        var stage = draw.Stage;
         var cues = new List<TrialCue>
         {
             new TrialCue(GratingOffCue, CueAnchor.Stimulus, structure.StimulusSeconds),

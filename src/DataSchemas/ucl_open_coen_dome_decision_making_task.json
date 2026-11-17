@@ -322,73 +322,32 @@
       "title": "TaskType",
       "type": "string"
     },
-    "TrainingStage": {
-      "description": "One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is\ntask-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the\ntarget spout, and is still a NoResponse for repeats.",
+    "TrainingPipeline": {
+      "description": "The training pipeline stage these values are: app-rig-control fills it at launch from the share's pipeline file\n(the share's config/training-pipelines), its stage's values written over the task file's; empty in the repo's task files.",
       "properties": {
-        "autoRewardProbability": {
-          "description": "Probability that a trial is an auto-reward trial, rewarded without a correct response (how is the task's); 0: never, 1: every trial",
-          "maximum": 1,
+        "id": {
+          "description": "The stage's id in the pipeline: the TrainingStage parameter must equal it, or the workflow stops at Go",
           "minimum": 0,
-          "title": "AutoRewardProbability",
-          "type": "number"
+          "title": "Id",
+          "type": "integer"
         },
         "label": {
-          "default": null,
-          "description": "The stage's name, shown on Setup after its number",
+          "description": "The stage's name in the pipeline",
           "title": "Label",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
-        "trialWeights": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TrialTypeWeights"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights",
-          "title": "TrialWeights"
-        },
-        "bothSpoutsProbability": {
-          "description": "Probability that both spouts are presented rather than only the correct one",
-          "maximum": 1,
-          "minimum": 0,
-          "title": "BothSpoutsProbability",
-          "type": "number"
-        },
-        "contrasts": {
-          "description": "Candidate grating contrasts, each above 0, one drawn per trial that shows the grating",
-          "items": {
-            "type": "number"
-          },
-          "minItems": 1,
-          "title": "Contrasts",
-          "type": "array"
-        },
-        "allowRepeats": {
-          "description": "Whether failed trials may be repeated in this stage",
-          "title": "AllowRepeats",
-          "type": "boolean"
-        },
-        "spoutMovements": {
-          "default": true,
-          "description": "Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
-          "title": "SpoutMovements",
-          "type": "boolean"
+        "sha256": {
+          "description": "SHA-256 of the pipeline file's text the stage was read from",
+          "title": "Sha256",
+          "type": "string"
         }
       },
       "required": [
-        "autoRewardProbability",
-        "bothSpoutsProbability",
-        "contrasts",
-        "allowRepeats"
+        "id",
+        "label",
+        "sha256"
       ],
-      "title": "TrainingStage",
+      "title": "TrainingPipeline",
       "type": "object"
     },
     "TrialStructure": {
@@ -744,6 +703,14 @@
     "UclOpenCoenDomeDecisionMakingTaskParameters": {
       "description": "Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations.",
       "properties": {
+        "autoRewardProbability": {
+          "default": 0.0,
+          "description": "Probability that a trial is an auto-reward trial (the lab's AutoReward block): its miss is rewarded at the target spout, and is still a NoResponse for repeats; 0: never, 1: every trial",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "AutoRewardProbability",
+          "type": "number"
+        },
         "rngSeed": {
           "default": null,
           "description": "Seed of the random number generator for these task parameters",
@@ -760,18 +727,18 @@
         "goModality": {
           "$ref": "#/$defs/Modality",
           "default": "visual",
-          "description": "discriminationGoNoGo only: the modality to lick for, shown on the stages' go trials; the other modality's (noGo) trials are NoGo",
+          "description": "discriminationGoNoGo only: the modality to lick for, shown on go trials; the other modality's (noGo) trials are NoGo",
           "title": "GoModality"
         },
         "leftModality": {
           "$ref": "#/$defs/Modality",
           "default": "visual",
-          "description": "discriminationLeftRight only: the modality answered at the left spout, shown on the stages' left trials; the other (right) is answered at the right",
+          "description": "discriminationLeftRight only: the modality answered at the left spout, shown on left trials; the other (right) is answered at the right",
           "title": "LeftModality"
         },
         "trialWeights": {
           "$ref": "#/$defs/TrialTypeWeights",
-          "description": "Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right",
+          "description": "Relative draw weight per kind of trial: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right",
           "title": "TrialWeights"
         },
         "trialStructure": {
@@ -818,14 +785,50 @@
           "description": "Zapit optogenetic stimulation parameters",
           "title": "Optogenetics"
         },
-        "trainingStages": {
-          "description": "Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go",
+        "bothSpoutsProbability": {
+          "default": 0.0,
+          "description": "Probability that both spouts are presented rather than only the correct one",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "BothSpoutsProbability",
+          "type": "number"
+        },
+        "contrasts": {
+          "default": [
+            1.0
+          ],
+          "description": "Candidate grating contrasts, each above 0, one drawn per trial that shows the grating",
           "items": {
-            "$ref": "#/$defs/TrainingStage"
+            "type": "number"
           },
           "minItems": 1,
-          "title": "TrainingStages",
+          "title": "Contrasts",
           "type": "array"
+        },
+        "allowRepeats": {
+          "default": false,
+          "description": "Whether failed trials may be repeated (repeats.rulesPerType)",
+          "title": "AllowRepeats",
+          "type": "boolean"
+        },
+        "spoutMovements": {
+          "default": true,
+          "description": "Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
+          "title": "SpoutMovements",
+          "type": "boolean"
+        },
+        "trainingPipeline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrainingPipeline"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The training pipeline stage these values are, filled by app-rig-control at launch; empty or its id not the TrainingStage parameter stops the workflow at Go",
+          "title": "TrainingPipeline"
         }
       },
       "required": [
@@ -838,14 +841,13 @@
         "penalty",
         "reward",
         "repeats",
-        "optogenetics",
-        "trainingStages"
+        "optogenetics"
       ],
       "title": "UclOpenCoenDomeDecisionMakingTaskParameters",
       "type": "object"
     },
     "VisualStimulus": {
-      "description": "Grating stimulus parameters common to all trials; contrast is set per training stage.",
+      "description": "Grating stimulus parameters common to all trials; the contrasts are taskParameters' own.",
       "properties": {
         "azimuthMinDeg": {
           "default": -60.0,

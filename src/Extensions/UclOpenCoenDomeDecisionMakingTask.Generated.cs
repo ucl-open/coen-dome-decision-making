@@ -1240,75 +1240,60 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is
-    ///task-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the
-    ///target spout, and is still a NoResponse for repeats.
+    /// The training pipeline stage these values are: app-rig-control fills it at launch from the share's pipeline file
+    ///(the share's config/training-pipelines), its stage's values written over the task file's; empty in the repo's task files.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is
-    task-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the
-    target spout, and is still a NoResponse for repeats.")]
+    [System.ComponentModel.DescriptionAttribute("The training pipeline stage these values are: app-rig-control fills it at launch " +
+        "from the share\'s pipeline file\n(the share\'s config/training-pipelines), its stag" +
+        "e\'s values written over the task file\'s; empty in the repo\'s task files.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class TrainingStage
+    public partial class TrainingPipeline
     {
     
-        private double _autoRewardProbability;
+        private int _id;
     
         private string _label;
     
-        private TrialTypeWeights _trialWeights;
+        private string _sha256;
     
-        private double _bothSpoutsProbability;
-    
-        private System.Collections.Generic.List<double> _contrasts;
-    
-        private bool _allowRepeats;
-    
-        private bool _spoutMovements;
-    
-        public TrainingStage()
+        public TrainingPipeline()
         {
-            _contrasts = new System.Collections.Generic.List<double>();
-            _spoutMovements = true;
         }
     
-        protected TrainingStage(TrainingStage other)
+        protected TrainingPipeline(TrainingPipeline other)
         {
-            _autoRewardProbability = other._autoRewardProbability;
+            _id = other._id;
             _label = other._label;
-            _trialWeights = other._trialWeights;
-            _bothSpoutsProbability = other._bothSpoutsProbability;
-            _contrasts = other._contrasts;
-            _allowRepeats = other._allowRepeats;
-            _spoutMovements = other._spoutMovements;
+            _sha256 = other._sha256;
         }
     
         /// <summary>
-        /// Probability that a trial is an auto-reward trial, rewarded without a correct response (how is the task's); 0: never, 1: every trial
+        /// The stage's id in the pipeline: the TrainingStage parameter must equal it, or the workflow stops at Go
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("autoRewardProbability", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="autoRewardProbability")]
-        [System.ComponentModel.DescriptionAttribute("Probability that a trial is an auto-reward trial, rewarded without a correct resp" +
-            "onse (how is the task\'s); 0: never, 1: every trial")]
-        public double AutoRewardProbability
+        [Newtonsoft.Json.JsonPropertyAttribute("id", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="id")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s id in the pipeline: the TrainingStage parameter must equal it, or the" +
+            " workflow stops at Go")]
+        public int Id
         {
             get
             {
-                return _autoRewardProbability;
+                return _id;
             }
             set
             {
-                _autoRewardProbability = value;
+                _id = value;
             }
         }
     
         /// <summary>
-        /// The stage's name, shown on Setup after its number
+        /// The stage's name in the pipeline
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("label")]
+        [Newtonsoft.Json.JsonPropertyAttribute("label", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="label")]
-        [System.ComponentModel.DescriptionAttribute("The stage\'s name, shown on Setup after its number")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s name in the pipeline")]
         public string Label
         {
             get
@@ -1322,119 +1307,38 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights
+        /// SHA-256 of the pipeline file's text the stage was read from
         /// </summary>
-        [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("trialWeights")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialWeights")]
-        [System.ComponentModel.DescriptionAttribute("This stage\'s own trial mix, keyed as the task\'s trialWeights, replacing it for th" +
-            "is stage; null or left out: the task\'s trialWeights")]
-        public TrialTypeWeights TrialWeights
+        [Newtonsoft.Json.JsonPropertyAttribute("sha256", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="sha256")]
+        [System.ComponentModel.DescriptionAttribute("SHA-256 of the pipeline file\'s text the stage was read from")]
+        public string Sha256
         {
             get
             {
-                return _trialWeights;
+                return _sha256;
             }
             set
             {
-                _trialWeights = value;
+                _sha256 = value;
             }
         }
     
-        /// <summary>
-        /// Probability that both spouts are presented rather than only the correct one
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("bothSpoutsProbability", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="bothSpoutsProbability")]
-        [System.ComponentModel.DescriptionAttribute("Probability that both spouts are presented rather than only the correct one")]
-        public double BothSpoutsProbability
+        public System.IObservable<TrainingPipeline> Generate()
         {
-            get
-            {
-                return _bothSpoutsProbability;
-            }
-            set
-            {
-                _bothSpoutsProbability = value;
-            }
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new TrainingPipeline(this)));
         }
     
-        /// <summary>
-        /// Candidate grating contrasts, each above 0, one drawn per trial that shows the grating
-        /// </summary>
-        [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("contrasts", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="contrasts")]
-        [System.ComponentModel.DescriptionAttribute("Candidate grating contrasts, each above 0, one drawn per trial that shows the gra" +
-            "ting")]
-        public System.Collections.Generic.List<double> Contrasts
+        public System.IObservable<TrainingPipeline> Generate<TSource>(System.IObservable<TSource> source)
         {
-            get
-            {
-                return _contrasts;
-            }
-            set
-            {
-                _contrasts = value;
-            }
-        }
-    
-        /// <summary>
-        /// Whether failed trials may be repeated in this stage
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("allowRepeats", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="allowRepeats")]
-        [System.ComponentModel.DescriptionAttribute("Whether failed trials may be repeated in this stage")]
-        public bool AllowRepeats
-        {
-            get
-            {
-                return _allowRepeats;
-            }
-            set
-            {
-                _allowRepeats = value;
-            }
-        }
-    
-        /// <summary>
-        /// Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("spoutMovements")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="spoutMovements")]
-        [System.ComponentModel.DescriptionAttribute("Whether the spouts move during trials; false keeps them in (habituation): no with" +
-            "drawal and no single-spout move for a reward")]
-        public bool SpoutMovements
-        {
-            get
-            {
-                return _spoutMovements;
-            }
-            set
-            {
-                _spoutMovements = value;
-            }
-        }
-    
-        public System.IObservable<TrainingStage> Generate()
-        {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new TrainingStage(this)));
-        }
-    
-        public System.IObservable<TrainingStage> Generate<TSource>(System.IObservable<TSource> source)
-        {
-            return System.Reactive.Linq.Observable.Select(source, _ => new TrainingStage(this));
+            return System.Reactive.Linq.Observable.Select(source, _ => new TrainingPipeline(this));
         }
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
+            stringBuilder.Append("Id = " + _id + ", ");
             stringBuilder.Append("Label = " + _label + ", ");
-            stringBuilder.Append("TrialWeights = " + _trialWeights + ", ");
-            stringBuilder.Append("BothSpoutsProbability = " + _bothSpoutsProbability + ", ");
-            stringBuilder.Append("Contrasts = " + _contrasts + ", ");
-            stringBuilder.Append("AllowRepeats = " + _allowRepeats + ", ");
-            stringBuilder.Append("SpoutMovements = " + _spoutMovements);
+            stringBuilder.Append("Sha256 = " + _sha256);
             return true;
         }
     
@@ -2216,6 +2120,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     public partial class UclOpenCoenDomeDecisionMakingTaskParameters
     {
     
+        private double _autoRewardProbability;
+    
         private double? _rngSeed;
     
         private TaskType _taskType;
@@ -2244,10 +2150,19 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private OptogeneticsSettings _optogenetics;
     
-        private System.Collections.Generic.List<TrainingStage> _trainingStages;
+        private double _bothSpoutsProbability;
+    
+        private System.Collections.Generic.List<double> _contrasts;
+    
+        private bool _allowRepeats;
+    
+        private bool _spoutMovements;
+    
+        private TrainingPipeline _trainingPipeline;
     
         public UclOpenCoenDomeDecisionMakingTaskParameters()
         {
+            _autoRewardProbability = 0D;
             _goModality = Modality.Visual;
             _leftModality = Modality.Visual;
             _trialWeights = new TrialTypeWeights();
@@ -2260,11 +2175,15 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _reward = new RewardSettings();
             _repeats = new RepeatSettings();
             _optogenetics = new OptogeneticsSettings();
-            _trainingStages = new System.Collections.Generic.List<TrainingStage>();
+            _bothSpoutsProbability = 0D;
+            _contrasts = new System.Collections.Generic.List<double>();
+            _allowRepeats = false;
+            _spoutMovements = true;
         }
     
         protected UclOpenCoenDomeDecisionMakingTaskParameters(UclOpenCoenDomeDecisionMakingTaskParameters other)
         {
+            _autoRewardProbability = other._autoRewardProbability;
             _rngSeed = other._rngSeed;
             _taskType = other._taskType;
             _goModality = other._goModality;
@@ -2279,7 +2198,31 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _reward = other._reward;
             _repeats = other._repeats;
             _optogenetics = other._optogenetics;
-            _trainingStages = other._trainingStages;
+            _bothSpoutsProbability = other._bothSpoutsProbability;
+            _contrasts = other._contrasts;
+            _allowRepeats = other._allowRepeats;
+            _spoutMovements = other._spoutMovements;
+            _trainingPipeline = other._trainingPipeline;
+        }
+    
+        /// <summary>
+        /// Probability that a trial is an auto-reward trial (the lab's AutoReward block): its miss is rewarded at the target spout, and is still a NoResponse for repeats; 0: never, 1: every trial
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("autoRewardProbability")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="autoRewardProbability")]
+        [System.ComponentModel.DescriptionAttribute("Probability that a trial is an auto-reward trial (the lab\'s AutoReward block): it" +
+            "s miss is rewarded at the target spout, and is still a NoResponse for repeats; 0" +
+            ": never, 1: every trial")]
+        public double AutoRewardProbability
+        {
+            get
+            {
+                return _autoRewardProbability;
+            }
+            set
+            {
+                _autoRewardProbability = value;
+            }
         }
     
         /// <summary>
@@ -2319,12 +2262,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// discriminationGoNoGo only: the modality to lick for, shown on the stages' go trials; the other modality's (noGo) trials are NoGo
+        /// discriminationGoNoGo only: the modality to lick for, shown on go trials; the other modality's (noGo) trials are NoGo
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("goModality")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="goModality")]
-        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the modality to lick for, shown on the stages\' go tria" +
-            "ls; the other modality\'s (noGo) trials are NoGo")]
+        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the modality to lick for, shown on go trials; the othe" +
+            "r modality\'s (noGo) trials are NoGo")]
         public Modality GoModality
         {
             get
@@ -2338,12 +2281,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// discriminationLeftRight only: the modality answered at the left spout, shown on the stages' left trials; the other (right) is answered at the right
+        /// discriminationLeftRight only: the modality answered at the left spout, shown on left trials; the other (right) is answered at the right
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("leftModality")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="leftModality")]
-        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the modality answered at the left spout, shown on t" +
-            "he stages\' left trials; the other (right) is answered at the right")]
+        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the modality answered at the left spout, shown on l" +
+            "eft trials; the other (right) is answered at the right")]
         public Modality LeftModality
         {
             get
@@ -2357,12 +2300,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right
+        /// Relative draw weight per kind of trial: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("trialWeights", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialWeights")]
-        [System.ComponentModel.DescriptionAttribute(@"Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right")]
+        [System.ComponentModel.DescriptionAttribute(@"Relative draw weight per kind of trial: each new trial draws one at random with these as relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right")]
         public TrialTypeWeights TrialWeights
         {
             get
@@ -2549,22 +2492,97 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go
+        /// Probability that both spouts are presented rather than only the correct one
         /// </summary>
-        [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("trainingStages", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trainingStages")]
-        [System.ComponentModel.DescriptionAttribute("Training stage table indexed by the TrainingStage parameter; a stage past the end" +
-            " stops the workflow at Go")]
-        public System.Collections.Generic.List<TrainingStage> TrainingStages
+        [Newtonsoft.Json.JsonPropertyAttribute("bothSpoutsProbability")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="bothSpoutsProbability")]
+        [System.ComponentModel.DescriptionAttribute("Probability that both spouts are presented rather than only the correct one")]
+        public double BothSpoutsProbability
         {
             get
             {
-                return _trainingStages;
+                return _bothSpoutsProbability;
             }
             set
             {
-                _trainingStages = value;
+                _bothSpoutsProbability = value;
+            }
+        }
+    
+        /// <summary>
+        /// Candidate grating contrasts, each above 0, one drawn per trial that shows the grating
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [Newtonsoft.Json.JsonPropertyAttribute("contrasts")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="contrasts")]
+        [System.ComponentModel.DescriptionAttribute("Candidate grating contrasts, each above 0, one drawn per trial that shows the gra" +
+            "ting")]
+        public System.Collections.Generic.List<double> Contrasts
+        {
+            get
+            {
+                return _contrasts;
+            }
+            set
+            {
+                _contrasts = value;
+            }
+        }
+    
+        /// <summary>
+        /// Whether failed trials may be repeated (repeats.rulesPerType)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("allowRepeats")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="allowRepeats")]
+        [System.ComponentModel.DescriptionAttribute("Whether failed trials may be repeated (repeats.rulesPerType)")]
+        public bool AllowRepeats
+        {
+            get
+            {
+                return _allowRepeats;
+            }
+            set
+            {
+                _allowRepeats = value;
+            }
+        }
+    
+        /// <summary>
+        /// Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("spoutMovements")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="spoutMovements")]
+        [System.ComponentModel.DescriptionAttribute("Whether the spouts move during trials; false keeps them in (habituation): no with" +
+            "drawal and no single-spout move for a reward")]
+        public bool SpoutMovements
+        {
+            get
+            {
+                return _spoutMovements;
+            }
+            set
+            {
+                _spoutMovements = value;
+            }
+        }
+    
+        /// <summary>
+        /// The training pipeline stage these values are, filled by app-rig-control at launch; empty or its id not the TrainingStage parameter stops the workflow at Go
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [Newtonsoft.Json.JsonPropertyAttribute("trainingPipeline")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trainingPipeline")]
+        [System.ComponentModel.DescriptionAttribute("The training pipeline stage these values are, filled by app-rig-control at launch" +
+            "; empty or its id not the TrainingStage parameter stops the workflow at Go")]
+        public TrainingPipeline TrainingPipeline
+        {
+            get
+            {
+                return _trainingPipeline;
+            }
+            set
+            {
+                _trainingPipeline = value;
             }
         }
     
@@ -2580,6 +2598,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
+            stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
             stringBuilder.Append("RngSeed = " + _rngSeed + ", ");
             stringBuilder.Append("TaskType = " + _taskType + ", ");
             stringBuilder.Append("GoModality = " + _goModality + ", ");
@@ -2594,7 +2613,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Reward = " + _reward + ", ");
             stringBuilder.Append("Repeats = " + _repeats + ", ");
             stringBuilder.Append("Optogenetics = " + _optogenetics + ", ");
-            stringBuilder.Append("TrainingStages = " + _trainingStages);
+            stringBuilder.Append("BothSpoutsProbability = " + _bothSpoutsProbability + ", ");
+            stringBuilder.Append("Contrasts = " + _contrasts + ", ");
+            stringBuilder.Append("AllowRepeats = " + _allowRepeats + ", ");
+            stringBuilder.Append("SpoutMovements = " + _spoutMovements + ", ");
+            stringBuilder.Append("TrainingPipeline = " + _trainingPipeline);
             return true;
         }
     
@@ -2614,11 +2637,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Grating stimulus parameters common to all trials; contrast is set per training stage.
+    /// Grating stimulus parameters common to all trials; the contrasts are taskParameters' own.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Grating stimulus parameters common to all trials; contrast is set per training st" +
-        "age.")]
+    [System.ComponentModel.DescriptionAttribute("Grating stimulus parameters common to all trials; the contrasts are taskParameter" +
+        "s\' own.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class VisualStimulus
@@ -2965,9 +2988,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<SphericalPosition>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<TrainingStage> source)
+        public System.IObservable<string> Process(System.IObservable<TrainingPipeline> source)
         {
-            return Process<TrainingStage>(source);
+            return Process<TrainingPipeline>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<TrialStructure> source)
@@ -3014,7 +3037,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<SphericalPosition>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingStage>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeRules>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeWeights>))]
@@ -3119,9 +3142,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<SphericalPosition>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<TrainingStage> source)
+        public System.IObservable<string> Process(System.IObservable<TrainingPipeline> source)
         {
-            return Process<TrainingStage>(source);
+            return Process<TrainingPipeline>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<TrialStructure> source)
@@ -3168,7 +3191,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<SphericalPosition>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingStage>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeRules>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeWeights>))]

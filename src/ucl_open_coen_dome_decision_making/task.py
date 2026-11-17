@@ -55,7 +55,7 @@ class TrialStructure(Iti, ResponseWindow, LickQuietWait, WheelQuietWait):
 
 
 class VisualStimulus(TaskBlock):
-    """Grating stimulus parameters common to all trials; contrast is set per training stage."""
+    """Grating stimulus parameters common to all trials; the contrasts are taskParameters' own."""
 
     azimuth_min_deg: Double = Field(default=-60.0, ge=-180, le=180, description="Lower bound of the uniformly drawn grating azimuth, in degrees")
     azimuth_max_deg: Double = Field(default=60.0, ge=-180, le=180, description="Upper bound of the uniformly drawn grating azimuth, in degrees")
@@ -230,32 +230,16 @@ class OptogeneticsSettings(Optogenetics):
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
 
 
-class TrainingStage(AutoReward):
-    """One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is
-    task-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the
-    target spout, and is still a NoResponse for repeats."""
+class TrainingPipeline(TaskBlock):
+    """The training pipeline stage these values are: app-rig-control fills it at launch from the share's pipeline file
+    (the share's config/training-pipelines), its stage's values written over the task file's; empty in the repo's task files."""
 
-    label: String | None = Field(default=None, description="The stage's name, shown on Setup after its number")
-    trial_weights: TrialTypeWeights | None = Field(
-        default=None,
-        description="This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights",
-    )
-    both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
-    contrasts: list[Double] = Field(min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
-    allow_repeats: Bool = Field(description="Whether failed trials may be repeated in this stage")
-    spout_movements: Bool = Field(
-        default=True,
-        description="Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
-    )
-    @field_validator("contrasts")
-    @classmethod
-    def _positive(cls, value: list[float]) -> list[float]:
-        if any(contrast <= 0 for contrast in value):
-            raise ValueError("contrasts must each be above 0")
-        return value
+    id: int = Field(ge=0, description="The stage's id in the pipeline: the TrainingStage parameter must equal it, or the workflow stops at Go")
+    label: String = Field(description="The stage's name in the pipeline")
+    sha256: String = Field(description="SHA-256 of the pipeline file's text the stage was read from")
 
 
-class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
+class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
     task_type: TaskType = Field(
@@ -270,13 +254,13 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
             "as an incorrect choice; a miss as a scored trial's miss"
         ),
     )
-    go_modality: Modality = Field(default=Modality.VISUAL, description="discriminationGoNoGo only: the modality to lick for, shown on the stages' go trials; the other modality's (noGo) trials are NoGo")
+    go_modality: Modality = Field(default=Modality.VISUAL, description="discriminationGoNoGo only: the modality to lick for, shown on go trials; the other modality's (noGo) trials are NoGo")
     left_modality: Modality = Field(
-        default=Modality.VISUAL, description="discriminationLeftRight only: the modality answered at the left spout, shown on the stages' left trials; the other (right) is answered at the right"
+        default=Modality.VISUAL, description="discriminationLeftRight only: the modality answered at the left spout, shown on left trials; the other (right) is answered at the right"
     )
     trial_weights: TrialTypeWeights = Field(
         description=(
-            "Relative draw weight per kind of trial, per mouse, on every stage that sets none of its own: each new trial draws one at random with these as "
+            "Relative draw weight per kind of trial: each new trial draws one at random with these as "
             "relative chances, independently of every other trial (repeats copy the trial they repeat). localization by what the trial shows (visual, auditory, "
             "audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight "
             "(left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left, the other modality's noGo or right"
@@ -295,7 +279,30 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     reward: RewardSettings = Field(description="Reward delivery parameters")
     repeats: RepeatSettings = Field(description="Trial repetition policy")
     optogenetics: OptogeneticsSettings = Field(description="Zapit optogenetic stimulation parameters")
-    training_stages: list[TrainingStage] = Field(min_length=1, description="Training stage table indexed by the TrainingStage parameter; a stage past the end stops the workflow at Go")
+    auto_reward_probability: Double = Field(
+        default=0.0,
+        ge=0,
+        le=1,
+        description="Probability that a trial is an auto-reward trial (the lab's AutoReward block): its miss is rewarded at the target spout, and is still a NoResponse for repeats; 0: never, 1: every trial",
+    )
+    both_spouts_probability: Double = Field(default=0.0, ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
+    contrasts: list[Double] = Field(default=[1.0], min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
+    allow_repeats: Bool = Field(default=False, description="Whether failed trials may be repeated (repeats.rulesPerType)")
+    spout_movements: Bool = Field(
+        default=True,
+        description="Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
+    )
+    training_pipeline: TrainingPipeline | None = Field(
+        default=None,
+        description="The training pipeline stage these values are, filled by app-rig-control at launch; empty or its id not the TrainingStage parameter stops the workflow at Go",
+    )
+
+    @field_validator("contrasts")
+    @classmethod
+    def _positive(cls, value: list[float]) -> list[float]:
+        if any(contrast <= 0 for contrast in value):
+            raise ValueError("contrasts must each be above 0")
+        return value
 
     @model_validator(mode="after")
     def _timing_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
@@ -318,36 +325,26 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
 
     @model_validator(mode="after")
     def _keys_of_the_task_type(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # TrialDraw.CheckTask's same rules: each block names exactly its task type's keys, and a go/no-go stage has Go trials.
+        # TrialDraw.CheckTask's same rules: each block names exactly its task type's keys, and a go/no-go task has Go trials.
         weights, rules = TRIAL_KEYS[self.task_type], RULE_KEYS[self.task_type]
         blocks = [("trial_weights", self.trial_weights, weights), ("repeats.rules_per_type", self.repeats.rules_per_type, rules)]
-        blocks += [(f"training_stages[{i}].trial_weights", s.trial_weights, weights) for i, s in enumerate(self.training_stages) if s.trial_weights is not None]
         for where, block, keys in blocks:
             given = set(block.model_dump(by_alias=True, exclude_none=True))
             if given != set(keys):
                 raise ValueError(f"{where} must give exactly {', '.join(keys)} in {self.task_type.value} (it gives {', '.join(sorted(given)) or 'none'})")
-        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
-            for index, stage in enumerate(self.training_stages):
-                if self.weights_of(stage).go == 0:
-                    raise ValueError(f"training_stages[{index}]: its trial weights' go is 0, so the stage has no Go trials")
+        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO and self.trial_weights.go == 0:
+            raise ValueError("trial_weights' go is 0, so the task has no Go trials")
         return self
-
-    def weights_of(self, stage: TrainingStage) -> TrialTypeWeights:
-        """The stage's trial mix: its own trial_weights, else the task's (TrialDraw.Weights)."""
-        return self.trial_weights if stage.trial_weights is None else stage.trial_weights
 
     @model_validator(mode="after")
     def _one_spout_in_go_no_go(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.CheckTask's same rule: go/no-go uses the left spout alone.
         if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
-            for index, stage in enumerate(self.training_stages):
-                if stage.both_spouts_probability != 0:
-                    raise ValueError(f"training_stages[{index}]: both_spouts_probability must be 0 in discriminationGoNoGo: only the left spout moves in")
-        else:
-            # The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a stage without spout movements never returns.
-            for index, stage in enumerate(self.training_stages):
-                if not stage.spout_movements and stage.both_spouts_probability != 1:
-                    raise ValueError(f"training_stages[{index}]: both_spouts_probability must be 1 with spout_movements false: a one-spout trial draws the other spout back")
+            if self.both_spouts_probability != 0:
+                raise ValueError("both_spouts_probability must be 0 in discriminationGoNoGo: only the left spout moves in")
+        elif not self.spout_movements and self.both_spouts_probability != 1:
+            # The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a task without spout movements never returns.
+            raise ValueError("both_spouts_probability must be 1 with spout_movements false: a one-spout trial draws the other spout back")
         return self
 
     @model_validator(mode="after")

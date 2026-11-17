@@ -91,7 +91,7 @@ static class Rules
     // here scored trials alone in the two-spout tasks, so every trial has a side to answer (the probes' own test below).
     public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, bool hardwareTriggered = true, string file = "task-discrimination-left-right.yml", int stage = 4)
     {
-        var task = Fixture.Task(file);
+        var task = Fixture.Task(file, stage);
         task.TrialStructure.ItiMinSeconds = 2;
         task.TrialStructure.ItiMaxSeconds = 2;
         if (task.TaskType != TaskType.DiscriminationGoNoGo)
@@ -208,10 +208,10 @@ public class ResponseRuleTests
     public void TheLoopRunsTheDrawsTrialsInOrder()
     {
         // The same seed draws the same trials through the loop as TrialDraw alone, every trial a miss.
-        var run = new Harness(new TrialRules(Fixture.Task("task-discrimination-left-right.yml"), 3, Fixture.Speakers(), true, path => 2));
+        var run = new Harness(new TrialRules(Fixture.Task("task-discrimination-left-right.yml", 3), 3, Fixture.Speakers(), true, path => 2));
         run.RunTo(200);
         var looped = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
-        var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 3, looped.Count, t => "NoResponse");
+        var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), 3, looped.Count, t => "NoResponse");
         Assert.IsTrue(looped.Count >= 20);
         CollectionAssert.AreEqual(drawn.Select(t => t.visualPhaseRad).ToList(), looped.Select(t => t.visualPhaseRad).ToList());
         CollectionAssert.AreEqual(drawn.Select(t => t.trialType + t.target + t.itiSeconds + t.auditorySoundFileIndex).ToList(),
@@ -227,7 +227,7 @@ public class ResponseRuleTests
         var times = new TrialTimes { Now = 1 };
         foreach (var file in new[] { "task-discrimination-left-right.yml", "task-localization.yml" })
         {
-            var task = Fixture.Task(file);
+            var task = Fixture.Task(file, 4);
             var all = Fixture.Draw(task, 4, 4000);
             var probes = all.Where(t => t.target == Target.Random).ToList();
             var kinds = file.Contains("left-right") ? new[] { "audiovisualCoherent", "audiovisualConflict", "neutral" } : new[] { "audiovisualConflict", "neutral" };
@@ -648,8 +648,8 @@ public class CheckTaskAtGoTests
     public void TheTaskIsCheckedOnceAtGoOnTheRigsSpeakers()
     {
         var rig = new LabRig { SpeakerArray = Fixture.Speakers() };
-        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Task("task-localization.yml"), 5, rig, null)), "rows 0 to 4");
-        var rules = TrialRules.Create(Fixture.Task("task-discrimination-left-right.yml"), 4, rig, null);
+        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Task("task-localization.yml", 4), 5, rig, null)), "TrainingStage is 5, but");
+        var rules = TrialRules.Create(Fixture.Task("task-discrimination-left-right.yml", 4), 4, rig, null);
         Assert.IsNull(rules.Laser, "no optogenetics");
         var timing = rules.Timing(rules.Draw(null));
         Assert.IsTrue(timing.LaserToStimulusSeconds == 0.5 && !timing.Laser && timing.ResponseDelaySeconds == 0 && timing.ResponseWindowSeconds == 1.5);

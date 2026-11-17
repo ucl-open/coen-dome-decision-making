@@ -1,14 +1,15 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making audiovisual localization task.
 # Read by src/main.bonsai at Go and published as the TaskConfig subject (and at Start, as launched, for the background noise).
-# trialWeights names each kind of trial by what it shows; the top-level one is per mouse, and a stage's own replaces it for
-# that stage. rulesPerType names visual, auditory and audiovisualCoherent alone: audiovisualConflict and neutral trials have
+# trialWeights names each kind of trial by what it shows; a stage that sets it sets the whole map. rulesPerType names visual, auditory and audiovisualCoherent alone: audiovisualConflict and neutral trials have
 # no right answer and never repeat: random-reward probes (target Random, outcome Probe), both spouts in, a choice at either
 # rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss.
+# The training stages are the share's pipeline (config/training-pipelines/coen-dome-decision-making/<this file's name>):
+# at launch app-rig-control writes the chosen stage's values over these defaults and fills trainingPipeline.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
-  trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage's own trialWeights replaces it for that stage
+  trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage that sets trialWeights sets the whole map
   rngSeed: null           # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   trialStructure:
     itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included
@@ -64,37 +65,8 @@ taskParameters:
     laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
-  trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
-    - label: Habituation   # coherent only, single spout half the time, no repeats
-      trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 0.5
-      contrasts: [3.0]
-      allowRepeats: false
-    # Stage 1: coherent trials only
-    - label: Coherent Only
-      trialWeights: { visual: 0, auditory: 0, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 1.0
-      contrasts: [3.0]
-      allowRepeats: true
-    # Stage 2: unisensory auditory added
-    - label: Auditory Added
-      trialWeights: { visual: 0, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 1.0
-      contrasts: [0.25, 0.5, 1.0]
-      allowRepeats: true
-    # Stage 3: unisensory visual added
-    - label: Visual Added
-      trialWeights: { visual: 10, auditory: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 1.0
-      contrasts: [0.25, 0.5, 1.0]
-      allowRepeats: true
-    # Stage 4: conflict and neutral trials added: the task's trialWeights
-    - label: Conflict Added
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 1.0
-      contrasts: [0.25, 0.5, 1.0]
-      allowRepeats: true
+  autoRewardProbability: 0.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
+  bothSpoutsProbability: 0.5           # chance both spouts move in rather than the correct one alone
+  contrasts: [3.0]                     # grating contrasts, one drawn per trial that shows the grating
+  allowRepeats: false                  # whether failed trials repeat (repeats.rulesPerType)
+  trainingPipeline:                    # app-rig-control fills it at launch (id, label, sha256 of the stage run); empty here: Go refuses it

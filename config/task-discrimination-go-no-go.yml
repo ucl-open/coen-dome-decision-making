@@ -6,14 +6,16 @@
 # modalities (audiovisualCoherent, audiovisualConflict) or neither (neutral) is a Probe, never rewarded or penalised (Song et al. 2017).
 # trialWeights names each kind of trial by its role: go (goModality alone), noGo (the other modality
 # alone), audiovisualCoherent, audiovisualConflict, neutral; goModality, set per mouse, decides which modality fills go.
-# The top-level trialWeights is per mouse; a stage's own replaces it for that stage. A stage with
+# trialWeights is per mouse; a stage that sets it sets the whole map. A trialWeights with
 # go 0 is refused at Go. rulesPerType names go and noGo alone: a probe never repeats. Visual-only and neutral trials are silent.
 # bothSpoutsProbability must be 0: only the left spout moves in.
+# The training stages are the share's pipeline (config/training-pipelines/coen-dome-decision-making/<this file's name>):
+# at launch app-rig-control writes the chosen stage's values over these defaults and fills trainingPipeline.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: discriminationGoNoGo
   goModality: visual       # visual or auditory: the modality to lick for; set per mouse on the form
-  trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage's own trialWeights replaces it for that stage
+  trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage that sets trialWeights sets the whole map
   rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
@@ -69,37 +71,9 @@ taskParameters:
     laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     noLaserOnRepeats: true
     trialsBeforeLaser: 20
-  trainingStages:          # row index = the TrainingStage parameter; a stage past the end stops the workflow at Go
-    - label: Habituation   # Go trials only, every miss auto-rewarded, spouts stay in
-      trialWeights: { go: 10, noGo: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
-      autoRewardProbability: 1.0
-      bothSpoutsProbability: 0.0
-      contrasts: [1.0]
-      allowRepeats: false
-      spoutMovements: false
-    # Stage 1: Go trials only, every miss auto-rewarded
-    - label: Go Only
-      trialWeights: { go: 10, noGo: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
-      autoRewardProbability: 1.0
-      bothSpoutsProbability: 0.0
-      contrasts: [1.0]
-      allowRepeats: false
-    # Stage 2: NoGo and coherent (probe) trials added
-    - label: NoGo Added
-      trialWeights: { go: 10, noGo: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 0.0
-      contrasts: [0.5, 1.0]
-      allowRepeats: false
-    # Stage 3: conflict and neutral (probe) trials added: the task's trialWeights
-    - label: Probes Added
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 0.0
-      contrasts: [0.5, 1.0]
-      allowRepeats: false
-    # Stage 4: as stage 3, wider contrasts (Gerion's default row)
-    - label: Wide Contrasts
-      autoRewardProbability: 0.0
-      bothSpoutsProbability: 0.0
-      contrasts: [0.5, 1.0, 2.0, 3.0]
-      allowRepeats: false
+  autoRewardProbability: 1.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
+  bothSpoutsProbability: 0.0           # chance both spouts move in rather than the correct one alone
+  contrasts: [1.0]                     # grating contrasts, one drawn per trial that shows the grating
+  allowRepeats: false                  # whether failed trials repeat (repeats.rulesPerType)
+  spoutMovements: false                # false keeps the spouts in (habituation): no withdrawal, no single-spout move
+  trainingPipeline:                    # app-rig-control fills it at launch (id, label, sha256 of the stage run); empty here: Go refuses it

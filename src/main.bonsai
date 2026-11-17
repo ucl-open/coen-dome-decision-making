@@ -49,9 +49,9 @@
                 <Parameter>
                   <Name>TrainingStage</Name>
                   <Value>4</Value>
-                  <Description>Row of the task file's trainingStages to run: the GUI's Training Stage. A row past the end of the task file's table stops the workflow at Go.</Description>
+                  <Description>The training pipeline stage's id: the GUI's Training Stage. app-rig-control writes that stage's values into the task file and fills its trainingPipeline; a trainingPipeline empty or naming another id stops the workflow at Go.</Description>
                   <Minimum>0</Minimum>
-                  <Maximum>4</Maximum>
+                  <Maximum>99</Maximum>
                   <WholeNumber>true</WholeNumber>
                 </Parameter>
               </Parameters>
@@ -700,7 +700,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and the seed; Arm and Trigger: Zapit's StartStimulus (Zapit) and the ZapitTrigger line raised, cleared at TriggerOff; Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (stimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and Drink (drinkSeconds into the next interval, on a stage with spout movements: the spouts out); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the spouts and the penalty sound. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and the seed; Arm and Trigger: Zapit's StartStimulus (Zapit) and the ZapitTrigger line raised, cleared at TriggerOff; Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (stimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and Drink (drinkSeconds into the next interval, with spout movements: the spouts out); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the spouts and the penalty sound. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -1074,14 +1074,14 @@
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>SpoutMovements?</Name>
-              <Description>Trial 1 starts with the spouts out, as every later trial does after the last one's drink; a stage without spout movements (habituation) keeps them in.</Description>
+              <Description>Trial 1 starts with the spouts out, as every later trial does after the last one's drink; a task without spout movements (habituation) keeps them in.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>Item2.TaskParameters.TrainingStages[Item3].SpoutMovements</scr:Expression>
+                    <scr:Expression>Item2.TaskParameters.SpoutMovements</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>

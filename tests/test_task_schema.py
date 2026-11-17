@@ -41,10 +41,21 @@ def test_committed_task_files_use_the_discrete_azimuths(path):
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
-def test_every_stage_has_a_name(path):
-    labels = [row.get("label") for row in yaml.safe_load(path.read_text())["taskParameters"]["trainingStages"]]
-    assert len(labels) == 5
-    assert all(isinstance(label, str) and label for label in labels)
+def test_the_task_files_leave_the_training_pipeline_empty(path):
+    # The stages are the share's pipeline: app-rig-control writes the chosen stage's values over the file's and fills
+    # trainingPipeline at launch, so the file carries no stage table and an empty trainingPipeline.
+    data = yaml.safe_load(path.read_text())["taskParameters"]
+    assert "trainingStages" not in data
+    assert "trainingPipeline" in data and data["trainingPipeline"] is None
+
+
+def test_a_filled_training_pipeline_validates_and_needs_its_id():
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    data["trainingPipeline"] = {"id": 3, "label": "Visual Added", "sha256": "ab" * 32}
+    assert UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data).training_pipeline.id == 3
+    del data["trainingPipeline"]["id"]
+    with pytest.raises(ValidationError, match="id"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 def test_overwrite_azimuths_default_keeps_the_uniform_range():
@@ -92,10 +103,10 @@ def _task(name):
     return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data["taskParameters"])
 
 
-def test_the_localization_file_moves_the_spouts_on_every_stage():
+def test_the_localization_file_moves_the_spouts():
     task = _task("task-localization.yml")
     assert task.task_type == "localization"
-    assert all(stage.spout_movements for stage in task.training_stages)
+    assert task.spout_movements
 
 
 def test_a_task_file_must_name_its_task_type():
@@ -109,41 +120,37 @@ def test_the_discrimination_files_keep_the_spouts_in_for_habituation():
     for name, task_type in (("task-discrimination-left-right.yml", "discriminationLeftRight"), ("task-discrimination-go-no-go.yml", "discriminationGoNoGo")):
         task = _task(name)
         assert task.task_type == task_type
-        assert not task.training_stages[0].spout_movements
-        assert all(stage.spout_movements for stage in task.training_stages[1:])
+        assert not task.spout_movements   # the defaults are habituation's, the pipeline's first stage
     assert _task("task-discrimination-left-right.yml").left_modality == "visual"
     assert _task("task-discrimination-go-no-go.yml").go_modality == "visual"
 
 
 def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
-    # Same stages, mixes and timing (Gerion's), go and noGo where left-right has left and right; go-no-go names goModality,
+    # Same mixes and timing (Gerion's), go and noGo where left-right has left and right; go-no-go names goModality,
     # offers one spout and repeats go and noGo alone, as left-right left and right.
     lr = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     gng = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
-    assert all(s["bothSpoutsProbability"] == 0 for s in gng["trainingStages"])
+    assert gng["bothSpoutsProbability"] == 0
     roles = {"go": "left", "noGo": "right"}
     for data, key in ((lr, "leftModality"), (gng, "goModality")):
-        del data["taskType"], data[key]
-        for block, name in [(data, "trialWeights"), (data["repeats"], "rulesPerType")] + [(s, "trialWeights") for s in data["trainingStages"]]:
-            if name in block:
-                block[name] = {roles.get(k, k): v for k, v in block[name].items()}
-        for s in data["trainingStages"]:
-            del s["bothSpoutsProbability"], s["label"]  # each file names its own stages
+        del data["taskType"], data[key], data["bothSpoutsProbability"]
+        for block, name in [(data, "trialWeights"), (data["repeats"], "rulesPerType")]:
+            block[name] = {roles.get(k, k): v for k, v in block[name].items()}
     assert lr == gng
 
 
 def test_go_no_go_refuses_both_spouts():
     data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
-    data["trainingStages"][2]["bothSpoutsProbability"] = 0.5
+    data["bothSpoutsProbability"] = 0.5
     with pytest.raises(ValidationError, match="both_spouts_probability must be 0"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 @pytest.mark.parametrize("name", ["task-localization.yml", "task-discrimination-left-right.yml"])
-def test_a_stage_without_spout_movements_needs_both_spouts(name):
+def test_a_task_without_spout_movements_needs_both_spouts(name):
     # The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, never returned without spout movements.
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
-    data["trainingStages"][0].update(spoutMovements=False, bothSpoutsProbability=0.5)
+    data.update(spoutMovements=False, bothSpoutsProbability=0.5)
     with pytest.raises(ValidationError, match="both_spouts_probability must be 1 with spout_movements false"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
@@ -220,11 +227,10 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
 
 
-def _with(name="task-discrimination-left-right.yml", opto=None, structure=None, stage=None):
+def _with(name="task-discrimination-left-right.yml", opto=None, structure=None):
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
     data["optogenetics"].update(opto or {})
     data["trialStructure"].update(structure or {})
-    data["trainingStages"][0].update(stage or {})
     return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
@@ -296,15 +302,6 @@ def test_a_quiet_wait_above_its_maximum_is_refused(structure):
     _with(structure={"lickQuietSeconds": 10.0, "wheelQuietSeconds": 10.0, "wheelQuietCm": 20.0})
     with pytest.raises(ValidationError, match="less than or equal to"):
         _with(structure=structure)
-
-
-def test_a_stage_field_is_one_some_stage_changes():
-    # Pip: "if it isn't chosen to be part of pipeline, then it should just be a global param like everything else".
-    # Every stage field but label takes two values or more over the stages of the three task files.
-    stages = [s for path in TASK_FILES for s in UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(
-        yaml.safe_load(path.read_text())["taskParameters"]).model_dump(by_alias=True)["trainingStages"]]
-    fixed = [key for key in stages[0] if key != "label" and len({repr(s[key]) for s in stages}) == 1]
-    assert fixed == [], f"the same in every stage, so task-level: {fixed}"
 
 
 def test_the_constants_are_the_c_sharp_s():
@@ -397,16 +394,6 @@ def test_weights_and_repeat_rules_are_keyed_by_the_task_type_s_keys():
         task_type = TaskType(task["taskType"])
         assert set(task["trialWeights"]) == set(TRIAL_KEYS[task_type]), path.name
         assert set(task["repeats"]["rulesPerType"]) == set(RULE_KEYS[task_type]), path.name
-        assert all(set(s["trialWeights"]) == set(TRIAL_KEYS[task_type]) for s in task["trainingStages"] if "trialWeights" in s), path.name
-
-
-def test_the_top_level_weights_are_the_last_stage_s_mix_and_the_earlier_stages_keep_theirs():
-    # Today's shaping unchanged: the last stage takes the task's weights.
-    for path in TASK_FILES:
-        task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(yaml.safe_load(path.read_text())["taskParameters"])
-        assert task.training_stages[-1].trial_weights is None
-        assert task.weights_of(task.training_stages[-1]) == task.trial_weights
-        assert task.training_stages[0].trial_weights is not None
 
 
 @pytest.mark.parametrize(
@@ -428,10 +415,10 @@ def test_keys_of_another_task_type_or_a_probe_s_repeat_rule_are_refused(name, wh
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
-def test_a_go_no_go_stage_with_no_go_trials_is_refused():
+def test_a_go_no_go_task_with_no_go_trials_is_refused():
     data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
-    data["trialWeights"]["go"] = 0   # stages 3 and 4 take it
-    with pytest.raises(ValidationError, match=r"training_stages\[3\]: its trial weights' go is 0"):
+    data["trialWeights"]["go"] = 0
+    with pytest.raises(ValidationError, match="trial_weights' go is 0"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
@@ -469,11 +456,10 @@ def test_the_generated_csharp_has_every_schema_field():
     assert names == _property_names(json.loads(SCHEMA.read_text(encoding="utf-8")))
 
 
-@pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
-def test_training_stage_s_maximum_is_the_task_file_s_last_row(path):
-    # A row added to trainingStages is reachable only once ExperimentControl's TrainingStage Maximum (main.bonsai) says so.
+def test_training_stage_s_maximum_takes_any_pipeline_id():
+    # TrainingStage carries the pipeline stage's id (ids never reused); app-rig-control's page refuses an id above 99.
     declared = re.search(r"<Name>TrainingStage</Name>.*?<Maximum>(\d+)</Maximum>", (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig"), re.S)
-    assert int(declared.group(1)) == len(yaml.safe_load(path.read_text(encoding="utf-8"))["taskParameters"]["trainingStages"]) - 1
+    assert int(declared.group(1)) == 99
 
 
 @pytest.mark.parametrize("where, key, value", [

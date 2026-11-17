@@ -40,6 +40,11 @@ def test_trial_weights_read_the_session_s_stage(tmp_path):
     # The stage is the session's own TrainingStage (Settings_Experiment), its own weights replacing the task's.
     assert lf.trial_weights(session(tmp_path, "ses-001_a", "av-dome", stage=0)) == {"visual": 9}
     assert lf.trial_weights(session(tmp_path, "ses-002_b", "av-dome", stage=1)) == WEIGHTS
+    # From the training pipeline on, the task file holds the stage's values at the top level.
+    flat = session(tmp_path, "ses-003_c", "coen-dome-decision-making", stage=3)
+    task_file = flat / "Settings" / "Settings_Task_2026-11-16T10-00-00.json"
+    task_file.write_text(json.dumps({"taskParameters": {"trialWeights": WEIGHTS, "trainingPipeline": {"id": 3}}}), encoding="utf-8")
+    assert lf.trial_weights(flat) == WEIGHTS
 
 
 def test_new_draw_accuracy_counts_choices_on_new_draws_only():

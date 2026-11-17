@@ -111,11 +111,14 @@ def session_summary(df):
 
 def trial_weights(session):
     """The trialWeights a session ran with, from its Settings_Task_*.json at its TrainingStage (Settings_Experiment_*.json's
-    parameters): the stage's own when it has them, else the top-level one; None without a task file."""
+    parameters): the stage's own when it has them, else the top-level one; None without a task file. A task file from the
+    training pipeline on (no trainingStages) holds the stage's values at the top level."""
     task = _settings(session, "Task")
     if not task:
         return None
     task = task.get("taskParameters", task)
+    if "trainingStages" not in task:
+        return task.get("trialWeights")
     stage = int(float(_settings(session, "Experiment")["parameters"]["TrainingStage"]))
     own = (task.get("trainingStages") or [])[stage].get("trialWeights")
     return own or task.get("trialWeights")
