@@ -56,7 +56,7 @@ The dome's hardware, logging and reward come from the lab fork (lib-open-rigs; w
 | `SetZapitTriggerLine` | the ZapitTrigger line raised at the laser trigger and cleared at the laser's end | `OpenRigs.Devices:SetZapitTriggerLine.bonsai` |
 | `LogRngSeed` | the `RngSeed` row of `WorkflowData_Events`, once, at trial 1's start | `OpenRigs.Logging:LogRngSeed.bonsai` |
 | `TaskLogs` | `Settings_Task` (the task file as JSON), `WorkflowData_Trials` (`LogTrials`) and Zapit's logs (`ZapitLogs`) | `OpenRigs.Logging:TaskLogs.bonsai` |
-| `ReadTextFile` | The task file read at Start (`LaunchTaskConfig`, the background noise's) and at Go (`TaskConfig`) | `OpenRigs.Core` |
+| `ReadTextFile` | The task file read at Start (`LaunchTaskConfig`, the background noise's) and at Go (`TaskText`, the text the trial conditions are built from, and `TaskConfig`) | `OpenRigs.Core` |
 | `BackgroundNoise` | the lab's background noise, rig.yml's `speakerArray.backgroundNoise` (`..\shared\sounds\background_noise.wav`: the server's `config\shared` copy, kept on the rig by app-rig-control), read at Start (`ReadBackgroundNoise`, which stops the workflow, naming the file, when it is missing or at another rate), on every rig.yml speaker, not equalised, at the level of the task file as launched, sent at Ready; Go stops the workflow if `backgroundNoise` was changed on the form after launch | `OpenRigs.Audio:BackgroundNoise.bonsai` |
 | `RecordHarpDevices` | In `ExperimentRecords`: each Harp board checked at Start, its device record and register map written into the experiment | `OpenRigs.HarpDevices` |
 | `ExperimentManifest` | In `ExperimentRecords`: `manifest.json`: what ran, the config files by hash, what the experiment must leave | `OpenRigs.Manifest` |
