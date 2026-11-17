@@ -41,9 +41,10 @@ def test_committed_task_files_use_the_discrete_azimuths(path):
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
-def test_only_stage_0_has_a_name(path):
+def test_every_stage_has_a_name(path):
     labels = [row.get("label") for row in yaml.safe_load(path.read_text())["taskParameters"]["trainingStages"]]
-    assert labels == ["Habituation"] + [None] * (len(labels) - 1)
+    assert len(labels) == 5
+    assert all(isinstance(label, str) and label for label in labels)
 
 
 def test_overwrite_azimuths_default_keeps_the_uniform_range():
@@ -127,7 +128,7 @@ def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
             if name in block:
                 block[name] = {roles.get(k, k): v for k, v in block[name].items()}
         for s in data["trainingStages"]:
-            del s["bothSpoutsProbability"]
+            del s["bothSpoutsProbability"], s["label"]  # each file names its own stages
     assert lr == gng
 
 
