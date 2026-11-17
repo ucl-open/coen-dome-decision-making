@@ -4,7 +4,7 @@ Nothing in this repository, its README or BACKLOG says when a mouse should move 
 av-dome's stage was picked by hand in its window), so this suggests no advance: it repeats the last stage,
 and says so. The experimenter changes it before Go. A mouse's experiments from av-dome's switch-over branch
 count as this workflow's: it wrote this workflow's files. It reads the mouse's session
-summaries (jacuzzi-ingest's `sub-<lab ID>/<ses folder>.json`, version 1: claude-tools records.md, "Session
+summaries (jacuzzi-ingest's `sub-<lab ID>/<ses folder>.json`, version 1 or 2: claude-tools records.md, "Session
 summaries"): trials, Settings_Experiment and a Settings_Task with taskType. An experiment in an old format is
 not read (deleted).
 
@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 OURS = ("coen-dome-decision-making", "av-dome")  # source.repo of an experiment that counts
-SUMMARY_VERSION = 1
+SUMMARY_VERSIONS = (1, 2)  # 2 rebases Harp times, which this never reads; 1 until every rig writes 2
 
 
 @dataclass
@@ -72,7 +72,7 @@ def ours(summary: dict) -> bool:
 
 def summaries_of(subject: str, folder: Path, expected: Path, unread: list[str]) -> list[dict]:
     """The mouse's full summaries (skipped and other workflows' left out). Every problem is added to `unread`: a
-    folder that does not answer, an expected run id with no file, a file that cannot be read or is not version 1."""
+    folder that does not answer, an expected run id with no file, a file that cannot be read or is not version 1 or 2."""
     try:
         os.listdir(folder)
     except OSError:
@@ -91,7 +91,7 @@ def summaries_of(subject: str, folder: Path, expected: Path, unread: list[str]) 
         try:
             with open(file, encoding="utf-8-sig") as f:
                 s = json.load(f)
-            if s["version"] != SUMMARY_VERSION:
+            if s["version"] not in SUMMARY_VERSIONS:
                 unread.append(f"{file.name} (Version {s['version']} Is Not Supported)")
                 continue
             runs.add(s["run"])

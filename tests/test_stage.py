@@ -128,10 +128,10 @@ def test_a_skipped_file_is_accounted_for_and_ignored(tmp_path):
     assert unread == [] and [e.name for e in found] == ["ses-006D1_2026-11-13T10-00-00"]
 
 
-def test_any_version_but_1_is_refused(tmp_path):
-    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60, version=2))
+def test_any_version_but_1_or_2_is_refused(tmp_path):
+    put(tmp_path, summary("ses-006D1_2026-11-13T10-00-00", "r6", 2, 60, version=3))
     found, unread = read(tmp_path, "r6")
-    assert found == [] and "Version 2 Is Not Supported" in unread[0] and "No Summary File" in unread[1]
+    assert found == [] and "Version 3 Is Not Supported" in unread[0] and "No Summary File" in unread[1]
     put(tmp_path, {"run": "r7", "session": "ses-007D1_2026-11-14T10-00-00", "skipped": "short"})  # no version at all
     assert any("(Unreadable: KeyError)" in u for u in read(tmp_path, "r7")[1])
 
