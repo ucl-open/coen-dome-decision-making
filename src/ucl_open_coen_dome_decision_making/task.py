@@ -88,11 +88,11 @@ class VisualStimulus(TaskBlock):
 
 
 class AuditoryStimulus(StimulusSound):
-    """Auditory stimulus parameters common to all trials: every waveform of the set (src/LocalFiles/AuditoryStimuli)
+    """Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)
     plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound)."""
 
     speaker_locations: list[SphericalPosition] = Field(
-        description="Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker"
+        description="Candidate lateral sound positions, one drawn per auditory trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker"
     )
 
     @field_validator("speaker_locations")
@@ -143,13 +143,13 @@ class RepeatRule(StrEnum):
 
 
 # The keys of trialWeights and rulesPerType for each task type (TrialDraw.Keys): localization's name what a trial shows;
-# the discriminations' name its role, the mouse's goModality or leftModality choosing which modality fills it (Pip, 16 Nov 2026).
+# the discriminations' name its role, the mouse's goModality or leftModality choosing which modality fills it.
 TRIAL_KEYS = {
     TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral"),
     TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo", "audiovisualCoherent", "audiovisualConflict", "neutral"),
     TaskType.DISCRIMINATION_LEFT_RIGHT: ("left", "right", "audiovisualCoherent", "audiovisualConflict", "neutral"),
 }
-# rulesPerType's keys: only a trial with a right answer repeats (Pip, 16 Nov 2026).
+# rulesPerType's keys: only a trial with a right answer repeats.
 RULE_KEYS = {
     TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent"),
     TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo"),
@@ -290,7 +290,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
 
     @model_validator(mode="after")
     def _timing_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # TrialDraw.CheckTask's same rules (Pip, 13 Nov 2026).
+        # TrialDraw.CheckTask's same rules.
         opto, s = self.optogenetics, self.trial_structure
         opto.check_lead_fits(s.iti_min_seconds)
         lead = opto.laser_to_stimulus_seconds
@@ -335,7 +335,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
                 if stage.both_spouts_probability != 0:
                     raise ValueError(f"training_stages[{index}]: both_spouts_probability must be 0 in discriminationGoNoGo: only the left spout moves in")
         else:
-            # The SpoutsIn cue's LeftIn or RightIn draws the other spout back, which a stage without spout movements never returns.
+            # The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a stage without spout movements never returns.
             for index, stage in enumerate(self.training_stages):
                 if not stage.spout_movements and stage.both_spouts_probability != 1:
                     raise ValueError(f"training_stages[{index}]: both_spouts_probability must be 1 with spout_movements false: a one-spout trial draws the other spout back")

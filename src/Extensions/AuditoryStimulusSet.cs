@@ -139,13 +139,13 @@ public class AuditoryStimulusSet
 }
 
 [Combinator]
-[Description("Loads the auditory stimulus set at Start: the 100 waveforms in <Folder>, the task's own and the same on every rig (src\\LocalFiles\\AuditoryStimuli), each equalised for every rig.yml speaker (OpenRigs.Audio LoadSpeakers, which checks the filters). Stops the workflow, naming each file, if rig.yml has no syncChannel or any waveform is missing or not mono 16-bit PCM at the audio device's rate. Input: the speakers.")]
+[Description("Loads the auditory stimulus set at Start: the 100 waveforms in <Folder>, the task's own and the same on every rig (src\\sounds), each equalised for every rig.yml speaker (OpenRigs.Audio LoadSpeakers, which checks the filters). Stops the workflow, naming each file, if rig.yml has no syncChannel or any waveform is missing or not mono 16-bit PCM at the audio device's rate. Input: the speakers.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LoadAuditoryStimulusSet
 {
     public LoadAuditoryStimulusSet()
     {
-        Folder = "LocalFiles\\AuditoryStimuli";
+        Folder = "sounds";
         FilePrefix = "filtered_pink_pulse_train_";
     }
 

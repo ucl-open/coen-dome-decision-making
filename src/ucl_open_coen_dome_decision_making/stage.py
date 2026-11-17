@@ -6,7 +6,7 @@ and says so. The experimenter changes it before Go. A mouse's experiments from a
 count as this workflow's: it wrote this workflow's files. It reads the mouse's session
 summaries (jacuzzi-ingest's `sub-<lab ID>/<ses folder>.json`, version 1: claude-tools records.md, "Session
 summaries"): trials, Settings_Experiment and a Settings_Task with taskType. An experiment in an old format is
-not read (deleted on 15 Nov 2026, Pip).
+not read (deleted).
 
 rig-control runs it (standard library only) when a mouse is chosen, and fills TrainingStage with it:
 
@@ -123,7 +123,7 @@ def _words(task_type: str) -> str:
 
 
 def suggest(history: list[Experiment], task_type: str) -> tuple[int | None, str]:
-    """(stage, why): the stage of the newest experiment of this task type (Pip, 15 Nov 2026: the most recent session
+    """(stage, why): the stage of the newest experiment of this task type (the most recent session
     that matches the current one); None when there is none."""
     last = next((e for e in history if e.task_type == task_type), None)
     if last is None:

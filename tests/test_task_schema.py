@@ -30,7 +30,7 @@ def test_committed_task_files_validate(path):
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
 def test_committed_task_files_start_with_the_laser_off(path):
-    # The laser is off unless the experimenter turns it on (Pip, 16 Nov 2026).
+    # The laser is off unless the experimenter turns it on.
     assert yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]["enabled"] is False
 
 
@@ -141,7 +141,7 @@ def test_go_no_go_refuses_both_spouts():
 
 @pytest.mark.parametrize("name", ["task-localization.yml", "task-discrimination-left-right.yml"])
 def test_a_stage_without_spout_movements_needs_both_spouts(name):
-    # The SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
+    # The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, never returned without spout movements.
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
     data["trainingStages"][0].update(spoutMovements=False, bothSpoutsProbability=0.5)
     with pytest.raises(ValidationError, match="both_spouts_probability must be 1 with spout_movements false"):
@@ -158,7 +158,7 @@ def test_no_text_says_a_probe_s_side_is_drawn_at_random():
 
 
 def test_the_discrimination_iti_is_what_gerion_s_mice_got():
-    # Pip, 13 Nov 2026, measured from 18 of Gerion's sessions: 1.5 s drink + max(ITI - 2, 0) with ITI 1.5-2.5 s, so
+    # Measured from 18 of Gerion's sessions: 1.5 s drink + max(ITI - 2, 0) with ITI 1.5-2.5 s, so
     # 1.5-2.0 s from the outcome to the next stimulus, and the 4 s timeout first after an incorrect choice or a miss.
     task = _task("task-discrimination-left-right.yml")
     trial = task.trial_structure
@@ -186,7 +186,7 @@ def test_rig_control_keeps_the_zapit_file(path):
 
 
 def test_laser_power_is_required_with_optogenetics_on():
-    # Pip, 10 Nov 2026: this workflow sends and logs laserPowerMw as coen-dome-navigation does, required when on.
+    # This workflow sends and logs laserPowerMw as coen-dome-navigation does, required when on.
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserDurationSeconds": 0.8}
     with pytest.raises(ValidationError, match="laser_power_mw is not set"):
@@ -279,7 +279,7 @@ def test_the_quiet_waits_are_per_stage_off_by_default_and_refused_negative_or_ha
 
 @pytest.mark.parametrize("stage", [{"lickQuietSeconds": 10.5}, {"wheelQuietSeconds": 10.5, "wheelQuietCm": 1.0}, {"wheelQuietSeconds": 1.0, "wheelQuietCm": 20.5}])
 def test_a_quiet_wait_above_its_maximum_is_refused(stage):
-    # Pip, 15 Nov 2026: a long wait and a licking mouse would hold the trial start with no message. TrialDraw.CheckTask refuses it at Go too.
+    # A long wait and a licking mouse would hold the trial start with no message. TrialDraw.CheckTask refuses it at Go too.
     _with(stage={"lickQuietSeconds": 10.0, "wheelQuietSeconds": 10.0, "wheelQuietCm": 20.0})
     with pytest.raises(ValidationError, match="less than or equal to"):
         _with(stage=stage)
@@ -323,7 +323,7 @@ def test_a_large_reward_over_the_cap_is_refused():
 
 
 def test_the_spout_wait_is_named_by_its_ends():
-    # Pip's rule (10 Nov 2026): a gap between two moments is named by its ends, as laserToStimulusSeconds.
+    # Pip's rule: a gap between two moments is named by its ends, as laserToStimulusSeconds.
     schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
     assert '"stimulusToSpoutsInSeconds"' in schema and '"spoutInDelaySeconds"' not in schema
     for path in TASK_FILES:
@@ -357,7 +357,7 @@ def test_the_stimulus_is_off_before_the_next_one_starts():
 
 
 def test_weights_and_repeat_rules_are_keyed_by_the_task_type_s_keys():
-    # Localization by what a trial shows (the trialType column's words), the discriminations by role (Pip, 16 Nov 2026);
+    # Localization by what a trial shows (the trialType column's words), the discriminations by role;
     # rulesPerType names only the trials with a right answer.
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
     assert tuple(columns["trialType"]["values"]) == TRIAL_KEYS[TaskType.LOCALIZATION]
@@ -375,7 +375,7 @@ def test_weights_and_repeat_rules_are_keyed_by_the_task_type_s_keys():
 
 
 def test_the_top_level_weights_are_the_last_stage_s_mix_and_the_earlier_stages_keep_theirs():
-    # Today's shaping unchanged (Pip, 16 Nov 2026): the last stage takes the task's weights.
+    # Today's shaping unchanged: the last stage takes the task's weights.
     for path in TASK_FILES:
         task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(yaml.safe_load(path.read_text())["taskParameters"])
         assert task.training_stages[-1].trial_weights is None
@@ -414,7 +414,7 @@ def test_a_go_no_go_stage_with_no_go_trials_is_refused():
 def test_every_task_file_states_its_task_type():
     """app-rig-control's stage suggestion reads taskParameters.taskType from the task file itself (its
     view's [task.suggest]); a file leaving it to the schema's default got "taskType is not a field of
-    the task file" and no suggestion on every localization launch (BLUE-OPTO-2, 14 Nov 2026)."""
+    the task file" and no suggestion on every localization launch (BLUE-OPTO-2)."""
     import yaml
 
     for path in sorted((Path(__file__).parents[1] / "config").glob("task*.yml")):

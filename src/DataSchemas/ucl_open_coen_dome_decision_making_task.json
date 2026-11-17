@@ -1,7 +1,7 @@
 {
   "$defs": {
     "AuditoryStimulus": {
-      "description": "Auditory stimulus parameters common to all trials: every waveform of the set (src/LocalFiles/AuditoryStimuli)\nplays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound).",
+      "description": "Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)\nplays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound).",
       "properties": {
         "levelDbfs": {
           "default": -30.0,
@@ -12,7 +12,7 @@
           "type": "number"
         },
         "speakerLocations": {
-          "description": "Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker",
+          "description": "Candidate lateral sound positions, one drawn per auditory trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker",
           "items": {
             "$ref": "#/$defs/SphericalPosition"
           },
@@ -151,7 +151,7 @@
       "type": "object"
     },
     "Penalty": {
-      "description": "What a wrong or missed trial costs: a timeout, and the penalty sound with it (the trial log's penaltySound and\npenaltyTimeoutSeconds). Each task says which trials are penalised; timeoutSeconds has no lab default: each task file gives it.",
+      "description": "What a wrong or missed trial costs: a timeout, and the penalty sound with it (the trial log's penaltySoundOn and\npenaltyTimeoutSeconds). Each task says which trials are penalised; timeoutSeconds has no lab default: each task file gives it.",
       "properties": {
         "timeoutSeconds": {
           "description": "Timeout after a penalised trial, in seconds; the next interval starts after it",

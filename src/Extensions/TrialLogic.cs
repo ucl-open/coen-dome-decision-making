@@ -1,9 +1,10 @@
-﻿using Bonsai;
+using Bonsai;
 using Bonsai.Harp;
 using OpenRigs.Core;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Devices.Zapit;
+using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -21,7 +22,7 @@ public class Trial : IZapitTrial
 
     public int trialNumber;            // from 1, repeats counted
     public string trialType;           // TrialDraw.TypeNames: what the trial shows
-    public string target;              // Left or Right; in discriminationGoNoGo Go or NoGo; on a trial with no right answer NoReward or Random (Answer)
+    public string target;              // Left or Right; in discriminationGoNoGo Go or NoGo; on a trial with no right answer NoReward or Random (Target)
     public double rewardOfferedUl;     // what a reward on this trial gives, on every trial; 0 where none is on offer
     public bool bothSpouts;
     public int repeatCount;            // 0 for a new draw
@@ -30,7 +31,7 @@ public class Trial : IZapitTrial
     public double visualElevationDeg;
     public double visualContrast;      // 0: grey screen
     public double visualPhaseRad;
-    public bool audioEnabled;          // false: no sound (discrimination's visual and neutral trials)
+    public bool auditoryOn;            // false: no sound (discrimination's visual and neutral trials)
     public int speakerChannel;         // the mixer channel of rig.yml's speaker nearest the drawn location; -1 when silent
     public double auditoryAzimuthDeg;     // that speaker's azimuth; NaN when silent
     public double auditoryElevationDeg;
@@ -63,7 +64,7 @@ public class CheckTaskAtGo
 /// <summary>The target column's answers other than a side: discriminationGoNoGo's Go and NoGo, and on a trial with no right
 /// answer (a probe, outcome Probe) NoReward (go/no-go's: never rewarded or penalised) or Random (localization's and
 /// left-right's: a choice rewarded or penalised on a coin, TrialDraw.RandomRewardProbe).</summary>
-public static class Answer
+public static class Target
 {
     public const string Go = "Go";
     public const string NoGo = "NoGo";
@@ -159,7 +160,7 @@ public class TrialDraw
         }
         KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeys(task.TaskType),task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
         if (task.TaskType == TaskType.DiscriminationGoNoGo && stage.BothSpoutsProbability != 0) problems.Add(who + " needs bothSpoutsProbability 0 in discriminationGoNoGo: only the left spout moves in");
-        // The SpoutsIn cue's LeftIn or RightIn draws the other spout back, which a stage without spout movements never returns.
+        // The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a stage without spout movements never returns.
         if (task.TaskType != TaskType.DiscriminationGoNoGo && !stage.SpoutMovements && stage.BothSpoutsProbability != 1) problems.Add(who + " needs bothSpoutsProbability 1 with spoutMovements false: a one-spout trial draws the other spout back");
         if (stage.Contrasts == null || stage.Contrasts.Count == 0 || stage.Contrasts.Any(c => !(c > 0))) problems.Add(who + " needs contrasts, each above 0");
         var visual = task.VisualStimulus;
@@ -266,7 +267,7 @@ public class TrialDraw
     }
 
     // rulesPerType's keys (task.py RULE_KEYS): only a trial with a right answer repeats, so localization names visual,
-    // auditory, audiovisualCoherent and the discriminations their two one-modality roles (Pip, 16 Nov 2026).
+    // auditory, audiovisualCoherent and the discriminations their two one-modality roles.
     static string[] RuleKeys(TaskType type)
     {
         switch (type)
@@ -365,7 +366,7 @@ public class TrialDraw
         }
         trial.trialNumber = ++drawn;
         trial.rngSeed = Seed;
-        // Every trial, a repeat too, draws its own interval (Pip, 13 Nov 2026).
+        // Every trial, a repeat too, draws its own interval.
         var structure = task.TrialStructure;
         trial.itiSeconds = Uniform(structure.ItiMinSeconds, structure.ItiMaxSeconds);
         last = trial;
@@ -429,12 +430,12 @@ public class TrialDraw
         if (task.TaskType == TaskType.DiscriminationGoNoGo)
         {
             // Lick for goModality (Go), withhold for the other modality (NoGo); a trial showing both modalities or neither
-            // (neutral, the grey screen) is a NoReward probe, never rewarded or penalised (Song et al. 2017; Pip, 16 Nov 2026).
+            // (neutral, the grey screen) is a NoReward probe, never rewarded or penalised (Song et al. 2017).
             bool oneModality = type == Visual || type == Auditory;
             bool goShown = oneModality && (type == Visual) == (task.GoModality == Modality.Visual);
-            trial.target = !oneModality ? Answer.NoReward : goShown ? Answer.Go : Answer.NoGo;
+            trial.target = !oneModality ? Target.NoReward : goShown ? Target.Go : Target.NoGo;
             trial.bothSpouts = false;                                   // one spout, the left
-            if (trial.target != Answer.Go)
+            if (trial.target != Target.Go)
             {
                 trial.autoReward = false;   // auto-reward only on a Go trial
                 trial.rewardOfferedUl = 0;  // no reward on offer: a withheld NoGo is Correct, unrewarded
@@ -450,14 +451,14 @@ public class TrialDraw
             // No right answer (left-right's two-modality and neutral trials, localization's conflict and neutral): a
             // random-reward probe, target Random. Both spouts move in, and a coin drawn now, from the seeded stream, decides
             // a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored
-            // trial's miss. Its rewardOfferedUl is kept, heads or tails (Pip, 16 Nov 2026). It never repeats.
-            trial.target = Answer.Random;
+            // trial's miss. Its rewardOfferedUl is kept, heads or tails. It never repeats.
+            trial.target = Target.Random;
             trial.bothSpouts = true;
             trial.autoReward = false;
             trial.probeHeads = random.NextDouble() < 0.5;
         }
 
-        trial.audioEnabled = showsSound;
+        trial.auditoryOn = showsSound;
         if (showsSound)
         {
             var speaker = NearestSpeaker(speakers, soundAzimuth, soundElevation).Value;
@@ -559,7 +560,7 @@ public class DecisionUpdate
 
 /// <summary>A trial's outcome (lib-open-rigs' TrialOutcome: its row, the reward, the penalty sound, the timeout) and the
 /// spouts it moves.</summary>
-public class TrialOutcome : OpenRigs.Devices.TrialOutcome<TrialRow>
+public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 {
     public bool SpoutMovements;
     public LickSpoutCommand SpoutCommand;
@@ -573,11 +574,11 @@ public class TrialOutcome : OpenRigs.Devices.TrialOutcome<TrialRow>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
         // The valve's instance as rig.yml's wiring names it; Go is answered at the left spout.
-        var instance = (trial.target == Answer.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
+        var instance = (trial.target == Target.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
         var o = new TrialOutcome(row, instance);
         o.SpoutMovements = trial.spoutMovements;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
-            : instance == "left" ? LickSpoutCommand.LeftIn : LickSpoutCommand.RightIn;
+            : instance == "left" ? LickSpoutCommand.LeftOnly : LickSpoutCommand.RightOnly;
         return o;
     }
 }
@@ -727,6 +728,6 @@ public class SpoutsInCommand
     public static LickSpoutCommand Command(Trial trial)
     {
         if (trial.bothSpouts) return LickSpoutCommand.SpoutsIn;
-        return trial.target == Choice.Right ? LickSpoutCommand.RightIn : LickSpoutCommand.LeftIn;   // go-no-go: the left
+        return trial.target == Choice.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly;   // go-no-go: the left
     }
 }

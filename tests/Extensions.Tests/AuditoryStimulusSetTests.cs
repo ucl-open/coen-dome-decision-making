@@ -19,7 +19,8 @@ public class AuditoryStimulusSetTests
     public void Write()
     {
         rig = Path.Combine(Path.GetTempPath(), "dome-decision-making-audio-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(Path.Combine(rig, "calibration", "AuditoryStimuli"));
+        Directory.CreateDirectory(Path.Combine(rig, "sounds"));
+        Directory.CreateDirectory(Path.Combine(rig, "calibration"));
         var random = new Random(1);
         waves = new short[AuditoryStimulusSet.WaveformCount][];
         for (int i = 0; i < waves.Length; i++)
@@ -40,7 +41,7 @@ public class AuditoryStimulusSetTests
 
     void Wave(int index, short[] samples, int rate)
     {
-        using (var w = new BinaryWriter(File.Create(Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_" + index + ".wav"))))
+        using (var w = new BinaryWriter(File.Create(Path.Combine(rig, "sounds", "filtered_pink_pulse_train_" + index + ".wav"))))
         {
             w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + 2 * samples.Length); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
             w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
@@ -59,13 +60,13 @@ public class AuditoryStimulusSetTests
         }
         var path = Path.Combine(rig, "rig.yml");
         File.WriteAllText(path, "speakerArray:\n  device:\n    sampleRate: 48000\n    channelCount: 32\n  speakers:\n" + speakers +
-            (sync ? "  syncChannel: 31\n" : "") + "  penaltySoundChannel: 2\n  backgroundNoise: ../shared/sounds/background_noise.wav\n");
+            (sync ? "  syncChannel: 31\n" : "") + "  penaltySoundChannel: 2\n  backgroundNoise: ../shared/sounds/background_noise.wav\n  penaltySound: ../shared/sounds/penalty_tone.wav\n");
         return SpeakerSet.Load(path, "THIS-RIG");
     }
 
     AuditoryStimulusSet Load(SpeakerSet speakers)
     {
-        return AuditoryStimulusSet.Load(speakers, Path.Combine(rig, "calibration", "AuditoryStimuli"), "filtered_pink_pulse_train_");
+        return AuditoryStimulusSet.Load(speakers, Path.Combine(rig, "sounds"), "filtered_pink_pulse_train_");
     }
 
     [TestMethod]
@@ -73,7 +74,7 @@ public class AuditoryStimulusSetTests
     {
         try
         {
-            AuditoryStimulusSet.Load(Speakers(), "calibration\\AuditoryStimuli", "filtered_pink_pulse_train_");
+            AuditoryStimulusSet.Load(Speakers(), "sounds", "filtered_pink_pulse_train_");
             Assert.Fail("a relative folder was taken");
         }
         catch (ArgumentException ex)
@@ -83,9 +84,9 @@ public class AuditoryStimulusSetTests
     }
 
     [TestMethod]
-    public void The_workflow_reads_the_stimuli_from_its_own_LocalFiles()
+    public void The_workflow_reads_the_stimuli_from_its_own_sounds_folder()
     {
-        Assert.AreEqual("LocalFiles\\AuditoryStimuli", new LoadAuditoryStimulusSet().Folder);
+        Assert.AreEqual("sounds", new LoadAuditoryStimulusSet().Folder);
     }
 
     static float[] Samples(OpenCV.Net.Mat m)
@@ -126,18 +127,18 @@ public class AuditoryStimulusSetTests
         StringAssert.Contains(refusal(() => Load(Speakers(false))), "no syncChannel");
         Wave(5, waves[5], 44100);
         StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_train_5.wav");
-        File.Delete(Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_42.wav"));
+        File.Delete(Path.Combine(rig, "sounds", "filtered_pink_pulse_train_42.wav"));
         StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_train_42.wav");
     }
 
     [TestMethod]
     public void TheBackgroundNoiseAndThePenaltySoundAreTheLabs()
     {
-        // Pip, 16 Nov 2026: one background noise for every dome task, RigConfigs\shared\sounds\background_noise.wav beside
-        // the rig's folder, named by rig.yml's speakerArray.backgroundNoise; the task keeps none.
-        var expected = Path.GetFullPath(Path.Combine(rig, "..", "shared", "sounds", "background_noise.wav"));
-        Assert.AreEqual(expected, Speakers().BackgroundNoiseFile);
-        Assert.AreEqual(32, PenaltySound.Buffer(Speakers(), -44.6).Rows);
+        // One background noise and one penalty sound for every dome task, in RigConfigs\shared\sounds\ beside the rig's
+        // folder, named by rig.yml's speakerArray.backgroundNoise and speakerArray.penaltySound; the task keeps neither.
+        var shared = Path.GetFullPath(Path.Combine(rig, "..", "shared", "sounds"));
+        Assert.AreEqual(Path.Combine(shared, "background_noise.wav"), Speakers().BackgroundNoiseFile);
+        Assert.AreEqual(Path.Combine(shared, "penalty_tone.wav"), Speakers().PenaltySoundFile);
     }
 
     [TestMethod]
@@ -148,7 +149,7 @@ public class AuditoryStimulusSetTests
         StringAssert.Contains(refusal(() => set.Buffer(7, 2)), "no level yet");
         var levelled = set.AtLevel(-47.2);
         var buffer = levelled.Buffer(7, 2);
-        var unequalised = OpenRigs.Audio.Wave.Read(Path.Combine(rig, "calibration", "AuditoryStimuli", "filtered_pink_pulse_train_7.wav"), 48000);
+        var unequalised = OpenRigs.Audio.Wave.Read(Path.Combine(rig, "sounds", "filtered_pink_pulse_train_7.wav"), 48000);
         var gain = SoundLevel.Gain(unequalised, -47.2);
         var equalised = Samples(set.Stimulus(7, 2));
         using (var row = buffer.GetRow(2))

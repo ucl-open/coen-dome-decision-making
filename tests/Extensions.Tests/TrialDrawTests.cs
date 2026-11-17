@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
+using OpenRigs.Trials;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.Serialization;
 
@@ -77,7 +78,7 @@ public class TrialDrawTests
         var trials = Fixture.Draw(Fixture.Task("task-localization.yml"), 4, 500);
         foreach (var t in trials)
         {
-            Assert.IsTrue(t.audioEnabled && t.spoutMovements, t.trialType);
+            Assert.IsTrue(t.auditoryOn && t.spoutMovements, t.trialType);
             if (t.trialType == "visual" || t.trialType == "audiovisualCoherent")
                 Assert.AreEqual(t.visualAzimuthDeg > 0 ? "Right" : "Left", t.target, t.trialType);
             if (t.trialType == "auditory" || t.trialType == "audiovisualCoherent")
@@ -93,13 +94,13 @@ public class TrialDrawTests
     [TestMethod]
     public void LocalizationConflictKeepsItsStimuliAndIsAProbe()
     {
-        // A random-reward probe (Pip, 16 Nov 2026): the grating and sound on opposite sides, no side to answer, its coin
+        // A random-reward probe: the grating and sound on opposite sides, no side to answer, its coin
         // heads about half the time (ATrialWithNoRightAnswerRewardsOrPenalisesEitherChoiceOnACoin scores it).
         var task = Fixture.Task("task-localization.yml");
         var w = task.TrialWeights;
         w.Visual = w.Auditory = w.AudiovisualCoherent = w.Neutral = 0;
         var trials = Fixture.Draw(task, 4, 600);
-        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualAzimuthDeg > 0) == (t.auditoryAzimuthDeg < 0) && t.target == Answer.Random));
+        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualAzimuthDeg > 0) == (t.auditoryAzimuthDeg < 0) && t.target == Target.Random));
         Assert.AreEqual(0.5, trials.Count(t => t.probeHeads) / 600.0, 0.07);
     }
 
@@ -126,9 +127,9 @@ public class TrialDrawTests
             task.LeftModality = modality;
             foreach (var t in Fixture.Draw(task, 3, 500))
             {
-                if (t.trialType == "visual") Assert.IsTrue(!t.audioEnabled && t.visualContrast > 0 && t.target == (modality == Modality.Visual ? "Left" : "Right"));
-                if (t.trialType == "auditory") Assert.IsTrue(t.audioEnabled && t.visualContrast == 0 && t.target == (modality == Modality.Auditory ? "Left" : "Right"));
-                if (t.trialType == "neutral") Assert.IsTrue(!t.audioEnabled && double.IsNaN(t.auditoryAzimuthDeg) && t.speakerChannel == -1);
+                if (t.trialType == "visual") Assert.IsTrue(!t.auditoryOn && t.visualContrast > 0 && t.target == (modality == Modality.Visual ? "Left" : "Right"));
+                if (t.trialType == "auditory") Assert.IsTrue(t.auditoryOn && t.visualContrast == 0 && t.target == (modality == Modality.Auditory ? "Left" : "Right"));
+                if (t.trialType == "neutral") Assert.IsTrue(!t.auditoryOn && double.IsNaN(t.auditoryAzimuthDeg) && t.speakerChannel == -1);
             }
         }
     }
@@ -140,8 +141,8 @@ public class TrialDrawTests
         Assert.IsTrue(Fixture.Draw(task, 0, 50).All(t => t.autoReward && t.target == "Left" && !t.spoutMovements && t.trialType == "visual"));
         task.TrainingStages[2].AutoRewardProbability = 1;
         var stage2 = Fixture.Draw(task, 2, 300);
-        Assert.IsTrue(stage2.Where(t => t.target != Answer.Random).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
-        Assert.IsTrue(stage2.Where(t => t.target == Answer.Random).All(t => !t.autoReward), "a probe never is");
+        Assert.IsTrue(stage2.Where(t => t.target != Target.Random).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
+        Assert.IsTrue(stage2.Where(t => t.target == Target.Random).All(t => !t.autoReward), "a probe never is");
     }
 
     [TestMethod]
@@ -154,14 +155,14 @@ public class TrialDrawTests
             task.TrainingStages[3].AutoRewardProbability = 1;
             foreach (var t in Fixture.Draw(task, 3, 600))
             {
-                var expected = t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" || t.trialType == "neutral" ? Answer.NoReward
-                    : (t.trialType == "visual" && modality == Modality.Visual) || (t.trialType == "auditory" && modality == Modality.Auditory) ? Answer.Go
-                    : Answer.NoGo;   // the other modality
+                var expected = t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" || t.trialType == "neutral" ? Target.NoReward
+                    : (t.trialType == "visual" && modality == Modality.Visual) || (t.trialType == "auditory" && modality == Modality.Auditory) ? Target.Go
+                    : Target.NoGo;   // the other modality
                 Assert.AreEqual(expected, t.target, t.trialType);
-                Assert.AreEqual(expected == Answer.Go, t.autoReward, "auto-reward only on Go");
-                Assert.AreEqual(expected == Answer.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
+                Assert.AreEqual(expected == Target.Go, t.autoReward, "auto-reward only on Go");
+                Assert.AreEqual(expected == Target.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
                 Assert.IsFalse(t.bothSpouts);
-                Assert.AreEqual(LickSpoutCommand.LeftIn, SpoutsInCommand.Command(t));
+                Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutsInCommand.Command(t));
             }
         }
     }
@@ -177,7 +178,7 @@ public class TrialDrawTests
     [TestMethod]
     public void AStageWithoutSpoutMovementsNeedsBothSpouts()
     {
-        // The SpoutsIn cue's LeftIn or RightIn draws the other spout back, never returned without spout movements.
+        // The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, never returned without spout movements.
         var task = Fixture.Task("task-localization.yml");
         task.TrainingStages[0].SpoutMovements = false;
         task.TrainingStages[0].BothSpoutsProbability = 0.5;
@@ -235,7 +236,7 @@ public class TrialDrawTests
             if (repeats) Assert.AreEqual(before.visualAzimuthDeg, trials[i].visualAzimuthDeg);
         }
         Assert.IsTrue(trials.Any(t => t.repeatCount == task.Repeats.MaxRepeats));
-        // Only a trial with a right answer repeats (Pip, 16 Nov 2026): never a conflict or neutral one.
+        // Only a trial with a right answer repeats: never a conflict or neutral one.
         var noResponse = Fixture.Draw(task, 4, 400, t => "NoResponse");
         Assert.IsTrue(noResponse.Any(t => t.trialType == "neutral") && noResponse.Any(t => t.trialType == "audiovisualConflict"));
         Assert.IsFalse(noResponse.Any(t => t.repeatCount > 0 && (t.trialType == "neutral" || t.trialType == "audiovisualConflict")));
@@ -249,7 +250,7 @@ public class TrialDrawTests
     [TestMethod]
     public void OnNoResponseRepeatsAfterANoResponseAlone()
     {
-        // onNoResponse names its outcome (16 Nov 2026): a NoResponse repeats the trial, an Incorrect never does.
+        // onNoResponse names its outcome: a NoResponse repeats the trial, an Incorrect never does.
         var task = Fixture.Task("task-localization.yml");
         task.RngSeed = 7;
         var r = task.Repeats.RulesPerType;
@@ -264,7 +265,7 @@ public class TrialDrawTests
         var task = Fixture.Task("task-discrimination-left-right.yml");
         var trials = Fixture.Draw(task, 3, 300, t => t.trialNumber % 3 == 0 ? "Incorrect" : "Correct");
         for (int i = 0; i < trials.Count; i++) Assert.AreEqual(i + 1, trials[i].trialNumber);
-        // What Gerion's mice got (Pip, 13 Nov 2026): 1.5 to 2.0 s from the outcome (after any timeout) to the stimulus.
+        // What Gerion's mice got: 1.5 to 2.0 s from the outcome (after any timeout) to the stimulus.
         Assert.IsTrue(trials.All(t => t.itiSeconds >= 1.5 && t.itiSeconds <= 2.0));
         Assert.IsTrue(trials.Max(t => t.itiSeconds) > 1.95 && trials.Min(t => t.itiSeconds) < 1.55);
         var repeats = Fixture.Draw(Fixture.Task("task-localization.yml"), 4, 300, t => "Incorrect").Where(t => t.repeatCount > 0).ToList();
@@ -362,7 +363,7 @@ public class TrialDrawTests
     [TestMethod]
     public void TheDiscriminationsDrawByRoleForEitherModality()
     {
-        // The stages set the mix by role; goModality or leftModality decides which stimulus fills it (Pip, 16 Nov 2026).
+        // The stages set the mix by role; goModality or leftModality decides which stimulus fills it.
         foreach (var modality in new[] { Modality.Visual, Modality.Auditory })
         {
             string mine = modality == Modality.Visual ? "visual" : "auditory", other = modality == Modality.Visual ? "auditory" : "visual";
@@ -371,10 +372,10 @@ public class TrialDrawTests
             Assert.IsTrue(Fixture.Draw(leftRight, 0, 50).All(t => t.trialType == mine && t.target == "Left"), "left-right stage 0: left only");
             var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml");
             goNoGo.GoModality = modality;
-            Assert.IsTrue(Fixture.Draw(goNoGo, 1, 50).All(t => t.trialType == mine && t.target == Answer.Go), "go/no-go stage 1: go only");
+            Assert.IsTrue(Fixture.Draw(goNoGo, 1, 50).All(t => t.trialType == mine && t.target == Target.Go), "go/no-go stage 1: go only");
             goNoGo.TrainingStages[2].TrialWeights.AudiovisualCoherent = 0;
             var stage2 = Fixture.Draw(goNoGo, 2, 400);
-            Assert.IsTrue(stage2.All(t => t.trialType == mine ? t.target == Answer.Go : t.trialType == other && t.target == Answer.NoGo));
+            Assert.IsTrue(stage2.All(t => t.trialType == mine ? t.target == Target.Go : t.trialType == other && t.target == Target.NoGo));
             Assert.AreEqual(0.5, stage2.Count(t => t.trialType == mine) / 400.0, 0.08, "go 10, noGo 10");
             leftRight.TrainingStages[2].TrialWeights.Right = 3;
             var weights = TrialDraw.Weights(leftRight, leftRight.TrainingStages[2]);   // by TypeNames: visual, auditory, ...
@@ -387,7 +388,7 @@ public class TrialDrawTests
     [TestMethod]
     public void AStageWithoutWeightsTakesTheTasksAndOneWithWeightsOverridesIt()
     {
-        // A mouse's edited top-level trialWeights reach every stage with none of its own (Pip, 16 Nov 2026).
+        // A mouse's edited top-level trialWeights reach every stage with none of its own.
         var task = Fixture.Task("task-localization.yml");
         Assert.IsNull(task.TrainingStages[4].TrialWeights);
         var w = task.TrialWeights;
@@ -399,7 +400,7 @@ public class TrialDrawTests
         goNoGo.GoModality = Modality.Auditory;
         goNoGo.TrialWeights.NoGo = 0;
         goNoGo.TrialWeights.AudiovisualCoherent = goNoGo.TrialWeights.AudiovisualConflict = goNoGo.TrialWeights.Neutral = 0;
-        Assert.IsTrue(Fixture.Draw(goNoGo, 3, 50).All(t => t.trialType == "auditory" && t.target == Answer.Go));
+        Assert.IsTrue(Fixture.Draw(goNoGo, 3, 50).All(t => t.trialType == "auditory" && t.target == Target.Go));
     }
 
     [TestMethod]

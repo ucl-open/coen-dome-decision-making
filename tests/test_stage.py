@@ -49,7 +49,7 @@ def test_the_last_experiment_s_stage_is_suggested_whatever_its_performance():
 
 
 def test_the_newest_experiment_of_this_task_type_decides_and_none_suggests_nothing():
-    # Pip, 15 Nov 2026: always the most recent session that matches the current one.
+    # Always the most recent session that matches the current one.
     assert suggest([], "discriminationGoNoGo")[0] is None
     stage, why = suggest([Experiment("b", "2026-11-12", 3, "localization", 400)], "discriminationGoNoGo")
     assert stage is None and "No Earlier Discrimination Go No Go Experiment" in why

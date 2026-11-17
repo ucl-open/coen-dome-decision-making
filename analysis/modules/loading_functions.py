@@ -1,4 +1,4 @@
-"""Load coen-dome-decision-making sessions and score them from BonsaiData_Trial (schemas/trial-columns.yml).
+"""Load coen-dome-decision-making sessions and score them from WorkflowData_Trials (schemas/trial-columns.yml).
 
 Nothing here runs on import. A session is `<root>/sub-<mouse>/ses-<id>_<DateTime>`, as the lab's ingest puts them
 on jacuzzi (Live-Data); its columns come from the session's own manifest.json (open_rigs.trial_log)."""

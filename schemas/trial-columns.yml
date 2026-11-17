@@ -1,17 +1,17 @@
-# What each BonsaiData_Trial column this workflow writes means. ExperimentManifest (TrialColumns) copies
+# What each WorkflowData_Trials column this workflow writes means. ExperimentManifest (TrialColumns) copies
 # this file into every experiment's manifest.json at Start, so each experiment carries the meaning of its
 # own trial log; open_rigs.trial_log reads it from there.
 #
 # Each column: type (int, double, bool or string), and where they apply values (the strings it may hold),
-# unit, description (what it is), note (this task's detail) and history (what it was before, dated). The
-# names and types must also be on the lab's
-# list (K:\config\data-dictionary.json, edited in Rig Control's Settings menu, Lab Names): Rig Control checks both
+# unit, description (what it is), note (this task's detail) and history (what recorded data meant before a change). The
+# names and types must also be in the Data Dictionary
+# (K:\config\data-dictionary.json, edited in Rig Control's Settings menu, Lab Names): Rig Control checks both
 # before it launches the workflow.
 #
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
 # unit (itiSeconds, rewardOfferedUl); never a stored latency.
 #
-# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the optogenetics and quietWait blocks (Pip, 14 Nov 2026):
+# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the optogenetics and quietWait blocks:
 # coen-dome-decision-making and coen-dome-navigation list them in this order with these types, units and
 # descriptions, word for word (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
 # trialType and outcome are described per task, and which trials are rewarded and penalised in those columns' notes. This task's own columns follow.
@@ -27,7 +27,7 @@ trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral]
   description: What the trial showed, in words (TrialDraw.TypeNames, also localization's trialWeights keys; the discriminations' keys are roles, go or left for goModality or leftModality alone and noGo or right for the other, the two-modality and neutral keys these words) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in the discriminations). In the discriminations each one-modality trial says which modality it showed; the task file's goModality or leftModality (in the manifest) says which modality was Go or answered at the left.
-  history: Until 9 Nov 2026 a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning.
+  history: In earlier experiments a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning.
 outcome:
   type: string
   values: [Correct, Incorrect, NoResponse, Probe]
@@ -36,23 +36,19 @@ itiStartTime:
   type: double
   unit: s
   description: "Harp time the inter-trial interval before this trial began: the last trial's outcomeTime plus its penaltyTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started."
-  history: NaN on trial 1 until 13 Nov 2026. Until 14 Nov 2026 it was 0 to 14 ms late after a trial a lick ended, timed from the clock tick the timeout's delay received the outcome on.
 itiSeconds:
   type: double
   unit: s
   description: "The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial's stimulus with a quiet mouse, the time to drink included. A task's quiet waits add quietWaitSeconds, so the stimulus was due at itiStartTime + itiSeconds + quietWaitSeconds (stimulusOnsetTime)."
   note: The time to drink is trialStructure.drinkSeconds, and the interval starts after any timeout (penaltyTimeoutSeconds).
-  history: What ran from 13 Nov 2026 (Pip), trial 1 included. Before, it was the draw before the trial (NaN on the first), ran to the trial's start (the Zapit arm), and a draw shorter than drinkSeconds ran as drinkSeconds plus 0.1 s to arm and laserToStimulusSeconds; until 9 Nov 2026 it was the interval after the trial.
 quietWaitSeconds:
   type: double
   unit: s
   description: How long the stage's quiet waits (lickQuietSeconds, wheelQuietSeconds and wheelQuietCm; OpenRigs.Core QuietWait) held this trial's start past the end of its interval less the lead; 0 with the waits off or a quiet mouse.
-  history: From 13 Nov 2026.
 trialStartTime:
   type: double
   unit: s
   description: "Harp time the trial started: the end of its interval less the lead, max(laserToStimulusSeconds, 0) in the task file (Settings_Task) and 0 for a task file with no optogenetics block, plus quietWaitSeconds where the task has quiet waits."
-  history: From 14 Nov 2026.
 stimulusOnsetTime:
   type: double
   unit: s
@@ -62,22 +58,18 @@ outcomeTime:
   unit: s
   description: Harp time the workflow knew the outcome, the same time as harpTime, as its own column so that every moment of a trial is named; the reward, the penalty sound and the timeout are timed from it. On a lick it is the Harp clock's latest tick when the workflow saw the lick, a few ms after it; each lick's own Harp time is in the lick detectors' logs.
   note: When the workflow saw the lick it counted as the choice, or the end of the response window on NoResponse.
-  history: From 14 Nov 2026; until then choiceTime held it on a choice, NaN on NoResponse.
 rewardOfferedUl:
   type: double
   unit: ul
-  description: "Microlitres a reward on this trial gives, on every trial whether or not it was rewarded: the size the task drew for it (its stage's rewardSizeUl, or a larger reward where the task has one); 0 on a trial that offers none. rewarded says whether it was given; what was delivered is RewardDelivered in BonsaiData_Async."
+  description: "Microlitres a reward on this trial gives, on every trial whether or not it was rewarded: the size the task drew for it (its stage's rewardSizeUl, or a larger reward where the task has one); 0 on a trial that offers none. rewarded says whether it was given; what was delivered is RewardDelivered in WorkflowData_Events."
   note: The stage's rewardSizeUl times reward.largeRewardMultiplier on a large-reward trial; 0 on a discriminationGoNoGo NoGo or NoReward trial, which offers none; a Random trial's offer whether its coin came up heads or tails, and every trial's on a miss.
-  history: rewardSizeUl until 16 Nov 2026; until then 0 on a NoResponse and on an unpaid probe in decision-making (a random-reward probe's miss or tails). largeReward said which trials were large until 9 Nov 2026.
 rewarded:
   type: bool
   description: "True when the trial's outcome delivered its reward (rewardOfferedUl, at outcomeTime): the value the workflow's reward command is made from. Which outcomes are rewarded is the task's (its note)."
   note: A correct choice (but a withheld NoGo, Correct and unrewarded), an auto-rewarded miss (autoRewarded), and a choice on a Random trial whose coin came up heads, rewarded at the spout chosen.
-  history: From 16 Nov 2026; until then rewardSizeUl above 0 on a Correct or autoRewarded row, or a paid probe.
-penaltySound:
+penaltySoundOn:
   type: bool
   description: "True when the trial was penalised and the task's penalty sound is enabled."
-  history: Until 14 Nov 2026 only after an incorrect choice.
 penaltyTimeoutSeconds:
   type: double
   unit: s
@@ -85,28 +77,23 @@ penaltyTimeoutSeconds:
   note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a Go miss is unpenalised); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
 penalised:
   type: bool
-  description: "True when the trial was penalised: the task's penalty timeout (penaltyTimeoutSeconds) and, with its penalty.sound enabled, the penalty sound (penaltySound) followed its outcome. Which outcomes are penalised is the task's (its note)."
+  description: "True when the trial was penalised: the task's penalty timeout (penaltyTimeoutSeconds) and, with its penalty.sound enabled, the penalty sound (penaltySoundOn) followed its outcome. Which outcomes are penalised is the task's (its note)."
   note: An incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a false alarm; a Go miss and a NoReward trial are unpenalised); on a Random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
-  history: From 16 Nov 2026; until then penaltyTimeoutSeconds above 0.
 laserCondition:
   type: int
   description: "The Zapit condition sent to Zapit this trial (its conditions file's number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics."
-  history: From 13 Nov 2026 every optogenetics trial sends one; before, a condition was sent only with the laser on. Until 9 Nov 2026 optoStimulated also said whether there was stimulation.
 laserPowerMw:
   type: double
   unit: mW
   description: Laser power sent to Zapit for this trial (the task's optogenetics.laserPowerMw), as commanded, not measured. 0 on laser-off trials, without optogenetics, and on a trial answered before its trigger.
-  history: From 10 Nov 2026 (before, Zapit's config file set the power); no laser after an answer from 13 Nov 2026.
 laserTriggerTime:
   type: double
   unit: s
   description: "Harp time the workflow raised the Zapit trigger line (the laser, or at 0 mW the galvos and masking light alone): the first tick of the 1 ms Harp clock at or after laserToStimulusSeconds before the stimulus was due. NaN without optogenetics and on a trial that ended before its trigger, so a laser-off trial (a time, laserPowerMw 0) and one answered first (NaN) differ."
-  history: From 14 Nov 2026.
 target:
   type: string
   values: [Left, Right, Go, NoGo, NoReward, Random]
   description: The answer the trial rewards - the side in localization and discriminationLeftRight; in discriminationGoNoGo Go (lick, goModality shown) or NoGo (withhold, the other modality). On a trial with no right answer (outcome Probe, never repeated) NoReward or Random - NoReward a no-reward probe in discriminationGoNoGo (both modalities or neither, the neutral grey screen; never rewarded or penalised), Random a random-reward probe in localization (audiovisualConflict, neutral) and discriminationLeftRight (audiovisualCoherent, audiovisualConflict, neutral) - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
-  history: NoReward and Random were Probe until 16 Nov 2026 (Pip). Go, NoGo and Probe from 16 Nov 2026, when discrimination split into discriminationGoNoGo and discriminationLeftRight; until then discrimination's target was Left (targetModality) or Right, and a two-modality trial's the stimuli's side. Random-reward probes from 16 Nov 2026 (Pip); until then localization's conflict target was the grating's side and its neutral target a side drawn at random.
 choice:
   type: string
   values: [Left, Right, Lick, NoResponse]
@@ -139,13 +126,10 @@ auditoryAzimuthDeg:
   type: double
   unit: deg
   description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played.
-  history: audioAzimuthDeg until 16 Nov 2026, the same value.
 auditoryElevationDeg:
   type: double
   unit: deg
   description: Elevation of the speaker that played; NaN when none played.
-  history: audioElevationDeg until 16 Nov 2026, the same value.
 auditoryWaveformIndex:
   type: int
-  description: Index into the auditory stimulus set (src\LocalFiles\AuditoryStimuli\filtered_pink_pulse_train_<index>.wav).
-  history: audioWaveformIndex until 16 Nov 2026, the same value.
+  description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_train_<index>.wav).

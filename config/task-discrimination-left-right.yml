@@ -3,9 +3,9 @@
 # go/no-go mice got, task-discrimination-go-no-go.yml). The answer is the modality, not the side: the left spout for
 # leftModality, the right spout for the other. A trial showing both modalities (audiovisualCoherent, audiovisualConflict)
 # or neither (neutral) has no right answer: a random-reward probe (target Random, outcome Probe), both spouts in, a choice
-# at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss (Pip, 16 Nov 2026). trialWeights names each
+# at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss. trialWeights names each
 # kind of trial by its role: left (leftModality alone), right (the other modality alone), audiovisualCoherent,
-# audiovisualConflict, neutral; leftModality, set per mouse, decides which modality fills left (Pip, 16 Nov 2026). The
+# audiovisualConflict, neutral; leftModality, set per mouse, decides which modality fills left. The
 # top-level trialWeights is per mouse; a stage's own replaces it for that stage. rulesPerType names left and right alone:
 # a trial with no right answer never repeats. Visual-only and neutral trials are silent.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
@@ -13,10 +13,10 @@ taskParameters:
   taskType: discriminationLeftRight
   leftModality: visual     # visual or auditory: the modality answered at the left spout; set per mouse on the form
   trialWeights: { left: 10, right: 10, audiovisualCoherent: 5, audiovisualConflict: 5, neutral: 1 }   # per mouse, carried; a stage's own trialWeights replaces it for that stage
-  rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in BonsaiData_Async
+  rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
-    itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5; Pip, 13 Nov 2026). Stage 0: set both to 1.5 on the form
+    itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5). Stage 0: set both to 1.5 on the form
     drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
     responseDelaySeconds: 0.0     # s, from stimulus onset to the response window; licks before it do not count
     responseWindowSeconds: 1.5    # s, the response window: NoResponse at its end
@@ -34,8 +34,8 @@ taskParameters:
     spatialFrequencyCpd: 0.066666667   # cycles/deg
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
-    levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
-    speakerLocations:      # lateral positions, one drawn per audio trial; no centre entry (fixed in code); playback uses the nearest wired speaker
+    levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+    speakerLocations:      # lateral positions, one drawn per auditory trial; no centre entry (fixed in code); playback uses the nearest wired speaker
       - { azimuth: -60, elevation: 15 }
       - { azimuth: 60, elevation: 15 }
   response:
@@ -43,12 +43,12 @@ taskParameters:
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
   backgroundNoise:         # white noise on every speaker, unequalised, faded in at Ready at the level launched
     enabled: true
-    levelDbfs: -60.1       # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+    levelDbfs: -60.1       # dBFS RMS: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
   penalty:
     timeoutSeconds: 4.0   # s, after an incorrect choice, a miss (not an auto-rewarded one) or a probe's choice on the coin's tails
     sound:               # the penalty sound, with every timeout
       enabled: true
-      levelDbfs: -44.6   # dBFS RMS: the level played until 15 Nov 2026 (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+      levelDbfs: -44.6   # dBFS RMS: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
   reward:
     largeRewardMultiplier: 1
     largeRewardProbability: 0.0

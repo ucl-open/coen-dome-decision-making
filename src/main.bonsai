@@ -7,7 +7,7 @@
                  xmlns:harp="clr-namespace:Bonsai.Harp;assembly=Bonsai.Harp"
                  xmlns:core="clr-namespace:OpenRigs.Core;assembly=OpenRigs.Core"
                  xmlns:dev="clr-namespace:OpenRigs.Devices;assembly=OpenRigs.Devices"
-                 xmlns:zap="clr-namespace:OpenRigs.Devices.Zapit;assembly=OpenRigs.Devices"
+                 xmlns:trl="clr-namespace:OpenRigs.Trials;assembly=OpenRigs.Trials"
                  xmlns:orcl="clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control"
                  xmlns:lv="clr-namespace:OpenRigs.LiveView;assembly=OpenRigs.LiveView"
                  xmlns:gl="clr-namespace:Bonsai.Shaders;assembly=Bonsai.Shaders"
@@ -20,7 +20,7 @@
         <Property Name="ConfigRoot" Description="The root under which each machine has its own configuration directory, &lt;ConfigRoot&gt;\&lt;MACHINE-NAME&gt;\rig.yml, read by ReadLabRig, which publishes it to every device piece; the launch's own, which rig-control always sets to C:\Coen-Lab-Local\RigConfigs. ExperimentRecords and LiveView are not mapped from here: each reads that root as its own ConfigRoot, as a mapping edge into LiveView's StreamDevices would build it before the devices it streams." />
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ReadLabRig.bonsai">
-        <Description>This machine's rig.yml (ConfigRoot\MACHINE\rig.yml) read once into the lab rig model: RigConfigs, RigFile, RigConfigDirectory and ConfigRoot, which every device piece reads. First, before anything that reads them.</Description>
+        <Description>This machine's rig.yml (ConfigRoot\&lt;RIG&gt;\rig.yml) read once into the lab rig model: RigConfigs, RigFile and ConfigRoot, which every device piece reads. First, before anything that reads them.</Description>
         <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
@@ -31,7 +31,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
-        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test), SessionId and LaunchId (the launcher's run id, which the manifest records) are the launch's; the parameter a controller may change until Go (TrainingStage; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath); the pieces declare their own parameters and commands (16 Nov 2026). The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskFilePath (TaskPath) at Start and RunSettings (SubjectId, SessionId) at Go; TrainingStage (OpenRigs.Control) publishes TrainingStage at Go and reports it as the metric trainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardValve-Left.Reward and RewardValve-Right.Reward each give 2.5 ul before and during a run through the valve's calibration (each BehaviorBoard.RewardValve piece's manual drop: Pip's fixed drop, 15 Nov 2026).</Description>
+        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test), SessionId and LaunchId (the launcher's run id, which the manifest records) are the launch's; the parameter a controller may change until Go (TrainingStage; the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath); the pieces declare their own parameters and commands.The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskPath at Start and ExperimentIds (SubjectId, SessionId) at Go; TrainingStage (OpenRigs.Control) publishes TrainingStage at Go and reports it as the metric trainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardValve-Left.Reward and RewardValve-Right.Reward each give 2.5 ul before and during a run through the valve's calibration (each RewardValve piece's manual drop, a fixed drop).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="ExternalizedMapping">
@@ -88,7 +88,7 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>TaskFilePath</Name>
+              <Name>TaskPath</Name>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Zip" />
@@ -106,7 +106,7 @@
               <Name>TaskConfig</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>TaskFilePath</Name>
+              <Name>TaskPath</Name>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="core:ReadTextFile" />
@@ -159,13 +159,13 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's BonsaiData_Trial row, built at its outcome; GratingAzimuthDeg, the response; VisualStimulus, VisualStimulusOff and AuditoryStimulus, the stimuli. Zapit's commands and replies are Zapit.ConnectForTask's, RewardRequests BehaviorBoard.Rewards'.</Description>
+        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's WorkflowData_Trials row, built at its outcome; GratingAzimuthDeg, the response; VisualStimulus, VisualStimulusOff and AuditoryStimulus, the stimuli. Zapit's commands and replies are ConnectForTask's, RewardRequests Rewards'.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
               <rx:Name>Trial</rx:Name>
             </Expression>
-            <Expression xsi:type="rx:PublishSubject" TypeArguments="dev:TrialEvent(ext:Trial,ext:DecisionUpdate,ext:TrialOutcome)">
+            <Expression xsi:type="rx:PublishSubject" TypeArguments="trl:TrialEvent(ext:Trial,ext:DecisionUpdate,ext:TrialOutcome)">
               <rx:Name>TrialEvents</rx:Name>
             </Expression>
             <Expression xsi:type="rx:PublishSubject" TypeArguments="harp:Timestamped(ext:TrialRow)">
@@ -188,8 +188,8 @@
           </Edges>
         </Workflow>
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:LogLabExperiment.bonsai">
-        <Description>The experiment folder at Go (PathPrefix), BonsaiData_Async, Settings_Rig, Settings_Experiment and the Recording phase. Before Hardware: every device's log waits for PathPrefix, so its definition must read nothing the devices define.</Description>
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ExperimentLogs.bonsai">
+        <Description>The experiment folder at Go (PathPrefix), WorkflowData_Events, Settings_Rig, Settings_Experiment and the Recording phase. Before Hardware: every device's log waits for PathPrefix, so its definition must read nothing the devices define.</Description>
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="DisplayDevice" Description="The display the dome projector is on (DomeHardware's ProjectorDisplay); a launch property." />
@@ -466,7 +466,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="ext:LoadAuditoryStimulusSet">
-                <ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>
+                <ext:Folder>sounds</ext:Folder>
                 <ext:FilePrefix>filtered_pink_pulse_train_</ext:FilePrefix>
               </Combinator>
             </Expression>
@@ -494,7 +494,7 @@
               <Combinator xsi:type="ext:LevelAuditoryStimulusSet" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
-              <Name>LevelledStimulusSet</Name>
+              <Name>LevelledAuditoryStimulusSet</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>AuditoryStimulus</Name>
@@ -508,7 +508,7 @@
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>audioEnabled</scr:Expression>
+                    <scr:Expression>auditoryOn</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>
@@ -538,7 +538,7 @@
                     <Combinator xsi:type="rx:Zip" />
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>LevelledStimulusSet</Name>
+                    <Name>LevelledAuditoryStimulusSet</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>AuditoryTrial</Name>
@@ -582,10 +582,10 @@
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:BackgroundNoise.bonsai">
         <Description>The background noise, the lab's one file, rig.yml's speakerArray.backgroundNoise (60 s of white noise, 32-bit float), unequalised on every speaker at the launched task file's backgroundNoise.levelDbfs from Ready; Go stops if the task file changed backgroundNoise after launch.</Description>
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:Zapit.ConnectForTask.bonsai" />
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTask.bonsai" />
       <Expression xsi:type="GroupWorkflow">
         <Name>Logging</Name>
-        <Description>Everything else written to the experiment folder (LogLabExperiment, before Hardware, makes it at Go, with BonsaiData_Async, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), BonsaiData_Trial and Zapit's logs; BehaviorBoard.Rewards (OpenRigs.Devices) logs each reward (RewardDelivered) and each RewardValve piece its calibration file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to BonsaiData_Async, records the Harp devices and writes the manifest.</Description>
+        <Description>Everything else written to the experiment folder (ExperimentLogs, before Hardware, makes it at Go, with WorkflowData_Events, Settings_Rig and Settings_Experiment; each device logs itself): TaskLogs (OpenRigs.Logging) writes Settings_Task (the task file as JSON), WorkflowData_Trials and Zapit's logs (each reply an Events row, ZapitReply, and Settings_ZapitConditions); Rewards (OpenRigs.Devices) logs each reward (RewardDelivered) and each RewardValve piece its calibration file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to WorkflowData_Events, records the Harp devices and writes the manifest.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -606,7 +606,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Status</Name>
-        <Description>The current trial's facts as metrics, named as BonsaiData_Trial's columns (trialNumber, target, trialType, visualAzimuthDeg, auditoryAzimuthDeg, rewardOfferedUl, laserCondition; the trainingStage is TrainingStage's); rig-control computes counts, water and performance from the files.</Description>
+        <Description>The current trial's facts as metrics, named as WorkflowData_Trials's columns (trialNumber, target, trialType, visualAzimuthDeg, auditoryAzimuthDeg, rewardOfferedUl, laserCondition; the trainingStage is TrainingStage's); rig-control computes counts, water and performance from the files.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -687,13 +687,13 @@
           </Edges>
         </Workflow>
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.Rewards.bonsai" />
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.RewardValve.bonsai">
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:Rewards.bonsai" />
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:RewardValve.bonsai">
         <Name>RewardValve-Left</Name>
         <Board>BehaviorBoard-Main</Board>
         <BoardTriggerCalibratedPulseSubjectName>BehaviorBoard-Main.TriggerCalibratedPulse</BoardTriggerCalibratedPulseSubjectName>
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.RewardValve.bonsai">
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:RewardValve.bonsai">
         <Name>RewardValve-Right</Name>
         <Board>BehaviorBoard-Main</Board>
         <BoardTriggerCalibratedPulseSubjectName>BehaviorBoard-Main.TriggerCalibratedPulse</BoardTriggerCalibratedPulseSubjectName>
@@ -753,8 +753,8 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Start</dev:Kind>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Start</trl:Kind>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
@@ -803,8 +803,8 @@
                     <Name>TrialEvents</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="dev:PickTrialEvents">
-                      <dev:Kind>Arm</dev:Kind>
+                    <Combinator xsi:type="trl:PickTrialEvents">
+                      <trl:Kind>Arm</trl:Kind>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MemberSelector">
@@ -814,8 +814,8 @@
                     <Name>TrialEvents</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="dev:PickTrialEvents">
-                      <dev:Kind>Trigger</dev:Kind>
+                    <Combinator xsi:type="trl:PickTrialEvents">
+                      <trl:Kind>Trigger</trl:Kind>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MemberSelector">
@@ -840,9 +840,9 @@
                   <Expression xsi:type="Combinator">
                     <Name>ArmZapit</Name>
                     <Description>Each laser trial's StartStimulus (its condition, laser on with the task's power or off at 0 mW, timed for laserDurationSeconds). On a hardware-triggered rig (rig.yml's zapit.hardwareTriggered) sent at Arm, during the interval; without, Zapit starts the laser on receipt, so it is sent at the Trigger.</Description>
-                    <Combinator xsi:type="zap:ZapitTrialCommand">
-                      <zap:HardwareTriggered>false</zap:HardwareTriggered>
-                      <zap:DurationSeconds>0</zap:DurationSeconds>
+                    <Combinator xsi:type="trl:ZapitTrialCommand">
+                      <trl:HardwareTriggered>false</trl:HardwareTriggered>
+                      <trl:DurationSeconds>0</trl:DurationSeconds>
                     </Combinator>
                   </Expression>
                   <Expression xsi:type="MulticastSubject">
@@ -870,11 +870,11 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Trigger</dev:Kind>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Trigger</trl:Kind>
               </Combinator>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:SetZapitTriggerLine.bonsai">
               <Set>true</Set>
               <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
             </Expression>
@@ -882,11 +882,11 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>TriggerOff</dev:Kind>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>TriggerOff</trl:Kind>
               </Combinator>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:BehaviorBoard.SetZapitTriggerLine.bonsai">
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:SetZapitTriggerLine.bonsai">
               <Set>false</Set>
               <BoardCommandsSubjectName>BehaviorBoard-Main.Commands</BoardCommandsSubjectName>
             </Expression>
@@ -894,8 +894,8 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Stimulus</dev:Kind>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Stimulus</trl:Kind>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
@@ -911,8 +911,8 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Update</dev:Kind>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Update</trl:Kind>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
@@ -925,9 +925,9 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Cue</dev:Kind>
-                <dev:Cue>GratingOff</dev:Cue>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Cue</trl:Kind>
+                <trl:Cue>GratingOff</trl:Cue>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
@@ -940,9 +940,9 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Cue</dev:Kind>
-                <dev:Cue>SpoutsIn</dev:Cue>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Cue</trl:Kind>
+                <trl:Cue>SpoutsIn</trl:Cue>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
@@ -958,9 +958,9 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Cue</dev:Kind>
-                <dev:Cue>Drink</dev:Cue>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Cue</trl:Kind>
+                <trl:Cue>Drink</trl:Cue>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -975,8 +975,8 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:PickTrialEvents">
-                <dev:Kind>Outcome</dev:Kind>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Outcome</trl:Kind>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
@@ -1037,14 +1037,14 @@
               <Name>LickSpoutStage.Commands</Name>
             </Expression>
             <Expression xsi:type="rx:Condition">
-              <Name>PenaltySound?</Name>
+              <Name>PenaltySoundOn?</Name>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>PenaltySound</scr:Expression>
+                    <scr:Expression>PenaltySoundOn</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>
@@ -1165,10 +1165,10 @@
         </Workflow>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ExperimentRecords.bonsai">
-        <Description>The controller's events (LogControlEvents), every Harp device in rig.yml checked at Start and recorded (RecordHarpDevices: the Behavior board, the timestamp generator, both stepper drivers and both Lickety Splits), and manifest.json (ExperimentManifest: the machine, this repo's commit, who launched it and sent Go, rig.yml and every file it names by hash ({RigFiles}: MeshMap.csv, gammalut.bmp, the speakers' filters, the valve calibrations; the auditory stimuli are this repo's, in src\LocalFiles\AuditoryStimuli, so the commit names them) and this mouse's spout positions, schemas\trial-columns.yml, and what the experiment must leave: a folder for each device in rig.yml, the Harp device records (harp), the three settings files and BonsaiData (Trial and Async), Zapit's logs in an optogenetics experiment). Last but LiveView, as it finds each device by the subjects published before it.</Description>
+        <Description>The controller's events (LogControlEvents), every Harp device in rig.yml checked at Start and recorded (RecordHarpDevices: the Behavior board, the timestamp generator, both stepper drivers and both Lickety Splits), and manifest.json (ExperimentManifest: the machine, this repo's commit, who launched it and sent Go, rig.yml and every file it names by hash ({RigFiles}: Projector-Mesh.csv, Projector-Gamma.bmp, the speakers' filters, the valve calibrations; the auditory stimuli are this repo's, in src\sounds, so the commit names them) and this mouse's spout positions, schemas\trial-columns.yml, and what the experiment must leave: a folder for each device in rig.yml, the Harp device records (harp), the three settings files and WorkflowData (Trials and Events), Settings_ZapitConditions in an optogenetics experiment). Last but LiveView, as it finds each device by the subjects published before it.</Description>
         <ConfigRoot>C:\Coen-Lab-Local\RigConfigs</ConfigRoot>
         <IngestScript>coen-dome-decision-making</IngestScript>
-        <ExpectedFiles>auto;harp;Settings/Settings_Rig_;Settings/Settings_Task_;Settings/Settings_Experiment_;BonsaiData/BonsaiData_Trial_;BonsaiData/BonsaiData_Async_;BonsaiData/BonsaiData_ZapitReplies_?Optogenetics;Settings/Settings_ZapitConditions_?Optogenetics</ExpectedFiles>
+        <ExpectedFiles>auto;harp;Settings/Settings_Rig_;Settings/Settings_Task_;Settings/Settings_Experiment_;WorkflowData/WorkflowData_Trials_;WorkflowData/WorkflowData_Events_;Settings/Settings_ZapitConditions_?Optogenetics</ExpectedFiles>
       </Expression>
       <Expression xsi:type="lv:StreamDevices">
         <Name>LiveView</Name>

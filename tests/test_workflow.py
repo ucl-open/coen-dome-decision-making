@@ -44,8 +44,8 @@ def _upstream(edges, start):
     return seen
 
 
-PICK = "dev:PickTrialEvents"
-DEV = "{clr-namespace:OpenRigs.Devices;assembly=OpenRigs.Devices}"
+PICK = "trl:PickTrialEvents"
+TRL = "{clr-namespace:OpenRigs.Trials;assembly=OpenRigs.Trials}"
 
 
 def _downstream(edges, start):
@@ -62,8 +62,8 @@ def _downstream(edges, start):
 def _reached(kind, cue=None, group="TaskLogic"):
     """What each PickTrialEvents of `kind` (and `cue`) in `group` sends to: multicast subjects and includes, by name."""
     nodes, edges = _scope(_named(group))
-    picks = [i for i, n in enumerate(nodes) if _kind(n) == PICK and n.find(W + "Combinator").findtext(DEV + "Kind") == kind
-             and n.find(W + "Combinator").findtext(DEV + "Cue") == cue]
+    picks = [i for i, n in enumerate(nodes) if _kind(n) == PICK and n.find(W + "Combinator").findtext(TRL + "Kind") == kind
+             and n.find(W + "Combinator").findtext(TRL + "Cue") == cue]
     assert picks, (kind, cue)
     reached = set()
     for p in picks:
@@ -72,13 +72,13 @@ def _reached(kind, cue=None, group="TaskLogic"):
                 reached.add(nodes[i].findtext(W + "Name"))
             elif nodes[i].get("Path"):
                 reached.add(nodes[i].get("Path").split(":")[1] + (f" Set={nodes[i].findtext(W + 'Set')}" if nodes[i].findtext(W + "Set") else ""))
-            elif _kind(nodes[i]).startswith("zap:"):
+            elif _kind(nodes[i]) == "trl:ZapitTrialCommand":
                 reached.add(nodes[i].findtext(W + "Name"))
     return reached
 
 
 def test_task_logic_runs_the_trial_loop():
-    # One state machine for both dome tasks (lib-open-rigs TrialLoop, 16 Nov 2026): RunTrials, given the rules from the
+    # One state machine for both dome tasks (lib-open-rigs TrialLoop): RunTrials, given the rules from the
     # clock's thread once the experiment folder exists, into TrialEvents; no per-trial graph.
     nodes, edges = _scope(_named("TaskLogic"))
     (run,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:RunTrials"]
@@ -100,7 +100,7 @@ def test_task_logic_runs_the_trial_loop():
 
 
 def test_the_task_is_checked_once_at_go_into_the_rules():
-    # The one task check (Pip's audit A5): CheckTaskAtGo builds TrialRules from the task, the stage and rig.yml.
+    # The one task check: CheckTaskAtGo builds TrialRules from the task, the stage and rig.yml.
     assert TEXT.count('"ext:CheckTaskAtGo"') == 1
     nodes, edges = _scope(_named("TaskFile"))
     (check,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:CheckTaskAtGo"]
@@ -110,7 +110,7 @@ def test_the_task_is_checked_once_at_go_into_the_rules():
 
 
 def test_each_trial_event_reaches_its_hardware():
-    assert _reached("Start") == {"Trial", "LogRngSeed.bonsai"}   # A2: Trial at the trial's start
+    assert _reached("Start") == {"Trial", "LogRngSeed.bonsai"}   # Trial at the trial's start
     assert _reached("Stimulus") == {"VisualStimulus", "AuditoryStimulus"}
     assert _reached("Update") == {"GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"VisualStimulusOff"}
@@ -118,8 +118,8 @@ def test_each_trial_event_reaches_its_hardware():
     # The cue's command is SpoutsInCommand, apart from the cue and lib's LickSpoutCommand.SpoutsIn.
     assert TEXT.count('"ext:SpoutsInCommand"') == 1 and '"ext:SpoutsIn"' not in TEXT
     assert _reached("Outcome") == {"TrialRow", "RewardRequests", "LickSpoutStage.Commands", "PlayPenaltySound.bonsai"}
-    assert _reached("Trigger") == {"BehaviorBoard.SetZapitTriggerLine.bonsai Set=true"}
-    assert _reached("TriggerOff") == {"BehaviorBoard.SetZapitTriggerLine.bonsai Set=false"}
+    assert _reached("Trigger") == {"SetZapitTriggerLine.bonsai Set=true"}
+    assert _reached("TriggerOff") == {"SetZapitTriggerLine.bonsai Set=false"}
     assert _reached("Arm", group="Zapit") == _reached("Trigger", group="Zapit") == {"ArmZapit", "ZapitCommands"}
 
 
@@ -130,7 +130,7 @@ def test_zapit_s_start_stimulus_goes_at_arm_or_at_the_trigger():
     (arm,) = [i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "ArmZapit"]
     for label, kind in (("Source1", "Arm"), ("Source2", "Trigger")):
         (into,) = [a for a, b, lab in edges if b == arm and lab == label]
-        assert any(_kind(nodes[i]) == PICK and nodes[i].find(W + "Combinator").findtext(DEV + "Kind") == kind for i in _upstream(edges, into))
+        assert any(_kind(nodes[i]) == PICK and nodes[i].find(W + "Combinator").findtext(TRL + "Kind") == kind for i in _upstream(edges, into))
     mapped = " ".join(ET.tostring(nodes[a], encoding="unicode") for a, b, _ in edges if b == arm and nodes[a].get(XSI) == "PropertyMapping")
     assert 'Name="HardwareTriggered" Selector="Zapit.HardwareTriggered"' in mapped
     assert 'Name="DurationSeconds" Selector="TaskParameters.Optogenetics.LaserDurationSeconds"' in mapped
@@ -151,10 +151,10 @@ def test_each_grating_starts_at_its_own_trial_s_azimuth():
 
 def test_the_shared_blocks_replace_the_local_copies():
     for block in ("OpenRigs.Devices:ReadLabRig.bonsai", "OpenRigs.Devices:DomeHardware.bonsai",
-                  lint.REWARDS, "OpenRigs.Devices:Zapit.ConnectForTask.bonsai",
-                  "OpenRigs.Logging:LogLabExperiment.bonsai", lint.LAUNCH_SETTINGS, lint.BACKGROUND_NOISE, lint.EXPERIMENT_RECORDS):
+                  lint.REWARDS, "OpenRigs.Devices:ConnectForTask.bonsai",
+                  "OpenRigs.Logging:ExperimentLogs.bonsai", lint.LAUNCH_SETTINGS, lint.BACKGROUND_NOISE, lint.EXPERIMENT_RECORDS):
         assert f'Path="{block}"' in TEXT
-    # The speakers and the projector are DomeHardware's (Pip, 15 Nov 2026: every task has background noise and a screen).
+    # The speakers and the projector are DomeHardware's (every task has background noise and a screen).
     assert lint.SPEAKER_MIXER not in TEXT and lint.PROJECTOR_DISPLAY not in TEXT
     assert not re.search(r'Path="Extensions\\', TEXT)
     assert not list((ROOT / "src" / "Extensions").glob("*.bonsai"))
@@ -166,7 +166,7 @@ def test_every_config_root_is_the_lab_s():
 
 
 def test_the_launch_properties():
-    # No MissingCalibration: a reward valve without a calibration always stops the workflow (Pip, 15 Nov 2026).
+    # No MissingCalibration: a reward valve without a calibration always stops the workflow.
     top = list(MAIN.find(W + "Workflow").find(W + "Nodes"))
     exposed = {p.get("Name") for n in top if n.get(XSI) == "ExternalizedMapping" for p in n.iter(W + "Property")}
     assert {"SubjectId", "SessionId", "TaskPath", "DisplayDevice", "ConfigRoot", "LaunchId"} == exposed
@@ -174,36 +174,36 @@ def test_the_launch_properties():
 
 
 def test_rewards_are_the_shared_include_s():
-    # BehaviorBoard.Rewards declares RewardRequests, gives the manual drops and delivers each reward (lib batch 2).
+    # Rewards declares RewardRequests, gives the manual drops and delivers each reward (lib batch 2).
     assert lint.reward_problems(WORKFLOW) == []
 
 
 def test_the_auditory_stimuli_are_the_tasks_own_files():
     """The 100 stimuli are in the repo (production av-dome keeps them in its LocalFiles), mono 16-bit
     at the mixer's 48 kHz: nothing put them in each rig's
-    calibration folder, so the workflow stopped at Start on every rig (BLUE-OPTO-2, 14 Nov 2026)."""
+    calibration folder, so the workflow stopped at Start on every rig."""
     import wave
 
-    folder = ROOT / "src" / "LocalFiles" / "AuditoryStimuli"
+    folder = ROOT / "src" / "sounds"
     shapes = set()
     for i in range(100):
         with wave.open(str(folder / f"filtered_pink_pulse_train_{i}.wav")) as w:
             shapes.add((w.getnchannels(), w.getsampwidth(), w.getframerate()))
     assert len(shapes) == 1
     assert shapes.pop()[:3] == (1, 2, 48000)
-    assert r"<ext:Folder>LocalFiles\AuditoryStimuli</ext:Folder>" in TEXT
+    assert r"<ext:Folder>sounds</ext:Folder>" in TEXT
 
 
 def test_the_metrics_are_the_view_s():
     names = {c.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") for c in MAIN.iter(W + "Combinator") if c.get(XSI) == "orcl:ReportMetric"}
     assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition"}
-    # trainingStage is OpenRigs.Control's TrainingStage's (16 Nov 2026).
+    # trainingStage is OpenRigs.Control's TrainingStage's.
     assert lint.training_stage_problems(WORKFLOW) == []
 
 
 def test_zapit_s_hardware_triggering_is_rig_yml_s():
     # lib-open-rigs' ZapitTrialCommand, its HardwareTriggered mapped from rig.yml's zapit.hardwareTriggered, never typed in.
-    assert TEXT.count('"zap:ZapitTrialCommand"') == 1 and "ext:ZapitTrialCommand" not in TEXT
+    assert TEXT.count('"trl:ZapitTrialCommand"') == 1 and "ext:ZapitTrialCommand" not in TEXT
     assert '<Property Name="HardwareTriggered" Selector="Zapit.HardwareTriggered" />' in TEXT and "HardwareTriggered>true<" not in TEXT
 
 
@@ -222,8 +222,8 @@ def test_every_harp_delay_runs_on_the_timestamp_clock():
     assert off == []
 
 
-def test_no_async_event_sender_completes_async_events():
-    senders, finite = lint.finite_async_event_senders(WORKFLOW)
+def test_no_event_sender_completes_events():
+    senders, finite = lint.finite_event_senders(WORKFLOW)
     assert senders == 0 and finite == []  # LogRngSeed sends RngSeed, LogControlEvents Control and Rewards RewardDelivered
 
 
@@ -244,15 +244,15 @@ def test_every_sound_plays_at_the_task_file_s_level():
 
 
 def test_the_background_noise_is_the_shared_include():
-    # OpenRigs.Audio's BackgroundNoise (16 Nov 2026): the noise unequalised on every speaker at the launched task file's
+    # OpenRigs.Audio's BackgroundNoise: the noise unequalised on every speaker at the launched task file's
     # level from Ready, Go stopping on a backgroundNoise changed after launch. The noise is rig.yml's speakerArray.backgroundNoise.
     assert lint.background_noise_problems(WORKFLOW) == []
 
 
 def test_the_training_stage_is_read_at_go_on_its_own():
-    # TrainingStage is the ParameterValue at Go into its own AsyncSubject, as coen-dome-navigation's, not RunSettings' Item3:
-    # RunSettings is LaunchSettings' (subject, session).
-    # OpenRigs.Control's TrainingStage, which also reports trainingStage (16 Nov 2026).
+    # TrainingStage is the ParameterValue at Go into its own AsyncSubject, as coen-dome-navigation's, not ExperimentIds' Item3:
+    # ExperimentIds is LaunchSettings' (subject, session).
+    # OpenRigs.Control's TrainingStage, which also reports trainingStage.
     assert lint.training_stage_problems(WORKFLOW) == [] and "<Selector>Item3</Selector>" not in TEXT
 
 
@@ -289,7 +289,7 @@ def test_the_readme_lists_every_open_rigs_block():
 
 def test_every_command_is_declared_once_by_the_task_or_its_piece():
     # The pieces declare their own (LickSpoutStage's spout commands and SpoutStepSize, each RewardValve's
-    # <Name>.Reward, 16 Nov 2026): a task's copy stops ControlServer at Start.
+    # <Name>.Reward): a task's copy stops ControlServer at Start.
     assert lint.undeclared_commands(WORKFLOW) == [] and lint.declared_twice(WORKFLOW) == []
 
 
@@ -329,7 +329,7 @@ def test_the_rng_seed_is_logged_at_trial_1s_start():
     (seed,) = [a for a, b, _ in edges if b == log]
     assert nodes[seed].findtext(lint.W + "Selector") == "rngSeed"
     picks = [i for i in lint.upstream(edges, seed) if _kind(nodes[i]) == PICK]
-    assert [nodes[i].find(W + "Combinator").findtext(DEV + "Kind") for i in picks] == ["Start"]
+    assert [nodes[i].find(W + "Combinator").findtext(TRL + "Kind") for i in picks] == ["Start"]
 
 
 def test_the_task_logs_are_the_shared_include():

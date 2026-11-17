@@ -124,13 +124,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Auditory stimulus parameters common to all trials: every waveform of the set (src/LocalFiles/AuditoryStimuli)
+    /// Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)
     ///plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute("Auditory stimulus parameters common to all trials: every waveform of the set (src" +
-        "/LocalFiles/AuditoryStimuli)\nplays at levelDbfs, the lab\'s block (open_rigs.core" +
-        ".task StimulusSound).")]
+        "/sounds)\nplays at levelDbfs, the lab\'s block (open_rigs.core.task StimulusSound)" +
+        ".")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class AuditoryStimulus
@@ -171,14 +171,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Candidate lateral sound positions, one drawn per audio trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker
+        /// Candidate lateral sound positions, one drawn per auditory trial, at least one on each side; no azimuth-0 entry: visual-only and neutral trials play from the centre. Each plays on rig.yml's nearest speaker
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("speakerLocations", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="speakerLocations")]
-        [System.ComponentModel.DescriptionAttribute("Candidate lateral sound positions, one drawn per audio trial, at least one on eac" +
-            "h side; no azimuth-0 entry: visual-only and neutral trials play from the centre." +
-            " Each plays on rig.yml\'s nearest speaker")]
+        [System.ComponentModel.DescriptionAttribute("Candidate lateral sound positions, one drawn per auditory trial, at least one on " +
+            "each side; no azimuth-0 entry: visual-only and neutral trials play from the cent" +
+            "re. Each plays on rig.yml\'s nearest speaker")]
         public System.Collections.Generic.List<SphericalPosition> SpeakerLocations
         {
             get
@@ -575,13 +575,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// What a wrong or missed trial costs: a timeout, and the penalty sound with it (the trial log's penaltySound and
+    /// What a wrong or missed trial costs: a timeout, and the penalty sound with it (the trial log's penaltySoundOn and
     ///penaltyTimeoutSeconds). Each task says which trials are penalised; timeoutSeconds has no lab default: each task file gives it.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute("What a wrong or missed trial costs: a timeout, and the penalty sound with it (the" +
-        " trial log\'s penaltySound and\npenaltyTimeoutSeconds). Each task says which trial" +
-        "s are penalised; timeoutSeconds has no lab default: each task file gives it.")]
+        " trial log\'s penaltySoundOn and\npenaltyTimeoutSeconds). Each task says which tri" +
+        "als are penalised; timeoutSeconds has no lab default: each task file gives it.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class Penalty
