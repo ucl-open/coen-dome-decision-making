@@ -24,7 +24,7 @@ public class Trial : IZapitTrial
     public string trialType;           // TrialDraw.TypeNames: what the trial shows
     public string target;              // Left or Right; in discriminationGoNoGo Go or NoGo; on a trial with no right answer NoReward or Random (Target)
     public double rewardOfferedUl;     // what a reward on this trial gives, on every trial; 0 where none is on offer
-    public bool bothSpouts;
+    public bool bothSpoutsOffered;
     public int repeatCount;            // 0 for a new draw
     public double itiSeconds;          // the interval drawn for this trial: its start to the stimulus, with a quiet mouse
     public double visualAzimuthDeg;
@@ -35,7 +35,7 @@ public class Trial : IZapitTrial
     public int speakerChannel;         // the mixer channel of rig.yml's speaker nearest the drawn location; -1 when silent
     public double auditoryAzimuthDeg;     // that speaker's azimuth; NaN when silent
     public double auditoryElevationDeg;
-    public int auditoryWaveformIndex;
+    public int auditorySoundFileIndex;
     public int laserCondition;         // 0 without optogenetics; on every optogenetics trial, laser on or off
     public bool laserOn;
     public double laserPowerMw;        // 0 with the laser off
@@ -391,7 +391,7 @@ public class TrialDraw
         var trial = new Trial();
         trial.autoReward = random.NextDouble() < stage.AutoRewardProbability;
         trial.spoutMovements = stage.SpoutMovements;
-        trial.bothSpouts = random.NextDouble() < stage.BothSpoutsProbability;
+        trial.bothSpoutsOffered = random.NextDouble() < stage.BothSpoutsProbability;
         var large = random.NextDouble() < task.Reward.LargeRewardProbability;
         trial.rewardOfferedUl = large ? task.Reward.RewardSizeUl * task.Reward.LargeRewardMultiplier : task.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
@@ -436,7 +436,7 @@ public class TrialDraw
             bool oneModality = type == Visual || type == Auditory;
             bool goShown = oneModality && (type == Visual) == (task.GoModality == Modality.Visual);
             trial.target = !oneModality ? Target.NoReward : goShown ? Target.Go : Target.NoGo;
-            trial.bothSpouts = false;                                   // one spout, the left
+            trial.bothSpoutsOffered = false;                                   // one spout, the left
             if (trial.target != Target.Go)
             {
                 trial.autoReward = false;   // auto-reward only on a Go trial
@@ -455,7 +455,7 @@ public class TrialDraw
             // a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored
             // trial's miss. Its rewardOfferedUl is kept, heads or tails. It never repeats.
             trial.target = Target.Random;
-            trial.bothSpouts = true;
+            trial.bothSpoutsOffered = true;
             trial.autoReward = false;
             trial.probeHeads = random.NextDouble() < 0.5;
         }
@@ -483,7 +483,7 @@ public class TrialDraw
                 out trial.laserCondition, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
-        trial.auditoryWaveformIndex = random.Next(AuditoryStimulusSet.WaveformCount);
+        trial.auditorySoundFileIndex = random.Next(AuditoryStimulusSet.WaveformCount);
         return trial;
     }
 
@@ -729,7 +729,7 @@ public class SpoutsInCommand
 
     public static LickSpoutCommand Command(Trial trial)
     {
-        if (trial.bothSpouts) return LickSpoutCommand.SpoutsIn;
+        if (trial.bothSpoutsOffered) return LickSpoutCommand.SpoutsIn;
         return trial.target == Choice.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly;   // go-no-go: the left
     }
 }

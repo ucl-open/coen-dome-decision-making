@@ -29,14 +29,14 @@ public class TrialRow
     public string choice;
     public int repeatCount;
     public bool autoRewarded;
-    public bool bothSpouts;
+    public bool bothSpoutsOffered;
     public double visualAzimuthDeg;
     public double visualElevationDeg;
     public double visualContrast;
     public double visualPhaseRad;
     public double auditoryAzimuthDeg;
     public double auditoryElevationDeg;
-    public int auditoryWaveformIndex;
+    public int auditorySoundFileIndex;
 
     // Left or Right against the target; in discriminationGoNoGo, Lick or NoResponse against Go or NoGo (a withheld
     // NoGo is Correct), and a probe's outcome is Probe whatever the choice.
@@ -95,14 +95,14 @@ public class TrialRow
             choice = choice,
             repeatCount = trial.repeatCount,
             autoRewarded = trial.autoReward && choice == Choice.NoResponse,
-            bothSpouts = trial.bothSpouts,
+            bothSpoutsOffered = trial.bothSpoutsOffered,
             visualAzimuthDeg = trial.visualAzimuthDeg,
             visualElevationDeg = trial.visualElevationDeg,
             visualContrast = trial.visualContrast,
             visualPhaseRad = trial.visualPhaseRad,
             auditoryAzimuthDeg = trial.auditoryAzimuthDeg,
             auditoryElevationDeg = trial.auditoryElevationDeg,
-            auditoryWaveformIndex = trial.auditoryWaveformIndex,
+            auditorySoundFileIndex = trial.auditorySoundFileIndex,
         };
         return SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised, timeoutSeconds, penaltySoundEnabled);
     }

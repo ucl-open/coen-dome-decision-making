@@ -214,8 +214,8 @@ public class ResponseRuleTests
         var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml"), 3, looped.Count, t => "NoResponse");
         Assert.IsTrue(looped.Count >= 20);
         CollectionAssert.AreEqual(drawn.Select(t => t.visualPhaseRad).ToList(), looped.Select(t => t.visualPhaseRad).ToList());
-        CollectionAssert.AreEqual(drawn.Select(t => t.trialType + t.target + t.itiSeconds + t.auditoryWaveformIndex).ToList(),
-                                  looped.Select(t => t.trialType + t.target + t.itiSeconds + t.auditoryWaveformIndex).ToList());
+        CollectionAssert.AreEqual(drawn.Select(t => t.trialType + t.target + t.itiSeconds + t.auditorySoundFileIndex).ToList(),
+                                  looped.Select(t => t.trialType + t.target + t.itiSeconds + t.auditorySoundFileIndex).ToList());
     }
 
     [TestMethod]
@@ -233,7 +233,7 @@ public class ResponseRuleTests
             var kinds = file.Contains("left-right") ? new[] { "audiovisualCoherent", "audiovisualConflict", "neutral" } : new[] { "audiovisualConflict", "neutral" };
             CollectionAssert.AreEquivalent(kinds, probes.Select(t => t.trialType).Distinct().ToArray(), file);
             Assert.IsTrue(all.Where(t => t.target != Target.Random).All(t => !kinds.Contains(t.trialType)), file);
-            Assert.IsTrue(probes.All(t => t.bothSpouts && !t.autoReward && SpoutsInCommand.Command(t) == LickSpoutCommand.SpoutsIn), file);
+            Assert.IsTrue(probes.All(t => t.bothSpoutsOffered && !t.autoReward && SpoutsInCommand.Command(t) == LickSpoutCommand.SpoutsIn), file);
             int rewarded = 0, penalised = 0;
             for (int i = 0; i < probes.Count; i++)
             {
@@ -616,7 +616,7 @@ public class ConsequenceTests
         // miss; the offer is on the row every time, and the valve's command is the row's rewarded.
         Func<string, bool, TrialOutcome> score = (choice, up) =>
         {
-            var t = new Trial { target = Target.Random, rewardOfferedUl = 3, probeHeads = up, bothSpouts = true, spoutMovements = true };
+            var t = new Trial { target = Target.Random, rewardOfferedUl = 3, probeHeads = up, bothSpoutsOffered = true, spoutMovements = true };
             return TrialOutcome.Of(TrialRow.Build(choice, t, new TrialTimes { Now = 1 }, 4, true), t);
         };
         var heads = score(Choice.Left, true);
@@ -635,9 +635,9 @@ public class ConsequenceTests
     [TestMethod]
     public void TheSpoutsComeInAsTheTrialSays()
     {
-        Assert.AreEqual(LickSpoutCommand.SpoutsIn, SpoutsInCommand.Command(new Trial { bothSpouts = true, target = "Left" }));
-        Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutsInCommand.Command(new Trial { bothSpouts = false, target = "Left" }));
-        Assert.AreEqual(LickSpoutCommand.RightOnly, SpoutsInCommand.Command(new Trial { bothSpouts = false, target = "Right" }));
+        Assert.AreEqual(LickSpoutCommand.SpoutsIn, SpoutsInCommand.Command(new Trial { bothSpoutsOffered = true, target = "Left" }));
+        Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutsInCommand.Command(new Trial { bothSpoutsOffered = false, target = "Left" }));
+        Assert.AreEqual(LickSpoutCommand.RightOnly, SpoutsInCommand.Command(new Trial { bothSpoutsOffered = false, target = "Right" }));
     }
 }
 

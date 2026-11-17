@@ -104,7 +104,7 @@ repeatCount:
 autoRewarded:
   type: bool
   description: True when a miss on an auto-reward trial was rewarded at the target spout.
-bothSpouts:
+bothSpoutsOffered:
   type: bool
   description: True when both spouts were offered (otherwise only the target's; in discriminationGoNoGo the left, for NoGo and NoReward trials too); always on a random-reward probe.
 visualAzimuthDeg:
@@ -130,6 +130,6 @@ auditoryElevationDeg:
   type: double
   unit: deg
   description: Elevation of the speaker that played; NaN when none played.
-auditoryWaveformIndex:
+auditorySoundFileIndex:
   type: int
   description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_train_<index>.wav).

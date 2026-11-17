@@ -173,12 +173,12 @@ public class LevelAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditoryWaveformIndex, equalised for its speaker, on that speaker's channel, at the set's level, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the set at its level (LevelAuditoryStimulusSet) and the trial.")]
+[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditorySoundFileIndex, equalised for its speaker, on that speaker's channel, at the set's level, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the set at its level (LevelAuditoryStimulusSet) and the trial.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {
     public IObservable<Mat> Process(IObservable<Tuple<AuditoryStimulusSet, Trial>> source)
     {
-        return source.Select(input => input.Item1.Buffer(input.Item2.auditoryWaveformIndex, input.Item2.speakerChannel));
+        return source.Select(input => input.Item1.Buffer(input.Item2.auditorySoundFileIndex, input.Item2.speakerChannel));
     }
 }
