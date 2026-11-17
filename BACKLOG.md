@@ -38,3 +38,10 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 
 - `stage.py` helpers stay duplicated with coen-dome-navigation: the script must run standard-library only, so it cannot import lib.
 - Commit-subject style differs from coen-dome-navigation: pushed history is never rewritten.
+
+## Audit round 5 (17 Nov 2026): not recommended
+
+- "Left Only" as a stage label and the LeftOnly placement, and "In" as both SpoutsIn and the nudge direction: the meanings agree.
+- "Target" and "Stage" with several qualified meanings: never shown side by side.
+- `localization` (US spelling): the field's term and a recorded value.
+- `spoutMovements: false`: keeps the positive default.
