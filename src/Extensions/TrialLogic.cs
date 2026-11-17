@@ -194,7 +194,8 @@ public class TrialDraw
         finite("trialStructure.itiMaxSeconds", structure.ItiMaxSeconds);
         finite("trialStructure.drinkSeconds", structure.DrinkSeconds);
         finite("trialStructure.responseDelaySeconds", structure.ResponseDelaySeconds);
-        positive("trialStructure.responseWindowSeconds", structure.ResponseWindowSeconds);
+        if (structure.ResponseWindowSeconds == null) problems.Add("trialStructure.responseWindowSeconds must be given: this task's response window always closes");
+        else positive("trialStructure.responseWindowSeconds", structure.ResponseWindowSeconds.Value);
         finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
@@ -648,7 +649,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             WheelQuietCm = stage.WheelQuietCm,
             Laser = trial.laserCondition > 0,                                    // every trial of an optogenetics experiment, laser on or off
             ResponseDelaySeconds = structure.ResponseDelaySeconds,
-            ResponseWindowSeconds = structure.ResponseWindowSeconds,
+            ResponseWindowSeconds = structure.ResponseWindowSeconds.Value,     // never null: the Go check refuses it
             Cues = cues,
         };
     }

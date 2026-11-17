@@ -313,8 +313,22 @@
       "type": "string"
     },
     "TrainingStage": {
-      "description": "One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits the lab's (open_rigs.core.task QuietWait).",
+      "description": "One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size\nthe lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,\nand is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL.",
       "properties": {
+        "rewardSizeUl": {
+          "description": "Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "title": "RewardSizeUl",
+          "type": "number"
+        },
+        "autoRewardProbability": {
+          "description": "Probability that a trial is an auto-reward trial, rewarded without a correct response (how is the task's); 0: never, 1: every trial",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "AutoRewardProbability",
+          "type": "number"
+        },
         "lickQuietSeconds": {
           "default": 0.0,
           "description": "Quiet wait: a trial's start needs this long with every spout released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds the trial's start until released, so licks for the last reward cannot carry into the next trial; 0: off; at most 10 s. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
@@ -361,25 +375,11 @@
           "description": "This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights",
           "title": "TrialWeights"
         },
-        "autoRewardProbability": {
-          "description": "Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats",
-          "maximum": 1,
-          "minimum": 0,
-          "title": "AutoRewardProbability",
-          "type": "number"
-        },
         "bothSpoutsProbability": {
           "description": "Probability that both spouts are presented rather than only the correct one",
           "maximum": 1,
           "minimum": 0,
           "title": "BothSpoutsProbability",
-          "type": "number"
-        },
-        "rewardSizeUl": {
-          "description": "Reward size, in microlitres; the valve's calibration plans the pulses. At most 20, the most one reward may ask for, with largeRewardMultiplier applied",
-          "exclusiveMinimum": 0,
-          "maximum": 20,
-          "title": "RewardSizeUl",
           "type": "number"
         },
         "contrasts": {
@@ -404,9 +404,9 @@
         }
       },
       "required": [
+        "rewardSizeUl",
         "autoRewardProbability",
         "bothSpoutsProbability",
-        "rewardSizeUl",
         "contrasts",
         "allowRepeats"
       ],
@@ -414,18 +414,30 @@
       "type": "object"
     },
     "TrialStructure": {
-      "description": "Timing of each trial, every wait on the Harp clock.",
+      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts\nresponseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused.",
       "properties": {
+        "responseWindowSeconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The response window, in seconds from the start of the task's response period; with no response by its end the trial is NoResponse. Null or left out: no limit (a task may refuse it)",
+          "title": "ResponseWindowSeconds"
+        },
         "itiMinSeconds": {
-          "default": 3.4,
-          "description": "Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds",
+          "description": "Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds; the stage's quiet waits can only lengthen it (quietWaitSeconds)",
           "minimum": 0,
           "title": "ItiMinSeconds",
           "type": "number"
         },
         "itiMaxSeconds": {
-          "default": 4.4,
-          "description": "Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSeconds)",
+          "description": "Upper bound of the inter-trial interval, in seconds; at least itiMinSeconds",
           "minimum": 0,
           "title": "ItiMaxSeconds",
           "type": "number"
@@ -444,13 +456,6 @@
           "title": "ResponseDelaySeconds",
           "type": "number"
         },
-        "responseWindowSeconds": {
-          "default": 1.5,
-          "description": "The response window: how long it stays open, from responseDelaySeconds after stimulus onset, in seconds; with no choice by its end the trial is NoResponse",
-          "exclusiveMinimum": 0,
-          "title": "ResponseWindowSeconds",
-          "type": "number"
-        },
         "stimulusSeconds": {
           "default": 1.5,
           "description": "How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus",
@@ -466,6 +471,10 @@
           "type": "number"
         }
       },
+      "required": [
+        "itiMinSeconds",
+        "itiMaxSeconds"
+      ],
       "title": "TrialStructure",
       "type": "object"
     },

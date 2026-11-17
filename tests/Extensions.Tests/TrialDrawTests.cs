@@ -343,6 +343,10 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(task, 4), "longer than itiMinSeconds");
 
         task = Fixture.Task("task-localization.yml");
+        task.TrialStructure.ResponseWindowSeconds = null;
+        StringAssert.Contains(refusal(task, 4), "responseWindowSeconds must be given");
+
+        task = Fixture.Task("task-localization.yml");
         speakers.Speakers.Remove("right");
         StringAssert.Contains(refusal(task, 4), "is 'centre', not on the right");
 

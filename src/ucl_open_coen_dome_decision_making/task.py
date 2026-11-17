@@ -4,27 +4,36 @@ from typing import Literal
 from open_rigs.components import SphericalPosition
 # Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt.
 from open_rigs.core.base import Bool, Double, String
-from open_rigs.core.task import BackgroundNoise, Optogenetics, Penalty, QuietWait, StimulusSound, Task, TaskBlock, TaskParameters
+from open_rigs.core.task import (
+    MAX_REWARD_UL,
+    AutoReward,
+    BackgroundNoise,
+    Iti,
+    Optogenetics,
+    Penalty,
+    QuietWait,
+    ResponseWindow,
+    RewardSize,
+    StimulusSound,
+    Task,
+    TaskBlock,
+    TaskParameters,
+)
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
-from open_rigs.rigs.lab_rig import MAX_REWARD_UL
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
 
 
 
-class TrialStructure(TaskBlock):
-    """Timing of each trial, every wait on the Harp clock."""
+class TrialStructure(Iti, ResponseWindow):
+    """Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
+    (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
+    so itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts
+    responseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused."""
 
-    iti_min_seconds: Double = Field(
-        default=3.4,
-        ge=0,
-        description="Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds",
-    )
-    iti_max_seconds: Double = Field(default=4.4, ge=0, description="Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSeconds)")
     drink_seconds: Double = Field(default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval")
     response_delay_seconds: Double = Field(default=0.0, ge=0, description="The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted")
-    response_window_seconds: Double = Field(default=1.5, gt=0, description="The response window: how long it stays open, from responseDelaySeconds after stimulus onset, in seconds; with no choice by its end the trial is NoResponse")
     stimulus_seconds: Double = Field(
         default=1.5, gt=0, description="How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus"
     )
@@ -32,8 +41,8 @@ class TrialStructure(TaskBlock):
 
     @model_validator(mode="after")
     def _ordered(self) -> "TrialStructure":
-        if self.iti_max_seconds < self.iti_min_seconds:
-            raise ValueError("iti_max_seconds must be >= iti_min_seconds")
+        if self.response_window_seconds is None:
+            raise ValueError("response_window_seconds must be given: this task's response window always closes")
         if self.iti_min_seconds < self.drink_seconds:
             raise ValueError("iti_min_seconds must be >= drink_seconds: the spouts are drawn back drink_seconds into the interval, before the stimulus")
         if self.stimulus_seconds > self.response_delay_seconds + self.response_window_seconds:
@@ -219,19 +228,17 @@ class OptogeneticsSettings(Optogenetics):
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
 
 
-class TrainingStage(QuietWait):
-    """One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits the lab's (open_rigs.core.task QuietWait)."""
+class TrainingStage(QuietWait, AutoReward, RewardSize):
+    """One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size
+    the lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,
+    and is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL."""
 
     label: String | None = Field(default=None, description="The stage's name, shown on Setup after its number")
     trial_weights: TrialTypeWeights | None = Field(
         default=None,
         description="This stage's own trial mix, keyed as the task's trialWeights, replacing it for this stage; null or left out: the task's trialWeights",
     )
-    auto_reward_probability: Double = Field(ge=0, le=1, description="Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats")
     both_spouts_probability: Double = Field(ge=0, le=1, description="Probability that both spouts are presented rather than only the correct one")
-    reward_size_ul: Double = Field(
-        gt=0, le=MAX_REWARD_UL, description=f"Reward size, in microlitres; the valve's calibration plans the pulses. At most {MAX_REWARD_UL}, the most one reward may ask for, with largeRewardMultiplier applied"
-    )
     contrasts: list[Double] = Field(min_length=1, description="Candidate grating contrasts, each above 0, one drawn per trial that shows the grating")
     allow_repeats: Bool = Field(description="Whether failed trials may be repeated in this stage")
     spout_movements: Bool = Field(

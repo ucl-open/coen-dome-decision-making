@@ -1217,15 +1217,22 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits the lab's (open_rigs.core.task QuietWait).
+    /// One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size
+    ///the lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,
+    ///and is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("One row of the training stage table, chosen by the TrainingStage parameter; its q" +
-        "uiet waits the lab\'s (open_rigs.core.task QuietWait).")]
+    [System.ComponentModel.DescriptionAttribute(@"One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size
+    the lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,
+    and is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrainingStage
     {
+    
+        private double _rewardSizeUl;
+    
+        private double _autoRewardProbability;
     
         private double _lickQuietSeconds;
     
@@ -1237,11 +1244,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private TrialTypeWeights _trialWeights;
     
-        private double _autoRewardProbability;
-    
         private double _bothSpoutsProbability;
-    
-        private double _rewardSizeUl;
     
         private System.Collections.Generic.List<double> _contrasts;
     
@@ -1260,17 +1263,55 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected TrainingStage(TrainingStage other)
         {
+            _rewardSizeUl = other._rewardSizeUl;
+            _autoRewardProbability = other._autoRewardProbability;
             _lickQuietSeconds = other._lickQuietSeconds;
             _wheelQuietSeconds = other._wheelQuietSeconds;
             _wheelQuietCm = other._wheelQuietCm;
             _label = other._label;
             _trialWeights = other._trialWeights;
-            _autoRewardProbability = other._autoRewardProbability;
             _bothSpoutsProbability = other._bothSpoutsProbability;
-            _rewardSizeUl = other._rewardSizeUl;
             _contrasts = other._contrasts;
             _allowRepeats = other._allowRepeats;
             _spoutMovements = other._spoutMovements;
+        }
+    
+        /// <summary>
+        /// Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("rewardSizeUl", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="rewardSizeUl")]
+        [System.ComponentModel.DescriptionAttribute("Reward size, in microlitres, planned into valve pulses from the valve\'s calibrati" +
+            "on; at most 20, the most one reward may ask for")]
+        public double RewardSizeUl
+        {
+            get
+            {
+                return _rewardSizeUl;
+            }
+            set
+            {
+                _rewardSizeUl = value;
+            }
+        }
+    
+        /// <summary>
+        /// Probability that a trial is an auto-reward trial, rewarded without a correct response (how is the task's); 0: never, 1: every trial
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("autoRewardProbability", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="autoRewardProbability")]
+        [System.ComponentModel.DescriptionAttribute("Probability that a trial is an auto-reward trial, rewarded without a correct resp" +
+            "onse (how is the task\'s); 0: never, 1: every trial")]
+        public double AutoRewardProbability
+        {
+            get
+            {
+                return _autoRewardProbability;
+            }
+            set
+            {
+                _autoRewardProbability = value;
+            }
         }
     
         /// <summary>
@@ -1368,25 +1409,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Probability that a trial is an auto-reward trial: a miss on it is rewarded at the target spout, and is still a NoResponse for repeats
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("autoRewardProbability", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="autoRewardProbability")]
-        [System.ComponentModel.DescriptionAttribute("Probability that a trial is an auto-reward trial: a miss on it is rewarded at the" +
-            " target spout, and is still a NoResponse for repeats")]
-        public double AutoRewardProbability
-        {
-            get
-            {
-                return _autoRewardProbability;
-            }
-            set
-            {
-                _autoRewardProbability = value;
-            }
-        }
-    
-        /// <summary>
         /// Probability that both spouts are presented rather than only the correct one
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("bothSpoutsProbability", Required=Newtonsoft.Json.Required.Always)]
@@ -1401,25 +1423,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _bothSpoutsProbability = value;
-            }
-        }
-    
-        /// <summary>
-        /// Reward size, in microlitres; the valve's calibration plans the pulses. At most 20, the most one reward may ask for, with largeRewardMultiplier applied
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("rewardSizeUl", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="rewardSizeUl")]
-        [System.ComponentModel.DescriptionAttribute("Reward size, in microlitres; the valve\'s calibration plans the pulses. At most 20" +
-            ", the most one reward may ask for, with largeRewardMultiplier applied")]
-        public double RewardSizeUl
-        {
-            get
-            {
-                return _rewardSizeUl;
-            }
-            set
-            {
-                _rewardSizeUl = value;
             }
         }
     
@@ -1492,14 +1495,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
+            stringBuilder.Append("RewardSizeUl = " + _rewardSizeUl + ", ");
+            stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
             stringBuilder.Append("LickQuietSeconds = " + _lickQuietSeconds + ", ");
             stringBuilder.Append("WheelQuietSeconds = " + _wheelQuietSeconds + ", ");
             stringBuilder.Append("WheelQuietCm = " + _wheelQuietCm + ", ");
             stringBuilder.Append("Label = " + _label + ", ");
             stringBuilder.Append("TrialWeights = " + _trialWeights + ", ");
-            stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
             stringBuilder.Append("BothSpoutsProbability = " + _bothSpoutsProbability + ", ");
-            stringBuilder.Append("RewardSizeUl = " + _rewardSizeUl + ", ");
             stringBuilder.Append("Contrasts = " + _contrasts + ", ");
             stringBuilder.Append("AllowRepeats = " + _allowRepeats + ", ");
             stringBuilder.Append("SpoutMovements = " + _spoutMovements);
@@ -1522,14 +1525,22 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Timing of each trial, every wait on the Harp clock.
+    /// Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
+    ///(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
+    ///so itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts
+    ///responseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Timing of each trial, every wait on the Harp clock.")]
+    [System.ComponentModel.DescriptionAttribute(@"Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
+    (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
+    so itiMinSeconds is at least drinkSeconds. The response period (the lab's ResponseWindow block) starts
+    responseDelaySeconds after stimulus onset, and responseWindowSeconds must be given: no limit is refused.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialStructure
     {
+    
+        private double? _responseWindowSeconds;
     
         private double _itiMinSeconds;
     
@@ -1539,40 +1550,56 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _responseDelaySeconds;
     
-        private double _responseWindowSeconds;
-    
         private double _stimulusSeconds;
     
         private double _stimulusToSpoutsInSeconds;
     
         public TrialStructure()
         {
-            _itiMinSeconds = 3.4D;
-            _itiMaxSeconds = 4.4D;
             _drinkSeconds = 2D;
             _responseDelaySeconds = 0D;
-            _responseWindowSeconds = 1.5D;
             _stimulusSeconds = 1.5D;
             _stimulusToSpoutsInSeconds = 0.5D;
         }
     
         protected TrialStructure(TrialStructure other)
         {
+            _responseWindowSeconds = other._responseWindowSeconds;
             _itiMinSeconds = other._itiMinSeconds;
             _itiMaxSeconds = other._itiMaxSeconds;
             _drinkSeconds = other._drinkSeconds;
             _responseDelaySeconds = other._responseDelaySeconds;
-            _responseWindowSeconds = other._responseWindowSeconds;
             _stimulusSeconds = other._stimulusSeconds;
             _stimulusToSpoutsInSeconds = other._stimulusToSpoutsInSeconds;
         }
     
         /// <summary>
-        /// Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds
+        /// The response window, in seconds from the start of the task's response period; with no response by its end the trial is NoResponse. Null or left out: no limit (a task may refuse it)
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("itiMinSeconds")]
+        [Newtonsoft.Json.JsonPropertyAttribute("responseWindowSeconds")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="responseWindowSeconds")]
+        [System.ComponentModel.DescriptionAttribute("The response window, in seconds from the start of the task\'s response period; wit" +
+            "h no response by its end the trial is NoResponse. Null or left out: no limit (a " +
+            "task may refuse it)")]
+        public double? ResponseWindowSeconds
+        {
+            get
+            {
+                return _responseWindowSeconds;
+            }
+            set
+            {
+                _responseWindowSeconds = value;
+            }
+        }
+    
+        /// <summary>
+        /// Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds; the stage's quiet waits can only lengthen it (quietWaitSeconds)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("itiMinSeconds", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="itiMinSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds: from the last outcome (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included. The stage's quiet waits can only lengthen it (quietWaitSeconds). At least drinkSeconds")]
+        [System.ComponentModel.DescriptionAttribute("Lower bound of the inter-trial interval, drawn uniformly for every trial, in seco" +
+            "nds; the stage\'s quiet waits can only lengthen it (quietWaitSeconds)")]
         public double ItiMinSeconds
         {
             get
@@ -1586,12 +1613,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSeconds)
+        /// Upper bound of the inter-trial interval, in seconds; at least itiMinSeconds
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("itiMaxSeconds")]
+        [Newtonsoft.Json.JsonPropertyAttribute("itiMaxSeconds", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="itiMaxSeconds")]
-        [System.ComponentModel.DescriptionAttribute("Upper bound of the uniformly drawn inter-trial interval, in seconds (itiMinSecond" +
-            "s)")]
+        [System.ComponentModel.DescriptionAttribute("Upper bound of the inter-trial interval, in seconds; at least itiMinSeconds")]
         public double ItiMaxSeconds
         {
             get
@@ -1639,25 +1665,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _responseDelaySeconds = value;
-            }
-        }
-    
-        /// <summary>
-        /// The response window: how long it stays open, from responseDelaySeconds after stimulus onset, in seconds; with no choice by its end the trial is NoResponse
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("responseWindowSeconds")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="responseWindowSeconds")]
-        [System.ComponentModel.DescriptionAttribute("The response window: how long it stays open, from responseDelaySeconds after stim" +
-            "ulus onset, in seconds; with no choice by its end the trial is NoResponse")]
-        public double ResponseWindowSeconds
-        {
-            get
-            {
-                return _responseWindowSeconds;
-            }
-            set
-            {
-                _responseWindowSeconds = value;
             }
         }
     
@@ -1711,11 +1718,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
+            stringBuilder.Append("ResponseWindowSeconds = " + _responseWindowSeconds + ", ");
             stringBuilder.Append("ItiMinSeconds = " + _itiMinSeconds + ", ");
             stringBuilder.Append("ItiMaxSeconds = " + _itiMaxSeconds + ", ");
             stringBuilder.Append("DrinkSeconds = " + _drinkSeconds + ", ");
             stringBuilder.Append("ResponseDelaySeconds = " + _responseDelaySeconds + ", ");
-            stringBuilder.Append("ResponseWindowSeconds = " + _responseWindowSeconds + ", ");
             stringBuilder.Append("StimulusSeconds = " + _stimulusSeconds + ", ");
             stringBuilder.Append("StimulusToSpoutsInSeconds = " + _stimulusToSpoutsInSeconds);
             return true;

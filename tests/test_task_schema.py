@@ -174,7 +174,7 @@ def test_the_iti_descriptions_say_the_drink_is_in_the_interval():
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
     # The column's description is the dome tasks' shared one; this task's detail is its note.
     column = columns["itiSeconds"]["description"] + " " + columns["itiSeconds"]["note"]
-    for text in (TrialStructure.model_fields["iti_min_seconds"].description, column):
+    for text in (TrialStructure.__doc__, column):
         assert "drinkSeconds" in text and "timeout" in text
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda p: p.name)
@@ -262,6 +262,19 @@ def test_the_task_s_own_blocks_refuse_inf_and_nan(block, key, value):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
+@pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
+def test_committed_task_files_read_back_unchanged(path):
+    # The lab's Iti, ResponseWindow, AutoReward and RewardSize blocks keep every key where the file has it.
+    data = yaml.safe_load(path.read_text())["taskParameters"]
+    task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    assert task.model_dump(by_alias=True, exclude_unset=True, mode="json") == data
+
+
+def test_the_response_window_always_closes():
+    with pytest.raises(ValidationError, match="response_window_seconds must be given"):
+        _with(structure={"responseWindowSeconds": None})
+
+
 def test_the_interval_is_at_least_the_drink():
     with pytest.raises(ValidationError, match="drink_seconds"):
         _with(structure={"drinkSeconds": 1.6})
@@ -294,7 +307,7 @@ def test_the_constants_are_the_c_sharp_s():
     # The ramp-down and reward caps are lib-open-rigs' too, each tied there to its C# value.
     assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS" in task_py
     assert "check_zapit_free_in_time" in task_py
-    assert "from open_rigs.rigs.lab_rig import MAX_REWARD_UL" in task_py
+    assert "    MAX_REWARD_UL,\n" in task_py and "RewardSize" in task_py
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task QuietWait in task.py,
     # OpenRigs.Core QuietWait.SettingsProblems at Go).
     assert not re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) and "QuietWait.SettingsProblems" in logic
@@ -302,7 +315,7 @@ def test_the_constants_are_the_c_sharp_s():
 
 
 def test_a_reward_over_the_cap_is_refused():
-    from open_rigs.rigs.lab_rig import MAX_REWARD_UL
+    from open_rigs.core.task import MAX_REWARD_UL
 
     _with(stage={"rewardSizeUl": MAX_REWARD_UL})
     with pytest.raises(ValidationError, match="less than or equal to 20"):
@@ -344,9 +357,10 @@ def test_reward_size_says_the_calibration_plans_its_pulses():
 
 def test_the_stimulus_never_outlasts_the_response_window():
     from ucl_open_coen_dome_decision_making.task import TrialStructure
-    TrialStructure(stimulusSeconds=1.5, responseDelaySeconds=0, responseWindowSeconds=1.5)
+    iti = {"itiMinSeconds": 3.4, "itiMaxSeconds": 4.4}
+    TrialStructure(**iti, stimulusSeconds=1.5, responseDelaySeconds=0, responseWindowSeconds=1.5)
     with pytest.raises(ValidationError, match="stimulus_seconds"):
-        TrialStructure(stimulusSeconds=2.0, responseDelaySeconds=0, responseWindowSeconds=1.5)
+        TrialStructure(**iti, stimulusSeconds=2.0, responseDelaySeconds=0, responseWindowSeconds=1.5)
 
 
 def test_the_stimulus_is_off_before_the_next_one_starts():
