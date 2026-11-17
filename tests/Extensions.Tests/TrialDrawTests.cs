@@ -361,7 +361,7 @@ public class TrialDrawTests
     public void TheStageIsCheckedAtGoBeforeTheFirstTrial()
     {
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(Fixture.Task("task-localization.yml"), 5, Fixture.Speakers())), "rows 0 to 4");
-        Assert.AreEqual(Fixture.Task("task-discrimination-left-right.yml").TrainingStages[4].RewardSizeUl, TrialDraw.CheckTask(Fixture.Task("task-discrimination-left-right.yml"), 4, Fixture.Speakers()).RewardSizeUl);
+        Assert.AreEqual(Fixture.Task("task-discrimination-left-right.yml").TrainingStages[4].Label, TrialDraw.CheckTask(Fixture.Task("task-discrimination-left-right.yml"), 4, Fixture.Speakers()).Label);
     }
 
     [TestMethod]
@@ -451,12 +451,12 @@ public class TrialDrawTests
         var task = Fixture.Task("task-localization.yml");
         task.Reward.LargeRewardProbability = 0.2;
         task.Reward.LargeRewardMultiplier = 3;
-        task.TrainingStages[4].RewardSizeUl = 8;
+        task.Reward.RewardSizeUl = 8;
         var refusal = Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers()));
-        StringAssert.Contains(refusal, "stage 4 rewardSizeUl (8 ul) x reward.largeRewardMultiplier (3) is 24 ul, more than 20 ul");
-        task.TrainingStages[4].RewardSizeUl = OpenRigs.Core.LoadRewardLine.DefaultMaxRewardUl / 3;
+        StringAssert.Contains(refusal, "reward.rewardSizeUl (8 ul) x reward.largeRewardMultiplier (3) is 24 ul, more than 20 ul");
+        task.Reward.RewardSizeUl = OpenRigs.Core.LoadRewardLine.DefaultMaxRewardUl / 3;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
-        task.TrainingStages[4].RewardSizeUl = 8;
+        task.Reward.RewardSizeUl = 8;
         task.Reward.LargeRewardProbability = 0;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
     }
@@ -479,17 +479,17 @@ public class TrialDrawTests
     public void TheQuietWaitsAreRefusedNegativeOrHalfSet()
     {
         var task = Fixture.Task("task-localization.yml");
-        task.TrainingStages[4].WheelQuietSeconds = 1;
+        task.TrialStructure.WheelQuietSeconds = 1;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "are both above 0 (the wheel's quiet wait) or both 0 (off)");
-        task.TrainingStages[4].WheelQuietCm = 2;
+        task.TrialStructure.WheelQuietCm = 2;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())));
-        task.TrainingStages[4].LickQuietSeconds = -1;
-        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds is -1, not from 0 to 10 s");
+        task.TrialStructure.LickQuietSeconds = -1;
+        StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "trialStructure.lickQuietSeconds is -1, not from 0 to 10 s");
         // A NaN or infinite time would hold the trial start for ever, with no error.
-        task.TrainingStages[4].LickQuietSeconds = double.PositiveInfinity;
+        task.TrialStructure.LickQuietSeconds = double.PositiveInfinity;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "lickQuietSeconds is ");
         task = Fixture.Task("task-localization.yml");
-        task.TrainingStages[4].WheelQuietSeconds = double.NaN;
+        task.TrialStructure.WheelQuietSeconds = double.NaN;
         StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "wheelQuietSeconds is NaN, not from 0 to 10 s");
         task = Fixture.Task("task-localization.yml");
         task.TrialStructure.ItiMaxSeconds = double.PositiveInfinity;
@@ -508,7 +508,7 @@ public class TrialDrawTests
     [TestMethod]
     public void AQuietWaitAboveItsMaximumIsRefusedAtGo()
     {
-        var cases = new Dictionary<string, Action<TrainingStage>>
+        var cases = new Dictionary<string, Action<TrialStructure>>
         {
             { "lickQuietSeconds is 10.5, not from 0 to 10 s", s => s.LickQuietSeconds = 10.5 },
             { "wheelQuietSeconds is 11, not from 0 to 10 s", s => { s.WheelQuietSeconds = 11; s.WheelQuietCm = 1; } },
@@ -517,13 +517,13 @@ public class TrialDrawTests
         foreach (var c in cases)
         {
             var task = Fixture.Task("task-localization.yml");
-            c.Value(task.TrainingStages[4]);
-            StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), c.Key);
+            c.Value(task.TrialStructure);
+            StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(task, 4, Fixture.Speakers())), "trialStructure." + c.Key);
         }
         var atMax = Fixture.Task("task-localization.yml");
-        atMax.TrainingStages[4].LickQuietSeconds = 10;
-        atMax.TrainingStages[4].WheelQuietSeconds = 10;
-        atMax.TrainingStages[4].WheelQuietCm = 20;
+        atMax.TrialStructure.LickQuietSeconds = 10;
+        atMax.TrialStructure.WheelQuietSeconds = 10;
+        atMax.TrialStructure.WheelQuietCm = 20;
         Assert.AreEqual("accepted", Fixture.Refusal(() => TrialDraw.CheckTask(atMax, 4, Fixture.Speakers())));
     }
 

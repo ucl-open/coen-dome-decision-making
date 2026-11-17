@@ -17,6 +17,9 @@ taskParameters:
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
     itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5). Stage 0: set both to 1.5 on the form
+    lickQuietSeconds: 0           # s with both spouts released before the trial start, from the interval's start (a held contact holds it); 0 off
+    wheelQuietSeconds: 0          # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
+    wheelQuietCm: 0               # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
     responseDelaySeconds: 0.0     # s, from stimulus onset to the response window; licks before it do not count
     responseWindowSeconds: 1.5    # s, the response window: NoResponse at its end
@@ -50,6 +53,7 @@ taskParameters:
       enabled: true
       levelDbfs: -44.6   # dBFS RMS: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
   reward:
+    rewardSizeUl: 3               # ul, planned from the valve's calibration
     largeRewardMultiplier: 1
     largeRewardProbability: 0.0
   repeats:
@@ -69,52 +73,32 @@ taskParameters:
       trialWeights: { left: 10, right: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 1.0
-      rewardSizeUl: 3      # ul, planned from the valve's calibration
       contrasts: [1.0]
       allowRepeats: false
-      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
-      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
       spoutMovements: false
     # Stage 1: left trials only, every miss auto-rewarded
     - label: Left Only
       trialWeights: { left: 10, right: 0, audiovisualCoherent: 0, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 1.0
       bothSpoutsProbability: 1.0
-      rewardSizeUl: 3
       contrasts: [1.0]
       allowRepeats: false
-      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
-      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     # Stage 2: right and coherent trials added
     - label: Right Added
       trialWeights: { left: 10, right: 10, audiovisualCoherent: 10, audiovisualConflict: 0, neutral: 0 }
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
-      rewardSizeUl: 3
       contrasts: [0.5, 1.0]
       allowRepeats: false
-      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
-      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     # Stage 3: conflict and neutral trials added: the task's trialWeights
     - label: Conflict Added
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
-      rewardSizeUl: 3
       contrasts: [0.5, 1.0]
       allowRepeats: false
-      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
-      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
     # Stage 4: as stage 3, wider contrasts (Gerion's default row)
     - label: Wide Contrasts
       autoRewardProbability: 0.0
       bothSpoutsProbability: 1.0
-      rewardSizeUl: 3
       contrasts: [0.5, 1.0, 2.0, 3.0]
       allowRepeats: false
-      lickQuietSeconds: 0  # s with both spouts released before the trial start (a held contact holds it); 0 off
-      wheelQuietSeconds: 0 # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
-      wheelQuietCm: 0      # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds

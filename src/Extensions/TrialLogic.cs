@@ -200,9 +200,10 @@ public class TrialDraw
         finite("trialStructure.stimulusSeconds", structure.StimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
-        // The quiet waits, the lab's one check (OpenRigs.Core QuietWait: finite, 0 or more, at most 10 s and 20 cm, the
+        // The quiet waits, the lab's one check each (OpenRigs.Core QuietWait: finite, 0 or more, at most 10 s and 20 cm, the
         // wheel's pair both set or both 0): a long wait and a licking mouse would hold the trial start with no message.
-        foreach (var p in QuietWait.SettingsProblems(stage.LickQuietSeconds, stage.WheelQuietSeconds, stage.WheelQuietCm)) problems.Add(who + ": " + p);
+        foreach (var p in QuietWait.LickProblems(structure.LickQuietSeconds)) problems.Add("trialStructure." + p);
+        foreach (var p in QuietWait.WheelProblems(structure.WheelQuietSeconds, structure.WheelQuietCm)) problems.Add("trialStructure." + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.Enabled) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         if (structure.StimulusSeconds > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds) problems.Add("trialStructure.stimulusSeconds is longer than responseDelaySeconds plus responseWindowSeconds");
@@ -222,10 +223,10 @@ public class TrialDraw
             problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (responseDelaySeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
         }
         // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
-        var multiplier = task.Reward.LargeRewardMultiplier;
-        if (task.Reward.LargeRewardProbability > 0 && multiplier > 1 && stage.RewardSizeUl * multiplier > LoadRewardLine.DefaultMaxRewardUl + 1e-9)
+        var reward = task.Reward;
+        if (reward.LargeRewardProbability > 0 && reward.LargeRewardMultiplier > 1 && reward.RewardSizeUl * reward.LargeRewardMultiplier > LoadRewardLine.DefaultMaxRewardUl + 1e-9)
         {
-            problems.Add(string.Format("{0} rewardSizeUl ({1} ul) x reward.largeRewardMultiplier ({2}) is {3} ul, more than {4} ul, the most one reward may ask for", who, stage.RewardSizeUl, multiplier, stage.RewardSizeUl * multiplier, LoadRewardLine.DefaultMaxRewardUl));
+            problems.Add(string.Format("reward.rewardSizeUl ({0} ul) x reward.largeRewardMultiplier ({1}) is {2} ul, more than {3} ul, the most one reward may ask for", reward.RewardSizeUl, reward.LargeRewardMultiplier, reward.RewardSizeUl * reward.LargeRewardMultiplier, LoadRewardLine.DefaultMaxRewardUl));
         }
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
     }
@@ -392,7 +393,7 @@ public class TrialDraw
         trial.spoutMovements = stage.SpoutMovements;
         trial.bothSpouts = random.NextDouble() < stage.BothSpoutsProbability;
         var large = random.NextDouble() < task.Reward.LargeRewardProbability;
-        trial.rewardOfferedUl = large ? stage.RewardSizeUl * task.Reward.LargeRewardMultiplier : stage.RewardSizeUl;
+        trial.rewardOfferedUl = large ? task.Reward.RewardSizeUl * task.Reward.LargeRewardMultiplier : task.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
         string type = TypeNames[WeightedType()];
@@ -644,9 +645,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         {
             ItiSeconds = trial.itiSeconds,
             LaserToStimulusSeconds = task.Optogenetics.LaserToStimulusSeconds,   // its lead in every experiment, so timing never reveals Zapit
-            LickQuietSeconds = stage.LickQuietSeconds,
-            WheelQuietSeconds = stage.WheelQuietSeconds,
-            WheelQuietCm = stage.WheelQuietCm,
+            LickQuietSeconds = structure.LickQuietSeconds,
+            WheelQuietSeconds = structure.WheelQuietSeconds,
+            WheelQuietCm = structure.WheelQuietCm,
             Laser = trial.laserCondition > 0,                                    // every trial of an optogenetics experiment, laser on or off
             ResponseDelaySeconds = structure.ResponseDelaySeconds,
             ResponseWindowSeconds = structure.ResponseWindowSeconds.Value,     // never null: the Go check refuses it

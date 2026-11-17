@@ -280,22 +280,31 @@ def test_the_interval_is_at_least_the_drink():
         _with(structure={"drinkSeconds": 1.6})
 
 
-def test_the_quiet_waits_are_per_stage_off_by_default_and_refused_negative_or_half_set():
+def test_the_quiet_waits_are_the_task_s_off_and_refused_negative_or_half_set():
     for path in TASK_FILES:
-        for stage in yaml.safe_load(path.read_text())["taskParameters"]["trainingStages"]:
-            assert (stage["lickQuietSeconds"], stage["wheelQuietSeconds"], stage["wheelQuietCm"]) == (0, 0, 0)
-    _with(stage={"lickQuietSeconds": 1.0, "wheelQuietSeconds": 1.0, "wheelQuietCm": 2.0})
+        structure = yaml.safe_load(path.read_text())["taskParameters"]["trialStructure"]
+        assert (structure["lickQuietSeconds"], structure["wheelQuietSeconds"], structure["wheelQuietCm"]) == (0, 0, 0)
+    _with(structure={"lickQuietSeconds": 1.0, "wheelQuietSeconds": 1.0, "wheelQuietCm": 2.0})
     for bad in ({"lickQuietSeconds": -1}, {"wheelQuietSeconds": 1.0}, {"wheelQuietCm": 2.0}):
         with pytest.raises(ValidationError):
-            _with(stage=bad)
+            _with(structure=bad)
 
 
-@pytest.mark.parametrize("stage", [{"lickQuietSeconds": 10.5}, {"wheelQuietSeconds": 10.5, "wheelQuietCm": 1.0}, {"wheelQuietSeconds": 1.0, "wheelQuietCm": 20.5}])
-def test_a_quiet_wait_above_its_maximum_is_refused(stage):
+@pytest.mark.parametrize("structure", [{"lickQuietSeconds": 10.5}, {"wheelQuietSeconds": 10.5, "wheelQuietCm": 1.0}, {"wheelQuietSeconds": 1.0, "wheelQuietCm": 20.5}])
+def test_a_quiet_wait_above_its_maximum_is_refused(structure):
     # A long wait and a licking mouse would hold the trial start with no message. TrialDraw.CheckTask refuses it at Go too.
-    _with(stage={"lickQuietSeconds": 10.0, "wheelQuietSeconds": 10.0, "wheelQuietCm": 20.0})
+    _with(structure={"lickQuietSeconds": 10.0, "wheelQuietSeconds": 10.0, "wheelQuietCm": 20.0})
     with pytest.raises(ValidationError, match="less than or equal to"):
-        _with(stage=stage)
+        _with(structure=structure)
+
+
+def test_a_stage_field_is_one_some_stage_changes():
+    # Pip: "if it isn't chosen to be part of pipeline, then it should just be a global param like everything else".
+    # Every stage field but label takes two values or more over the stages of the three task files.
+    stages = [s for path in TASK_FILES for s in UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(
+        yaml.safe_load(path.read_text())["taskParameters"]).model_dump(by_alias=True)["trainingStages"]]
+    fixed = [key for key in stages[0] if key != "label" and len({repr(s[key]) for s in stages}) == 1]
+    assert fixed == [], f"the same in every stage, so task-level: {fixed}"
 
 
 def test_the_constants_are_the_c_sharp_s():
@@ -308,30 +317,33 @@ def test_the_constants_are_the_c_sharp_s():
     assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS" in task_py
     assert "check_zapit_free_in_time" in task_py
     assert "    MAX_REWARD_UL,\n" in task_py and "RewardSize" in task_py
-    # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task QuietWait in task.py,
-    # OpenRigs.Core QuietWait.SettingsProblems at Go).
-    assert not re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) and "QuietWait.SettingsProblems" in logic
+    # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task LickQuietWait and
+    # WheelQuietWait in task.py, OpenRigs.Core QuietWait.LickProblems and WheelProblems at Go).
+    assert not re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) and "QuietWait.LickProblems" in logic and "QuietWait.WheelProblems" in logic
     assert "ZapitConditions.MaximumRampDownSeconds" in logic
 
 
 def test_a_reward_over_the_cap_is_refused():
     from open_rigs.core.task import MAX_REWARD_UL
 
-    _with(stage={"rewardSizeUl": MAX_REWARD_UL})
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
+    data["reward"]["rewardSizeUl"] = MAX_REWARD_UL
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    data["reward"]["rewardSizeUl"] = MAX_REWARD_UL + 1
     with pytest.raises(ValidationError, match="less than or equal to 20"):
-        _with(stage={"rewardSizeUl": MAX_REWARD_UL + 1})
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 def test_a_large_reward_over_the_cap_is_refused():
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     data["reward"].update({"largeRewardMultiplier": 3, "largeRewardProbability": 0.1})
-    data["trainingStages"][0]["rewardSizeUl"] = 7
-    with pytest.raises(ValidationError, match=r"reward_size_ul \(7.0 ul\) x reward.large_reward_multiplier \(3.0\) is more than 20 ul"):
+    data["reward"]["rewardSizeUl"] = 7
+    with pytest.raises(ValidationError, match=r"reward.reward_size_ul \(7.0 ul\) x reward.large_reward_multiplier \(3.0\) is more than 20 ul"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
-    data["trainingStages"][0]["rewardSizeUl"] = 6
+    data["reward"]["rewardSizeUl"] = 6
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
     data["reward"]["largeRewardProbability"] = 0
-    data["trainingStages"][0]["rewardSizeUl"] = 7
+    data["reward"]["rewardSizeUl"] = 7
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
@@ -351,8 +363,8 @@ def test_the_modalities_are_visual_or_auditory():
             UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, key: "smell"})
 
 def test_reward_size_says_the_calibration_plans_its_pulses():
-    from ucl_open_coen_dome_decision_making.task import TrainingStage
-    assert "calibration" in TrainingStage.model_fields["reward_size_ul"].description
+    from ucl_open_coen_dome_decision_making.task import RewardSettings
+    assert "calibration" in RewardSettings.model_fields["reward_size_ul"].description
 
 
 def test_the_stimulus_never_outlasts_the_response_window():
@@ -465,7 +477,7 @@ def test_training_stage_s_maximum_is_the_task_file_s_last_row(path):
 
 
 @pytest.mark.parametrize("where, key, value", [
-    (("response",), "thresholdLicks", 0), (("repeats",), "maxRepeats", -1), (("trainingStages", 0), "rewardSizeUl", 0)])
+    (("response",), "thresholdLicks", 0), (("repeats",), "maxRepeats", -1), (("reward",), "rewardSizeUl", 0)])
 def test_the_bounds_hold_with_the_lab_s_types(where, key, value):
     # Open_rigs' Int carried its own range, which dropped thresholdLicks' ge=1 and maxRepeats' ge=0; a reward
     # is above 0, as navigation's.

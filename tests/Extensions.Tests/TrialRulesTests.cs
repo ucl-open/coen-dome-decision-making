@@ -374,7 +374,7 @@ public class TrialStartTests
         return new Harness(Rules.Make(t =>
         {
             t.Optogenetics.LaserToStimulusSeconds = lead;
-            var s = t.TrainingStages[4];
+            var s = t.TrialStructure;
             s.LickQuietSeconds = lick;
             s.WheelQuietSeconds = wheelSeconds;
             s.WheelQuietCm = wheelCm;

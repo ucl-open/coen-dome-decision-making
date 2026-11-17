@@ -104,7 +104,7 @@
           "type": "number"
         },
         "laserToStimulusSeconds": {
-          "description": "Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the stage's quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits",
+          "description": "Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits",
           "title": "LaserToStimulusSeconds",
           "type": "number"
         },
@@ -249,8 +249,15 @@
       "type": "object"
     },
     "RewardSettings": {
-      "description": "Reward delivery parameters; per-stage reward size lives in the training stage table.",
+      "description": "Reward delivery: the reward size (the lab's RewardSize block) and the large-reward trials.",
       "properties": {
+        "rewardSizeUl": {
+          "description": "Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "title": "RewardSizeUl",
+          "type": "number"
+        },
         "largeRewardMultiplier": {
           "default": 1.0,
           "description": "Reward size multiplier applied on large-reward trials",
@@ -267,6 +274,9 @@
           "type": "number"
         }
       },
+      "required": [
+        "rewardSizeUl"
+      ],
       "title": "RewardSettings",
       "type": "object"
     },
@@ -313,44 +323,13 @@
       "type": "string"
     },
     "TrainingStage": {
-      "description": "One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size\nthe lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,\nand is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL.",
+      "description": "One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is\ntask-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the\ntarget spout, and is still a NoResponse for repeats.",
       "properties": {
-        "rewardSizeUl": {
-          "description": "Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for",
-          "exclusiveMinimum": 0,
-          "maximum": 20,
-          "title": "RewardSizeUl",
-          "type": "number"
-        },
         "autoRewardProbability": {
           "description": "Probability that a trial is an auto-reward trial, rewarded without a correct response (how is the task's); 0: never, 1: every trial",
           "maximum": 1,
           "minimum": 0,
           "title": "AutoRewardProbability",
-          "type": "number"
-        },
-        "lickQuietSeconds": {
-          "default": 0.0,
-          "description": "Quiet wait: a trial's start needs this long with every spout released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds the trial's start until released, so licks for the last reward cannot carry into the next trial; 0: off; at most 10 s. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
-          "maximum": 10,
-          "minimum": 0,
-          "title": "LickQuietSeconds",
-          "type": "number"
-        },
-        "wheelQuietSeconds": {
-          "default": 0.0,
-          "description": "Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0); at most 10 s",
-          "maximum": 10,
-          "minimum": 0,
-          "title": "WheelQuietSeconds",
-          "type": "number"
-        },
-        "wheelQuietCm": {
-          "default": 0.0,
-          "description": "The most the wheel may move, forward and back added, within the last wheelQuietSeconds before the trial's start, in cm; 0: off (with wheelQuietSeconds 0); at most 20 cm",
-          "maximum": 20,
-          "minimum": 0,
-          "title": "WheelQuietCm",
           "type": "number"
         },
         "label": {
@@ -404,7 +383,6 @@
         }
       },
       "required": [
-        "rewardSizeUl",
         "autoRewardProbability",
         "bothSpoutsProbability",
         "contrasts",
@@ -414,8 +392,32 @@
       "type": "object"
     },
     "TrialStructure": {
-      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the\nresponse window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
+      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can\nonly lengthen it. A lick first counts responseDelaySeconds after stimulus onset, where the\nresponse window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
       "properties": {
+        "wheelQuietSeconds": {
+          "default": 0.0,
+          "description": "Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0); at most 10 s",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "WheelQuietSeconds",
+          "type": "number"
+        },
+        "wheelQuietCm": {
+          "default": 0.0,
+          "description": "The most the wheel may move, forward and back added, within the last wheelQuietSeconds before the trial's start, in cm; 0: off (with wheelQuietSeconds 0); at most 20 cm",
+          "maximum": 20,
+          "minimum": 0,
+          "title": "WheelQuietCm",
+          "type": "number"
+        },
+        "lickQuietSeconds": {
+          "default": 0.0,
+          "description": "Quiet wait: a trial's start needs this long with every spout released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds the trial's start until released, so licks for the last reward cannot carry into the next trial; 0: off; at most 10 s. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "LickQuietSeconds",
+          "type": "number"
+        },
         "responseWindowSeconds": {
           "anyOf": [
             {
@@ -431,7 +433,7 @@
           "title": "ResponseWindowSeconds"
         },
         "itiMinSeconds": {
-          "description": "Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds; the stage's quiet waits can only lengthen it (quietWaitSeconds)",
+          "description": "Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds; the quiet waits can only lengthen it (quietWaitSeconds)",
           "minimum": 0,
           "title": "ItiMinSeconds",
           "type": "number"

@@ -9,15 +9,16 @@ from open_rigs.core.task import (
     AutoReward,
     BackgroundNoise,
     Iti,
+    LickQuietWait,
     Optogenetics,
     Penalty,
-    QuietWait,
     ResponseWindow,
     RewardSize,
     StimulusSound,
     Task,
     TaskBlock,
     TaskParameters,
+    WheelQuietWait,
 )
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
 from pydantic import ConfigDict, Field, field_validator, model_validator
@@ -26,10 +27,11 @@ from ucl_open_coen_dome_decision_making import __semver__
 
 
 
-class TrialStructure(Iti, ResponseWindow):
+class TrialStructure(Iti, ResponseWindow, LickQuietWait, WheelQuietWait):
     """Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
     (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
-    so itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the
+    so itiMinSeconds is at least drinkSeconds; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can
+    only lengthen it. A lick first counts responseDelaySeconds after stimulus onset, where the
     response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused."""
 
     drink_seconds: Double = Field(default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval")
@@ -114,8 +116,8 @@ class AuditoryStimulus(StimulusSound):
         return value
 
 
-class RewardSettings(TaskBlock):
-    """Reward delivery parameters; per-stage reward size lives in the training stage table."""
+class RewardSettings(RewardSize):
+    """Reward delivery: the reward size (the lab's RewardSize block) and the large-reward trials."""
 
     large_reward_multiplier: Double = Field(default=1.0, ge=0, description="Reward size multiplier applied on large-reward trials")
     large_reward_probability: Double = Field(default=0.0, ge=0, le=1, description="Probability that a trial is a large-reward trial")
@@ -228,10 +230,10 @@ class OptogeneticsSettings(Optogenetics):
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
 
 
-class TrainingStage(QuietWait, AutoReward, RewardSize):
-    """One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size
-    the lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,
-    and is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL."""
+class TrainingStage(AutoReward):
+    """One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is
+    task-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the
+    target spout, and is still a NoResponse for repeats."""
 
     label: String | None = Field(default=None, description="The stage's name, shown on Setup after its number")
     trial_weights: TrialTypeWeights | None = Field(
@@ -351,14 +353,12 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters):
     @model_validator(mode="after")
     def _large_reward_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # A RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session; refuse it here instead.
-        multiplier = self.reward.large_reward_multiplier
-        if self.reward.large_reward_probability > 0 and multiplier > 1:
-            for index, stage in enumerate(self.training_stages):
-                if stage.reward_size_ul * multiplier > MAX_REWARD_UL + 1e-9:
-                    raise ValueError(
-                        f"training_stages[{index}]: reward_size_ul ({stage.reward_size_ul} ul) x reward.large_reward_multiplier "
-                        f"({multiplier}) is more than {MAX_REWARD_UL} ul, the most one reward may ask for"
-                    )
+        reward = self.reward
+        if reward.large_reward_probability > 0 and reward.large_reward_multiplier > 1 and reward.reward_size_ul * reward.large_reward_multiplier > MAX_REWARD_UL + 1e-9:
+            raise ValueError(
+                f"reward.reward_size_ul ({reward.reward_size_ul} ul) x reward.large_reward_multiplier "
+                f"({reward.large_reward_multiplier}) is more than {MAX_REWARD_UL} ul, the most one reward may ask for"
+            )
         return self
 
 

@@ -464,11 +464,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the stage's quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits
+        /// Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserToStimulusSeconds", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserToStimulusSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the stage's quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits")]
+        [System.ComponentModel.DescriptionAttribute(@"Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits")]
         public double LaserToStimulusSeconds
         {
             get
@@ -985,15 +985,17 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Reward delivery parameters; per-stage reward size lives in the training stage table.
+    /// Reward delivery: the reward size (the lab's RewardSize block) and the large-reward trials.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Reward delivery parameters; per-stage reward size lives in the training stage tab" +
-        "le.")]
+    [System.ComponentModel.DescriptionAttribute("Reward delivery: the reward size (the lab\'s RewardSize block) and the large-rewar" +
+        "d trials.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class RewardSettings
     {
+    
+        private double _rewardSizeUl;
     
         private double _largeRewardMultiplier;
     
@@ -1007,8 +1009,28 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected RewardSettings(RewardSettings other)
         {
+            _rewardSizeUl = other._rewardSizeUl;
             _largeRewardMultiplier = other._largeRewardMultiplier;
             _largeRewardProbability = other._largeRewardProbability;
+        }
+    
+        /// <summary>
+        /// Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("rewardSizeUl", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="rewardSizeUl")]
+        [System.ComponentModel.DescriptionAttribute("Reward size, in microlitres, planned into valve pulses from the valve\'s calibrati" +
+            "on; at most 20, the most one reward may ask for")]
+        public double RewardSizeUl
+        {
+            get
+            {
+                return _rewardSizeUl;
+            }
+            set
+            {
+                _rewardSizeUl = value;
+            }
         }
     
         /// <summary>
@@ -1059,6 +1081,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
+            stringBuilder.Append("RewardSizeUl = " + _rewardSizeUl + ", ");
             stringBuilder.Append("LargeRewardMultiplier = " + _largeRewardMultiplier + ", ");
             stringBuilder.Append("LargeRewardProbability = " + _largeRewardProbability);
             return true;
@@ -1217,28 +1240,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size
-    ///the lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,
-    ///and is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL.
+    /// One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is
+    ///task-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the
+    ///target spout, and is still a NoResponse for repeats.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"One row of the training stage table, chosen by the TrainingStage parameter; its quiet waits, auto-reward and reward size
-    the lab's (open_rigs.core.task QuietWait, AutoReward, RewardSize). An auto-reward trial's miss is rewarded at the target spout,
-    and is still a NoResponse for repeats. rewardSizeUl with largeRewardMultiplier applied is at most the lab's MAX_REWARD_UL.")]
+    [System.ComponentModel.DescriptionAttribute(@"One row of the training stage table, chosen by the TrainingStage parameter: only what some stage changes (the rest is
+    task-level); its auto-reward the lab's (open_rigs.core.task AutoReward). An auto-reward trial's miss is rewarded at the
+    target spout, and is still a NoResponse for repeats.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrainingStage
     {
     
-        private double _rewardSizeUl;
-    
         private double _autoRewardProbability;
-    
-        private double _lickQuietSeconds;
-    
-        private double _wheelQuietSeconds;
-    
-        private double _wheelQuietCm;
     
         private string _label;
     
@@ -1254,45 +1269,19 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         public TrainingStage()
         {
-            _lickQuietSeconds = 0D;
-            _wheelQuietSeconds = 0D;
-            _wheelQuietCm = 0D;
             _contrasts = new System.Collections.Generic.List<double>();
             _spoutMovements = true;
         }
     
         protected TrainingStage(TrainingStage other)
         {
-            _rewardSizeUl = other._rewardSizeUl;
             _autoRewardProbability = other._autoRewardProbability;
-            _lickQuietSeconds = other._lickQuietSeconds;
-            _wheelQuietSeconds = other._wheelQuietSeconds;
-            _wheelQuietCm = other._wheelQuietCm;
             _label = other._label;
             _trialWeights = other._trialWeights;
             _bothSpoutsProbability = other._bothSpoutsProbability;
             _contrasts = other._contrasts;
             _allowRepeats = other._allowRepeats;
             _spoutMovements = other._spoutMovements;
-        }
-    
-        /// <summary>
-        /// Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("rewardSizeUl", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="rewardSizeUl")]
-        [System.ComponentModel.DescriptionAttribute("Reward size, in microlitres, planned into valve pulses from the valve\'s calibrati" +
-            "on; at most 20, the most one reward may ask for")]
-        public double RewardSizeUl
-        {
-            get
-            {
-                return _rewardSizeUl;
-            }
-            set
-            {
-                _rewardSizeUl = value;
-            }
         }
     
         /// <summary>
@@ -1311,62 +1300,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _autoRewardProbability = value;
-            }
-        }
-    
-        /// <summary>
-        /// Quiet wait: a trial's start needs this long with every spout released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds the trial's start until released, so licks for the last reward cannot carry into the next trial; 0: off; at most 10 s. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("lickQuietSeconds")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="lickQuietSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"Quiet wait: a trial's start needs this long with every spout released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds the trial's start until released, so licks for the last reward cannot carry into the next trial; 0: off; at most 10 s. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)")]
-        public double LickQuietSeconds
-        {
-            get
-            {
-                return _lickQuietSeconds;
-            }
-            set
-            {
-                _lickQuietSeconds = value;
-            }
-        }
-    
-        /// <summary>
-        /// Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0); at most 10 s
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("wheelQuietSeconds")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="wheelQuietSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0); at most 10 s")]
-        public double WheelQuietSeconds
-        {
-            get
-            {
-                return _wheelQuietSeconds;
-            }
-            set
-            {
-                _wheelQuietSeconds = value;
-            }
-        }
-    
-        /// <summary>
-        /// The most the wheel may move, forward and back added, within the last wheelQuietSeconds before the trial's start, in cm; 0: off (with wheelQuietSeconds 0); at most 20 cm
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("wheelQuietCm")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="wheelQuietCm")]
-        [System.ComponentModel.DescriptionAttribute("The most the wheel may move, forward and back added, within the last wheelQuietSe" +
-            "conds before the trial\'s start, in cm; 0: off (with wheelQuietSeconds 0); at mos" +
-            "t 20 cm")]
-        public double WheelQuietCm
-        {
-            get
-            {
-                return _wheelQuietCm;
-            }
-            set
-            {
-                _wheelQuietCm = value;
             }
         }
     
@@ -1495,11 +1428,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("RewardSizeUl = " + _rewardSizeUl + ", ");
             stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
-            stringBuilder.Append("LickQuietSeconds = " + _lickQuietSeconds + ", ");
-            stringBuilder.Append("WheelQuietSeconds = " + _wheelQuietSeconds + ", ");
-            stringBuilder.Append("WheelQuietCm = " + _wheelQuietCm + ", ");
             stringBuilder.Append("Label = " + _label + ", ");
             stringBuilder.Append("TrialWeights = " + _trialWeights + ", ");
             stringBuilder.Append("BothSpoutsProbability = " + _bothSpoutsProbability + ", ");
@@ -1527,18 +1456,26 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// <summary>
     /// Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
     ///(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
-    ///so itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the
+    ///so itiMinSeconds is at least drinkSeconds; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can
+    ///only lengthen it. A lick first counts responseDelaySeconds after stimulus onset, where the
     ///response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
     (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,
-    so itiMinSeconds is at least drinkSeconds. A lick first counts responseDelaySeconds after stimulus onset, where the
+    so itiMinSeconds is at least drinkSeconds; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can
+    only lengthen it. A lick first counts responseDelaySeconds after stimulus onset, where the
     response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialStructure
     {
+    
+        private double _wheelQuietSeconds;
+    
+        private double _wheelQuietCm;
+    
+        private double _lickQuietSeconds;
     
         private double? _responseWindowSeconds;
     
@@ -1556,6 +1493,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         public TrialStructure()
         {
+            _wheelQuietSeconds = 0D;
+            _wheelQuietCm = 0D;
+            _lickQuietSeconds = 0D;
             _drinkSeconds = 2D;
             _responseDelaySeconds = 0D;
             _stimulusSeconds = 1.5D;
@@ -1564,6 +1504,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected TrialStructure(TrialStructure other)
         {
+            _wheelQuietSeconds = other._wheelQuietSeconds;
+            _wheelQuietCm = other._wheelQuietCm;
+            _lickQuietSeconds = other._lickQuietSeconds;
             _responseWindowSeconds = other._responseWindowSeconds;
             _itiMinSeconds = other._itiMinSeconds;
             _itiMaxSeconds = other._itiMaxSeconds;
@@ -1571,6 +1514,62 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _responseDelaySeconds = other._responseDelaySeconds;
             _stimulusSeconds = other._stimulusSeconds;
             _stimulusToSpoutsInSeconds = other._stimulusToSpoutsInSeconds;
+        }
+    
+        /// <summary>
+        /// Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0); at most 10 s
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("wheelQuietSeconds")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="wheelQuietSeconds")]
+        [System.ComponentModel.DescriptionAttribute(@"Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0); at most 10 s")]
+        public double WheelQuietSeconds
+        {
+            get
+            {
+                return _wheelQuietSeconds;
+            }
+            set
+            {
+                _wheelQuietSeconds = value;
+            }
+        }
+    
+        /// <summary>
+        /// The most the wheel may move, forward and back added, within the last wheelQuietSeconds before the trial's start, in cm; 0: off (with wheelQuietSeconds 0); at most 20 cm
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("wheelQuietCm")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="wheelQuietCm")]
+        [System.ComponentModel.DescriptionAttribute("The most the wheel may move, forward and back added, within the last wheelQuietSe" +
+            "conds before the trial\'s start, in cm; 0: off (with wheelQuietSeconds 0); at mos" +
+            "t 20 cm")]
+        public double WheelQuietCm
+        {
+            get
+            {
+                return _wheelQuietCm;
+            }
+            set
+            {
+                _wheelQuietCm = value;
+            }
+        }
+    
+        /// <summary>
+        /// Quiet wait: a trial's start needs this long with every spout released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds the trial's start until released, so licks for the last reward cannot carry into the next trial; 0: off; at most 10 s. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("lickQuietSeconds")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="lickQuietSeconds")]
+        [System.ComponentModel.DescriptionAttribute(@"Quiet wait: a trial's start needs this long with every spout released, in seconds, counted from the interval's start and restarted by every touch and release; a held contact (a paw or chin on a spout) holds the trial's start until released, so licks for the last reward cannot carry into the next trial; 0: off; at most 10 s. It lengthens the interval only when the mouse licks late in it (quietWaitSeconds)")]
+        public double LickQuietSeconds
+        {
+            get
+            {
+                return _lickQuietSeconds;
+            }
+            set
+            {
+                _lickQuietSeconds = value;
+            }
         }
     
         /// <summary>
@@ -1594,12 +1593,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds; the stage's quiet waits can only lengthen it (quietWaitSeconds)
+        /// Lower bound of the inter-trial interval, drawn uniformly for every trial, in seconds; the quiet waits can only lengthen it (quietWaitSeconds)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("itiMinSeconds", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="itiMinSeconds")]
         [System.ComponentModel.DescriptionAttribute("Lower bound of the inter-trial interval, drawn uniformly for every trial, in seco" +
-            "nds; the stage\'s quiet waits can only lengthen it (quietWaitSeconds)")]
+            "nds; the quiet waits can only lengthen it (quietWaitSeconds)")]
         public double ItiMinSeconds
         {
             get
@@ -1718,6 +1717,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
+            stringBuilder.Append("WheelQuietSeconds = " + _wheelQuietSeconds + ", ");
+            stringBuilder.Append("WheelQuietCm = " + _wheelQuietCm + ", ");
+            stringBuilder.Append("LickQuietSeconds = " + _lickQuietSeconds + ", ");
             stringBuilder.Append("ResponseWindowSeconds = " + _responseWindowSeconds + ", ");
             stringBuilder.Append("ItiMinSeconds = " + _itiMinSeconds + ", ");
             stringBuilder.Append("ItiMaxSeconds = " + _itiMaxSeconds + ", ");
