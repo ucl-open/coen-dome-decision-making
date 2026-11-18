@@ -1,5 +1,6 @@
 import copy
 import json
+import math
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
@@ -306,8 +307,16 @@ def _options(base: dict, values: dict[str, Any], path) -> list:
 def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[str]] = ()) -> list[dict[str, Any]]:
     """Every combination of a condition: each pairs group's lists zipped (equal lengths), then by path each other list cell
     of its set and every list field (LIST_FIELDS, the set's or the task's list) one pick, all combined as a product, the
-    first cell's pick changing fastest (TrialDraw.BuildConditions' order, whose index is the trialCombination column). A
-    list field's entry is a one-entry list, so the draw's chances are those of picking each list's entry per trial."""
+    first cell's pick changing fastest (TrialDraw.BuildConditions' order: Settings_Combinations' rows, conditions in turn).
+    A list field's entry is a one-entry list, so the draw's chances are those of picking each list's entry per trial.
+
+    The C# draw is the rule the rig runs; this copy stays only for the task model's validation and for the test that holds
+    the C#'s Settings_Combinations equal to it (tests/test_combinations.py)."""
+    return _product(_cells(base, values, pairs))
+
+
+def _cells(base: dict, values: dict[str, Any], pairs) -> list[tuple[tuple[str, ...], list[tuple]]]:
+    # A condition's cells (each pairs group, then each other path), each with its picks; none empty.
     cells: list[tuple[tuple[str, ...], list[tuple]]] = []
     paired = [path for group in pairs for path in group]
     for group in pairs:
@@ -316,10 +325,15 @@ def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[
             raise ValueError(f"pairs {group} have lists of lengths {', '.join(str(len(options)) for options in lists)}; paired lists must be equally long")
         cells.append((tuple(group), list(zip(*lists))))
     cells += [((path,), [(option,) for option in _options(base, values, path)]) for path in sorted({*values, *LIST_FIELDS} - {*paired})]
-    combos: list[dict[str, Any]] = [{}]
     for paths, options in cells:
         if not options:
             raise ValueError(f"{', '.join(paths)} is an empty list")
+    return cells
+
+
+def _product(cells) -> list[dict[str, Any]]:
+    combos: list[dict[str, Any]] = [{}]
+    for paths, options in cells:
         combos = [{**combo, **dict(zip(paths, option))} for option in options for combo in combos]
     return combos
 
@@ -502,13 +516,15 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     def _combinations(self, base: dict, condition: TrialCondition, where) -> list[dict]:
         """A condition's combinations as tasks' values (by alias, as JSON), each checked as a task."""
         try:
-            combos = condition_combinations(base, condition.set, condition.pairs)
+            cells = _cells(base, condition.set, condition.pairs)
         except ValueError as e:
             raise ValueError(f"{where}: {e}") from None
-        if len(combos) > conditions.MAX_COMBINATIONS:
-            raise ValueError(f"{where} expands into {len(combos)} combinations, more than {conditions.MAX_COMBINATIONS} (x-max-combinations)")
+        # Counted before any is built, as TrialDraw.BuildConditions does, so an oversized condition is refused at once.
+        count = math.prod(len(options) for _, options in cells)
+        if count > conditions.MAX_COMBINATIONS:
+            raise ValueError(f"{where} expands into {count} combinations, more than {conditions.MAX_COMBINATIONS} (x-max-combinations)")
         tasks = []
-        for combo in combos:
+        for combo in _product(cells):
             data = copy.deepcopy(base)
             for path, value in combo.items():
                 _put(data, path, value)

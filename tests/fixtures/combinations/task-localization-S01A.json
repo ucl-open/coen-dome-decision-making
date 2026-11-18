@@ -1,0 +1,24 @@
+{
+  "rows": [
+    {
+      "trialCombinationId": 0,
+      "trialCondition": 0,
+      "trialType": "audiovisualCoherent",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 1,
+      "trialCondition": 0,
+      "trialType": "audiovisualCoherent",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    }
+  ]
+}

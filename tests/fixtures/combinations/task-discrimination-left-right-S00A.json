@@ -1,0 +1,48 @@
+{
+  "rows": [
+    {
+      "trialCombinationId": 0,
+      "trialCondition": 0,
+      "trialType": "left",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 1,
+      "trialCondition": 0,
+      "trialType": "left",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 2,
+      "trialCondition": 0,
+      "trialType": "left",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 3,
+      "trialCondition": 0,
+      "trialType": "left",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    }
+  ]
+}

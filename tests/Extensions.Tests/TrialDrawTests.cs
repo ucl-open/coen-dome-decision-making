@@ -898,6 +898,9 @@ public class TrialConditionTests
         Func<TrialCondition, string> refusal = c => Refused(With(c));
         Assert.AreEqual("accepted", refusal(Fixture.Condition("visual", 1, "trialStructure.itiMinSeconds", 4.0, "visualStimulus.orientationDeg", Fixture.List(0.0, 90.0))));
         StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "backgroundNoise.levelDbfs", -40.0)), "sets or pairs backgroundNoise.levelDbfs, a session field (x-session-fields: backgroundNoise)");
+        // A set path that holds a session field (a map set whole) is refused as the field itself is.
+        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "penalty.sound", new Dictionary<object, object> { { "enabled", true }, { "levelDbfs", -40.0 } })),
+            "sets or pairs penalty.sound, a session field (x-session-fields: penalty.sound.levelDbfs)");
         StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "colour.red", 1.0)), "sets or pairs colour.red, which is not a task field");
         StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "optogenetics.laserOnProbability", 1.0)), "sets optogenetics.laserOnProbability with optogenetics off");
         StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "reward.rewardSizeUl", 99.0)), ": reward.rewardSizeUl must be above 0 and at most");

@@ -1,0 +1,316 @@
+{
+  "rows": [
+    {
+      "trialCombinationId": 0,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.5,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 1,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.5,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 2,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 1.0,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 3,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 1.0,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 4,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.5,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 5,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.5,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 6,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 1.0,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 7,
+      "trialCondition": 0,
+      "trialType": "go",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 1.0,
+        "target": "go",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 8,
+      "trialCondition": 1,
+      "trialType": "noGo",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.0,
+        "target": "noGo",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 9,
+      "trialCondition": 1,
+      "trialType": "noGo",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.0,
+        "target": "noGo",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 10,
+      "trialCondition": 1,
+      "trialType": "noGo",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.0,
+        "target": "noGo",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 11,
+      "trialCondition": 1,
+      "trialType": "noGo",
+      "conditionWeight": 10,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.0,
+        "target": "noGo",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 12,
+      "trialCondition": 2,
+      "trialType": "audiovisualCoherent",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.5,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 13,
+      "trialCondition": 2,
+      "trialType": "audiovisualCoherent",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.5,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 14,
+      "trialCondition": 2,
+      "trialType": "audiovisualCoherent",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 1.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 15,
+      "trialCondition": 2,
+      "trialType": "audiovisualCoherent",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 1.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 16,
+      "trialCondition": 3,
+      "trialType": "audiovisualConflict",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.5,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 17,
+      "trialCondition": 3,
+      "trialType": "audiovisualConflict",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.5,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 18,
+      "trialCondition": 3,
+      "trialType": "audiovisualConflict",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 1.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 19,
+      "trialCondition": 3,
+      "trialType": "audiovisualConflict",
+      "conditionWeight": 5,
+      "values": {
+        "auditoryStimulus.amplitude": 1.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 1.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 20,
+      "trialCondition": 4,
+      "trialType": "neutral",
+      "conditionWeight": 1,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 21,
+      "trialCondition": 4,
+      "trialType": "neutral",
+      "conditionWeight": 1,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": -60.0
+      }
+    },
+    {
+      "trialCombinationId": 22,
+      "trialCondition": 4,
+      "trialType": "neutral",
+      "conditionWeight": 1,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "contrasts": 0.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    },
+    {
+      "trialCombinationId": 23,
+      "trialCondition": 4,
+      "trialType": "neutral",
+      "conditionWeight": 1,
+      "values": {
+        "auditoryStimulus.amplitude": 0.0,
+        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "contrasts": 0.0,
+        "target": "noReward",
+        "visualStimulus.initialAzimuthsDeg": 60.0
+      }
+    }
+  ]
+}

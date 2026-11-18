@@ -416,7 +416,7 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
     base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
     combos = condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]])
-    # The first cell's pick changes fastest (TrialDraw.BuildConditions' order, logged as trialCombination).
+    # The first cell's pick changes fastest (TrialDraw.BuildConditions' order, Settings_Combinations' rows).
     assert combos == [
         {visual: [-60], sound: [60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
         {visual: [60], sound: [-60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
@@ -591,6 +591,14 @@ def test_a_condition_may_expand_into_at_most_the_cap():
     _conditions({"trialType": "visual", "weight": 1, "set": cells})
     cells["autoRewardProbability"].append(1)
     with pytest.raises(ValidationError, match=f"expands into 1056 combinations, more than {MAX_COMBINATIONS} \\(x-max-combinations\\)"):
+        _conditions({"trialType": "visual", "weight": 1, "set": cells})
+
+
+def test_an_oversized_condition_is_refused_before_its_combinations_are_built():
+    # Counted first, as TrialDraw.BuildConditions does: 2 x 1000^3 combinations would take hours and all memory to build.
+    many = [i / 1000 for i in range(1000)]
+    cells = {"contrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.rewardSizeUl": [1 + x for x in many], "autoRewardProbability": many, "bothSpoutsProbability": [1 - x for x in many]}
+    with pytest.raises(ValidationError, match="expands into 2000000000 combinations"):
         _conditions({"trialType": "visual", "weight": 1, "set": cells})
 
 
