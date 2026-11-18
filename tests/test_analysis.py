@@ -51,8 +51,8 @@ def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
     # From trial conditions on, Settings_Task has trialConditions, no trialWeights; set values are YAML text
     # (TrialDrawTests.TheConditionsSetRoundTrips), read back typed.
     s = session(tmp_path, "ses-001_a", "coen-dome-decision-making", stage=4)
-    conditions = [{"type": "visual", "weight": 3, "set": {"contrasts": ["0.5", "1"], "reward.rewardSizeUl": ["2", "3"]}},
-                  {"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "2.5"}}, {"type": "auditory", "weight": 0, "set": {}}]
+    conditions = [{"type": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}},
+                  {"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": 2.5}}, {"type": "auditory", "weight": 0, "set": {}}]
     (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(
         json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions, "trainingPipeline": {"id": 4}}}), encoding="utf-8")
     read = lf.trial_conditions(s)
@@ -68,7 +68,7 @@ def test_conditions_edges_signed_azimuths_no_set_empty_list_and_zero_weights(tmp
     def write(conditions):
         task_file.write_text(json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions}}), encoding="utf-8")
 
-    write([{"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": ["-75", "60"]}}, {"type": "visual", "weight": 0}, {"type": "auditory", "weight": 2, "set": None}])
+    write([{"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": [-75, 60]}}, {"type": "visual", "weight": 0}, {"type": "auditory", "weight": 2, "set": None}])
     read = lf.trial_conditions(s)
     assert read[0]["set"] == {"visualStimulus.startAzimuthsDeg": [-75, 60]} and read[1]["set"] == {} and read[2]["set"] == {}
     assert [c["type"] for c in read] == ["visual", "visual", "auditory"]   # the list's order is the trialCondition index

@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import yaml
 from open_rigs import trial_log
 
 # The repositories whose sessions count, by name alone: this workflow and av-dome's switch-over branch,
@@ -110,22 +109,15 @@ def session_summary(df):
     return pd.DataFrame(rows)
 
 
-def _typed(value):
-    """A set value as Settings_Task writes it, YAML text ("0.5", ["2", "3"]), as YAML reads it (0.5, [2, 3])."""
-    if isinstance(value, list):
-        return [_typed(v) for v in value]
-    return yaml.safe_load(value) if isinstance(value, str) else value
-
-
 def trial_conditions(session):
     """The trialConditions a session ran with, from its Settings_Task_*.json: the list the trialCondition column
-    indexes, each {type, weight, set}, its set values typed (Settings_Task writes them as text). None for a session
+    indexes, each {type, weight, set} (a missing set as {}). None for a session
     from before trial conditions (17 Nov 2026) or without a task file."""
     task = _settings(session, "Task")
     conditions = task.get("taskParameters", task).get("trialConditions")
     if conditions is None:
         return None
-    return [{**c, "set": {k: _typed(v) for k, v in (c.get("set") or {}).items()}} for c in conditions]
+    return [{**c, "set": c.get("set") or {}} for c in conditions]
 
 
 def trial_weights(session):

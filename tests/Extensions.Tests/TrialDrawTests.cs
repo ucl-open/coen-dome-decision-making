@@ -805,7 +805,7 @@ public class TrialConditionTests
     [TestMethod]
     public void TheConditionsSetRoundTrips()
     {
-        // Sgen types set as object: read from YAML it is a map, written back as YAML or as JSON (Settings_Task) the same.
+        // Sgen types set as object: read (ReadTask) it is a map of YAML-typed values, written back as YAML or as JSON (Settings_Task) as numbers.
         var text = File.ReadAllText(Path.Combine(Fixture.Repo(), "config", "task-localization.yml")).Replace(
             "    - { type: visual, weight: 10, set: {} }",
             "    - { type: visual, weight: 10, set: { contrasts: [0.5, 1], reward.rewardSizeUl: [2, 3], visualStimulus.startAzimuthsDeg: [60] } }");
@@ -814,7 +814,7 @@ public class TrialConditionTests
         CollectionAssert.AreEqual(new object[] { "contrasts", "reward.rewardSizeUl", "visualStimulus.startAzimuthsDeg" }, set.Keys.ToArray());
         var again = TrialDraw.Read(Fixture.Text(task)).TaskParameters;
         StringAssert.Contains(Newtonsoft.Json.JsonConvert.SerializeObject(again.TrialConditions[0]),
-            "\"set\":{\"contrasts\":[\"0.5\",\"1\"],\"reward.rewardSizeUl\":[\"2\",\"3\"],\"visualStimulus.startAzimuthsDeg\":[\"60\"]}");
+            "\"set\":{\"contrasts\":[0.5,1],\"reward.rewardSizeUl\":[2,3],\"visualStimulus.startAzimuthsDeg\":[60]}");
         again.TrainingPipeline = new TrainingPipeline { Id = 4, Label = "x", Sha256 = "y" };
         var built = Fixture.Check(again, 4, Fixture.Speakers());
         CollectionAssert.AreEqual(new[] { 2.0, 3.0 }, built[0].Combinations.Select(v => v.Task.Reward.RewardSizeUl).ToArray());

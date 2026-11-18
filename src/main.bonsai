@@ -76,7 +76,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskFile</Name>
-        <Description>Reads the task file (TaskPath) at Start into LaunchTaskConfig, as rig-control wrote it at launch, for the background noise, which plays from Ready; and at Go, with the form's edits, into TaskText (the file's text) and TaskConfig. BackgroundNoise stops the workflow at Go if backgroundNoise was changed after launch, as the noise already plays at the launch's level. At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once and publishes the trials' rules (TrialRules) for TaskLogic.</Description>
+        <Description>Reads the task file (TaskPath) at Start into LaunchTaskConfig, as rig-control wrote it at launch, for the background noise, which plays from Ready; and at Go, with the form's edits, into TaskText (the file's text) and TaskConfig, each read by ReadTask, which keeps a trial condition's set values as numbers and bools. BackgroundNoise stops the workflow at Go if backgroundNoise was changed after launch, as the noise already plays at the launch's level. At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once and publishes the trials' rules (TrialRules) for TaskLogic.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -102,8 +102,8 @@
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TaskText</Name>
             </Expression>
-            <Expression xsi:type="task:DeserializeFromYaml">
-              <task:Type xsi:type="TypeMapping" TypeArguments="task:UclOpenCoenDomeDecisionMakingTaskLogic" />
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="ext:ReadTask" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TaskConfig</Name>
@@ -114,8 +114,8 @@
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="core:ReadTextFile" />
             </Expression>
-            <Expression xsi:type="task:DeserializeFromYaml">
-              <task:Type xsi:type="TypeMapping" TypeArguments="task:UclOpenCoenDomeDecisionMakingTaskLogic" />
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="ext:ReadTask" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
               <Name>LaunchTaskConfig</Name>

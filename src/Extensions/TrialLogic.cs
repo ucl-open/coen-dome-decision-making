@@ -54,6 +54,17 @@ public class Trial : IZapitTrial
 }
 
 [Combinator]
+[Description("Reads the task file's text into the task (TrialDraw.Read): as DeserializeFromYaml, but a trial condition's set values keep their YAML types (numbers, bools), so Settings_Task logs them as such.")]
+[WorkflowElementCategory(ElementCategory.Transform)]
+public class ReadTask
+{
+    public IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Process(IObservable<string> source)
+    {
+        return source.Select(TrialDraw.Read);
+    }
+}
+
+[Combinator]
 [Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): trainingPipeline names TrainingStage's stage, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task file's text, TrainingStage and rig.yml; stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
@@ -214,11 +225,13 @@ public class TrialDraw
         return built;
     }
 
-    /// <summary>The task file's text read as Bonsai's DeserializeFromYaml reads it.</summary>
+    /// <summary>The task file's text read as Bonsai's DeserializeFromYaml reads it, except that a trial condition's set (typed
+    /// object) keeps its YAML types, numbers and bools, where DeserializeFromYaml reads them as text; so Settings_Task logs them so.</summary>
     public static UclOpenCoenDomeDecisionMakingTaskLogic Read(string text)
     {
         var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
             .WithTypeConverter(new YamlDotNet.Serialization.Converters.DateTimeOffsetConverter())
+            .WithAttemptingUnquotedStringTypeDeserialization()
             .Build();
         return deserializer.Deserialize<UclOpenCoenDomeDecisionMakingTaskLogic>(new YamlDotNet.Core.MergingParser(new YamlDotNet.Core.Parser(new StringReader(text))));
     }
