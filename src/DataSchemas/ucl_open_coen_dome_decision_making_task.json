@@ -353,7 +353,7 @@
     },
     "TrialCondition": {
       "additionalProperties": false,
-      "description": "One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the\ninitial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.",
+      "description": "One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:\ncontrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.",
       "properties": {
         "trialType": {
           "$ref": "#/$defs/TrialType",
@@ -367,7 +367,7 @@
           "type": "integer"
         },
         "pairs": {
-          "description": "Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently",
+          "description": "Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently",
           "items": {
             "items": {
               "type": "string"
@@ -379,7 +379,7 @@
         },
         "set": {
           "additionalProperties": true,
-          "description": "Condition-level values by dotted path (x-condition-fields); the rest are the task's",
+          "description": "Condition-level values by dotted path, any field but x-session-fields'; the rest are the task's",
           "title": "Set",
           "type": "object"
         }
@@ -550,7 +550,7 @@
         },
         "target": {
           "$ref": "#/$defs/Target",
-          "description": "What a trial rewards (a condition field): visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty"
+          "description": "What a trial rewards: visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty"
         },
         "trialConditions": {
           "description": "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a curriculum stage's conditions replace it; the trialCondition column is its 0-based index",
@@ -661,19 +661,31 @@
       ],
       "title": "UclOpenCoenDomeDecisionMakingTaskParameters",
       "type": "object",
-      "x-condition-fields": [
-        "target",
-        "contrasts",
-        "visualStimulus.initialAzimuthsDeg",
-        "visualStimulus.elevationDeg",
-        "auditoryStimulus.amplitude",
-        "auditoryStimulus.initialAzimuthsDeg",
-        "repeats.maxRepeats",
-        "repeats.repeatOn",
-        "optogenetics.laserOnProbability",
-        "reward.rewardSizeUl",
-        "autoRewardProbability",
-        "bothSpoutsProbability"
+      "x-max-combinations": 1024,
+      "x-required-conditions": [
+        {
+          "if": {
+            "properties": {
+              "taskType": {
+                "const": "discriminationGoNoGo"
+              }
+            },
+            "required": [
+              "taskType"
+            ]
+          },
+          "message": "taskType discriminationGoNoGo needs a condition with a weight above 0 that draws target go, or the task has no Go trials",
+          "some": {
+            "properties": {
+              "target": {
+                "const": "go"
+              }
+            },
+            "required": [
+              "target"
+            ]
+          }
+        }
       ],
       "x-rules": [
         {
@@ -884,6 +896,17 @@
             }
           }
         }
+      ],
+      "x-session-fields": [
+        "rngSeed",
+        "curriculum",
+        "trialConditions",
+        "taskType",
+        "backgroundNoise",
+        "penalty.sound.levelDbfs",
+        "optogenetics.enabled",
+        "optogenetics.zapitConditionsPath",
+        "optogenetics.laserDurationSeconds"
       ],
       "x-trial-types": [
         {

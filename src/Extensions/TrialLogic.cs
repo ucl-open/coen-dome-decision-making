@@ -26,6 +26,7 @@ public class Trial : IZapitTrial
     public int trialNumber;            // from 1, repeats counted
     public string trialType;           // its condition's trialType
     public int trialCondition;         // the 0-based index of its condition in the task's trialConditions
+    public int trialCombination;       // the 0-based index of its combination within the condition (TrialDraw.BuildConditions' order): with trialCondition and the task file, every list pick
     public string target;              // Left or Right; in discriminationGoNoGo Go or NoGo; on a trial with no right answer NoReward or Random (Target)
     public double rewardOfferedUl;     // what a reward on this trial gives, on every trial; 0 where none is on offer
     public bool bothSpoutsOffered;
@@ -35,6 +36,10 @@ public class Trial : IZapitTrial
     public double visualElevationDeg;  // NaN with no grating
     public double gratingAzimuthDeg;   // what the renderer starts the grating at (not logged): visualAzimuthDeg, 0 with no grating (hidden at contrast 0)
     public double gratingElevationDeg; // likewise visualElevationDeg
+    public double gratingOrientationDeg;      // the renderer's grating (not logged): the combination's visualStimulus
+    public double gratingSpatialFrequencyCpd;
+    public double gratingTemporalFrequencyHz;
+    public double gratingSigmaDeg;
     public double visualContrast;      // 0: grey screen
     public double visualPhaseRad;
     public double auditoryAmplitude;   // the waveform's scale as stored; 0 when silent (no sound plays)
@@ -49,6 +54,7 @@ public class Trial : IZapitTrial
     public bool probeHeads;            // a Random trial's coin: heads rewards a choice, tails penalises it
     public bool spoutMovements;
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
+    internal UclOpenCoenDomeDecisionMakingTaskParameters values;  // its combination's values, which the rules read per trial
 
     /// <summary>speakerChannel on a trial whose sound plays on every rig.yml speaker (auditoryStimulus.initialAzimuthsDeg "all").</summary>
     public const int AllSpeakersChannel = -2;
@@ -136,15 +142,6 @@ public class LoudestSound
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
 public class TrialDraw
 {
-    /// <summary>The fields a condition may set: task.py's CONDITION_FIELDS, the schema's x-condition-fields (a test holds them
-    /// equal). Only what New alone reads per trial.</summary>
-    public static readonly string[] ConditionFields =
-    {
-        "target", "contrasts", "visualStimulus.initialAzimuthsDeg", "visualStimulus.elevationDeg", "auditoryStimulus.amplitude",
-        "auditoryStimulus.initialAzimuthsDeg", "repeats.maxRepeats", "repeats.repeatOn", "optogenetics.laserOnProbability",
-        "reward.rewardSizeUl", "autoRewardProbability", "bothSpoutsProbability",
-    };
-
     /// <summary>The auditoryStimulus.initialAzimuthsDeg item that plays the sound on every rig.yml speaker (task.py ALL_SPEAKERS).</summary>
     public const string AllSpeakers = "all";
 
@@ -159,8 +156,6 @@ public class TrialDraw
         return null;
     }
 
-    /// <summary>The most combinations one condition may expand into (task.py MAX_COMBINATIONS).</summary>
-    public const int MaxCombinations = 64;
     /// <summary>The most a condition's weight may be (task.py's TrialCondition.weight le), so the weights' sum stays an int.</summary>
     public const int MaxWeight = 1000000;
 
@@ -170,7 +165,6 @@ public class TrialDraw
     readonly Random random;
     readonly int conditionCount;
     Trial last;
-    UclOpenCoenDomeDecisionMakingTaskParameters lastTask;  // the last new trial's combination: its repeat rule
     int drawn;
 
     /// <summary>The seed the random stream started from: the task's rngSeed, or one drawn when it is null.</summary>
@@ -230,6 +224,7 @@ public class TrialDraw
         var built = problems.Count == 0 ? BuildConditions(taskText, task, problems) : null;
         if (built != null)
         {
+            BetweenTrials(problems, built.Where(c => c.Weight > 0).SelectMany(c => c.Combinations).Select(m => m.Task).ToList());
             // Every combination of every condition, each problem named by its condition (a value the task's own check
             // already named is said once).
             foreach (var condition in built)
@@ -259,9 +254,11 @@ public class TrialDraw
 
     /// <summary>Each trial condition as drawn: its set and pairs written over a copy of the task file's text at their dotted
     /// paths and read back, once for every combination (task.py condition_combinations): each pairs group's lists (the set's,
-    /// else the task's) zipped, equally long; each other list cell one pick (a scalar field's list one value, a list field's
-    /// entry a one-entry list); all combined as a product, at most MaxCombinations. Adds a problem for each condition that
-    /// cannot be built, and returns null then.</summary>
+    /// else the task's) zipped, equally long; then by path each other list cell of its set and every list field
+    /// (TaskSchema.ListFields) one pick (a scalar field's list one value, a list field's entry a one-entry list); all combined
+    /// as a product, the first cell's pick changing fastest (a combination's index is the trialCombination column), at most
+    /// TaskSchema.MaxCombinations. A session field (TaskSchema.SessionFields) is refused. Adds a problem for each condition
+    /// that cannot be built, and returns null then.</summary>
     public static List<TrialConditionDraw> BuildConditions(string taskText, UclOpenCoenDomeDecisionMakingTaskParameters task, List<string> problems)
     {
         var nodes = Parameters(Load(taskText)).Children;
@@ -307,11 +304,14 @@ public class TrialDraw
             var paired = pairs.SelectMany(g => g ?? new List<string>()).ToList();
             foreach (var path in values.Keys.Concat(paired))
             {
-                if (!ConditionFields.Contains(path)) problems.Add(string.Format("{0} sets or pairs {1}, which is not a condition field (x-condition-fields)", where, path));
+                var session = TaskSchema.SessionFields.FirstOrDefault(f => path == f || path.StartsWith(f + "."));
+                if (session != null) problems.Add(string.Format("{0} sets or pairs {1}, a session field (x-session-fields: {2})", where, path, session));
                 else if (path.StartsWith("optogenetics.") && !task.Optogenetics.Enabled) problems.Add(string.Format("{0} sets {1} with optogenetics off", where, path));
             }
             if (paired.Distinct().Count() < paired.Count || pairs.Any(g => g == null || g.Count < 2)) problems.Add(where + ": each pairs group needs two paths or more, each path in one group");
             if (problems.Count > before) continue;
+            var unknown = values.Keys.Concat(paired).FirstOrDefault(path => !Known(nodes, path));
+            if (unknown != null) { problems.Add(string.Format("{0} sets or pairs {1}, which is not a task field", where, unknown)); continue; }
             foreach (var group in pairs)
             {
                 var lists = group.Select(path => Options(nodes, values, path)).ToList();
@@ -322,13 +322,13 @@ public class TrialDraw
                 }
                 cells.Add(new KeyValuePair<string[], List<YamlNode[]>>(group.ToArray(), Enumerable.Range(0, lists[0].Count).Select(k => lists.Select(l => l[k]).ToArray()).ToList()));
             }
-            foreach (var path in values.Keys.Where(p => !paired.Contains(p)))
+            foreach (var path in values.Keys.Concat(TaskSchema.ListFields).Distinct().Where(p => !paired.Contains(p)).OrderBy(p => p, StringComparer.Ordinal))
             {
                 cells.Add(new KeyValuePair<string[], List<YamlNode[]>>(new[] { path }, Options(nodes, values, path).Select(o => new[] { o }).ToList()));
             }
             foreach (var cell in cells.Where(cell => cell.Value.Count == 0)) problems.Add(string.Format("{0}: {1} is an empty list", where, string.Join(", ", cell.Key)));
             var count = cells.Aggregate(1L, (n, cell) => n * cell.Value.Count);
-            if (count > MaxCombinations) problems.Add(string.Format("{0} expands into {1} combinations, more than {2}", where, count, MaxCombinations));
+            if (count > TaskSchema.MaxCombinations) problems.Add(string.Format("{0} expands into {1} combinations, more than {2} (x-max-combinations)", where, count, TaskSchema.MaxCombinations));
             if (problems.Count > before) continue;
             var draw = new TrialConditionDraw { TrialType = trialType, Weight = c.Weight, Where = where, Combinations = new List<TrialConditionCombination>() };
             for (int n = 0; n < count; n++)
@@ -361,25 +361,51 @@ public class TrialDraw
             }
             built.Add(draw);
         }
-        if (problems.Count == 0)
-        {
-            if (built.Sum(c => (long)c.Weight) <= 0) problems.Add("trialConditions needs a condition with a weight above 0");
-            if (task.TaskType == TaskType.DiscriminationGoNoGo && !built.Any(c => c.Weight > 0 && c.Combinations.Any(m => m.Task.Target == ConditionTarget.Go)))
-                problems.Add("trialConditions has no Go trials: no condition with target go has a weight above 0");
-        }
+        if (problems.Count == 0 && built.Sum(c => (long)c.Weight) <= 0) problems.Add("trialConditions needs a condition with a weight above 0");
         return problems.Count == 0 ? built : null;
     }
 
     // A cell's picks (task.py _options): a list field's entries, each a one-entry list; a scalar field's list, else its one
-    // value. The value is the set's, else the task's.
+    // value (a whole list, x-whole, is one value). The value is the set's, else the task's.
     static List<YamlNode> Options(IDictionary<YamlNode, YamlNode> nodes, Dictionary<string, YamlNode> values, string path)
     {
         YamlNode value;
         var own = At(nodes, path);
         if (!values.TryGetValue(path, out value)) value = own;
         var list = value as YamlSequenceNode;
-        if (list == null) return new List<YamlNode> { value };
-        return own is YamlSequenceNode ? list.Children.Select(entry => (YamlNode)new YamlSequenceNode(entry)).ToList() : list.Children.ToList();
+        if (list == null || own is YamlSequenceNode && !TaskSchema.ListFields.Contains(path)) return new List<YamlNode> { value };
+        return TaskSchema.ListFields.Contains(path) ? list.Children.Select(entry => (YamlNode)new YamlSequenceNode(entry)).ToList() : list.Children.ToList();
+    }
+
+    // Whether a dotted path's parents are maps in the task file (its leaf may be left out, a default).
+    static bool Known(IDictionary<YamlNode, YamlNode> nodes, string path)
+    {
+        var parts = path.Split('.');
+        for (int i = 0; i < parts.Length - 1; i++)
+        {
+            YamlNode node;
+            if (!nodes.TryGetValue(new YamlScalarNode(parts[i]), out node) || !(node is YamlMappingNode)) return false;
+            nodes = ((YamlMappingNode)node).Children;
+        }
+        return true;
+    }
+
+    /// <summary>The timing rules between a trial and the next, each drawn from any weighted combination (task.py
+    /// _between_trials): every drinkSeconds and stimulusSeconds within every itiMinSeconds, and with optogenetics
+    /// laserDurationSeconds within the shortest trigger to the next trigger less the ramp-down and Zapit's reply margin.</summary>
+    static void BetweenTrials(List<string> problems, List<UclOpenCoenDomeDecisionMakingTaskParameters> tasks)
+    {
+        if (tasks.Count == 0) return;
+        var iti = tasks.Min(t => t.TrialStructure.ItiMinSeconds);
+        var drink = tasks.Max(t => t.TrialStructure.DrinkSeconds);
+        var stimulus = tasks.Max(t => t.TrialStructure.StimulusSeconds);
+        if (drink > iti + 1e-9) problems.Add(string.Format("trialStructure.drinkSeconds {0} s exceeds trialStructure.itiMinSeconds {1} s of a combination that may come next", drink, iti));
+        if (stimulus > iti + 1e-9) problems.Add(string.Format("trialStructure.stimulusSeconds {0} s exceeds trialStructure.itiMinSeconds {1} s of a combination that may come next", stimulus, iti));
+        var opto = tasks[0].Optogenetics;
+        if (!opto.Enabled) return;
+        var longest = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.ResponseDelaySeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
+            - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
+        if (opto.LaserDurationSeconds > longest + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin", opto.LaserDurationSeconds, longest));
     }
 
     /// <summary>An enum value as the task file writes it (its EnumMember name: visualSide, discriminationGoNoGo).</summary>
@@ -556,7 +582,7 @@ public class TrialDraw
         {
             trial = last.Clone();
             trial.repeatCount = last.repeatCount + 1;
-            if (task.Optogenetics.NoLaserOnRepeats && trial.laserOn)
+            if (trial.values.Optogenetics.NoLaserOnRepeats && trial.laserOn)
             {
                 trial.laserOn = false;
                 trial.laserPowerMw = 0;
@@ -569,7 +595,7 @@ public class TrialDraw
         trial.trialNumber = ++drawn;
         trial.rngSeed = Seed;
         // Every trial, a repeat too, draws its own interval.
-        var structure = task.TrialStructure;
+        var structure = trial.values.TrialStructure;
         trial.itiSeconds = Uniform(structure.ItiMinSeconds, structure.ItiMaxSeconds);
         last = trial;
         return trial;
@@ -578,8 +604,9 @@ public class TrialDraw
     // The repeat rule is the repeated trial's combination's (repeats.maxRepeats, repeats.repeatOn); a probe never repeats.
     bool ShouldRepeat(string outcome)
     {
-        if (lastTask == null || last.repeatCount >= lastTask.Repeats.MaxRepeats || outcome == TrialOutcomes.Probe) return false;
-        switch (lastTask.Repeats.RepeatOn)
+        var repeats = last.values.Repeats;
+        if (last.repeatCount >= repeats.MaxRepeats || outcome == TrialOutcomes.Probe) return false;
+        switch (repeats.RepeatOn)
         {
             case RepeatOn.NotCorrect: return outcome != TrialOutcomes.Correct;
             case RepeatOn.NoResponse: return outcome == TrialOutcomes.NoResponse;
@@ -589,12 +616,12 @@ public class TrialDraw
 
     Trial New()
     {
-        // The condition by weight, then one of its combinations (its list cells' picks), whose values the trial draws from.
+        // The condition by weight, then one of its combinations (every list pick), whose values the trial draws from.
         int index = WeightedCondition();
         var condition = conditions[index];
-        var p = condition.Combinations.Count == 1 ? condition.Combinations[0].Task : condition.Combinations[random.Next(condition.Combinations.Count)].Task;
-        lastTask = p;
         var trial = new Trial();
+        trial.trialCombination = condition.Combinations.Count == 1 ? 0 : random.Next(condition.Combinations.Count);
+        var p = trial.values = condition.Combinations[trial.trialCombination].Task;
         trial.trialCondition = index;
         trial.trialType = condition.TrialType;
         trial.autoReward = random.NextDouble() < p.AutoRewardProbability;
@@ -604,10 +631,15 @@ public class TrialDraw
         trial.rewardOfferedUl = large ? p.Reward.RewardSizeUl * p.Reward.LargeRewardMultiplier : p.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
-        // The grating: a contrast and an initial azimuth, shown where the contrast is above 0 (0: a grey screen, logged at NaN, NaN; the renderer's start at 0, 0 under contrast 0).
+        // The grating: the combination's contrast and initial azimuth (each list one entry), shown where the contrast is above 0
+        // (0: a grey screen, logged at NaN, NaN; the renderer's start at 0, 0 under contrast 0).
         var visual = p.VisualStimulus;
-        double contrast = p.Contrasts[random.Next(p.Contrasts.Count)];
-        double azimuth = visual.InitialAzimuthsDeg[random.Next(visual.InitialAzimuthsDeg.Count)];
+        double contrast = p.Contrasts[0];
+        double azimuth = visual.InitialAzimuthsDeg[0];
+        trial.gratingOrientationDeg = visual.OrientationDeg;
+        trial.gratingSpatialFrequencyCpd = visual.SpatialFrequencyCpd;
+        trial.gratingTemporalFrequencyHz = visual.TemporalFrequencyHz;
+        trial.gratingSigmaDeg = visual.GaussianWindowSigmaDeg;
         trial.visualAzimuthDeg = double.NaN;
         trial.visualElevationDeg = double.NaN;
         if (contrast > 0)
@@ -621,7 +653,7 @@ public class TrialDraw
         // The sound: at its amplitude (0: none) on the speaker nearest an initial azimuth, at the grating's elevation, or on
         // every speaker at "all" (logged at azimuth and elevation NaN, its amplitude above 0).
         var sound = p.AuditoryStimulus;
-        double soundAzimuth = SoundAzimuth(sound.InitialAzimuthsDeg[random.Next(sound.InitialAzimuthsDeg.Count)]).Value;   // checked at Go
+        double soundAzimuth = SoundAzimuth(sound.InitialAzimuthsDeg[0]).Value;   // checked at Go
         trial.auditoryAmplitude = sound.Amplitude;
         if (sound.Amplitude > 0 && double.IsNaN(soundAzimuth))
         {
@@ -679,7 +711,7 @@ public class TrialDraw
         if (optogenetics.Enabled)
         {
             // drawn + 1: this trial's number, which Next sets once it is drawn.
-            ZapitTrial.Draw(random, drawn + 1, conditionCount, optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, optogenetics.LaserPowerMw.Value,
+            ZapitTrial.Draw(random, drawn + 1, conditionCount, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
                 out trial.laserCondition, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
@@ -808,7 +840,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     public TrialTiming Timing(Trial trial)
     {
-        var structure = task.TrialStructure;
+        var structure = trial.values.TrialStructure;
         var cues = new List<TrialCue>
         {
             new TrialCue(GratingOffCue, CueAnchor.Stimulus, structure.StimulusSeconds),
@@ -818,7 +850,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         return new TrialTiming
         {
             ItiSeconds = trial.itiSeconds,
-            LaserToStimulusSeconds = task.Optogenetics.LaserToStimulusSeconds,   // its lead in every experiment, so timing never reveals Zapit
+            LaserToStimulusSeconds = trial.values.Optogenetics.LaserToStimulusSeconds,   // its lead in every experiment, so timing never reveals Zapit
             LickQuietSeconds = structure.LickQuietSeconds,
             WheelQuietSeconds = structure.WheelQuietSeconds,
             WheelQuietCm = structure.WheelQuietCm,
@@ -851,7 +883,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         if (goNoGo && spout != 0) return null;   // one spout, the left
         decision += spout == 0 ? 1 : -1;
         updates.Add(Update(trial));
-        var threshold = task.Response.ThresholdLicks;
+        var threshold = trial.values.Response.ThresholdLicks;
         if (decision >= threshold) return Outcome(trial, goNoGo ? Choice.Lick : Choice.Left, times);
         if (decision <= -threshold) return Outcome(trial, Choice.Right, times);
         return null;
@@ -869,12 +901,12 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     DecisionUpdate Update(Trial trial)
     {
-        return new DecisionUpdate { GratingAzimuthDeg = decision * task.Response.DegreesPerLick + trial.gratingAzimuthDeg };
+        return new DecisionUpdate { GratingAzimuthDeg = decision * trial.values.Response.DegreesPerLick + trial.gratingAzimuthDeg };
     }
 
     TrialOutcome Outcome(Trial trial, string choice, TrialTimes times)
     {
-        var row = TrialRow.Build(choice, trial, times, task.Penalty.TimeoutSeconds, task.Penalty.Sound.Enabled);
+        var row = TrialRow.Build(choice, trial, times, trial.values.Penalty.TimeoutSeconds, trial.values.Penalty.Sound.Enabled);
         return TrialOutcome.Of(row, trial);
     }
 }

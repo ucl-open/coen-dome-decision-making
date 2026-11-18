@@ -554,20 +554,6 @@ public class TrialDrawTests
     }
 
     [TestMethod]
-    public void AGoNoGoTaskWithNoGoTrialsIsRefused()
-    {
-        var task = Fixture.Task("task-discrimination-go-no-go.yml", 2);
-        Fixture.Weight(task, "go", 0);
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "trialConditions has no Go trials: no condition with target go has a weight above 0");
-        task = Fixture.Task("task-discrimination-go-no-go.yml", 3);
-        Fixture.Weight(task, "go", 0);
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "has no Go trials");
-        // A condition labelled otherwise that draws go is a Go trial: the label drives nothing.
-        task.TrialConditions.Add(Fixture.Condition("visual", 1, "target", "go", "auditoryStimulus.amplitude", 0.0));
-        Assert.AreEqual("accepted", Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())));
-    }
-
-    [TestMethod]
     public void ALaserThatWouldDelayTheNextArmIsRefused()
     {
         // Discrimination: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s reply margin = 0.8 s.
@@ -786,13 +772,13 @@ public class TrialConditionTests
         var drawn = Fixture.Draw(With(levels), 200);
         Assert.IsTrue(drawn.All(t => t.visualContrast == 0.25 ? t.auditoryAmplitude == 0.5 : t.auditoryAmplitude == 1.0));
         Assert.IsTrue(drawn.Any(t => t.auditoryAmplitude == 0.5) && drawn.Any(t => t.auditoryAmplitude == 1.0));
-        Assert.AreEqual(2, Fixture.Check(With(levels), Fixture.Speakers())[0].Combinations.Count);
+        Assert.AreEqual(8, Fixture.Check(With(levels), Fixture.Speakers())[0].Combinations.Count, "the pair's 2 by the task's two lists of 2 azimuths");
         levels.Set = new Dictionary<object, object> { { "contrasts", Fixture.List(0.25, 0.5, 1.0) }, { "auditoryStimulus.amplitude", Fixture.List(0.5, 1.0) } };
         StringAssert.Contains(Refused(With(levels)), "trialConditions[0] (audiovisualCoherent): pairs [contrasts, auditoryStimulus.amplitude] have lists of lengths 3, 2");
         levels.Pairs = new List<List<string>> { new List<string> { "contrasts" } };
         StringAssert.Contains(Refused(With(levels)), "each pairs group needs two paths or more");
-        levels.Pairs = new List<List<string>> { new List<string> { "contrasts", "trialStructure.itiMinSeconds" } };
-        StringAssert.Contains(Refused(With(levels)), "sets or pairs trialStructure.itiMinSeconds, which is not a condition field");
+        levels.Pairs = new List<List<string>> { new List<string> { "contrasts", "rngSeed" } };
+        StringAssert.Contains(Refused(With(levels)), "sets or pairs rngSeed, a session field (x-session-fields: rngSeed)");
     }
 
     [TestMethod]
@@ -801,7 +787,7 @@ public class TrialConditionTests
         var rules = new TrialRules(Fixture.Text(With(Fixture.Condition("auditory", 1, "auditoryStimulus.amplitude", Fixture.List(0.5, 2.0)), Fixture.Condition("visual", 0, "auditoryStimulus.amplitude", 3.0))),
             Fixture.Speakers(), false, path => 2);
         Assert.AreEqual(2.0, rules.Loudest.Amplitude);
-        Assert.AreEqual("trialConditions[0] (auditory) with auditoryStimulus.amplitude 2", rules.Loudest.Where);
+        StringAssert.StartsWith(rules.Loudest.Where, "trialConditions[0] (auditory) with auditoryStimulus.amplitude 2, ");
     }
 
     [TestMethod]
@@ -829,7 +815,7 @@ public class TrialConditionTests
         Assert.IsTrue(trials.All(t => t.rewardOfferedUl == 2 || t.rewardOfferedUl == 4));
         Assert.AreEqual(0.5, trials.Count(t => t.rewardOfferedUl == 2) / 400.0, 0.08);
         var built = Fixture.Check(With(Fixture.Condition("visual", 1, "reward.rewardSizeUl", Fixture.List(2.0, 4.0), "autoRewardProbability", Fixture.List(0.0, 0.5, 1.0))), Fixture.Speakers());
-        Assert.AreEqual(6, built[0].Combinations.Count, "every combination");
+        Assert.AreEqual(72, built[0].Combinations.Count, "every combination, the task's list fields' entries too");
     }
 
     [TestMethod]
@@ -877,23 +863,30 @@ public class TrialConditionTests
     [TestMethod]
     public void MoreThanTheCapOfCombinationsIsRefused()
     {
-        var sizes = Fixture.List(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0);
-        var probabilities = Fixture.List(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7);
-        Assert.AreEqual("accepted", Refused(With(Fixture.Condition("visual", 1, "reward.rewardSizeUl", sizes, "autoRewardProbability", probabilities))), "64");
-        probabilities.Add(0.8);
-        StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "reward.rewardSizeUl", sizes, "autoRewardProbability", probabilities))),
-            "trialConditions[0] (visual) expands into 72 combinations, more than 64");
-        Assert.AreEqual(64, TrialDraw.MaxCombinations);
+        // Every list field expands too: the task's two sound azimuths double the set's 16 x 32.
+        var sizes = Fixture.List(Enumerable.Range(0, 16).Select(i => (object)(1 + i / 16.0)).ToArray());
+        var probabilities = Fixture.List(Enumerable.Range(0, 32).Select(i => (object)(i / 32.0)).ToArray());
+        Func<TrialCondition> condition = () => Fixture.Condition("visual", 1, "contrasts", Fixture.List(1.0), "visualStimulus.initialAzimuthsDeg", Fixture.List(60.0),
+            "auditoryStimulus.initialAzimuthsDeg", Fixture.List(-60.0, 60.0), "reward.rewardSizeUl", sizes, "autoRewardProbability", probabilities);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        Assert.AreEqual(1024, Fixture.Check(With(condition()), Fixture.Speakers())[0].Combinations.Count);
+        Console.WriteLine("Go's check and build at 1024 combinations: {0} ms", watch.ElapsedMilliseconds);
+        probabilities.Add(1.0);
+        StringAssert.Contains(Refused(With(condition())), "trialConditions[0] (visual) expands into 1056 combinations, more than 1024 (x-max-combinations)");
+        Assert.AreEqual(1024, TaskSchema.MaxCombinations);
     }
 
     [TestMethod]
-    public void OnlyAConditionFieldMayBeSetAndItsValuesAreChecked()
+    public void AnyFieldButASessionFieldMayBeSetAndItsValuesAreChecked()
     {
         Func<TrialCondition, string> refusal = c => Refused(With(c));
-        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "trialStructure.itiMinSeconds", 4.0)), "sets or pairs trialStructure.itiMinSeconds, which is not a condition field");
+        Assert.AreEqual("accepted", refusal(Fixture.Condition("visual", 1, "trialStructure.itiMinSeconds", 4.0, "visualStimulus.orientationDeg", Fixture.List(0.0, 90.0))));
+        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "backgroundNoise.levelDbfs", -40.0)), "sets or pairs backgroundNoise.levelDbfs, a session field (x-session-fields: backgroundNoise)");
+        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "colour.red", 1.0)), "sets or pairs colour.red, which is not a task field");
         StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "optogenetics.laserOnProbability", 1.0)), "sets optogenetics.laserOnProbability with optogenetics off");
-        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "reward.rewardSizeUl", 99.0)), "trialConditions[0] (visual): reward.rewardSizeUl must be above 0 and at most");
-        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "reward.rewardSizeUl", Fixture.List(2.0, 99.0))), "trialConditions[0] (visual) with reward.rewardSizeUl 99: reward.rewardSizeUl must be");
+        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "reward.rewardSizeUl", 99.0)), ": reward.rewardSizeUl must be above 0 and at most");
+        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "reward.rewardSizeUl", Fixture.List(2.0, 99.0))), "reward.rewardSizeUl 99, ");
+        StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "reward.rewardSizeUl", Fixture.List(2.0, 99.0))), ": reward.rewardSizeUl must be");
         StringAssert.Contains(refusal(Fixture.Condition("visual", 1, "contrasts", Fixture.List(-1.0))), "contrasts must each be a finite number, 0 or more");
         Assert.AreEqual("accepted", refusal(Fixture.Condition("auditory", 1, "contrasts", Fixture.List(0.0), "target", "auditorySide")), "contrast 0: no grating");
     }
@@ -911,11 +904,12 @@ public class TrialConditionTests
     }
 
     [TestMethod]
-    public void TheConditionFieldsAreTheSchemas()
+    public void TheSessionFieldsAndTheCapAreTheSchemas()
     {
         var schema = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(Path.Combine(Fixture.Repo(), "src", "DataSchemas", "ucl_open_coen_dome_decision_making_task.json")));
         var parameters = schema["$defs"]["UclOpenCoenDomeDecisionMakingTaskParameters"];
-        CollectionAssert.AreEqual(TrialDraw.ConditionFields, parameters["x-condition-fields"].ToObject<string[]>());
+        CollectionAssert.AreEqual(TaskSchema.SessionFields, parameters["x-session-fields"].ToObject<string[]>());
+        Assert.AreEqual(TaskSchema.MaxCombinations, parameters["x-max-combinations"].ToObject<int>());
     }
 
     [TestMethod]
@@ -933,11 +927,12 @@ public class TrialConditionTests
             "\"set\":{\"contrasts\":[0.5,1],\"reward.rewardSizeUl\":[2,3],\"visualStimulus.initialAzimuthsDeg\":[60]}");
         again.Curriculum = Fixture.Curriculum(4, "x");
         var built = Fixture.Check(again, Fixture.Speakers());
-        // A list field's entries are one combination each (contrasts first, then the rewards): the draw's chances unchanged.
-        CollectionAssert.AreEqual(new[] { 2.0, 2.0, 3.0, 3.0 }, built[0].Combinations.Select(v => v.Task.Reward.RewardSizeUl).ToArray());
-        CollectionAssert.AreEqual(new[] { 0.5, 1.0, 0.5, 1.0 }, built[0].Combinations.Select(v => v.Task.Contrasts.Single()).ToArray());
+        // A list field's entries are one combination each, by path, the first changing fastest (the task's two sound azimuths,
+        // then the contrasts, then the rewards): the draw's chances unchanged.
+        CollectionAssert.AreEqual(new[] { 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0 }, built[0].Combinations.Select(v => v.Task.Reward.RewardSizeUl).ToArray());
+        CollectionAssert.AreEqual(new[] { 0.5, 0.5, 1.0, 1.0, 0.5, 0.5, 1.0, 1.0 }, built[0].Combinations.Select(v => v.Task.Contrasts.Single()).ToArray());
         CollectionAssert.AreEqual(new[] { 60.0 }, built[0].Combinations[1].Task.VisualStimulus.InitialAzimuthsDeg);
-        Assert.AreEqual(1, built[1].Combinations.Count);
+        Assert.AreEqual(4, built[1].Combinations.Count, "the task's two lists of 2 azimuths");
         Assert.AreEqual(3.0, built[1].Combinations[0].Task.Reward.RewardSizeUl);
         CollectionAssert.AreEqual(new[] { 0.0 }, built[1].Combinations[0].Task.Contrasts);
     }

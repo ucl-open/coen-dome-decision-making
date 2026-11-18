@@ -1,4 +1,5 @@
 import copy
+import json
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
@@ -19,7 +20,7 @@ from open_rigs.core.task import (
     TaskParameters,
     WheelQuietWait,
 )
-from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
+from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
 from open_rigs.rigs import conditions
 from pydantic import ConfigDict, Field, ValidationError, ValidationInfo, WithJsonSchema, field_validator, model_validator
 
@@ -182,22 +183,20 @@ class TrialType(StrEnum):
 
 MAX_WEIGHT_SUM = 2147483647  # the most trial_conditions' weights may add to: the draw sums them as an int (TrialLogic.cs int.MaxValue)
 
-# The fields a condition may set (the schema's x-condition-fields; TrialDraw.ConditionFields, a test holds both): only what
-# TrialDraw.New() alone reads per trial, never what is fixed at Go. A condition's blank takes the stage's, then the task's value.
-CONDITION_FIELDS = (
-    "target",
-    "contrasts",
-    "visualStimulus.initialAzimuthsDeg",
-    "visualStimulus.elevationDeg",
-    "auditoryStimulus.amplitude",
-    "auditoryStimulus.initialAzimuthsDeg",
-    "repeats.maxRepeats",
-    "repeats.repeatOn",
-    "optogenetics.laserOnProbability",
-    "reward.rewardSizeUl",
-    "autoRewardProbability",
-    "bothSpoutsProbability",
-)
+# The session fields (the schema's x-session-fields; TrialDraw.SessionFields, a test holds both): what cannot change per
+# trial, so a condition may not set it (the path or any path under it). A condition may set every other field: the draw
+# reads it per trial from the trial's combination. A condition's blank takes the stage's, then the task's value.
+SESSION_FIELDS = {
+    "rngSeed": "seeds the one random stream every trial is drawn from, at Go",
+    "curriculum": "the stage these values are: one per task file",
+    "trialConditions": "the mix the conditions are",
+    "taskType": "the task the file and its curriculum train; x-required-conditions keys on it",
+    "backgroundNoise": "plays without a break from Ready, before the first trial",
+    "penalty.sound.levelDbfs": "the penalty sound's buffer is laid out once at Go (OpenRigs.Audio PlayPenaltySound)",
+    "optogenetics.enabled": "Zapit is connected and its conditions file loaded at Go",
+    "optogenetics.zapitConditionsPath": "the conditions file loaded in Zapit and counted at Go",
+    "optogenetics.laserDurationSeconds": "the trial loop's laser timing (lib-open-rigs LaserTiming) is fixed at Go",
+}
 # Where one setting limits another (the schema's x-rules, JSON Schema over dotted paths; open_rigs.rigs.conditions
 # evaluates them), checked on the task and on every combination of every condition. A side target reads its azimuth to
 # set the reward side, even unshown.
@@ -250,14 +249,17 @@ TRIAL_TYPES = (
     {"trialType": "auditory", "if": _if(_CUE)},
     {"trialType": "neutral"},
 )
-# The most combinations one condition may expand into (TrialDraw.MaxCombinations).
-MAX_COMBINATIONS = 64
+# What some weighted condition must draw (the schema's x-required-conditions; open_rigs.rigs.conditions.required_problems).
+REQUIRED = (
+    {"if": _if({"taskType": {"const": TaskType.DISCRIMINATION_GO_NO_GO.value}}), "some": _if({"target": {"const": "go"}}),
+     "message": "taskType discriminationGoNoGo needs a condition with a weight above 0 that draws target go, or the task has no Go trials"},
+)
 
 
 class TrialCondition(TaskBlock):
     """One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
-    the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
-    initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial."""
+    the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:
+    contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -268,12 +270,12 @@ class TrialCondition(TaskBlock):
     pairs: list[list[String]] = Field(
         default_factory=list,
         description=(
-            "Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: "
+            "Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: "
             "audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], "
             "audiovisualConflict with [60, -60]. Unpaired lists are picked independently"
         ),
     )
-    set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path (x-condition-fields); the rest are the task's")
+    set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path, any field but x-session-fields'; the rest are the task's")
 
 
 def _put(data: dict, dotted, value: Any) -> None:
@@ -292,16 +294,19 @@ def _get(data: dict, dotted) -> Any:
 
 
 def _options(base: dict, values: dict[str, Any], path) -> list:
-    # A cell's picks: a list field's entries, each a one-entry list; a scalar field's list, else its one value.
+    # A cell's picks: a list field's entries, each a one-entry list; a scalar field's list, else its one value (a whole
+    # list, x-whole, is one value).
     value = values[path] if path in values else _get(base, path)
-    if isinstance(_get(base, path), list):
+    if path in LIST_FIELDS:
         return [[entry] for entry in value] if isinstance(value, list) else [value]
-    return value if isinstance(value, list) else [value]
+    return value if isinstance(value, list) and not isinstance(_get(base, path), list) else [value]
 
 
 def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[str]] = ()) -> list[dict[str, Any]]:
-    """Every combination of a condition's set and pairs: each pair group's lists zipped (equal lengths), each other list
-    cell one pick, all combined as a product; a list field's entry is a one-entry list, so the draw's chances are unchanged."""
+    """Every combination of a condition: each pairs group's lists zipped (equal lengths), then by path each other list cell
+    of its set and every list field (LIST_FIELDS, the set's or the task's list) one pick, all combined as a product, the
+    first cell's pick changing fastest (TrialDraw.BuildConditions' order, whose index is the trialCombination column). A
+    list field's entry is a one-entry list, so the draw's chances are those of picking each list's entry per trial."""
     cells: list[tuple[tuple[str, ...], list[tuple]]] = []
     paired = [path for group in pairs for path in group]
     for group in pairs:
@@ -309,13 +314,18 @@ def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[
         if len({len(options) for options in lists}) > 1:
             raise ValueError(f"pairs {group} have lists of lengths {', '.join(str(len(options)) for options in lists)}; paired lists must be equally long")
         cells.append((tuple(group), list(zip(*lists))))
-    cells += [((path,), [(option,) for option in _options(base, values, path)]) for path in values if path not in paired]
+    cells += [((path,), [(option,) for option in _options(base, values, path)]) for path in sorted({*values, *LIST_FIELDS} - {*paired})]
     combos: list[dict[str, Any]] = [{}]
     for paths, options in cells:
         if not options:
             raise ValueError(f"{', '.join(paths)} is an empty list")
-        combos = [{**combo, **dict(zip(paths, option))} for combo in combos for option in options]
+        combos = [{**combo, **dict(zip(paths, option))} for option in options for combo in combos]
     return combos
+
+
+def session_field(path) -> str | None:
+    """The session field a dotted path is or lies under (SESSION_FIELDS), else None."""
+    return next((field for field in SESSION_FIELDS if path == field or path.startswith(field + ".")), None)
 
 
 def derive_trial_type(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition: TrialCondition) -> str:
@@ -360,7 +370,8 @@ class Curriculum(TaskBlock):
 class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
-    model_config = ConfigDict(json_schema_extra={"x-condition-fields": list(CONDITION_FIELDS), "x-rules": list(RULES), "x-trial-types": list(TRIAL_TYPES)})
+    model_config = ConfigDict(json_schema_extra={"x-session-fields": list(SESSION_FIELDS), "x-rules": list(RULES), "x-trial-types": list(TRIAL_TYPES),
+                                                  "x-required-conditions": list(REQUIRED), "x-max-combinations": conditions.MAX_COMBINATIONS})
 
     task_type: TaskType = Field(
         description=(
@@ -374,7 +385,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     )
     target: Target = Field(
         description=(
-            "What a trial rewards (a condition field): visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go "
+            "What a trial rewards: visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go "
             "(lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty"
         )
     )
@@ -459,43 +470,54 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     @model_validator(mode="after")
     def _conditions_run(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw's same build: each condition's set and pairs over the task's values, every combination (at most
-        # MAX_COMBINATIONS), each a task that must validate; a go/no-go task needs a weighted condition that can draw go.
+        # MAX_COMBINATIONS), each a task that must validate; then x-required-conditions and the timing rules between a
+        # trial and the next, on the weighted combinations.
         if (info.context or {}).get("condition"):
             return self
         base = self.model_dump(by_alias=True, mode="json")
-        go = False
+        leaves = conditions.flatten(base)
+        drawn, built = [], {}   # built: each distinct set and pairs' combinations, checked once
         for i, condition in enumerate(self.trial_conditions):
             where = f"trial_conditions[{i}] ({condition.trial_type.value})"
             paired = [path for group in condition.pairs for path in group]
             for path in [*condition.set, *paired]:
-                if path not in CONDITION_FIELDS:
-                    raise ValueError(f"{where} sets or pairs {path}, which is not a condition field (x-condition-fields)")
+                if field := session_field(path):
+                    raise ValueError(f"{where} sets or pairs {path}, a session field (x-session-fields: {field} {SESSION_FIELDS[field]})")
+                if path not in leaves:
+                    raise ValueError(f"{where} sets or pairs {path}, which is not a task field")
                 if path.startswith("optogenetics.") and not self.optogenetics.enabled:
                     raise ValueError(f"{where} sets {path} with optogenetics off")
             if len(set(paired)) < len(paired) or any(len(group) < 2 for group in condition.pairs):
                 raise ValueError(f"{where}: each pairs group needs two paths or more, each path in one group")
-            if not condition.set and not condition.pairs:
-                go = go or (condition.weight > 0 and self.target == Target.GO)   # the task's own values, checked already
-                continue
-            try:
-                combos = condition_combinations(base, condition.set, condition.pairs)
-            except ValueError as e:
-                raise ValueError(f"{where}: {e}") from None
-            if len(combos) > MAX_COMBINATIONS:
-                raise ValueError(f"{where} expands into {len(combos)} combinations, more than {MAX_COMBINATIONS}")
-            for combo in combos:
-                data = copy.deepcopy(base)
-                for path, value in combo.items():
-                    _put(data, path, value)
-                data["trialConditions"] = [{"trialType": condition.trial_type.value, "weight": 1}]
-                try:
-                    type(self).model_validate(data, context={"condition": True})
-                except ValidationError as e:
-                    raise ValueError(f"{where} with {combo}: {e}") from None
-                go = go or (condition.weight > 0 and _get(data, "target") == Target.GO)
-        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO and not go:
-            raise ValueError("trial_conditions has no condition with target go and a weight above 0, so the task has no Go trials")
+            key = json.dumps([condition.set, condition.pairs], sort_keys=True)
+            if key not in built:
+                built[key] = self._combinations(base, condition, where)
+            drawn += built[key] * (condition.weight > 0)
+        if problems := conditions.required_problems(list(REQUIRED), base, drawn):
+            raise ValueError("; ".join(f"{problem} (x-required-conditions)" for problem in problems))
+        _between_trials(drawn)
         return self
+
+    def _combinations(self, base: dict, condition: TrialCondition, where) -> list[dict]:
+        """A condition's combinations as tasks' values (by alias, as JSON), each checked as a task."""
+        try:
+            combos = condition_combinations(base, condition.set, condition.pairs)
+        except ValueError as e:
+            raise ValueError(f"{where}: {e}") from None
+        if len(combos) > conditions.MAX_COMBINATIONS:
+            raise ValueError(f"{where} expands into {len(combos)} combinations, more than {conditions.MAX_COMBINATIONS} (x-max-combinations)")
+        tasks = []
+        for combo in combos:
+            data = copy.deepcopy(base)
+            for path, value in combo.items():
+                _put(data, path, value)
+            data["trialConditions"] = [{"trialType": condition.trial_type.value, "weight": 1}]
+            try:
+                type(self).model_validate(data, context={"condition": True})
+            except ValidationError as e:
+                raise ValueError(f"{where} with {combo}: {e}") from None
+            tasks.append(data)
+        return tasks
 
     @model_validator(mode="after")
     def _one_spout_in_go_no_go(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
@@ -518,6 +540,31 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
                 f"({reward.large_reward_multiplier}) is more than {MAX_REWARD_UL} ul, the most one reward may ask for"
             )
         return self
+
+
+# The list fields one entry of which each trial draws (open_rigs.rigs.conditions.pick_lists).
+LIST_FIELDS = conditions.pick_lists(UclOpenCoenDomeDecisionMakingTaskParameters.model_json_schema(by_alias=True))
+
+
+def _between_trials(tasks: list[dict]) -> None:
+    """The timing rules between a trial and the next, each drawn from any weighted combination (TrialDraw.BetweenTrials):
+    every drinkSeconds and stimulusSeconds within every itiMinSeconds, and with optogenetics laserDurationSeconds within
+    the shortest trigger to the next trigger less the ramp-down and Zapit's reply margin."""
+    if not tasks:
+        return
+    s = [task["trialStructure"] for task in tasks]
+    iti = min(x["itiMinSeconds"] for x in s)
+    for name in ("drinkSeconds", "stimulusSeconds"):
+        if (longest := max(x[name] for x in s)) > iti + 1e-9:
+            raise ValueError(f"trialStructure.{name} {longest:g} s exceeds trialStructure.itiMinSeconds {iti:g} s of a combination that may come next")
+    opto = tasks[0]["optogenetics"]
+    if opto["enabled"]:
+        leads = [task["optogenetics"]["laserToStimulusSeconds"] for task in tasks]
+        longest = (min(lead + x["responseDelaySeconds"] for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
+                   - ZAPIT_MAX_RAMP_DOWN_SECONDS - ZAPIT_REPLY_MARGIN_SECONDS)
+        if opto["laserDurationSeconds"] > longest + 1e-9:
+            raise ValueError(f"optogenetics.laserDurationSeconds ({opto['laserDurationSeconds']} s) must be at most {longest:g} s across the combinations: "
+                             "the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin")
 
 
 class UclOpenCoenDomeDecisionMakingTaskLogic(Task):

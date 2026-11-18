@@ -26,6 +26,7 @@ public class TrialRow
     public double laserPowerMw;
     public double laserTriggerTime;
     public int trialCondition;
+    public int trialCombination;
     public string target;
     public string choice;
     public int repeatCount;
@@ -93,6 +94,7 @@ public class TrialRow
         {
             trialType = trial.trialType,
             trialCondition = trial.trialCondition,
+            trialCombination = trial.trialCombination,
             outcome = outcome,
             target = trial.target,
             choice = choice,

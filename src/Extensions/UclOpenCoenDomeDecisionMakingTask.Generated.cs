@@ -1336,13 +1336,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
     /// <summary>
     /// One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
-    ///the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
-    ///initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.
+    ///the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:
+    ///contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
-    the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
-    initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.")]
+    the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:
+    contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialCondition
@@ -1409,12 +1409,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
+        /// Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("pairs")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="pairs")]
-        [System.ComponentModel.DescriptionAttribute(@"Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
+        [System.ComponentModel.DescriptionAttribute(@"Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
         public System.Collections.Generic.List<System.Collections.Generic.List<string>> Pairs
         {
             get
@@ -1428,13 +1428,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Condition-level values by dotted path (x-condition-fields); the rest are the task's
+        /// Condition-level values by dotted path, any field but x-session-fields'; the rest are the task's
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("set")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="set")]
-        [System.ComponentModel.DescriptionAttribute("Condition-level values by dotted path (x-condition-fields); the rest are the task" +
-            "\'s")]
+        [System.ComponentModel.DescriptionAttribute("Condition-level values by dotted path, any field but x-session-fields\'; the rest " +
+            "are the task\'s")]
         public object Set
         {
             get
@@ -1963,14 +1963,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// What a trial rewards (a condition field): visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty
+        /// What a trial rewards: visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("target", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="target")]
-        [System.ComponentModel.DescriptionAttribute("What a trial rewards (a condition field): visualSide or auditorySide, the side of" +
-            " the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold" +
-            "); random, a random-reward probe; noReward, a probe with no reward on offer and " +
-            "no penalty")]
+        [System.ComponentModel.DescriptionAttribute("What a trial rewards: visualSide or auditorySide, the side of the picked grating " +
+            "or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-" +
+            "reward probe; noReward, a probe with no reward on offer and no penalty")]
         public Target Target
         {
             get

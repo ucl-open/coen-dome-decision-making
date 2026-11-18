@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making audiovisual localization task.
 # Read by src/main.bonsai at Go and published as the TaskText and TaskConfig subjects (and at Start, as launched, for the background noise).
-# Each trial condition says what its trials show and reward: its set over the task's values (x-condition-fields), its pairs
+# Each trial condition says what its trials show and reward: its set over the task's values (any field but x-session-fields), its pairs
 # picking listed values together; its trialType names it. A stage's conditions replace them whole. audiovisualConflict
 # and neutral trials have no right answer and never repeat: random-reward probes (target random, outcome Probe), both spouts in,
 # a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss. Visual and neutral
@@ -12,7 +12,7 @@
 taskParameters:
   taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
   target: visualSide       # what a trial rewards, where a condition sets none (x-rules: visualSide, auditorySide or random here)
-  trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (x-condition-fields)
+  trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (any field but x-session-fields)
     - trialType: visual
       weight: 10
       set: { target: visualSide, auditoryStimulus.initialAzimuthsDeg: [0] }

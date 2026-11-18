@@ -93,6 +93,10 @@ laserTriggerTime:
 trialCondition:
   type: int
   description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its label, weight, pairs and condition-level values (set). A repeat keeps the condition of the trial it repeats.
+trialCombination:
+  type: int
+  description: The 0-based index of the trial's combination within its condition (trialCondition) - every list pick it drew, each list cell of the condition's set and each list field (contrasts and the initial azimuths, the set's or the task's) one entry, pairs zipped, combined by path with the first pick changing fastest (task.py condition_combinations); with trialCondition and the task file as run it gives every value the trial was drawn from. A repeat keeps the combination of the trial it repeats.
+  history: Added 18 Nov 2026; before it, a condition's list picks were rebuilt from their own columns.
 target:
   type: string
   values: [Left, Right, Go, NoGo, NoReward, Random]

@@ -316,13 +316,13 @@
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
-                      <Property Name="TemporalFrequency" Selector="TaskParameters.VisualStimulus.TemporalFrequencyHz" />
-                      <Property Name="SpatialFrequency" Selector="TaskParameters.VisualStimulus.SpatialFrequencyCpd" />
-                      <Property Name="Angle" Selector="TaskParameters.VisualStimulus.OrientationDeg" />
+                      <Property Name="TemporalFrequency" Selector="gratingTemporalFrequencyHz" />
+                      <Property Name="SpatialFrequency" Selector="gratingSpatialFrequencyCpd" />
+                      <Property Name="Angle" Selector="gratingOrientationDeg" />
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
+                    <Name>VisualTrial</Name>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -330,12 +330,12 @@
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>TaskConfig</Name>
+                    <Name>VisualTrial</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
                     <scr:Name>Aperture</scr:Name>
-                    <scr:Description>The Gaussian window's sigma relative to the grating's 100 degree extent.</scr:Description>
-                    <scr:Expression>TaskParameters.VisualStimulus.GaussianWindowSigmaDeg * 2 / 100.0</scr:Expression>
+                    <scr:Description>The Gaussian window's sigma relative to the grating's 100 degree extent, each trial's (its combination's visualStimulus.gaussianWindowSigmaDeg).</scr:Description>
+                    <scr:Expression>gratingSigmaDeg * 2 / 100.0</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
