@@ -1,0 +1,82 @@
+# Written by app-rig-control's tests/handover.py: the task file a launch writes at Go, rngSeed left null.
+taskParameters:
+  taskType: localization
+  target: visualSide
+  trialConditions:
+  - trialType: audiovisualCoherent
+    weight: 10
+    pairs:
+    - - visualStimulus.initialAzimuthsDeg
+      - auditoryStimulus.initialAzimuthsDeg
+    set:
+      target: visualSide
+      visualStimulus.initialAzimuthsDeg:
+      - -60
+      - 60
+      auditoryStimulus.initialAzimuthsDeg:
+      - -60
+      - 60
+  rngSeed: null
+  trialStructure:
+    itiMinSeconds: 3.4
+    itiMaxSeconds: 4.4
+    lickQuietSeconds: 0
+    wheelQuietSeconds: 0
+    wheelQuietCm: 0
+    drinkSeconds: 2.0
+    responseDelaySeconds: 0.0
+    responseWindowSeconds: 1.5
+    stimulusSeconds: 1.5
+    stimulusToSpoutsInSeconds: 0.5
+  visualStimulus:
+    initialAzimuthsDeg:
+    - -60
+    - 60
+    elevationDeg: 15
+    gaussianWindowSigmaDeg: 20
+    orientationDeg: 0
+    spatialFrequencyCpd: 0.066666667
+    temporalFrequencyHz: 0
+  auditoryStimulus:
+    amplitude: 1
+    initialAzimuthsDeg:
+    - -60
+    - 60
+  response:
+    thresholdLicks: 1
+    degreesPerLick: 0
+  backgroundNoise:
+    enabled: true
+    levelDbfs: -60.1
+  penalty:
+    timeoutSeconds: 4.0
+    sound:
+      enabled: true
+      levelDbfs: -44.6
+  reward:
+    rewardSizeUl: 3
+    largeRewardMultiplier: 1
+    largeRewardProbability: 0.0
+  repeats:
+    maxRepeats: 5
+    repeatOn: never
+  optogenetics:
+    enabled: false
+    zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
+    laserPowerMw: 3.0
+    laserOnProbability: 0.5
+    laserDurationSeconds: 2.5
+    laserToStimulusSeconds: 0.5
+    noLaserOnRepeats: true
+    trialsBeforeLaser: 20
+  autoRewardProbability: 0.0
+  bothSpoutsProbability: 0.5
+  contrasts:
+  - 3.0
+  curriculum:
+    id: 0
+    code: S00A
+    version: 95a3
+    path: A
+    label: Habituation
+    sha256: handover
