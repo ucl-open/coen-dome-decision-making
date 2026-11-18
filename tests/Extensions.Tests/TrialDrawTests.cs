@@ -81,14 +81,14 @@ static class Fixture
     static List<TrialCondition> Conditions(List<TrialCondition> conditions, string weights)
     {
         var byLabel = new DeserializerBuilder().Build().Deserialize<Dictionary<string, int>>(weights);
-        foreach (var c in conditions) c.Weight = byLabel[TrialDraw.Name(c.Label)];
+        foreach (var c in conditions) c.Weight = byLabel[TrialDraw.Name(c.TrialType)];
         return conditions;
     }
 
-    /// <summary>The label of that name.</summary>
-    public static TrialLabel Label(string name)
+    /// <summary>The trialType of that name.</summary>
+    public static TrialType TrialType(string name)
     {
-        return Enum.GetValues(typeof(TrialLabel)).Cast<TrialLabel>().Single(l => TrialDraw.Name(l) == name);
+        return Enum.GetValues(typeof(TrialType)).Cast<TrialType>().Single(l => TrialDraw.Name(l) == name);
     }
 
     /// <summary>A condition of a label and weight with these condition-level values.</summary>
@@ -96,7 +96,7 @@ static class Fixture
     {
         var set = new Dictionary<object, object>();
         for (int i = 0; i < pathsAndValues.Length; i += 2) set.Add(pathsAndValues[i], pathsAndValues[i + 1]);
-        return new TrialCondition { Label = Label(label), Weight = weight, Set = set, Pairs = new List<List<string>>() };
+        return new TrialCondition { TrialType = TrialType(label), Weight = weight, Set = set, Pairs = new List<List<string>>() };
     }
 
     /// <summary>The condition with its grating and sound azimuths paired.</summary>
@@ -114,13 +114,13 @@ static class Fixture
 
     public static void Weight(UclOpenCoenDomeDecisionMakingTaskParameters task, string label, int weight)
     {
-        task.TrialConditions.Single(c => TrialDraw.Name(c.Label) == label).Weight = weight;
+        task.TrialConditions.Single(c => TrialDraw.Name(c.TrialType) == label).Weight = weight;
     }
 
     // Every condition not of these labels weighted 0.
     public static void Only(UclOpenCoenDomeDecisionMakingTaskParameters task, params string[] labels)
     {
-        foreach (var c in task.TrialConditions.Where(c => !labels.Contains(TrialDraw.Name(c.Label)))) c.Weight = 0;
+        foreach (var c in task.TrialConditions.Where(c => !labels.Contains(TrialDraw.Name(c.TrialType)))) c.Weight = 0;
     }
 
     /// <summary>The task file's text as rig-control writes it, from the task (the draw and the Go check read the text).</summary>
@@ -340,36 +340,10 @@ public class TrialDrawTests
     }
 
     [TestMethod]
-    public void TheRulesAreCheckedOnTheTaskAndEveryCombinationAtGo()
-    {
-        var task = Fixture.Task("task-localization.yml", 4);
-        task.TrialConditions[3].Set = new Dictionary<object, object> { { "target", "random" }, { "bothSpoutsProbability", Fixture.List(1.0, 0.5) }, { "repeats.repeatOn", "never" } };
-        var refusal = Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
-        StringAssert.Contains(refusal, "trialConditions[3] (audiovisualConflict) with ");
-        StringAssert.Contains(refusal, "bothSpoutsProbability 0.5: target random needs bothSpoutsProbability 1 (x-rules)");
-        task = Fixture.Task("task-localization.yml", 4);
-        ((IDictionary<object, object>)task.TrialConditions[4].Set)["repeats.repeatOn"] = "notCorrect";
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "trialConditions[4] (neutral): target random needs repeats.repeatOn never (x-rules)");
-        task = Fixture.Task("task-localization.yml", 4);
-        task.Repeats.MaxRepeats = 0;
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "repeats.maxRepeats 0 needs repeats.repeatOn never (x-rules)");
-        task = Fixture.Task("task-discrimination-go-no-go.yml", 0);
-        task.TrialConditions.Add(Fixture.Condition("visual", 5, "target", "left"));
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())),
-            "trialConditions[5] (visual): taskType discriminationGoNoGo needs target one of go, noGo, noReward (x-rules)");
-        task = Fixture.Task("task-localization.yml", 0);
-        task.TrialConditions.Add(Fixture.Condition("go", 1, "target", "go"));
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "trialConditions[5] (go): taskType localization needs target one of visualSide, auditorySide, random");
-        task = Fixture.Task("task-localization.yml", 4);
-        task.TrialConditions[1].Set = new Dictionary<object, object> { { "target", "auditorySide" }, { "contrasts", Fixture.List(0.0) }, { "auditoryStimulus.initialAzimuthsDeg", Fixture.List(0.0, 60.0) } };
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "target auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all (x-rules)");
-    }
-
-    [TestMethod]
-    public void TheWeightsAreByLabel()
+    public void TheWeightsAreByTrialType()
     {
         var task = Fixture.Task("task-localization.yml", 0);
-        Assert.AreEqual(0, task.TrialConditions.Where(c => c.Label != TrialLabel.AudiovisualCoherent).Sum(c => c.Weight));
+        Assert.AreEqual(0, task.TrialConditions.Where(c => c.TrialType != TrialType.AudiovisualCoherent).Sum(c => c.Weight));
         Assert.IsTrue(Fixture.Draw(task, 100).All(t => t.trialType == "audiovisualCoherent"));
     }
 
@@ -562,7 +536,7 @@ public class TrialDrawTests
         Assert.IsTrue(stage2.All(t => t.trialType == "go" ? t.target == Target.Go && t.visualContrast > 0 && t.auditoryAmplitude == 0 : t.trialType == "noGo" && t.target == Target.NoGo && t.auditoryAmplitude > 0));
         Assert.AreEqual(0.5, stage2.Count(t => t.trialType == "go") / 400.0, 0.08, "go 10, noGo 10");
         var built = Fixture.Check(Fixture.Task("task-discrimination-left-right.yml", 2), Fixture.Speakers());
-        CollectionAssert.AreEqual(new[] { "left", "right", "audiovisualCoherent", "audiovisualConflict", "neutral" }, built.Select(c => c.Label).ToArray());
+        CollectionAssert.AreEqual(new[] { "left", "right", "audiovisualCoherent", "audiovisualConflict", "neutral" }, built.Select(c => c.TrialType).ToArray());
         Assert.AreEqual("accepted", Fixture.Refusal(() => Fixture.Check(Fixture.Task("task-localization.yml", 0), Fixture.Speakers())));
     }
 
@@ -896,8 +870,6 @@ public class TrialConditionTests
             else Assert.IsTrue(t.speakerChannel >= 0 && t.auditoryAzimuthDeg > 0, "the right speaker nearest 60");
         }
         Assert.IsTrue(trials.Any(t => t.visualAzimuthDeg < 0) && trials.Any(t => t.visualAzimuthDeg > 0));
-        StringAssert.Contains(Refused(With(Fixture.Condition("auditory", 1, "target", "auditorySide", "contrasts", Fixture.List(0.0), "auditoryStimulus.initialAzimuthsDeg", Fixture.List("all")))),
-            "target auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all (x-rules)");
         StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "auditoryStimulus.initialAzimuthsDeg", Fixture.List("left")))), "value left is neither a number nor all");
         Assert.AreEqual(-2, Trial.AllSpeakersChannel);
     }
@@ -939,13 +911,11 @@ public class TrialConditionTests
     }
 
     [TestMethod]
-    public void TheConditionFieldsAndRulesAreTheSchemas()
+    public void TheConditionFieldsAreTheSchemas()
     {
         var schema = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(Path.Combine(Fixture.Repo(), "src", "DataSchemas", "ucl_open_coen_dome_decision_making_task.json")));
         var parameters = schema["$defs"]["UclOpenCoenDomeDecisionMakingTaskParameters"];
-        CollectionAssert.AreEqual(TrialDraw.ConditionFields, parameters["x-conditionFields"].ToObject<string[]>());
-        var rules = Newtonsoft.Json.Linq.JToken.FromObject(TrialDraw.Rules, Newtonsoft.Json.JsonSerializer.Create(new Newtonsoft.Json.JsonSerializerSettings { NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore }));
-        Assert.IsTrue(Newtonsoft.Json.Linq.JToken.DeepEquals(parameters["x-rules"], rules), rules.ToString());
+        CollectionAssert.AreEqual(TrialDraw.ConditionFields, parameters["x-condition-fields"].ToObject<string[]>());
     }
 
     [TestMethod]

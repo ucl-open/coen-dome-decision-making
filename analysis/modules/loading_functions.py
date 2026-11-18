@@ -122,18 +122,18 @@ def curriculum_stage(session):
 
 def trial_conditions(session):
     """The trialConditions a session ran with, from its Settings_Task_*.json: the list the trialCondition column
-    indexes, each {label, weight, pairs, set} (a missing set as {}; from 17 to 18 Nov 2026 {type, weight, set}, its type
-    given as the label too). None for a session from before trial conditions (17 Nov 2026) or without a task file."""
+    indexes, each {trialType, weight, pairs, set} (a missing set as {}; from 17 to 18 Nov 2026 {type, weight, set}, its type
+    given as the trialType too). None for a session from before trial conditions (17 Nov 2026) or without a task file."""
     task = _settings(session, "Task")
     conditions = task.get("taskParameters", task).get("trialConditions")
     if conditions is None:
         return None
-    return [{"label": c.get("label", c.get("type")), **c, "set": c.get("set") or {}} for c in conditions]
+    return [{"trialType": c.get("trialType", c.get("type")), **c, "set": c.get("set") or {}} for c in conditions]
 
 
 def trial_weights(session):
     """The weight of each trial type a session ran with: from trial conditions on (17 Nov 2026), its conditions' weights
-    added by label (the trialType column); before, its trialWeights from its Settings_Task_*.json at its TrainingStage (Settings_Experiment_*.json's
+    added by trialType (the trialType column); before, its trialWeights from its Settings_Task_*.json at its TrainingStage (Settings_Experiment_*.json's
     parameters), the stage's own when it has them, else the top-level one. None without a task file. A task file from the
     Mouse Curriculum on (no trainingStages) holds the stage's values at the top level."""
     task = _settings(session, "Task")
@@ -143,7 +143,7 @@ def trial_weights(session):
     if conditions is not None:
         weights = {}
         for c in conditions:
-            weights[c["label"]] = weights.get(c["label"], 0) + c["weight"]
+            weights[c["trialType"]] = weights.get(c["trialType"], 0) + c["weight"]
         return weights
     task = task.get("taskParameters", task)
     if "trainingStages" not in task:

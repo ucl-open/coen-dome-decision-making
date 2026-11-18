@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making audiovisual localization task.
 # Read by src/main.bonsai at Go and published as the TaskText and TaskConfig subjects (and at Start, as launched, for the background noise).
-# Each trial condition says what its trials show and reward: its set over the task's values (x-conditionFields), its pairs
-# picking listed values together; its label names it (trialType). A stage's conditions replace them whole. audiovisualConflict
+# Each trial condition says what its trials show and reward: its set over the task's values (x-condition-fields), its pairs
+# picking listed values together; its trialType names it. A stage's conditions replace them whole. audiovisualConflict
 # and neutral trials have no right answer and never repeat: random-reward probes (target random, outcome Probe), both spouts in,
 # a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss. Visual and neutral
 # trials play the sound at the centre.
@@ -12,22 +12,22 @@
 taskParameters:
   taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
   target: visualSide       # what a trial rewards, where a condition sets none (x-rules: visualSide, auditorySide or random here)
-  trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (x-conditionFields)
-    - label: visual
+  trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (x-condition-fields)
+    - trialType: visual
       weight: 10
       set: { target: visualSide, auditoryStimulus.initialAzimuthsDeg: [0] }
-    - label: auditory
+    - trialType: auditory
       weight: 10
       set: { target: auditorySide, contrasts: [0] }
-    - label: audiovisualCoherent
+    - trialType: audiovisualCoherent
       weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
       set: { target: visualSide, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
-    - label: audiovisualConflict
+    - trialType: audiovisualConflict
       weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
       set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60], bothSpoutsProbability: 1, repeats.repeatOn: never }
-    - label: neutral
+    - trialType: neutral
       weight: 1
       set: { target: random, contrasts: [0], auditoryStimulus.initialAzimuthsDeg: [0], bothSpoutsProbability: 1, repeats.repeatOn: never }
   rngSeed: null           # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events

@@ -353,12 +353,11 @@
     },
     "TrialCondition": {
       "additionalProperties": false,
-      "description": "One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the\ninitial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.",
+      "description": "One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the\ninitial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.",
       "properties": {
-        "label": {
-          "$ref": "#/$defs/TrialLabel",
-          "description": "The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (derive_label) unless chosen; it names rows and analysis groups and drives nothing",
-          "title": "Label"
+        "trialType": {
+          "$ref": "#/$defs/TrialType",
+          "description": "The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing"
         },
         "weight": {
           "description": "Relative draw weight: each new trial picks a condition with these as relative chances",
@@ -368,7 +367,7 @@
           "type": "integer"
         },
         "pairs": {
-          "description": "Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently",
+          "description": "Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently",
           "items": {
             "items": {
               "type": "string"
@@ -380,33 +379,17 @@
         },
         "set": {
           "additionalProperties": true,
-          "description": "Condition-level values by dotted path (x-conditionFields); the rest are the task's",
+          "description": "Condition-level values by dotted path (x-condition-fields); the rest are the task's",
           "title": "Set",
           "type": "object"
         }
       },
       "required": [
-        "label",
+        "trialType",
         "weight"
       ],
       "title": "TrialCondition",
       "type": "object"
-    },
-    "TrialLabel": {
-      "description": "A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_label).",
-      "enum": [
-        "visual",
-        "auditory",
-        "audiovisualCoherent",
-        "audiovisualConflict",
-        "neutral",
-        "go",
-        "noGo",
-        "left",
-        "right"
-      ],
-      "title": "TrialLabel",
-      "type": "string"
     },
     "TrialStructure": {
       "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can\nonly lengthen it. A lick first counts responseDelaySeconds after stimulus onset, where the\nresponse window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
@@ -496,6 +479,22 @@
       ],
       "title": "TrialStructure",
       "type": "object"
+    },
+    "TrialType": {
+      "description": "A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_trial_type).",
+      "enum": [
+        "visual",
+        "auditory",
+        "audiovisualCoherent",
+        "audiovisualConflict",
+        "neutral",
+        "go",
+        "noGo",
+        "left",
+        "right"
+      ],
+      "title": "TrialType",
+      "type": "string"
     },
     "UclOpenCoenDomeDecisionMakingTaskLogic": {
       "description": "Task logic definition for the coen-dome-decision-making experiment.",
@@ -662,7 +661,7 @@
       ],
       "title": "UclOpenCoenDomeDecisionMakingTaskParameters",
       "type": "object",
-      "x-conditionFields": [
+      "x-condition-fields": [
         "target",
         "contrasts",
         "visualStimulus.initialAzimuthsDeg",
@@ -676,168 +675,330 @@
         "autoRewardProbability",
         "bothSpoutsProbability"
       ],
-      "x-labels": [
+      "x-rules": [
         {
-          "is": "go",
-          "label": "go",
-          "when": "target"
-        },
-        {
-          "is": "noGo",
-          "label": "noGo",
-          "when": "target"
-        },
-        {
-          "is": "left",
-          "label": "left",
-          "when": "target"
-        },
-        {
-          "is": "right",
-          "label": "right",
-          "when": "target"
-        },
-        {
-          "anyAbove": {
-            "auditoryStimulus.amplitude": 0,
-            "contrasts": 0
+          "if": {
+            "properties": {
+              "repeats.maxRepeats": {
+                "const": 0
+              }
+            }
           },
-          "anyNotIn": {
-            "auditoryStimulus.initialAzimuthsDeg": [
-              0,
-              "all"
-            ]
+          "message": "repeats.maxRepeats 0 needs repeats.repeatOn never",
+          "then": {
+            "properties": {
+              "repeats.repeatOn": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "target": {
+                "const": "random"
+              }
+            }
           },
-          "label": "audiovisualConflict",
-          "mirrored": [
-            "visualStimulus.initialAzimuthsDeg",
+          "message": "target random needs bothSpoutsProbability 1 and repeats.repeatOn never",
+          "then": {
+            "properties": {
+              "bothSpoutsProbability": {
+                "const": 1
+              },
+              "repeats.repeatOn": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "target": {
+                "const": "noReward"
+              }
+            }
+          },
+          "message": "target noReward needs repeats.repeatOn never",
+          "then": {
+            "properties": {
+              "repeats.repeatOn": {
+                "const": "never"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taskType": {
+                "const": "localization"
+              }
+            }
+          },
+          "message": "taskType localization needs target one of visualSide, auditorySide, random",
+          "then": {
+            "properties": {
+              "target": {
+                "enum": [
+                  "visualSide",
+                  "auditorySide",
+                  "random"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taskType": {
+                "const": "discriminationGoNoGo"
+              }
+            }
+          },
+          "message": "taskType discriminationGoNoGo needs target one of go, noGo, noReward",
+          "then": {
+            "properties": {
+              "target": {
+                "enum": [
+                  "go",
+                  "noGo",
+                  "noReward"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "taskType": {
+                "const": "discriminationLeftRight"
+              }
+            }
+          },
+          "message": "taskType discriminationLeftRight needs target one of left, right, random",
+          "then": {
+            "properties": {
+              "target": {
+                "enum": [
+                  "left",
+                  "right",
+                  "random"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "contrasts": {
+                "items": {
+                  "const": 0
+                }
+              },
+              "target": {
+                "not": {
+                  "const": "visualSide"
+                }
+              }
+            }
+          },
+          "message": "contrasts 0 shows no grating, so its azimuths are unread unless target visualSide",
+          "unused": [
+            "visualStimulus.initialAzimuthsDeg"
+          ]
+        },
+        {
+          "if": {
+            "properties": {
+              "auditoryStimulus.amplitude": {
+                "const": 0
+              },
+              "target": {
+                "not": {
+                  "const": "auditorySide"
+                }
+              }
+            }
+          },
+          "message": "auditoryStimulus.amplitude 0 plays no sound, so its azimuths are unread unless target auditorySide",
+          "unused": [
             "auditoryStimulus.initialAzimuthsDeg"
           ]
         },
         {
-          "anyAbove": {
-            "auditoryStimulus.amplitude": 0,
-            "contrasts": 0
+          "if": {
+            "properties": {
+              "target": {
+                "const": "auditorySide"
+              }
+            }
           },
-          "anyNotIn": {
-            "auditoryStimulus.initialAzimuthsDeg": [
-              0,
-              "all"
-            ]
-          },
-          "label": "audiovisualCoherent"
-        },
-        {
-          "anyAbove": {
-            "contrasts": 0
-          },
-          "label": "visual"
-        },
-        {
-          "anyAbove": {
-            "auditoryStimulus.amplitude": 0
-          },
-          "anyNotIn": {
-            "auditoryStimulus.initialAzimuthsDeg": [
-              0,
-              "all"
-            ]
-          },
-          "label": "auditory"
-        },
-        {
-          "label": "neutral"
+          "message": "target auditorySide needs auditory azimuths without 0 or all",
+          "then": {
+            "properties": {
+              "auditoryStimulus.initialAzimuthsDeg": {
+                "items": {
+                  "not": {
+                    "enum": [
+                      0,
+                      "all"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ],
-      "x-rules": [
+      "x-trial-types": [
         {
-          "is": 0,
-          "then": {
-            "repeats.repeatOn": "never"
+          "if": {
+            "properties": {
+              "target": {
+                "items": {
+                  "const": "go"
+                }
+              }
+            }
           },
-          "when": "repeats.maxRepeats"
+          "trialType": "go"
         },
         {
-          "is": "random",
-          "then": {
-            "bothSpoutsProbability": 1,
-            "repeats.repeatOn": "never"
+          "if": {
+            "properties": {
+              "target": {
+                "items": {
+                  "const": "noGo"
+                }
+              }
+            }
           },
-          "when": "target"
+          "trialType": "noGo"
         },
         {
-          "is": "noReward",
-          "then": {
-            "repeats.repeatOn": "never"
+          "if": {
+            "properties": {
+              "target": {
+                "items": {
+                  "const": "left"
+                }
+              }
+            }
           },
-          "when": "target"
+          "trialType": "left"
         },
         {
-          "is": "localization",
-          "oneOf": {
-            "target": [
-              "visualSide",
-              "auditorySide",
-              "random"
-            ]
+          "if": {
+            "properties": {
+              "target": {
+                "items": {
+                  "const": "right"
+                }
+              }
+            }
           },
-          "when": "taskType"
+          "trialType": "right"
         },
         {
-          "is": "discriminationGoNoGo",
-          "oneOf": {
-            "target": [
-              "go",
-              "noGo",
-              "noReward"
-            ]
+          "if": {
+            "properties": {
+              "contrasts": {
+                "contains": {
+                  "exclusiveMinimum": 0
+                }
+              },
+              "auditoryStimulus.amplitude": {
+                "contains": {
+                  "exclusiveMinimum": 0
+                }
+              },
+              "auditoryStimulus.initialAzimuthsDeg": {
+                "contains": {
+                  "not": {
+                    "enum": [
+                      0,
+                      "all"
+                    ]
+                  }
+                }
+              }
+            }
           },
-          "when": "taskType"
-        },
-        {
-          "is": "discriminationLeftRight",
-          "oneOf": {
-            "target": [
-              "left",
-              "right",
-              "random"
-            ]
-          },
-          "when": "taskType"
-        },
-        {
-          "is": 0,
-          "unless": {
-            "target": [
-              "visualSide"
-            ]
-          },
-          "unused": [
-            "visualStimulus.initialAzimuthsDeg"
-          ],
-          "when": "contrasts"
-        },
-        {
-          "is": 0,
-          "unless": {
-            "target": [
-              "auditorySide"
-            ]
-          },
-          "unused": [
+          "mirrored": [
+            "visualStimulus.initialAzimuthsDeg",
             "auditoryStimulus.initialAzimuthsDeg"
           ],
-          "when": "auditoryStimulus.amplitude"
+          "trialType": "audiovisualConflict"
         },
         {
-          "is": "auditorySide",
-          "noneOf": {
-            "auditoryStimulus.initialAzimuthsDeg": [
-              0,
-              "all"
-            ]
+          "if": {
+            "properties": {
+              "contrasts": {
+                "contains": {
+                  "exclusiveMinimum": 0
+                }
+              },
+              "auditoryStimulus.amplitude": {
+                "contains": {
+                  "exclusiveMinimum": 0
+                }
+              },
+              "auditoryStimulus.initialAzimuthsDeg": {
+                "contains": {
+                  "not": {
+                    "enum": [
+                      0,
+                      "all"
+                    ]
+                  }
+                }
+              }
+            }
           },
-          "when": "target"
+          "trialType": "audiovisualCoherent"
+        },
+        {
+          "if": {
+            "properties": {
+              "contrasts": {
+                "contains": {
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          },
+          "trialType": "visual"
+        },
+        {
+          "if": {
+            "properties": {
+              "auditoryStimulus.amplitude": {
+                "contains": {
+                  "exclusiveMinimum": 0
+                }
+              },
+              "auditoryStimulus.initialAzimuthsDeg": {
+                "contains": {
+                  "not": {
+                    "enum": [
+                      0,
+                      "all"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "trialType": "auditory"
+        },
+        {
+          "trialType": "neutral"
         }
       ]
     },

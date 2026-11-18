@@ -166,8 +166,8 @@ class RepeatOn(StrEnum):
     NOT_CORRECT = "notCorrect"
 
 
-class TrialLabel(StrEnum):
-    """A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_label)."""
+class TrialType(StrEnum):
+    """A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_trial_type)."""
 
     VISUAL = "visual"
     AUDITORY = "auditory"
@@ -182,7 +182,7 @@ class TrialLabel(StrEnum):
 
 MAX_WEIGHT_SUM = 2147483647  # the most trial_conditions' weights may add to: the draw sums them as an int (TrialLogic.cs int.MaxValue)
 
-# The fields a condition may set (the schema's x-conditionFields; TrialDraw.ConditionFields, a test holds both): only what
+# The fields a condition may set (the schema's x-condition-fields; TrialDraw.ConditionFields, a test holds both): only what
 # TrialDraw.New() alone reads per trial, never what is fixed at Go. A condition's blank takes the stage's, then the task's value.
 CONDITION_FIELDS = (
     "target",
@@ -198,96 +198,77 @@ CONDITION_FIELDS = (
     "autoRewardProbability",
     "bothSpoutsProbability",
 )
-# Where one setting limits another (the schema's x-rules; TrialDraw.Rules, a test holds both), checked on the task and
-# on every combination of every condition, here and at Go. Each rule: when the path `when` is `is` (a list: every entry
-# is) and no `unless` path is one of its values, then each `then` path must be its value, each `oneOf` path one of its
-# values, no entry of each `noneOf` path one of its values, and the `unused` paths are not read. A side target reads its
-# azimuth to set the reward side, even unshown.
+# Where one setting limits another (the schema's x-rules, JSON Schema over dotted paths; open_rigs.rigs.conditions
+# evaluates them), checked on the task and on every combination of every condition. A side target reads its azimuth to
+# set the reward side, even unshown.
 TARGETS = {
     TaskType.LOCALIZATION: ("visualSide", "auditorySide", "random"),
     TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo", "noReward"),
     TaskType.DISCRIMINATION_LEFT_RIGHT: ("left", "right", "random"),
 }
+
+
+def _props(schemas: dict) -> dict:
+    return {"properties": schemas}
+
+
+SIDELESS = [0, ALL_SPEAKERS]  # sound azimuths with no side
 RULES = (
-    {"when": "repeats.maxRepeats", "is": 0, "then": {"repeats.repeatOn": "never"}},
-    {"when": "target", "is": "random", "then": {"bothSpoutsProbability": 1, "repeats.repeatOn": "never"}},
-    {"when": "target", "is": "noReward", "then": {"repeats.repeatOn": "never"}},
-    *({"when": "taskType", "is": task_type.value, "oneOf": {"target": list(targets)}} for task_type, targets in TARGETS.items()),
-    {"when": "contrasts", "is": 0, "unless": {"target": ["visualSide"]}, "unused": ["visualStimulus.initialAzimuthsDeg"]},
-    {"when": "auditoryStimulus.amplitude", "is": 0, "unless": {"target": ["auditorySide"]},
-     "unused": ["auditoryStimulus.initialAzimuthsDeg"]},
+    {"if": _props({"repeats.maxRepeats": {"const": 0}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
+     "message": "repeats.maxRepeats 0 needs repeats.repeatOn never"},
+    {"if": _props({"target": {"const": "random"}}), "then": _props({"bothSpoutsProbability": {"const": 1}, "repeats.repeatOn": {"const": "never"}}),
+     "message": "target random needs bothSpoutsProbability 1 and repeats.repeatOn never"},
+    {"if": _props({"target": {"const": "noReward"}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
+     "message": "target noReward needs repeats.repeatOn never"},
+    *({"if": _props({"taskType": {"const": task_type.value}}), "then": _props({"target": {"enum": list(targets)}}),
+       "message": f"taskType {task_type.value} needs target one of {', '.join(targets)}"} for task_type, targets in TARGETS.items()),
+    {"if": _props({"contrasts": {"items": {"const": 0}}, "target": {"not": {"const": "visualSide"}}}), "unused": ["visualStimulus.initialAzimuthsDeg"],
+     "message": "contrasts 0 shows no grating, so its azimuths are unread unless target visualSide"},
+    {"if": _props({"auditoryStimulus.amplitude": {"const": 0}, "target": {"not": {"const": "auditorySide"}}}), "unused": ["auditoryStimulus.initialAzimuthsDeg"],
+     "message": "auditoryStimulus.amplitude 0 plays no sound, so its azimuths are unread unless target auditorySide"},
     # The picked sound azimuth's sign is the side: 0 and "all" have none.
-    {"when": "target", "is": "auditorySide", "noneOf": {"auditoryStimulus.initialAzimuthsDeg": [0, ALL_SPEAKERS]}},
+    {"if": _props({"target": {"const": "auditorySide"}}), "then": _props({"auditoryStimulus.initialAzimuthsDeg": {"items": {"not": {"enum": SIDELESS}}}}),
+     "message": "target auditorySide needs auditory azimuths without 0 or all"},
 )
-# How a condition is named (the schema's x-labels, open_rigs.rigs.conditions' format; derive_label): first match wins. A role
-# target names it; else by what it shows, the grating (a contrast above 0) and the sound as a cue (an amplitude above 0 at
-# an azimuth off centre: 0 and "all" give no side): both, audiovisualConflict when the azimuths are paired mirrored, else
-# audiovisualCoherent; one alone; or neutral.
-_BOTH = {"contrasts": 0, "auditoryStimulus.amplitude": 0}
-_OFF_CENTRE = {"auditoryStimulus.initialAzimuthsDeg": [0, ALL_SPEAKERS]}
-LABELS = (
-    *({"label": role, "when": "target", "is": role} for role in ("go", "noGo", "left", "right")),
-    {"label": "audiovisualConflict", "anyAbove": _BOTH, "anyNotIn": _OFF_CENTRE,
+# How a condition is named (the schema's x-trial-types; derive_trial_type): first match wins, on the condition's values
+# each as a list. A role target names it; else by what it shows, the grating (a contrast above 0) and the sound as a cue
+# (an amplitude above 0 at an azimuth off centre: 0 and "all" give no side): both, audiovisualConflict when the azimuths
+# are paired mirrored, else audiovisualCoherent; one alone; or neutral.
+_ABOVE_0 = {"contains": {"exclusiveMinimum": 0}}
+_CUE = {"auditoryStimulus.amplitude": _ABOVE_0, "auditoryStimulus.initialAzimuthsDeg": {"contains": {"not": {"enum": SIDELESS}}}}
+TRIAL_TYPES = (
+    *({"trialType": role, "if": _props({"target": {"items": {"const": role}}})} for role in ("go", "noGo", "left", "right")),
+    {"trialType": "audiovisualConflict", "if": _props({"contrasts": _ABOVE_0, **_CUE}),
      "mirrored": ["visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"]},
-    {"label": "audiovisualCoherent", "anyAbove": _BOTH, "anyNotIn": _OFF_CENTRE},
-    {"label": "visual", "anyAbove": {"contrasts": 0}},
-    {"label": "auditory", "anyAbove": {"auditoryStimulus.amplitude": 0}, "anyNotIn": _OFF_CENTRE},
-    {"label": "neutral"},
+    {"trialType": "audiovisualCoherent", "if": _props({"contrasts": _ABOVE_0, **_CUE})},
+    {"trialType": "visual", "if": _props({"contrasts": _ABOVE_0})},
+    {"trialType": "auditory", "if": _props(_CUE)},
+    {"trialType": "neutral"},
 )
 # The most combinations one condition may expand into (TrialDraw.MaxCombinations).
 MAX_COMBINATIONS = 64
 
 
-def _is(value: Any, expected: Any) -> bool:
-    if isinstance(value, list):
-        return bool(value) and all(v == expected for v in value)
-    return value == expected
-
-
-def applies(values: dict, rule: dict) -> bool:
-    """Whether a rule holds on a task's values (by alias, as JSON): `when` is `is` and no `unless` path is one of its values."""
-    unless = rule.get("unless", {})
-    return _is(_get(values, rule["when"]), rule["is"]) and not any(_get(values, p) in vs for p, vs in unless.items())
-
-
-def rule_problems(values: dict) -> list[str]:
-    """What breaks RULES in a task's values (by alias, as JSON)."""
-    problems = []
-    for rule in RULES:
-        if not applies(values, rule):
-            continue
-        for path, expected in rule.get("then", {}).items():
-            if _get(values, path) != expected:
-                problems.append(f"{rule['when']} {rule['is']} needs {path} {expected} (x-rules)")
-        for path, allowed in rule.get("oneOf", {}).items():
-            if _get(values, path) not in allowed:
-                problems.append(f"{rule['when']} {rule['is']} needs {path} one of {', '.join(map(str, allowed))} (x-rules)")
-        for path, refused in rule.get("noneOf", {}).items():
-            if any(entry in refused for entry in _get(values, path)):
-                problems.append(f"{rule['when']} {rule['is']} needs {path} none of {', '.join(map(str, refused))} (x-rules)")
-    return problems
-
-
 class TrialCondition(TaskBlock):
-    """One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
+    """One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
     the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
     initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial."""
 
     model_config = ConfigDict(extra="forbid")
 
-    label: TrialLabel = Field(
-        description="The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (derive_label) unless chosen; it names rows and analysis groups and drives nothing"
+    trial_type: TrialType = Field(
+        description="The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing"
     )
     weight: int = Field(ge=0, le=1_000_000, description="Relative draw weight: each new trial picks a condition with these as relative chances")
     pairs: list[list[String]] = Field(
         default_factory=list,
         description=(
-            "Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: "
+            "Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: "
             "audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], "
             "audiovisualConflict with [60, -60]. Unpaired lists are picked independently"
         ),
     )
-    set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path (x-conditionFields); the rest are the task's")
+    set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path (x-condition-fields); the rest are the task's")
 
 
 def _put(data: dict, dotted, value: Any) -> None:
@@ -332,9 +313,9 @@ def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[
     return combos
 
 
-def derive_label(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition: TrialCondition) -> str:
-    """A condition's label from its settings (its set over the task's), by LABELS (x-labels)."""
-    return conditions.derive_label(LABELS, task.model_dump(by_alias=True, mode="json"), condition.set, condition.pairs)
+def derive_trial_type(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition: TrialCondition) -> str:
+    """A condition's trialType from its settings (its set over the task's), by TRIAL_TYPES (x-trial-types)."""
+    return conditions.derive_trial_type(TRIAL_TYPES, task.model_dump(by_alias=True, mode="json"), condition.set, condition.pairs)
 
 
 class RepeatSettings(TaskBlock):
@@ -374,7 +355,7 @@ class Curriculum(TaskBlock):
 class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
-    model_config = ConfigDict(json_schema_extra={"x-conditionFields": list(CONDITION_FIELDS), "x-rules": [dict(rule) for rule in RULES], "x-labels": [dict(label) for label in LABELS]})
+    model_config = ConfigDict(json_schema_extra={"x-condition-fields": list(CONDITION_FIELDS), "x-rules": list(RULES), "x-trial-types": list(TRIAL_TYPES)})
 
     task_type: TaskType = Field(
         description=(
@@ -461,9 +442,9 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     def _weights_and_rules(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.CheckTask's same rules: x-rules on the task's own values (each combination's in _conditions_run), the
         # weights' sum.
-        problems = rule_problems(self.model_dump(by_alias=True, mode="json"))
+        problems = conditions.rule_problems(RULES, self.model_dump(by_alias=True, mode="json"))
         if problems:
-            raise ValueError("; ".join(problems))
+            raise ValueError("; ".join(f"{problem} (x-rules)" for problem in problems))
         if not sum(condition.weight for condition in self.trial_conditions) > 0:
             raise ValueError("trial_conditions needs a condition with a weight above 0")
         if sum(condition.weight for condition in self.trial_conditions) > MAX_WEIGHT_SUM:
@@ -479,11 +460,11 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         base = self.model_dump(by_alias=True, mode="json")
         go = False
         for i, condition in enumerate(self.trial_conditions):
-            where = f"trial_conditions[{i}] ({condition.label.value})"
+            where = f"trial_conditions[{i}] ({condition.trial_type.value})"
             paired = [path for group in condition.pairs for path in group]
             for path in [*condition.set, *paired]:
                 if path not in CONDITION_FIELDS:
-                    raise ValueError(f"{where} sets or pairs {path}, which is not a condition field (x-conditionFields)")
+                    raise ValueError(f"{where} sets or pairs {path}, which is not a condition field (x-condition-fields)")
                 if path.startswith("optogenetics.") and not self.optogenetics.enabled:
                     raise ValueError(f"{where} sets {path} with optogenetics off")
             if len(set(paired)) < len(paired) or any(len(group) < 2 for group in condition.pairs):
@@ -501,7 +482,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
                 data = copy.deepcopy(base)
                 for path, value in combo.items():
                     _put(data, path, value)
-                data["trialConditions"] = [{"label": condition.label.value, "weight": 1}]
+                data["trialConditions"] = [{"trialType": condition.trial_type.value, "weight": 1}]
                 try:
                     type(self).model_validate(data, context={"condition": True})
                 except ValidationError as e:

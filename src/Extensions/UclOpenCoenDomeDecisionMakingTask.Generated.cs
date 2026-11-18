@@ -1335,12 +1335,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
+    /// One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
     ///the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
     ///initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
+    [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
     the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
     initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
@@ -1348,7 +1348,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     public partial class TrialCondition
     {
     
-        private TrialLabel _label;
+        private TrialType _trialType;
     
         private int _weight;
     
@@ -1363,29 +1363,29 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected TrialCondition(TrialCondition other)
         {
-            _label = other._label;
+            _trialType = other._trialType;
             _weight = other._weight;
             _pairs = other._pairs;
             _set = other._set;
         }
     
         /// <summary>
-        /// The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (derive_label) unless chosen; it names rows and analysis groups and drives nothing
+        /// The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("label", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="label")]
+        [Newtonsoft.Json.JsonPropertyAttribute("trialType", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialType")]
         [System.ComponentModel.DescriptionAttribute("The condition\'s name, logged as each trial\'s trialType: derived from its contrast" +
-            "s, amplitude, pairing and target (derive_label) unless chosen; it names rows and" +
-            " analysis groups and drives nothing")]
-        public TrialLabel Label
+            "s, amplitude, pairing and target (x-trial-types, derive_trial_type) unless chose" +
+            "n; it names rows and analysis groups and drives nothing")]
+        public TrialType TrialType
         {
             get
             {
-                return _label;
+                return _trialType;
             }
             set
             {
-                _label = value;
+                _trialType = value;
             }
         }
     
@@ -1409,12 +1409,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
+        /// Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("pairs")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="pairs")]
-        [System.ComponentModel.DescriptionAttribute(@"Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
+        [System.ComponentModel.DescriptionAttribute(@"Groups of x-condition-fields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
         public System.Collections.Generic.List<System.Collections.Generic.List<string>> Pairs
         {
             get
@@ -1428,13 +1428,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Condition-level values by dotted path (x-conditionFields); the rest are the task's
+        /// Condition-level values by dotted path (x-condition-fields); the rest are the task's
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("set")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="set")]
-        [System.ComponentModel.DescriptionAttribute("Condition-level values by dotted path (x-conditionFields); the rest are the task\'" +
-            "s")]
+        [System.ComponentModel.DescriptionAttribute("Condition-level values by dotted path (x-condition-fields); the rest are the task" +
+            "\'s")]
         public object Set
         {
             get
@@ -1459,7 +1459,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("Label = " + _label + ", ");
+            stringBuilder.Append("TrialType = " + _trialType + ", ");
             stringBuilder.Append("Weight = " + _weight + ", ");
             stringBuilder.Append("Pairs = " + _pairs + ", ");
             stringBuilder.Append("Set = " + _set);
@@ -1478,52 +1478,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("}");
             return stringBuilder.ToString();
         }
-    }
-
-
-    /// <summary>
-    /// A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_label).
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
-    public enum TrialLabel
-    {
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="visual")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
-        Visual = 0,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="auditory")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
-        Auditory = 1,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualCoherent")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
-        AudiovisualCoherent = 2,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualConflict")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualConflict")]
-        AudiovisualConflict = 3,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="neutral")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
-        Neutral = 4,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="go")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
-        Go = 5,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="noGo")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
-        NoGo = 6,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="left")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
-        Left = 7,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="right")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
-        Right = 8,
     }
 
 
@@ -1816,6 +1770,52 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("}");
             return stringBuilder.ToString();
         }
+    }
+
+
+    /// <summary>
+    /// A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_trial_type).
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
+    [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+    public enum TrialType
+    {
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="visual")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
+        Visual = 0,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="auditory")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
+        Auditory = 1,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualCoherent")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
+        AudiovisualCoherent = 2,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualConflict")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualConflict")]
+        AudiovisualConflict = 3,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="neutral")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
+        Neutral = 4,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="go")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
+        Go = 5,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="noGo")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
+        NoGo = 6,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="left")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
+        Left = 7,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="right")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
+        Right = 8,
     }
 
 

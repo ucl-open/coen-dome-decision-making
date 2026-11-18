@@ -5,19 +5,19 @@ from pathlib import Path
 import pydantic
 import pytest
 import yaml
+from open_rigs.rigs.conditions import unused_paths
 from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
     CONDITION_FIELDS,
-    LABELS,
     MAX_COMBINATIONS,
     MAX_WEIGHT_SUM,
     RULES,
     TARGETS,
     TaskType,
     TrialCondition,
-    applies,
-    derive_label,
+    TRIAL_TYPES,
+    derive_trial_type,
     UclOpenCoenDomeDecisionMakingTaskLogic,
     Curriculum,
     UclOpenCoenDomeDecisionMakingTaskParameters,
@@ -90,7 +90,7 @@ def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
         del data["taskType"], data["bothSpoutsProbability"]
         data["target"] = roles.get(data["target"], data["target"])
         for c in data["trialConditions"]:
-            c["label"] = roles.get(c["label"], c["label"])
+            c["trialType"] = roles.get(c["trialType"], c["trialType"])
             c["set"]["target"] = roles.get(c["set"]["target"], c["set"]["target"])
             c["set"].pop("bothSpoutsProbability", None)
     assert lr == gng
@@ -333,14 +333,14 @@ def test_the_stimulus_is_off_before_the_next_one_starts():
         TrialStructure(stimulusSeconds=1.6, itiMinSeconds=1.5, itiMaxSeconds=2, drinkSeconds=1, responseDelaySeconds=0, responseWindowSeconds=3)
 
 
-def test_each_committed_condition_is_labelled_as_derived_and_logged():
-    # A label names a condition (the trialType column's words) and drives nothing; the committed files' are the derived ones.
+def test_each_committed_condition_s_trial_type_is_derived_and_logged():
+    # A trialType names a condition (the trialType column's words) and drives nothing; the committed files' are the derived ones.
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
     for path in TASK_FILES:
         task = _task(path.name)
         for condition in task.trial_conditions:
-            assert condition.label.value in columns["trialType"]["values"]
-            assert derive_label(task, condition) == condition.label.value, (path.name, condition.label)
+            assert condition.trial_type.value in columns["trialType"]["values"]
+            assert derive_trial_type(task, condition) == condition.trial_type.value, (path.name, condition.trial_type)
 
 
 @pytest.mark.parametrize("task_type, name", [
@@ -354,24 +354,24 @@ def test_a_target_of_another_task_type_is_refused(task_type, name):
 
 
 @pytest.mark.parametrize("set_, words", [
-    ({"target": "random", "bothSpoutsProbability": 0.5, "repeats.repeatOn": "never"}, "target random needs bothSpoutsProbability 1"),
-    ({"target": "random", "bothSpoutsProbability": 1, "repeats.repeatOn": "notCorrect"}, "target random needs repeats.repeatOn never"),
+    ({"target": "random", "bothSpoutsProbability": 0.5, "repeats.repeatOn": "never"}, "target random needs bothSpoutsProbability 1 and repeats.repeatOn never"),
+    ({"target": "random", "bothSpoutsProbability": 1, "repeats.repeatOn": "notCorrect"}, "target random needs bothSpoutsProbability 1 and repeats.repeatOn never"),
     ({"repeats.maxRepeats": 0, "repeats.repeatOn": "noResponse"}, "repeats.maxRepeats 0 needs repeats.repeatOn never"),
-    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": [0, 60]}, r"auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all \(x-rules\)"),
-    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": ["all", 60]}, r"auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all \(x-rules\)"),
+    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": [0, 60]}, r"target auditorySide needs auditory azimuths without 0 or all \(x-rules\)"),
+    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": ["all", 60]}, r"target auditorySide needs auditory azimuths without 0 or all \(x-rules\)"),
     ({"auditoryStimulus.initialAzimuthsDeg": ["left"]}, "auditoryStimulus.initialAzimuthsDeg"),
     ({"auditoryStimulus.amplitude": -0.1}, "greater than or equal to 0"),
     ({"contrasts": [-1]}, "contrasts must each be 0 or more"),
 ])
 def test_a_condition_breaking_a_rule_is_refused(set_, words):
     with pytest.raises(ValidationError, match=words):
-        _conditions({"label": "visual", "weight": 1, "set": set_})
+        _conditions({"trialType": "visual", "weight": 1, "set": set_})
 
 
 V, S = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
 
 
-@pytest.mark.parametrize("set_, pairs, label", [
+@pytest.mark.parametrize("set_, pairs, trial_type", [
     ({"target": "go"}, [], "go"), ({"target": "noGo", "contrasts": [0]}, [], "noGo"), ({"target": "left"}, [], "left"), ({"target": "right"}, [], "right"),
     ({}, [], "audiovisualCoherent"), ({V: [-60, 60], S: [-60, 60]}, [[V, S]], "audiovisualCoherent"),
     ({V: [-60, 60], S: [60, -60]}, [[V, S]], "audiovisualConflict"), ({V: [-60, 60], S: [60, -60]}, [], "audiovisualCoherent"),
@@ -381,10 +381,10 @@ V, S = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg
     ({"contrasts": [0], S: ["all"]}, [], "neutral"), ({"contrasts": [0], S: [0]}, [], "neutral"),
     ({"contrasts": [0], "auditoryStimulus.amplitude": 0}, [], "neutral"), ({"target": "random", "contrasts": [0], S: [0]}, [], "neutral"),
 ])
-def test_every_label_is_derived_by_x_labels(set_, pairs, label):
+def test_every_trial_type_is_derived_by_x_trial_types(set_, pairs, trial_type):
     # The localization task's contrast 3 and amplitude 1 at [-60, 60] under each set; the condition itself is not checked.
     task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"])
-    assert derive_label(task, TrialCondition(label="neutral", weight=1, set=set_, pairs=pairs)) == label
+    assert derive_trial_type(task, TrialCondition(trialType="neutral", weight=1, set=set_, pairs=pairs)) == trial_type
 
 
 def test_a_go_no_go_probe_must_not_repeat():
@@ -397,16 +397,16 @@ def test_a_go_no_go_probe_must_not_repeat():
 def test_all_plays_on_every_speaker_and_pairs():
     # "all" is a sound azimuth item: alone, in a list, paired with the grating's azimuths; it has no side, so no cue.
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
-    task = _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {visual: [-60, 60], sound: ["all", 60]}},
-                       {"label": "neutral", "weight": 1, "set": {"contrasts": [0], sound: ["all"], "target": "random", "bothSpoutsProbability": 1}})
-    assert derive_label(task, task.trial_conditions[1]) == "neutral"
+    task = _conditions({"trialType": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {visual: [-60, 60], sound: ["all", 60]}},
+                       {"trialType": "neutral", "weight": 1, "set": {"contrasts": [0], sound: ["all"], "target": "random", "bothSpoutsProbability": 1}})
+    assert derive_trial_type(task, task.trial_conditions[1]) == "neutral"
     items = json.loads(SCHEMA.read_text())["$defs"]["AuditoryStimulus"]["properties"]["initialAzimuthsDeg"]["items"]
     assert items == {"oneOf": [{"type": "number"}, {"const": "all", "type": "string"}]}   # oneOf: Bonsai.Sgen's List<object>
 
 
 def test_an_amplitude_above_1_is_the_peak_check_s_to_refuse():
     # Pydantic cannot know the speakers: Go checks the largest amplitude against the -1 dBFS peak (LevelAuditoryStimulusSet).
-    _conditions({"label": "auditory", "weight": 1, "set": {"target": "auditorySide", "contrasts": [0], "auditoryStimulus.amplitude": [1, 4]}})
+    _conditions({"trialType": "auditory", "weight": 1, "set": {"target": "auditorySide", "contrasts": [0], "auditoryStimulus.amplitude": [1, 4]}})
 
 
 def test_pairs_zip_their_lists_and_the_rest_combine():
@@ -426,12 +426,12 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
         {"contrasts": [0.5], "reward.rewardSizeUl": 2}, {"contrasts": [0.5], "reward.rewardSizeUl": 3},
         {"contrasts": [1], "reward.rewardSizeUl": 2}, {"contrasts": [1], "reward.rewardSizeUl": 3}]
     with pytest.raises(ValidationError, match=r"pairs \['visualStimulus.initialAzimuthsDeg', 'auditoryStimulus.initialAzimuthsDeg'\] have lists of lengths 2, 3"):
-        _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {sound: [-60, 0, 60]}})
+        _conditions({"trialType": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {sound: [-60, 0, 60]}})
     for pairs in ([[visual]], [[visual, sound], [sound, "contrasts"]]):
         with pytest.raises(ValidationError, match="each pairs group needs two paths or more"):
-            _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": pairs})
+            _conditions({"trialType": "audiovisualCoherent", "weight": 1, "pairs": pairs})
     with pytest.raises(ValidationError, match="pairs trialStructure.itiMinSeconds, which is not a condition field"):
-        _conditions({"label": "visual", "weight": 1, "pairs": [[visual, "trialStructure.itiMinSeconds"]]})
+        _conditions({"trialType": "visual", "weight": 1, "pairs": [[visual, "trialStructure.itiMinSeconds"]]})
 
 
 def test_a_go_no_go_task_with_no_go_trials_is_refused():
@@ -473,7 +473,8 @@ def test_the_committed_task_schema_is_the_model_s():
 
 def _property_names(node) -> set[str]:
     if isinstance(node, dict):
-        return set(node.get("properties", {})) | {n for v in node.values() for n in _property_names(v)}
+        # x-rules and x-trial-types hold subschemas over dotted paths, not fields.
+        return set(node.get("properties", {})) | {n for k, v in node.items() if not k.startswith("x-") for n in _property_names(v)}
     return {n for v in node for n in _property_names(v)} if isinstance(node, list) else set()
 
 
@@ -522,31 +523,32 @@ def _conditions(*conditions, name="task-localization.yml", **changes):
 
 
 def test_the_schema_marks_the_conditions_whole_and_names_the_condition_fields():
-    # app-rig-control reads both: trialConditions is one leaf (never indexed or carried), and x-conditionFields is the
-    # allow-list (TrialDraw.ConditionFields), x-rules the rules linking them (TrialDraw.Rules); a C# test holds both to the schema.
+    # app-rig-control reads them: trialConditions is one leaf (never indexed or carried), x-condition-fields the allow-list
+    # (TrialDraw.ConditionFields, a C# test holds it to the schema), x-rules the rules linking them, x-trial-types the names.
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     parameters = schema["$defs"]["UclOpenCoenDomeDecisionMakingTaskParameters"]
     assert parameters["properties"]["trialConditions"]["x-whole"] is True
-    assert parameters["x-conditionFields"] == list(CONDITION_FIELDS)
-    assert parameters["x-rules"] == [dict(rule) for rule in RULES]
-    assert parameters["x-labels"] == [dict(label) for label in LABELS]
-    # Every path a rule names is a condition field, or the task's type.
-    named = {path for rule in RULES for path in [rule["when"], *rule.get("then", {}), *rule.get("oneOf", {}), *rule.get("unless", {}), *rule.get("noneOf", {}), *rule.get("unused", [])]}
+    assert parameters["x-condition-fields"] == list(CONDITION_FIELDS)
+    assert parameters["x-rules"] == list(RULES)
+    assert parameters["x-trial-types"] == list(TRIAL_TYPES)
+    # Every path a rule or trial type names is a condition field, or the task's type.
+    named = {path for entry in [*RULES, *TRIAL_TYPES] for part in ("if", "then") for path in entry.get(part, {}).get("properties", {})}
+    named |= {path for entry in [*RULES, *TRIAL_TYPES] for path in [*entry.get("unused", []), *entry.get("mirrored", [])]}
     assert named <= set(CONDITION_FIELDS) | {"taskType"}
     assert "trialWeights" not in parameters["properties"]
 
 
 def test_a_condition_s_set_is_built_and_checked_as_a_task():
-    task = _conditions({"label": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3], "visualStimulus.initialAzimuthsDeg": [60]}},
-                       {"label": "auditory", "weight": 1})
+    task = _conditions({"trialType": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3], "visualStimulus.initialAzimuthsDeg": [60]}},
+                       {"trialType": "auditory", "weight": 1})
     assert [c.weight for c in task.trial_conditions] == [3, 1]
     for condition, words in [
-        ({"label": "visual", "weight": 1, "set": {"trialStructure.itiMinSeconds": 4}}, "sets or pairs trialStructure.itiMinSeconds, which is not a condition field"),
-        ({"label": "visual", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, "with optogenetics off"),
-        ({"label": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": [60, 0]}}, r"(?s)trial_conditions\[0\] \(visual\).*must not hold 0"),
-        ({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": [2, 99]}}, r"trial_conditions\[0\] \(visual\) with \{'reward.rewardSizeUl': 99\}"),
-        ({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": []}}, "is an empty list"),
-        ({"label": "visual", "weight": 0}, "a weight above 0"),
+        ({"trialType": "visual", "weight": 1, "set": {"trialStructure.itiMinSeconds": 4}}, "sets or pairs trialStructure.itiMinSeconds, which is not a condition field"),
+        ({"trialType": "visual", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, "with optogenetics off"),
+        ({"trialType": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": [60, 0]}}, r"(?s)trial_conditions\[0\] \(visual\).*must not hold 0"),
+        ({"trialType": "visual", "weight": 1, "set": {"reward.rewardSizeUl": [2, 99]}}, r"trial_conditions\[0\] \(visual\) with \{'reward.rewardSizeUl': 99\}"),
+        ({"trialType": "visual", "weight": 1, "set": {"reward.rewardSizeUl": []}}, "is an empty list"),
+        ({"trialType": "visual", "weight": 0}, "a weight above 0"),
     ]:
         with pytest.raises(ValidationError, match=words):
             _conditions(condition)
@@ -554,45 +556,44 @@ def test_a_condition_s_set_is_built_and_checked_as_a_task():
 
 def test_a_condition_may_expand_into_at_most_the_cap():
     cells = {"reward.rewardSizeUl": [1, 2, 3, 4, 5, 6, 7, 8], "autoRewardProbability": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]}
-    _conditions({"label": "visual", "weight": 1, "set": cells})
+    _conditions({"trialType": "visual", "weight": 1, "set": cells})
     cells["autoRewardProbability"].append(0.8)
     with pytest.raises(ValidationError, match=f"expands into 72 combinations, more than {MAX_COMBINATIONS}"):
-        _conditions({"label": "visual", "weight": 1, "set": cells})
+        _conditions({"trialType": "visual", "weight": 1, "set": cells})
 
 
 def test_a_condition_pins_the_laser_with_optogenetics_on():
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "enabled": True, "laserPowerMw": 2.0, "laserDurationSeconds": 0.8, "zapitConditionsPath": "C:\\zapit\\conditions.yml"}
-    _conditions({"label": "left", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, {"label": "right", "weight": 1, "set": {"optogenetics.laserOnProbability": 0}},
+    _conditions({"trialType": "left", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, {"trialType": "right", "weight": 1, "set": {"optogenetics.laserOnProbability": 0}},
                 name="task-discrimination-left-right.yml", optogenetics=on)
 
 
 def test_condition_edges_a_zero_among_others_duplicates_one_condition_the_weight_cap_and_a_wrong_type():
-    _conditions({"label": "visual", "weight": 0}, {"label": "visual", "weight": 2}, {"label": "visual", "weight": 1, "set": {"contrasts": [1]}})
-    _conditions({"label": "neutral", "weight": 1})
-    _conditions({"label": "visual", "weight": 1000000}, {"label": "auditory", "weight": 1000000})
+    _conditions({"trialType": "visual", "weight": 0}, {"trialType": "visual", "weight": 2}, {"trialType": "visual", "weight": 1, "set": {"contrasts": [1]}})
+    _conditions({"trialType": "neutral", "weight": 1})
+    _conditions({"trialType": "visual", "weight": 1000000}, {"trialType": "auditory", "weight": 1000000})
     with pytest.raises(ValidationError, match="1000000"):
-        _conditions({"label": "visual", "weight": 1000001})
+        _conditions({"trialType": "visual", "weight": 1000001})
     with pytest.raises(ValidationError):
-        _conditions({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "abc"}})
+        _conditions({"trialType": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "abc"}})
     with pytest.raises(ValidationError):
-        _conditions({"label": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": "left"}})
+        _conditions({"trialType": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": "left"}})
     with pytest.raises(ValidationError, match="at least 1|no condition|a weight above 0"):
         _conditions()
 
 
 def test_weights_may_add_to_the_draw_s_int_and_no_more():
     # Go refuses the same sum (TrialDraw.CheckTask): 2147 conditions at the cap and one of 483647 make exactly int.MaxValue.
-    full = [{"label": "visual", "weight": 1000000}] * 2147
-    _conditions(*full, {"label": "auditory", "weight": 483647})
+    full = [{"trialType": "visual", "weight": 1000000}] * 2147
+    _conditions(*full, {"trialType": "auditory", "weight": 483647})
     with pytest.raises(ValidationError, match=f"weights add to more than {MAX_WEIGHT_SUM}"):
-        _conditions(*full, {"label": "auditory", "weight": 483648})
+        _conditions(*full, {"trialType": "auditory", "weight": 483648})
 
 
 def test_side_target_keeps_its_azimuth_read():
     # visualSide and auditorySide set the reward side from the picked azimuth, shown or not (TrialDraw.New).
-    for when, target, path in [("contrasts", "visualSide", "visualStimulus"), ("auditoryStimulus.amplitude", "auditorySide", "auditoryStimulus")]:
-        rule = next(r for r in RULES if r["when"] == when and r.get("unused"))
-        unshown = {"contrasts": [0], "auditoryStimulus": {"amplitude": 0}}
-        assert applies({**unshown, "target": "left"}, rule) and not applies({**unshown, "target": target}, rule)
-        assert rule["unused"] == [f"{path}.initialAzimuthsDeg"]
+    unshown = {"contrasts": [0], "auditoryStimulus": {"amplitude": 0}}
+    assert unused_paths(RULES, {**unshown, "target": "left"}) == {"visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"}
+    assert unused_paths(RULES, {**unshown, "target": "visualSide"}) == {"auditoryStimulus.initialAzimuthsDeg"}
+    assert unused_paths(RULES, {**unshown, "target": "auditorySide"}) == {"visualStimulus.initialAzimuthsDeg"}
