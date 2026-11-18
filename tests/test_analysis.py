@@ -47,6 +47,20 @@ def test_trial_weights_read_the_session_s_stage(tmp_path):
     assert lf.trial_weights(flat) == WEIGHTS
 
 
+def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
+    # From trial conditions on, Settings_Task has trialConditions, no trialWeights; set values are YAML text
+    # (TrialDrawTests.TheConditionsSetRoundTrips), read back typed.
+    s = session(tmp_path, "ses-001_a", "coen-dome-decision-making", stage=4)
+    conditions = [{"type": "visual", "weight": 3, "set": {"contrasts": ["0.5", "1"], "reward.rewardSizeUl": ["2", "3"]}},
+                  {"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "2.5"}}, {"type": "auditory", "weight": 0, "set": {}}]
+    (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(
+        json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions, "trainingPipeline": {"id": 4}}}), encoding="utf-8")
+    read = lf.trial_conditions(s)
+    assert read[0]["set"] == {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]} and read[1]["set"] == {"reward.rewardSizeUl": 2.5}
+    assert lf.trial_weights(s) == {"visual": 4, "auditory": 0}
+    assert lf.trial_conditions(session(tmp_path, "ses-002_b", "av-dome")) is None
+
+
 def test_new_draw_accuracy_counts_choices_on_new_draws_only():
     df = pd.DataFrame({"outcome": ["Correct", "Incorrect", "Correct", "NoResponse", "Probe"], "repeatCount": [0, 0, 1, 0, 0]})
     assert lf.new_draw_accuracy(df) == (0.5, 2)

@@ -51,3 +51,9 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 
 - A task file YAML cannot read (`weight: 1.5`, a bad key) stops at Go with YamlDotNet's message rather than one naming the field: main.bonsai's DeserializeFromYaml fails on the same text first, before any trial, and app-rig-control's schema check refuses it at launch.
 - A stale `trialWeights` beside `trialConditions` passes pydantic and the schema (the lab's extra-key policy) and is refused at Go by C# as an unknown property.
+
+## Trial-conditions audit round 3 (18 Nov 2026, data integrity): not recommended
+
+- Settings_Task writes each condition's `set` values as YAML text (`"0.5"`, Sgen's `object`): typing them in C# would mean changing what main.bonsai deserialises and logs on the night's deploy; analysis's `trial_conditions` reads them back typed, and every condition field's per-trial value is a trial column anyway (visualContrast, visualAzimuthDeg, visualElevationDeg, rewardOfferedUl, laserCondition, autoRewarded, bothSpoutsOffered).
+- No column says which combination of a condition's list cells a trial drew: the scalar fields' values are columns, and a list of probabilities picked uniformly then drawn is the same as their mean, so nothing is lost.
+- Nothing checks `trialCondition`'s description matches coen-dome-navigation's: the Data Dictionary on K: holds one text for both (usedBy names both), and app-rig-control checks columns against it before launch.
