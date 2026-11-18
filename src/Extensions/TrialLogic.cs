@@ -236,6 +236,11 @@ public class TrialDraw
             ? ((YamlSequenceNode)sequence).Children : new List<YamlNode>();
         var typed = task.TrialConditions ?? new List<TrialCondition>();
         if (typed.Count == 0) problems.Add("trialConditions needs a condition");
+        if (typed.Sum(c => (long)c.Weight) > int.MaxValue)
+        {
+            problems.Add(string.Format("trialConditions' weights add to more than {0}, the most the draw can sum", int.MaxValue));
+            return null;
+        }
         var built = new List<TrialConditionDraw>();
         for (int i = 0; i < typed.Count; i++)
         {

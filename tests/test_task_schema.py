@@ -489,3 +489,17 @@ def test_a_condition_pins_the_laser_with_optogenetics_on():
     on = {**data["optogenetics"], "enabled": True, "laserPowerMw": 2.0, "laserDurationSeconds": 0.8, "zapitConditionsPath": "C:\\zapit\\conditions.yml"}
     _conditions({"type": "left", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, {"type": "right", "weight": 1, "set": {"optogenetics.laserOnProbability": 0}},
                 name="task-discrimination-left-right.yml", optogenetics=on)
+
+
+def test_condition_edges_a_zero_among_others_duplicates_one_condition_the_weight_cap_and_a_wrong_type():
+    _conditions({"type": "visual", "weight": 0}, {"type": "visual", "weight": 2}, {"type": "visual", "weight": 1, "set": {"contrasts": [1]}})
+    _conditions({"type": "neutral", "weight": 1})
+    _conditions({"type": "visual", "weight": 1000000}, {"type": "auditory", "weight": 1000000})
+    with pytest.raises(ValidationError, match="1000000"):
+        _conditions({"type": "visual", "weight": 1000001})
+    with pytest.raises(ValidationError):
+        _conditions({"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "abc"}})
+    with pytest.raises(ValidationError):
+        _conditions({"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": "left"}})
+    with pytest.raises(ValidationError, match="at least 1|no condition|a weight above 0"):
+        _conditions()

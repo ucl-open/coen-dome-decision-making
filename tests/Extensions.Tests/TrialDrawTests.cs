@@ -823,4 +823,38 @@ public class TrialConditionTests
         Assert.AreEqual(1, built[1].Combinations.Count);
         Assert.AreEqual(3.0, built[1].Combinations[0].Task.Reward.RewardSizeUl);
     }
+
+    [TestMethod]
+    public void AValueOfTheWrongTypeIsRefusedNamingTheCondition()
+    {
+        StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "reward.rewardSizeUl", "abc"))), "trialConditions[0] (visual)");
+        StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "autoRewardProbability", Fixture.List("x", 0.5)))), "trialConditions[0] (visual)");
+        StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "visualStimulus.startAzimuthsDeg", "left"))), "trialConditions[0] (visual)");
+        StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "contrasts", Fixture.List()))), "trialConditions[0] (visual)");
+    }
+
+    [TestMethod]
+    public void OneConditionAZeroAmongOthersAndTheWeightCapAreDrawnAsWritten()
+    {
+        var one = Fixture.Draw(With(Fixture.Condition("neutral", 1)), 4, 30);
+        Assert.IsTrue(one.All(t => t.trialCondition == 0 && t.trialType == "neutral"));
+        // Weight 0 among others: its index is never logged, though its set is still checked at Go.
+        var zero = With(Fixture.Condition("visual", 0), Fixture.Condition("auditory", 2), Fixture.Condition("neutral", 1));
+        Assert.IsTrue(Fixture.Draw(zero, 4, 300).All(t => t.trialCondition != 0));
+        StringAssert.Contains(Refused(With(Fixture.Condition("visual", 0, "contrasts", Fixture.List(0.0)), Fixture.Condition("auditory", 1))), "trialConditions[0] (visual)");
+        Assert.AreEqual("accepted", Refused(With(Fixture.Condition("visual", TrialDraw.MaxWeight), Fixture.Condition("auditory", TrialDraw.MaxWeight))));
+        Assert.IsTrue(Fixture.Draw(With(Fixture.Condition("visual", TrialDraw.MaxWeight), Fixture.Condition("auditory", TrialDraw.MaxWeight)), 4, 40).Any(t => t.trialCondition == 1));
+    }
+
+    [TestMethod]
+    public void ManyConditionsAreEachDrawnAndTheirWeightsSumWithoutOverflow()
+    {
+        var many = Enumerable.Range(0, 120).Select(i => Fixture.Condition(i % 2 == 0 ? "visual" : "auditory", 1, "reward.rewardSizeUl", 1.0 + i % 3)).ToArray();
+        var trials = Fixture.Draw(With(many), 4, 3000);
+        Assert.IsTrue(trials.All(t => t.trialType == (t.trialCondition % 2 == 0 ? "visual" : "auditory") && t.rewardOfferedUl == 1.0 + t.trialCondition % 3));
+        Assert.AreEqual(120, trials.Select(t => t.trialCondition).Distinct().Count());
+        // 2200 conditions of the cap's weight sum past int, which the draw cannot take.
+        var heavy = Enumerable.Range(0, 2200).Select(i => Fixture.Condition("visual", TrialDraw.MaxWeight)).ToArray();
+        StringAssert.Contains(Refused(With(heavy)), "weights add to more than 2147483647");
+    }
 }

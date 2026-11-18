@@ -61,6 +61,22 @@ def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
     assert lf.trial_conditions(session(tmp_path, "ses-002_b", "av-dome")) is None
 
 
+def test_conditions_edges_signed_azimuths_no_set_empty_list_and_zero_weights(tmp_path):
+    s = session(tmp_path, "ses-001_a", "coen-dome-decision-making", stage=4)
+    task_file = s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json"
+
+    def write(conditions):
+        task_file.write_text(json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions}}), encoding="utf-8")
+
+    write([{"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": ["-75", "60"]}}, {"type": "visual", "weight": 0}, {"type": "auditory", "weight": 2, "set": None}])
+    read = lf.trial_conditions(s)
+    assert read[0]["set"] == {"visualStimulus.startAzimuthsDeg": [-75, 60]} and read[1]["set"] == {} and read[2]["set"] == {}
+    assert [c["type"] for c in read] == ["visual", "visual", "auditory"]   # the list's order is the trialCondition index
+    assert lf.trial_weights(s) == {"visual": 1, "auditory": 2}
+    write([])
+    assert lf.trial_conditions(s) == [] and lf.trial_weights(s) == {}
+
+
 def test_new_draw_accuracy_counts_choices_on_new_draws_only():
     df = pd.DataFrame({"outcome": ["Correct", "Incorrect", "Correct", "NoResponse", "Probe"], "repeatCount": [0, 0, 1, 0, 0]})
     assert lf.new_draw_accuracy(df) == (0.5, 2)
