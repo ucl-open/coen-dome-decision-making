@@ -16,6 +16,7 @@ from ucl_open_coen_dome_decision_making.task import (
     TaskType,
     derive_label,
     UclOpenCoenDomeDecisionMakingTaskLogic,
+    TrainingPipeline,
     UclOpenCoenDomeDecisionMakingTaskParameters,
     VisualStimulus,
 )
@@ -449,10 +450,18 @@ def test_the_generated_csharp_has_every_schema_field():
     assert names == _property_names(json.loads(SCHEMA.read_text(encoding="utf-8")))
 
 
-def test_training_stage_s_maximum_takes_any_pipeline_id():
-    # TrainingStage carries the pipeline stage's id (ids never reused); app-rig-control's page refuses an id above 99.
-    declared = re.search(r"<Name>TrainingStage</Name>.*?<Maximum>(\d+)</Maximum>", (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig"), re.S)
-    assert int(declared.group(1)) == 99
+GOOD_PIPELINE = {"id": 3, "code": "S03A", "version": "k7f2", "path": "A", "label": "Conflict Added", "sha256": "abc"}
+
+
+def test_the_training_pipeline_is_the_stage_s_only_record_and_checks_its_patterns():
+    # No TrainingStage parameter: app-rig-control writes exactly these fields and Bonsai only records them.
+    assert set(TrainingPipeline.model_fields) == set(GOOD_PIPELINE)
+    TrainingPipeline(**GOOD_PIPELINE)
+    for key, bad in [("id", -1), ("code", "S3A"), ("code", "s03a"), ("code", "S03AB"), ("version", "k7f"), ("version", "k7f1"), ("version", "K7F2"),
+                     ("path", "a"), ("path", "AB")]:
+        with pytest.raises(ValidationError):
+            TrainingPipeline(**{**GOOD_PIPELINE, key: bad})
+    assert "TrainingStage" not in (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
 
 
 @pytest.mark.parametrize("where, key, value", [

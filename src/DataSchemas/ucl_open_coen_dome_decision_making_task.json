@@ -295,13 +295,31 @@
       "type": "string"
     },
     "TrainingPipeline": {
-      "description": "The training pipeline stage these values are: app-rig-control fills it at launch from the share's pipeline file\n(the share's config/training-pipelines), its stage's values written over the task file's; empty in the repo's task files.",
+      "description": "The training pipeline stage these values are, and the task file's only record of the stage: app-rig-control fills it at\nlaunch from the share's pipeline file (the share's config/training-pipelines), its stage's values written over the task\nfile's; empty in the repo's task files. Bonsai only records it.",
       "properties": {
         "id": {
-          "description": "The stage's id in the pipeline: the TrainingStage parameter must equal it, or the workflow stops at Go",
+          "description": "The stage's id in the pipeline, fixed and hidden: never shown to the experimenter",
           "minimum": 0,
           "title": "Id",
           "type": "integer"
+        },
+        "code": {
+          "description": "The stage's code in the pipeline, S then two digits then a capital letter (S03A)",
+          "pattern": "^S\\d{2}[A-Z]$",
+          "title": "Code",
+          "type": "string"
+        },
+        "version": {
+          "description": "The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)",
+          "pattern": "^[abcdefghjkmnpqrstuvwxyz23456789]{4}$",
+          "title": "Version",
+          "type": "string"
+        },
+        "path": {
+          "description": "The stage's path in the pipeline, one capital letter (A)",
+          "pattern": "^[A-Z]$",
+          "title": "Path",
+          "type": "string"
         },
         "label": {
           "description": "The stage's name in the pipeline",
@@ -316,6 +334,9 @@
       },
       "required": [
         "id",
+        "code",
+        "version",
+        "path",
         "label",
         "sha256"
       ],
@@ -614,7 +635,7 @@
             }
           ],
           "default": null,
-          "description": "The training pipeline stage these values are, filled by app-rig-control at launch; empty or its id not the TrainingStage parameter stops the workflow at Go",
+          "description": "The training pipeline stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go",
           "title": "TrainingPipeline"
         }
       },

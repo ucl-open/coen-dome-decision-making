@@ -106,7 +106,7 @@ def test_the_task_is_checked_once_at_go_into_the_rules():
     (check,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:CheckTaskAtGo"]
     assert [(nodes[b].get(XSI), nodes[b].findtext(W + "Name")) for a, b, _ in edges if a == check] == [("rx:AsyncSubject", "TrialRules")]
     assert {nodes[i].findtext(W + "Name") for i in _upstream(edges, check) if nodes[i].get(XSI) == "SubscribeSubject"} == {
-        "TaskText", "TrainingStage", "RigConfigs"}
+        "TaskText", "RigConfigs"}
 
 
 def test_each_trial_event_reaches_its_hardware():
@@ -196,9 +196,7 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
 
 def test_the_metrics_are_the_view_s():
     names = {c.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") for c in MAIN.iter(W + "Combinator") if c.get(XSI) == "orcl:ReportMetric"}
-    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition"}
-    # trainingStage is OpenRigs.Control's TrainingStage's.
-    assert lint.training_stage_problems(WORKFLOW) == []
+    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition", "trainingStage"}
 
 
 def test_zapit_s_hardware_triggering_is_rig_yml_s():
@@ -252,11 +250,16 @@ def test_the_background_noise_is_the_shared_include():
     assert lint.background_noise_problems(WORKFLOW) == []
 
 
-def test_the_training_stage_is_read_at_go_on_its_own():
-    # TrainingStage is the ParameterValue at Go into its own AsyncSubject, as coen-dome-navigation's, not ExperimentIds' Item3:
-    # ExperimentIds is LaunchSettings' (subject, session).
-    # OpenRigs.Control's TrainingStage, which also reports trainingStage.
-    assert lint.training_stage_problems(WORKFLOW) == [] and "<Selector>Item3</Selector>" not in TEXT
+def test_the_stage_is_the_task_file_s_alone():
+    # No TrainingStage parameter, include or subject: the stage is the task file's trainingPipeline, which CheckTaskAtGo found
+    # well formed; TaskFile publishes its code-version as TrainingCodeVersion (from the TrialRules) and reports it as the metric trainingStage.
+    assert "TrainingStage" not in TEXT
+    nodes, edges = _scope(_named("TaskFile"))
+    (subject,) = [i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "TrainingCodeVersion"]
+    (source,) = [a for a, b, _ in edges if b == subject]
+    assert nodes[source].get(XSI) == "MemberSelector" and nodes[source].findtext(W + "Selector") == "TrainingCodeVersion"
+    (metric,) = [b for a, b, _ in edges if a == subject]
+    assert nodes[metric].find(W + "Combinator").findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") == "trainingStage"
 
 
 def test_the_hardware_is_the_lab_s_pieces():

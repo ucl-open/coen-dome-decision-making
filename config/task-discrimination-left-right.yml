@@ -84,4 +84,4 @@ taskParameters:
   bothSpoutsProbability: 1.0           # chance both spouts move in rather than the correct one alone
   contrasts: [1.0]                     # grating contrasts, one drawn per trial; 0 no grating
   spoutMovements: false                # false keeps the spouts in (habituation): no withdrawal, no single-spout move
-  trainingPipeline:                    # app-rig-control fills it at launch (id, label, sha256 of the stage run); empty here: Go refuses it
+  trainingPipeline:                    # app-rig-control fills it at launch (id, code, version, path, label, sha256 of the stage run); empty here: Go refuses it

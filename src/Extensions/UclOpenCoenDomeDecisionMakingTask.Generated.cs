@@ -1148,19 +1148,26 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The training pipeline stage these values are: app-rig-control fills it at launch from the share's pipeline file
-    ///(the share's config/training-pipelines), its stage's values written over the task file's; empty in the repo's task files.
+    /// The training pipeline stage these values are, and the task file's only record of the stage: app-rig-control fills it at
+    ///launch from the share's pipeline file (the share's config/training-pipelines), its stage's values written over the task
+    ///file's; empty in the repo's task files. Bonsai only records it.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The training pipeline stage these values are: app-rig-control fills it at launch " +
-        "from the share\'s pipeline file\n(the share\'s config/training-pipelines), its stag" +
-        "e\'s values written over the task file\'s; empty in the repo\'s task files.")]
+    [System.ComponentModel.DescriptionAttribute(@"The training pipeline stage these values are, and the task file's only record of the stage: app-rig-control fills it at
+    launch from the share's pipeline file (the share's config/training-pipelines), its stage's values written over the task
+    file's; empty in the repo's task files. Bonsai only records it.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrainingPipeline
     {
     
         private int _id;
+    
+        private string _code;
+    
+        private string _version;
+    
+        private string _path;
     
         private string _label;
     
@@ -1173,17 +1180,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
         protected TrainingPipeline(TrainingPipeline other)
         {
             _id = other._id;
+            _code = other._code;
+            _version = other._version;
+            _path = other._path;
             _label = other._label;
             _sha256 = other._sha256;
         }
     
         /// <summary>
-        /// The stage's id in the pipeline: the TrainingStage parameter must equal it, or the workflow stops at Go
+        /// The stage's id in the pipeline, fixed and hidden: never shown to the experimenter
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("id", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="id")]
-        [System.ComponentModel.DescriptionAttribute("The stage\'s id in the pipeline: the TrainingStage parameter must equal it, or the" +
-            " workflow stops at Go")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s id in the pipeline, fixed and hidden: never shown to the experimenter" +
+            "")]
         public int Id
         {
             get
@@ -1193,6 +1203,60 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _id = value;
+            }
+        }
+    
+        /// <summary>
+        /// The stage's code in the pipeline, S then two digits then a capital letter (S03A)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("code", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="code")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s code in the pipeline, S then two digits then a capital letter (S03A)")]
+        public string Code
+        {
+            get
+            {
+                return _code;
+            }
+            set
+            {
+                _code = value;
+            }
+        }
+    
+        /// <summary>
+        /// The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("version", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="version")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)")]
+        public string Version
+        {
+            get
+            {
+                return _version;
+            }
+            set
+            {
+                _version = value;
+            }
+        }
+    
+        /// <summary>
+        /// The stage's path in the pipeline, one capital letter (A)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("path", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="path")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s path in the pipeline, one capital letter (A)")]
+        public string Path
+        {
+            get
+            {
+                return _path;
+            }
+            set
+            {
+                _path = value;
             }
         }
     
@@ -1245,6 +1309,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
             stringBuilder.Append("Id = " + _id + ", ");
+            stringBuilder.Append("Code = " + _code + ", ");
+            stringBuilder.Append("Version = " + _version + ", ");
+            stringBuilder.Append("Path = " + _path + ", ");
             stringBuilder.Append("Label = " + _label + ", ");
             stringBuilder.Append("Sha256 = " + _sha256);
             return true;
@@ -2164,13 +2231,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The training pipeline stage these values are, filled by app-rig-control at launch; empty or its id not the TrainingStage parameter stops the workflow at Go
+        /// The training pipeline stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("trainingPipeline")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trainingPipeline")]
-        [System.ComponentModel.DescriptionAttribute("The training pipeline stage these values are, filled by app-rig-control at launch" +
-            "; empty or its id not the TrainingStage parameter stops the workflow at Go")]
+        [System.ComponentModel.DescriptionAttribute("The training pipeline stage these values are, the only record of the stage, fille" +
+            "d by app-rig-control at launch; empty or malformed stops the workflow at Go")]
         public TrainingPipeline TrainingPipeline
         {
             get

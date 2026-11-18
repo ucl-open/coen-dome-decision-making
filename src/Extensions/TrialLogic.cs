@@ -67,13 +67,13 @@ public class ReadTask
 }
 
 [Combinator]
-[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): trainingPipeline names TrainingStage's stage, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task file's text, TrainingStage and rig.yml; stops the workflow naming every problem.")]
+[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): trainingPipeline is present and well formed, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task file's text and rig.yml; stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
-    public IObservable<TrialRules> Process(IObservable<Tuple<string, int, LabRig>> source)
+    public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source)
     {
-        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, input.Item3, null));
+        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null));
     }
 }
 
@@ -196,9 +196,9 @@ public class TrialDraw
     public IList<TrialConditionDraw> Conditions { get { return conditions; } }
 
     /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers; throws naming every problem.</summary>
-    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, int stage, Func<string, int> zapitConditionCount)
+    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, Func<string, int> zapitConditionCount)
     {
-        conditions = CheckTask(taskText, stage, speakers, out task);
+        conditions = CheckTask(taskText, speakers, out task);
         this.speakers = speakers;
         var optogenetics = task.Optogenetics;
         if (optogenetics.Enabled)
@@ -214,23 +214,30 @@ public class TrialDraw
         random = new Random(Seed);
     }
 
-    /// <summary>The task the text holds and its conditions as drawn (BuildConditions); throws unless the values are TrainingStage's
-    /// pipeline stage (trainingPipeline, which app-rig-control fills at launch) and the task and every condition can be run on
+    /// <summary>What is wrong with a trainingPipeline (null when present and well formed: an id of 0 or more, a code like S03A, a
+    /// 4-character version, a path of one capital letter, a label and a sha256), else the reason.</summary>
+    public static string PipelineProblem(TrainingPipeline pipeline)
+    {
+        if (pipeline == null) return "is empty";
+        var bad = new List<string>();
+        if (pipeline.Id < 0) bad.Add("id " + pipeline.Id + " is below 0");
+        if (pipeline.Code == null || !System.Text.RegularExpressions.Regex.IsMatch(pipeline.Code, @"^S\d{2}[A-Z]$")) bad.Add("code '" + pipeline.Code + "' is not like S03A");
+        if (pipeline.Version == null || !System.Text.RegularExpressions.Regex.IsMatch(pipeline.Version, "^[abcdefghjkmnpqrstuvwxyz23456789]{4}$")) bad.Add("version '" + pipeline.Version + "' is not 4 characters of abcdefghjkmnpqrstuvwxyz23456789");
+        if (pipeline.Path == null || !System.Text.RegularExpressions.Regex.IsMatch(pipeline.Path, "^[A-Z]$")) bad.Add("path '" + pipeline.Path + "' is not one capital letter");
+        if (string.IsNullOrEmpty(pipeline.Label)) bad.Add("label is empty");
+        if (string.IsNullOrEmpty(pipeline.Sha256)) bad.Add("sha256 is empty");
+        return bad.Count == 0 ? null : "is malformed (" + string.Join("; ", bad) + ")";
+    }
+
+    /// <summary>The task the text holds and its conditions as drawn (BuildConditions); throws unless the task file's trainingPipeline (the
+    /// only record of the stage, which app-rig-control fills at launch) is present and well formed and the task and every condition can be run on
     /// these speakers, naming every problem.</summary>
-    public static List<TrialConditionDraw> CheckTask(string taskText, int stage, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
+    public static List<TrialConditionDraw> CheckTask(string taskText, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         task = Read(taskText).TaskParameters;
         var pipeline = task.TrainingPipeline;
-        if (pipeline == null || string.IsNullOrEmpty(pipeline.Sha256))
-        {
-            throw new InvalidOperationException(string.Format(
-                "TrainingStage is {0}, but the task file's trainingPipeline is empty: launch it from app-rig-control, which writes the stage's values and fills it.", stage));
-        }
-        if (pipeline.Id != stage)
-        {
-            throw new InvalidOperationException(string.Format(
-                "TrainingStage is {0}, but the task file's values are training pipeline stage {1} ({2}).", stage, pipeline.Id, pipeline.Label));
-        }
+        var pipeline_problem = PipelineProblem(pipeline);
+        if (pipeline_problem != null) throw new InvalidOperationException("The task file's trainingPipeline " + pipeline_problem + ": launch it from app-rig-control, which writes the stage's values and fills it.");
         var problems = new List<string>();
         Check(problems, task, speakers);
         var built = problems.Count == 0 ? BuildConditions(taskText, task, problems) : null;
@@ -814,9 +821,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     readonly LaserTiming laser;
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(string taskText, int stage, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, int> zapitConditionCount)
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, int> zapitConditionCount)
     {
-        draw = new TrialDraw(taskText, speakers, stage, zapitConditionCount);
+        draw = new TrialDraw(taskText, speakers, zapitConditionCount);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
         // The line held laserDurationSeconds from the trigger; the next trial armed once the longest ramp-down a conditions
@@ -824,13 +831,16 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, optogenetics.LaserDurationSeconds, ZapitConditions.MaximumRampDownSeconds) : null;
     }
 
-    /// <summary>The rules for a task file's text and stage on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
-    public static TrialRules Create(string taskText, int stage, LabRig rig, Func<string, int> zapitConditionCount)
+    /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
+    public static TrialRules Create(string taskText, LabRig rig, Func<string, int> zapitConditionCount)
     {
-        return new TrialRules(taskText, stage, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditionCount);
+        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditionCount);
     }
 
     public LaserTiming Laser { get { return laser; } }
+
+    /// <summary>The stage as code-version (S03A-k7f2) from the task file's trainingPipeline, which the check has found well formed.</summary>
+    public string TrainingCodeVersion { get { return task.TrainingPipeline.Code + "-" + task.TrainingPipeline.Version; } }
 
     /// <summary>The loudest sound the task's conditions can draw (TrialDraw.Loudest), for the stimulus set's peak check.</summary>
     public LoudestSound Loudest { get { return draw.Loudest(); } }
