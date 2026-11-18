@@ -734,6 +734,11 @@
         },
         {
           "is": 0,
+          "unless": {
+            "target": [
+              "visualSide"
+            ]
+          },
           "unused": [
             "visualStimulus.initialAzimuthsDeg"
           ],
@@ -741,6 +746,11 @@
         },
         {
           "is": 0,
+          "unless": {
+            "target": [
+              "auditorySide"
+            ]
+          },
           "unused": [
             "auditoryStimulus.initialAzimuthsDeg"
           ],

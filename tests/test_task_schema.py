@@ -14,6 +14,7 @@ from ucl_open_coen_dome_decision_making.task import (
     RULES,
     TARGETS,
     TaskType,
+    applies,
     derive_label,
     UclOpenCoenDomeDecisionMakingTaskLogic,
     Curriculum,
@@ -508,7 +509,7 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_condition_fields():
     assert parameters["x-conditionFields"] == list(CONDITION_FIELDS)
     assert parameters["x-rules"] == [dict(rule) for rule in RULES]
     # Every path a rule names is a condition field, or the task's type.
-    named = {path for rule in RULES for path in [rule["when"], *rule.get("then", {}), *rule.get("oneOf", {}), *rule.get("unused", [])]}
+    named = {path for rule in RULES for path in [rule["when"], *rule.get("then", {}), *rule.get("oneOf", {}), *rule.get("unless", {}), *rule.get("unused", [])]}
     assert named <= set(CONDITION_FIELDS) | {"taskType"}
     assert "trialWeights" not in parameters["properties"]
 
@@ -564,3 +565,12 @@ def test_weights_may_add_to_the_draw_s_int_and_no_more():
     _conditions(*full, {"label": "auditory", "weight": 483647})
     with pytest.raises(ValidationError, match=f"weights add to more than {MAX_WEIGHT_SUM}"):
         _conditions(*full, {"label": "auditory", "weight": 483648})
+
+
+def test_side_target_keeps_its_azimuth_read():
+    # visualSide and auditorySide set the reward side from the picked azimuth, shown or not (TrialDraw.New).
+    for when, target, path in [("contrasts", "visualSide", "visualStimulus"), ("auditoryStimulus.amplitude", "auditorySide", "auditoryStimulus")]:
+        rule = next(r for r in RULES if r["when"] == when and r.get("unused"))
+        unshown = {"contrasts": [0], "auditoryStimulus": {"amplitude": 0}}
+        assert applies({**unshown, "target": "left"}, rule) and not applies({**unshown, "target": target}, rule)
+        assert rule["unused"] == [f"{path}.initialAzimuthsDeg"]

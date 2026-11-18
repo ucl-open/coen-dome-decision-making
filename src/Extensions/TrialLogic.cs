@@ -134,8 +134,8 @@ public class LoudestSound
 }
 
 /// <summary>One of the rules linking condition fields (task.py RULES, the schema's x-rules): when the value at the path
-/// `when` is `is` (a list: every entry is), each `then` path must be its value, each `oneOf` path one of its values, and the
-/// `unused` paths are not read. Named as the schema's keys.</summary>
+/// `when` is `is` (a list: every entry is) and no `unless` path is one of its values, each `then` path must be its value,
+/// each `oneOf` path one of its values, and the `unused` paths are not read. Named as the schema's keys.</summary>
 public class ConditionRule
 {
     /// <summary>The dotted path the rule looks at.</summary>
@@ -148,6 +148,8 @@ public class ConditionRule
     public Dictionary<string, string[]> oneOf;
     /// <summary>Paths then not read.</summary>
     public string[] unused;
+    /// <summary>Paths and the values that keep the rule out.</summary>
+    public Dictionary<string, string[]> unless;
 }
 
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
@@ -172,8 +174,9 @@ public class TrialDraw
         new ConditionRule { when = "taskType", @is = "localization", oneOf = new Dictionary<string, string[]> { { "target", new[] { "visualSide", "auditorySide", "random" } } } },
         new ConditionRule { when = "taskType", @is = "discriminationGoNoGo", oneOf = new Dictionary<string, string[]> { { "target", new[] { "go", "noGo", "noReward" } } } },
         new ConditionRule { when = "taskType", @is = "discriminationLeftRight", oneOf = new Dictionary<string, string[]> { { "target", new[] { "left", "right", "random" } } } },
-        new ConditionRule { when = "contrasts", @is = 0, unused = new[] { "visualStimulus.initialAzimuthsDeg" } },
-        new ConditionRule { when = "auditoryStimulus.amplitude", @is = 0, unused = new[] { "auditoryStimulus.initialAzimuthsDeg" } },
+        // A side target reads its azimuth to set the reward side, even unshown.
+        new ConditionRule { when = "contrasts", @is = 0, unless = new Dictionary<string, string[]> { { "target", new[] { "visualSide" } } }, unused = new[] { "visualStimulus.initialAzimuthsDeg" } },
+        new ConditionRule { when = "auditoryStimulus.amplitude", @is = 0, unless = new Dictionary<string, string[]> { { "target", new[] { "auditorySide" } } }, unused = new[] { "auditoryStimulus.initialAzimuthsDeg" } },
     };
 
     /// <summary>The auditoryStimulus.initialAzimuthsDeg item that plays the sound on every rig.yml speaker (task.py ALL_SPEAKERS).</summary>
@@ -456,7 +459,7 @@ public class TrialDraw
     {
         foreach (var rule in Rules)
         {
-            if (!Is(Value(task, rule.when), rule.@is)) continue;
+            if (!Is(Value(task, rule.when), rule.@is) || (rule.unless ?? new Dictionary<string, string[]>()).Any(u => u.Value.Contains(Value(task, u.Key) as string))) continue;
             foreach (var then in rule.then ?? new Dictionary<string, object>())
             {
                 if (!Same(Value(task, then.Key), then.Value)) yield return string.Format("{0} {1} needs {2} {3} (x-rules)", rule.when, rule.@is, then.Key, then.Value);

@@ -62,3 +62,7 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 
 - No column says which combination of a condition's list cells a trial drew: the scalar fields' values are columns, and a list of probabilities picked uniformly then drawn is the same as their mean, so nothing is lost.
 - Nothing checks `trialCondition`'s description matches coen-dome-navigation's: the Data Dictionary on K: holds one text for both (usedBy names both), and app-rig-control checks columns against it before launch.
+
+## Audit 18 Nov 2026: not recommended
+
+- Amplitude only for the stimulus sounds: reward tone, background and penalty stay levelDbfs (lib-open-rigs' shared blocks; the plan settled it).

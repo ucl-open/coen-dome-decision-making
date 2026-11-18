@@ -199,7 +199,8 @@ CONDITION_FIELDS = (
 )
 # Where one setting limits another (the schema's x-rules; TrialDraw.Rules, a test holds both), checked on the task and
 # on every combination of every condition, here and at Go. Each rule: when the path `when` is `is` (a list: every entry
-# is), then each `then` path must be its value, each `oneOf` path one of its values, and the `unused` paths are not read.
+# is) and no `unless` path is one of its values, then each `then` path must be its value, each `oneOf` path one of its
+# values, and the `unused` paths are not read. A side target reads its azimuth to set the reward side, even unshown.
 TARGETS = {
     TaskType.LOCALIZATION: ("visualSide", "auditorySide", "random"),
     TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo", "noReward"),
@@ -210,8 +211,9 @@ RULES = (
     {"when": "target", "is": "random", "then": {"bothSpoutsProbability": 1, "repeats.repeatOn": "never"}},
     {"when": "target", "is": "noReward", "then": {"repeats.repeatOn": "never"}},
     *({"when": "taskType", "is": task_type.value, "oneOf": {"target": list(targets)}} for task_type, targets in TARGETS.items()),
-    {"when": "contrasts", "is": 0, "unused": ["visualStimulus.initialAzimuthsDeg"]},
-    {"when": "auditoryStimulus.amplitude", "is": 0, "unused": ["auditoryStimulus.initialAzimuthsDeg"]},
+    {"when": "contrasts", "is": 0, "unless": {"target": ["visualSide"]}, "unused": ["visualStimulus.initialAzimuthsDeg"]},
+    {"when": "auditoryStimulus.amplitude", "is": 0, "unless": {"target": ["auditorySide"]},
+     "unused": ["auditoryStimulus.initialAzimuthsDeg"]},
 )
 # The most combinations one condition may expand into (TrialDraw.MaxCombinations).
 MAX_COMBINATIONS = 64
@@ -223,11 +225,17 @@ def _is(value: Any, expected: Any) -> bool:
     return value == expected
 
 
+def applies(values: dict, rule: dict) -> bool:
+    """Whether a rule holds on a task's values (by alias, as JSON): `when` is `is` and no `unless` path is one of its values."""
+    unless = rule.get("unless", {})
+    return _is(_get(values, rule["when"]), rule["is"]) and not any(_get(values, p) in vs for p, vs in unless.items())
+
+
 def rule_problems(values: dict) -> list[str]:
     """What breaks RULES in a task's values (by alias, as JSON)."""
     problems = []
     for rule in RULES:
-        if not _is(_get(values, rule["when"]), rule["is"]):
+        if not applies(values, rule):
             continue
         for path, expected in rule.get("then", {}).items():
             if _get(values, path) != expected:
