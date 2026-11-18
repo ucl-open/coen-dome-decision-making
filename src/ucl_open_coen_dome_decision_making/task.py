@@ -129,6 +129,7 @@ class RepeatRule(StrEnum):
 
 # The trial condition types and rulesPerType keys for each task type (TrialDraw.Keys): localization's name what a trial shows;
 # the discriminations' name its role, the mouse's goModality or leftModality choosing which modality fills it.
+MAX_WEIGHT_SUM = 2147483647  # the most trial_conditions' weights may add to: the draw sums them as an int (TrialLogic.cs int.MaxValue)
 TRIAL_KEYS = {
     TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral"),
     TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo", "audiovisualCoherent", "audiovisualConflict", "neutral"),
@@ -350,6 +351,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
                 raise ValueError(f"trial_conditions[{i}]'s type {condition.type} is not one of {', '.join(keys)} in {self.task_type.value}")
         if not sum(condition.weight for condition in self.trial_conditions) > 0:
             raise ValueError("trial_conditions needs a condition with a weight above 0")
+        if sum(condition.weight for condition in self.trial_conditions) > MAX_WEIGHT_SUM:
+            raise ValueError(f"trial_conditions' weights add to more than {MAX_WEIGHT_SUM}, the most the draw can sum")
         if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO and not (info.context or {}).get("condition") and not any(c.type == "go" and c.weight > 0 for c in self.trial_conditions):
             raise ValueError("trial_conditions has no go condition with a weight above 0, so the task has no Go trials")
         return self

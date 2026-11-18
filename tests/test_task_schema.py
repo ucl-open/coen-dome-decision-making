@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from ucl_open_coen_dome_decision_making.task import (
     CONDITION_FIELDS,
     MAX_COMBINATIONS,
+    MAX_WEIGHT_SUM,
     RULE_KEYS,
     TRIAL_KEYS,
     TaskType,
@@ -266,8 +267,10 @@ def test_the_constants_are_the_c_sharp_s():
     assert "    MAX_REWARD_UL,\n" in task_py and "RewardSize" in task_py
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task LickQuietWait and
     # WheelQuietWait in task.py, OpenRigs.Core QuietWait.LickProblems and WheelProblems at Go).
-    # MAX_COMBINATIONS is the task's own, the same number as TrialDraw.MaxCombinations.
-    assert re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) == ["MAX_COMBINATIONS"]
+    # MAX_COMBINATIONS is the task's own, the same number as TrialDraw.MaxCombinations; MAX_WEIGHT_SUM is the int.MaxValue
+    # TrialDraw.CheckTask refuses a weight sum above.
+    assert re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) == ["MAX_WEIGHT_SUM", "MAX_COMBINATIONS"]
+    assert MAX_WEIGHT_SUM == 2**31 - 1 and "Sum(c => (long)c.Weight) > int.MaxValue" in logic
     assert f"public const int MaxCombinations = {MAX_COMBINATIONS};" in logic and "QuietWait.LickProblems" in logic and "QuietWait.WheelProblems" in logic
     assert "ZapitConditions.MaximumRampDownSeconds" in logic
 
@@ -503,3 +506,11 @@ def test_condition_edges_a_zero_among_others_duplicates_one_condition_the_weight
         _conditions({"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": "left"}})
     with pytest.raises(ValidationError, match="at least 1|no condition|a weight above 0"):
         _conditions()
+
+
+def test_weights_may_add_to_the_draw_s_int_and_no_more():
+    # Go refuses the same sum (TrialDraw.CheckTask): 2147 conditions at the cap and one of 483647 make exactly int.MaxValue.
+    full = [{"type": "visual", "weight": 1000000}] * 2147
+    _conditions(*full, {"type": "auditory", "weight": 483647})
+    with pytest.raises(ValidationError, match=f"weights add to more than {MAX_WEIGHT_SUM}"):
+        _conditions(*full, {"type": "auditory", "weight": 483648})
