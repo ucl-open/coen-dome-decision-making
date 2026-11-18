@@ -1,20 +1,35 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making audiovisual localization task.
 # Read by src/main.bonsai at Go and published as the TaskText and TaskConfig subjects (and at Start, as launched, for the background noise).
-# trialConditions' types name each kind of trial by what it shows; a stage's conditions replace it whole. rulesPerType names visual, auditory and audiovisualCoherent alone: audiovisualConflict and neutral trials have
-# no right answer and never repeat: random-reward probes (target Random, outcome Probe), both spouts in, a choice at either
-# rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss.
+# Each trial condition says what its trials show and reward: its set over the task's values (x-conditionFields), its pairs
+# picking listed values together; its label names it (trialType). A stage's conditions replace them whole. audiovisualConflict
+# and neutral trials have no right answer and never repeat: random-reward probes (target random, outcome Probe), both spouts in,
+# a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss. Visual and neutral
+# trials play the sound at the centre.
 # The training stages are the share's pipeline (config/training-pipelines/coen-dome-decision-making/<this file's name>):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills trainingPipeline.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
+  target: visualSide       # what a trial rewards, where a condition sets none (x-rules: visualSide, auditorySide or random here)
   trialConditions:         # the trial mix, one whole value: a pipeline stage's conditions replace it; set: condition-level values (x-conditionFields)
-    - { type: visual, weight: 10, set: {} }
-    - { type: auditory, weight: 10, set: {} }
-    - { type: audiovisualCoherent, weight: 5, set: {} }
-    - { type: audiovisualConflict, weight: 5, set: {} }
-    - { type: neutral, weight: 1, set: {} }
+    - label: visual
+      weight: 10
+      set: { target: visualSide, auditoryStimulus.startAzimuthsDeg: [0] }
+    - label: auditory
+      weight: 10
+      set: { target: auditorySide, contrasts: [0] }
+    - label: audiovisualCoherent
+      weight: 5
+      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
+      set: { target: visualSide, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [-60, 60] }
+    - label: audiovisualConflict
+      weight: 5
+      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
+      set: { target: random, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [60, -60], bothSpoutsProbability: 1, repeats.repeatOn: never }
+    - label: neutral
+      weight: 1
+      set: { target: random, contrasts: [0], auditoryStimulus.startAzimuthsDeg: [0], bothSpoutsProbability: 1, repeats.repeatOn: never }
   rngSeed: null           # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   trialStructure:
     itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included
@@ -28,14 +43,15 @@ taskParameters:
     stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
-    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial with a stimulus; never 0. The grating starts there, the sound on the speaker nearest it (conflict: the mirrored azimuth)
+    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
     elevationDeg: 15          # deg, the grating's and the sound position's elevation
     gaussianWindowSigmaDeg: 20   # deg
     orientationDeg: 0         # deg
     spatialFrequencyCpd: 0.066666667   # cycles/deg
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
-    levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+    amplitude: 1           # scale of the waveform as stored (-47.2 dBFS RMS, the loudness mice have always had); 0 no sound
+    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first-lick 2AFC
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
@@ -52,8 +68,8 @@ taskParameters:
     largeRewardMultiplier: 1
     largeRewardProbability: 0.0
   repeats:
-    maxRepeats: 5
-    rulesPerType: { visual: onFailure, auditory: onFailure, audiovisualCoherent: onFailure }   # only a trial with a right answer repeats: audiovisualConflict and neutral never do
+    maxRepeats: 5          # repeats in a row at most
+    repeatOn: never        # never, noResponse or notCorrect; a probe (target random) never repeats
   optogenetics:
     enabled: false
     zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
@@ -65,6 +81,5 @@ taskParameters:
     trialsBeforeLaser: 20
   autoRewardProbability: 0.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
   bothSpoutsProbability: 0.5           # chance both spouts move in rather than the correct one alone
-  contrasts: [3.0]                     # grating contrasts, one drawn per trial that shows the grating
-  allowRepeats: false                  # whether failed trials repeat (repeats.rulesPerType)
+  contrasts: [3.0]                     # grating contrasts, one drawn per trial; 0 no grating
   trainingPipeline:                    # app-rig-control fills it at launch (id, label, sha256 of the stage run); empty here: Go refuses it

@@ -237,10 +237,13 @@ def test_the_speakers_and_the_mixer_are_the_shared_block_s():
 
 
 def test_every_sound_plays_at_the_task_file_s_level():
+    # The stimulus set is checked at Go for the loudest amplitude any condition can draw (TrialRules.Loudest).
     assert lint.sound_level_problems(WORKFLOW) == []
     nodes, edges = _scope(_named("Audio"))
     level = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:LevelAuditoryStimulusSet")
-    assert any(nodes[a].findtext(W + "Selector") == "TaskParameters.AuditoryStimulus.LevelDbfs" for a in _upstream(edges, level))
+    upstream = list(_upstream(edges, level))
+    assert any(nodes[a].findtext(W + "Selector") == "Loudest" for a in upstream)
+    assert any(nodes[a].findtext(W + "Name") == "TrialRules" for a in upstream)
 
 
 def test_the_background_noise_is_the_shared_include():

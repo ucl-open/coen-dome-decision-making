@@ -13,6 +13,7 @@ using System.Linq;
 using System.Reactive.Linq;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
+using ConditionTarget = UclOpenCoenDomeDecisionMakingTask.Target;
 
 /// <summary>One trial as drawn: its fields are named as the trial log's columns where they are one.</summary>
 public class Trial : IZapitTrial
@@ -23,7 +24,7 @@ public class Trial : IZapitTrial
     double IZapitTrial.LaserPowerMw { get { return laserPowerMw; } }
 
     public int trialNumber;            // from 1, repeats counted
-    public string trialType;           // TrialDraw.TypeNames: what the trial shows
+    public string trialType;           // its condition's label
     public int trialCondition;         // the 0-based index of its condition in the task's trialConditions
     public string target;              // Left or Right; in discriminationGoNoGo Go or NoGo; on a trial with no right answer NoReward or Random (Target)
     public double rewardOfferedUl;     // what a reward on this trial gives, on every trial; 0 where none is on offer
@@ -34,7 +35,8 @@ public class Trial : IZapitTrial
     public double visualElevationDeg;
     public double visualContrast;      // 0: grey screen
     public double visualPhaseRad;
-    public bool auditoryOn;            // false: no sound (discrimination's visual and neutral trials)
+    public bool auditoryOn;            // false: no sound (auditoryAmplitude 0)
+    public double auditoryAmplitude;   // the waveform's scale as stored; 0 when silent
     public int speakerChannel;         // the mixer channel of rig.yml's speaker nearest the drawn location; -1 when silent
     public double auditoryAzimuthDeg;     // that speaker's azimuth; NaN when silent
     public double auditoryElevationDeg;
@@ -76,8 +78,8 @@ public class CheckTaskAtGo
 }
 
 /// <summary>The target column's answers other than a side: discriminationGoNoGo's Go and NoGo, and on a trial with no right
-/// answer (a probe, outcome Probe) NoReward (go/no-go's: never rewarded or penalised) or Random (localization's and
-/// left-right's: a choice rewarded or penalised on a coin, TrialDraw.RandomRewardProbe).</summary>
+/// answer (a probe, outcome Probe) NoReward (target noReward: never rewarded or penalised) or Random (target random: a
+/// choice rewarded or penalised on a coin).</summary>
 public static class Target
 {
     public const string Go = "Go";
@@ -99,13 +101,11 @@ public static class Choice
 /// <summary>One of the task's trialConditions as built at Go (TrialDraw.BuildConditions).</summary>
 public class TrialConditionDraw
 {
-    /// <summary>The condition's type (TrialDraw.Keys).</summary>
-    public string Type;
-    /// <summary>What its trials show (TrialDraw.TypeNames): the type, a role filled by goModality or leftModality.</summary>
-    public string TrialType;
+    /// <summary>The condition's label, its trials' trialType.</summary>
+    public string Label;
     /// <summary>Its relative draw weight.</summary>
     public int Weight;
-    /// <summary>Where it is, for a message: trialConditions[index] (type).</summary>
+    /// <summary>Where it is, for a message: trialConditions[index] (label).</summary>
     public string Where;
     /// <summary>The task with its set over it, one per combination of its list cells, picked uniformly per trial.</summary>
     public List<TrialConditionCombination> Combinations;
@@ -120,33 +120,59 @@ public class TrialConditionCombination
     public string Picks;
 }
 
+/// <summary>The largest amplitude a task's conditions can draw, and where (a condition and its picks).</summary>
+public class LoudestSound
+{
+    /// <summary>The amplitude: 1 the waveform as stored.</summary>
+    public double Amplitude;
+    /// <summary>The condition that draws it, for a message.</summary>
+    public string Where;
+}
+
+/// <summary>One of the rules linking condition fields (task.py RULES, the schema's x-rules): when the value at the path
+/// `when` is `is` (a list: every entry is), each `then` path must be its value, each `oneOf` path one of its values, and the
+/// `unused` paths are not read. Named as the schema's keys.</summary>
+public class ConditionRule
+{
+    /// <summary>The dotted path the rule looks at.</summary>
+    public string when;
+    /// <summary>The value at `when` that brings the rule in.</summary>
+    public object @is;
+    /// <summary>Paths and the value each must then have.</summary>
+    public Dictionary<string, object> then;
+    /// <summary>Paths and the values each may then have.</summary>
+    public Dictionary<string, string[]> oneOf;
+    /// <summary>Paths then not read.</summary>
+    public string[] unused;
+}
+
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
 public class TrialDraw
 {
-    public const string Visual = "visual";                           // the grating alone
-    public const string Auditory = "auditory";                       // the sound alone
-    public const string AudiovisualCoherent = "audiovisualCoherent"; // both on one side
-    public const string AudiovisualConflict = "audiovisualConflict"; // the grating on one side, the sound on the other
-    public const string Neutral = "neutral";                         // grey screen
-    /// <summary>The trial types, the trial row's trialType and localization's trialConditions types (coen-dome-navigation's names).</summary>
-    public static readonly string[] TypeNames = { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral };
-    // The discriminations' trialConditions types and rulesPerType keys by role, goModality or leftModality filling go or left.
-    public const string GoKey = "go", NoGoKey = "noGo", LeftKey = "left", RightKey = "right";
-    const double CentreAzimuth = 0, CentreElevation = 15;  // the sound of visual and neutral trials in localization
-
-    /// <summary>The fields a pipeline may make condition-level, each with the trial types (Keys) it applies to: task.py's
-    /// CONDITION_FIELDS, the schema's x-conditionFields (a test holds them equal). Only what New alone reads per trial.</summary>
-    public static readonly Dictionary<string, string[]> ConditionFields = new Dictionary<string, string[]>
+    /// <summary>The fields a condition may set: task.py's CONDITION_FIELDS, the schema's x-conditionFields (a test holds them
+    /// equal). Only what New alone reads per trial.</summary>
+    public static readonly string[] ConditionFields =
     {
-        { "contrasts", new[] { Visual, AudiovisualCoherent, AudiovisualConflict, GoKey, NoGoKey, LeftKey, RightKey } },
-        { "visualStimulus.startAzimuthsDeg", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, GoKey, NoGoKey, LeftKey, RightKey } },
-        { "visualStimulus.elevationDeg", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, GoKey, NoGoKey, LeftKey, RightKey } },
-        { "optogenetics.laserOnProbability", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
-        { "reward.rewardSizeUl", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
-        { "autoRewardProbability", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
-        { "bothSpoutsProbability", new[] { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey } },
+        "target", "contrasts", "visualStimulus.startAzimuthsDeg", "visualStimulus.elevationDeg", "auditoryStimulus.amplitude",
+        "auditoryStimulus.startAzimuthsDeg", "repeats.maxRepeats", "repeats.repeatOn", "optogenetics.laserOnProbability",
+        "reward.rewardSizeUl", "autoRewardProbability", "bothSpoutsProbability",
     };
-    /// <summary>The most combinations of list-valued scalar cells one condition may expand into (task.py MAX_COMBINATIONS).</summary>
+
+    /// <summary>The rules linking settings: task.py's RULES, the schema's x-rules (a test holds them equal), checked on the
+    /// task and every combination of every condition.</summary>
+    public static readonly ConditionRule[] Rules =
+    {
+        new ConditionRule { when = "repeats.maxRepeats", @is = 0, then = new Dictionary<string, object> { { "repeats.repeatOn", "never" } } },
+        new ConditionRule { when = "target", @is = "random", then = new Dictionary<string, object> { { "bothSpoutsProbability", 1 }, { "repeats.repeatOn", "never" } } },
+        new ConditionRule { when = "target", @is = "noReward", then = new Dictionary<string, object> { { "repeats.repeatOn", "never" } } },
+        new ConditionRule { when = "taskType", @is = "localization", oneOf = new Dictionary<string, string[]> { { "target", new[] { "visualSide", "auditorySide", "random" } } } },
+        new ConditionRule { when = "taskType", @is = "discriminationGoNoGo", oneOf = new Dictionary<string, string[]> { { "target", new[] { "go", "noGo", "noReward" } } } },
+        new ConditionRule { when = "taskType", @is = "discriminationLeftRight", oneOf = new Dictionary<string, string[]> { { "target", new[] { "left", "right", "random" } } } },
+        new ConditionRule { when = "contrasts", @is = 0, unused = new[] { "visualStimulus.startAzimuthsDeg" } },
+        new ConditionRule { when = "auditoryStimulus.amplitude", @is = 0, unused = new[] { "auditoryStimulus.startAzimuthsDeg" } },
+    };
+
+    /// <summary>The most combinations one condition may expand into (task.py MAX_COMBINATIONS).</summary>
     public const int MaxCombinations = 64;
     /// <summary>The most a condition's weight may be (task.py's TrialCondition.weight le), so the weights' sum stays an int.</summary>
     public const int MaxWeight = 1000000;
@@ -157,6 +183,7 @@ public class TrialDraw
     readonly Random random;
     readonly int conditionCount;
     Trial last;
+    UclOpenCoenDomeDecisionMakingTaskParameters lastTask;  // the last new trial's combination: its repeat rule
     int drawn;
 
     /// <summary>The seed the random stream started from: the task's rngSeed, or one drawn when it is null.</summary>
@@ -236,13 +263,13 @@ public class TrialDraw
         return deserializer.Deserialize<UclOpenCoenDomeDecisionMakingTaskLogic>(new YamlDotNet.Core.MergingParser(new YamlDotNet.Core.Parser(new StringReader(text))));
     }
 
-    /// <summary>Each trial condition as drawn: its set written over a copy of the task file's text at its dotted paths and read
-    /// back, once for every combination of its list-valued scalar cells (a list in a cell whose task-level value is a scalar,
-    /// one picked per trial; a list field such as contrasts takes the list as is), at most MaxCombinations. Adds a problem
-    /// for each condition that cannot be built, and returns null then.</summary>
+    /// <summary>Each trial condition as drawn: its set and pairs written over a copy of the task file's text at their dotted
+    /// paths and read back, once for every combination (task.py condition_combinations): each pairs group's lists (the set's,
+    /// else the task's) zipped, equally long; each other list cell one pick (a scalar field's list one value, a list field's
+    /// entry a one-entry list); all combined as a product, at most MaxCombinations. Adds a problem for each condition that
+    /// cannot be built, and returns null then.</summary>
     public static List<TrialConditionDraw> BuildConditions(string taskText, UclOpenCoenDomeDecisionMakingTaskParameters task, List<string> problems)
     {
-        var keys = Keys(task.TaskType);
         var nodes = Parameters(Load(taskText)).Children;
         YamlNode sequence;
         var conditionNodes = nodes.TryGetValue(new YamlScalarNode("trialConditions"), out sequence) && sequence is YamlSequenceNode
@@ -258,15 +285,17 @@ public class TrialDraw
         for (int i = 0; i < typed.Count; i++)
         {
             var c = typed[i];
-            var where = string.Format("trialConditions[{0}] ({1})", i, c.Type);
+            var label = Name(c.Label);
+            var where = string.Format("trialConditions[{0}] ({1})", i, label);
             var before = problems.Count;
-            if (!keys.Contains(c.Type)) problems.Add(string.Format("{0}: its type is not one of {1} in {2}", where, string.Join(", ", keys), TaskTypeName(task.TaskType)));
             if (c.Weight < 0) problems.Add(where + ": its weight is below 0");
             if (c.Weight > MaxWeight) problems.Add(string.Format("{0}: its weight is above {1}", where, MaxWeight));
             var conditionNode = (YamlMappingNode)conditionNodes[i];
             // The typed read fills a missing weight with 0 and merges a << key, which the node tree below does not: refuse both.
             if (!conditionNode.Children.ContainsKey(new YamlScalarNode("weight"))) problems.Add(where + ": it has no weight");
-            var cells = new List<KeyValuePair<string, List<YamlNode>>>();
+            // Each cell: its paths (a pairs group's, or one set path) and its picks, one node per path.
+            var cells = new List<KeyValuePair<string[], List<YamlNode[]>>>();
+            var values = new Dictionary<string, YamlNode>();
             YamlNode set;
             var hasSet = conditionNode.Children.TryGetValue(new YamlScalarNode("set"), out set);
             if (conditionNode.Children.ContainsKey(new YamlScalarNode("<<")) || (set is YamlMappingNode && ((YamlMappingNode)set).Children.ContainsKey(new YamlScalarNode("<<"))))
@@ -277,24 +306,37 @@ public class TrialDraw
                 foreach (var cell in ((YamlMappingNode)set).Children)
                 {
                     if (!(cell.Key is YamlScalarNode)) { problems.Add(where + ": a set key is not a dotted path"); continue; }
-                    var path = ((YamlScalarNode)cell.Key).Value;
-                    string[] types;
-                    if (!ConditionFields.TryGetValue(path, out types) || !types.Contains(c.Type))
-                    {
-                        problems.Add(string.Format("{0} sets {1}, which is not a condition field of {2} (x-conditionFields)", where, path, c.Type));
-                        continue;
-                    }
-                    if (path.StartsWith("optogenetics.") && !task.Optogenetics.Enabled) problems.Add(string.Format("{0} sets {1} with optogenetics off", where, path));
-                    var list = cell.Value as YamlSequenceNode;
-                    var options = list != null && At(nodes, path) is YamlScalarNode ? list.Children.ToList() : new List<YamlNode> { cell.Value };
-                    if (options.Count == 0) problems.Add(string.Format("{0}: {1} is an empty list", where, path));
-                    cells.Add(new KeyValuePair<string, List<YamlNode>>(path, options));
+                    values[((YamlScalarNode)cell.Key).Value] = cell.Value;
                 }
             }
+            var pairs = c.Pairs ?? new List<List<string>>();
+            var paired = pairs.SelectMany(g => g ?? new List<string>()).ToList();
+            foreach (var path in values.Keys.Concat(paired))
+            {
+                if (!ConditionFields.Contains(path)) problems.Add(string.Format("{0} sets or pairs {1}, which is not a condition field (x-conditionFields)", where, path));
+                else if (path.StartsWith("optogenetics.") && !task.Optogenetics.Enabled) problems.Add(string.Format("{0} sets {1} with optogenetics off", where, path));
+            }
+            if (paired.Distinct().Count() < paired.Count || pairs.Any(g => g == null || g.Count < 2)) problems.Add(where + ": each pairs group needs two paths or more, each path in one group");
+            if (problems.Count > before) continue;
+            foreach (var group in pairs)
+            {
+                var lists = group.Select(path => Options(nodes, values, path)).ToList();
+                if (lists.Select(l => l.Count).Distinct().Count() > 1)
+                {
+                    problems.Add(string.Format("{0}: pairs [{1}] have lists of lengths {2}; paired lists must be equally long", where, string.Join(", ", group), string.Join(", ", lists.Select(l => l.Count))));
+                    continue;
+                }
+                cells.Add(new KeyValuePair<string[], List<YamlNode[]>>(group.ToArray(), Enumerable.Range(0, lists[0].Count).Select(k => lists.Select(l => l[k]).ToArray()).ToList()));
+            }
+            foreach (var path in values.Keys.Where(p => !paired.Contains(p)))
+            {
+                cells.Add(new KeyValuePair<string[], List<YamlNode[]>>(new[] { path }, Options(nodes, values, path).Select(o => new[] { o }).ToList()));
+            }
+            foreach (var cell in cells.Where(cell => cell.Value.Count == 0)) problems.Add(string.Format("{0}: {1} is an empty list", where, string.Join(", ", cell.Key)));
             var count = cells.Aggregate(1L, (n, cell) => n * cell.Value.Count);
             if (count > MaxCombinations) problems.Add(string.Format("{0} expands into {1} combinations, more than {2}", where, count, MaxCombinations));
             if (problems.Count > before) continue;
-            var draw = new TrialConditionDraw { Type = c.Type, TrialType = TrialTypeOf(task, c.Type), Weight = c.Weight, Where = where, Combinations = new List<TrialConditionCombination>() };
+            var draw = new TrialConditionDraw { Label = label, Weight = c.Weight, Where = where, Combinations = new List<TrialConditionCombination>() };
             for (int n = 0; n < count; n++)
             {
                 var stream = Load(taskText);
@@ -303,10 +345,13 @@ public class TrialDraw
                 int rest = n;
                 foreach (var cell in cells)
                 {
-                    var value = cell.Value[rest % cell.Value.Count];
+                    var picked = cell.Value[rest % cell.Value.Count];
                     rest /= cell.Value.Count;
-                    Put(parameters, cell.Key, value);
-                    if (cell.Value.Count > 1) named.Add(cell.Key + " " + value);
+                    for (int k = 0; k < cell.Key.Length; k++)
+                    {
+                        Put(parameters, cell.Key[k], picked[k]);
+                        if (cell.Value.Count > 1) named.Add(cell.Key[k] + " " + picked[k]);
+                    }
                 }
                 var writer = new StringWriter();
                 stream.Save(writer, false);
@@ -325,9 +370,77 @@ public class TrialDraw
         if (problems.Count == 0)
         {
             if (built.Sum(c => (long)c.Weight) <= 0) problems.Add("trialConditions needs a condition with a weight above 0");
-            if (task.TaskType == TaskType.DiscriminationGoNoGo && !built.Any(c => c.Type == GoKey && c.Weight > 0)) problems.Add("trialConditions has no Go trials: no go condition has a weight above 0");
+            if (task.TaskType == TaskType.DiscriminationGoNoGo && !built.Any(c => c.Weight > 0 && c.Combinations.Any(m => m.Task.Target == ConditionTarget.Go)))
+                problems.Add("trialConditions has no Go trials: no condition with target go has a weight above 0");
         }
         return problems.Count == 0 ? built : null;
+    }
+
+    // A cell's picks (task.py _options): a list field's entries, each a one-entry list; a scalar field's list, else its one
+    // value. The value is the set's, else the task's.
+    static List<YamlNode> Options(IDictionary<YamlNode, YamlNode> nodes, Dictionary<string, YamlNode> values, string path)
+    {
+        YamlNode value;
+        var own = At(nodes, path);
+        if (!values.TryGetValue(path, out value)) value = own;
+        var list = value as YamlSequenceNode;
+        if (list == null) return new List<YamlNode> { value };
+        return own is YamlSequenceNode ? list.Children.Select(entry => (YamlNode)new YamlSequenceNode(entry)).ToList() : list.Children.ToList();
+    }
+
+    /// <summary>An enum value as the task file writes it (its EnumMember name: visualSide, discriminationGoNoGo).</summary>
+    public static string Name(Enum value)
+    {
+        var field = value.GetType().GetField(value.ToString());
+        var member = field == null ? null : (System.Runtime.Serialization.EnumMemberAttribute)Attribute.GetCustomAttribute(field, typeof(System.Runtime.Serialization.EnumMemberAttribute));
+        return member != null ? member.Value : value.ToString();
+    }
+
+    // The value at a path x-rules names (Rules), as the rules compare it: a number, an enum's name, or contrasts' list.
+    static object Value(UclOpenCoenDomeDecisionMakingTaskParameters task, string path)
+    {
+        switch (path)
+        {
+            case "taskType": return Name(task.TaskType);
+            case "target": return Name(task.Target);
+            case "repeats.maxRepeats": return (double)task.Repeats.MaxRepeats;
+            case "repeats.repeatOn": return Name(task.Repeats.RepeatOn);
+            case "bothSpoutsProbability": return task.BothSpoutsProbability;
+            case "contrasts": return task.Contrasts;
+            case "auditoryStimulus.amplitude": return task.AuditoryStimulus.Amplitude;
+            default: throw new ArgumentException("x-rules names " + path + ", which TrialDraw.Value does not read.");
+        }
+    }
+
+    static bool Same(object value, object expected)
+    {
+        if (value is double) return expected is string ? false : (double)value == Convert.ToDouble(expected, System.Globalization.CultureInfo.InvariantCulture);
+        return Equals(value, expected);
+    }
+
+    // A value is a rule's `is`: a list when every entry is.
+    static bool Is(object value, object expected)
+    {
+        var list = value as List<double>;
+        if (list != null) return list.Count > 0 && list.All(entry => Same(entry, expected));
+        return Same(value, expected);
+    }
+
+    /// <summary>What breaks Rules in the task (task.py rule_problems).</summary>
+    public static IEnumerable<string> RuleProblems(UclOpenCoenDomeDecisionMakingTaskParameters task)
+    {
+        foreach (var rule in Rules)
+        {
+            if (!Is(Value(task, rule.when), rule.@is)) continue;
+            foreach (var then in rule.then ?? new Dictionary<string, object>())
+            {
+                if (!Same(Value(task, then.Key), then.Value)) yield return string.Format("{0} {1} needs {2} {3} (x-rules)", rule.when, rule.@is, then.Key, then.Value);
+            }
+            foreach (var oneOf in rule.oneOf ?? new Dictionary<string, string[]>())
+            {
+                if (!oneOf.Value.Contains(Value(task, oneOf.Key) as string)) yield return string.Format("{0} {1} needs {2} one of {3} (x-rules)", rule.when, rule.@is, oneOf.Key, string.Join(", ", oneOf.Value));
+            }
+        }
     }
 
     static YamlStream Load(string text)
@@ -358,26 +471,24 @@ public class TrialDraw
         nodes[new YamlScalarNode(parts[parts.Length - 1])] = value;
     }
 
-    /// <summary>What a condition type shows (TypeNames): localization's types and the two-modality and neutral types are
-    /// themselves; go or left is goModality's or leftModality's modality alone, noGo or right the other's.</summary>
-    public static string TrialTypeOf(UclOpenCoenDomeDecisionMakingTaskParameters task, string type)
-    {
-        bool first = type == GoKey || type == LeftKey;
-        if (!first && type != NoGoKey && type != RightKey) return type;
-        var modality = type == GoKey || type == NoGoKey ? task.GoModality : task.LeftModality;
-        return (modality == Modality.Visual) == first ? Visual : Auditory;
-    }
-
     // Bonsai reads the task file without pydantic, so the rules the draw needs are checked again here.
     static void Check(List<string> problems, UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
     {
-        KeyProblems(problems, "repeats.rulesPerType", task.TaskType, RuleKeys(task.TaskType),task.Repeats.RulesPerType == null ? null : AllKeys(task.Repeats.RulesPerType));
+        if (task.Repeats == null || task.AuditoryStimulus == null || task.VisualStimulus == null)
+        {
+            problems.Add("repeats, visualStimulus and auditoryStimulus must be given");
+            return;
+        }
+        problems.AddRange(RuleProblems(task));
+        if (task.Repeats.MaxRepeats < 0) problems.Add("repeats.maxRepeats must be 0 or more");
         if (task.TaskType == TaskType.DiscriminationGoNoGo && task.BothSpoutsProbability != 0) problems.Add("bothSpoutsProbability must be 0 in discriminationGoNoGo: only the left spout moves in");
         // The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a task without spout movements never returns.
         if (task.TaskType != TaskType.DiscriminationGoNoGo && !task.SpoutMovements && task.BothSpoutsProbability != 1) problems.Add("bothSpoutsProbability must be 1 with spoutMovements false: a one-spout trial draws the other spout back");
-        if (task.Contrasts == null || task.Contrasts.Count == 0 || task.Contrasts.Any(c => !(c > 0))) problems.Add("contrasts must each be above 0, at least one");
-        // The positions (task.py's same rules): each azimuth signed and never 0 (its sign is the side), the speaker nearest it
-        // and nearest its mirror (a conflict trial's sound) each on its side.
+        if (task.Contrasts == null || task.Contrasts.Count == 0 || task.Contrasts.Any(c => !(c >= 0) || double.IsInfinity(c))) problems.Add("contrasts must each be a finite number, 0 or more, at least one");
+        var amplitude = task.AuditoryStimulus.Amplitude;
+        if (!(amplitude >= 0) || double.IsInfinity(amplitude)) problems.Add("auditoryStimulus.amplitude must be a finite number, 0 or more");
+        // The positions (task.py's same rules): each grating azimuth signed and never 0 (its sign is the side); each sound
+        // azimuth's nearest speaker on its side (0: any), and off centre where its sign is the side (target auditorySide).
         var visual = task.VisualStimulus;
         var elevation = visual.ElevationDeg;
         bool elevationOk = elevation >= -90 && elevation <= 90;
@@ -387,15 +498,19 @@ public class TrialDraw
         {
             if (!(listed >= -180 && listed <= 180)) problems.Add(string.Format("visualStimulus.startAzimuthsDeg value {0} is outside [-180, 180]", listed));
             else if (listed == 0) problems.Add("visualStimulus.startAzimuthsDeg must not hold 0: the sign is the trial's side");
-            else if (elevationOk)
+        }
+        var sounds = task.AuditoryStimulus.StartAzimuthsDeg;
+        if (sounds == null || sounds.Count == 0) problems.Add("auditoryStimulus.startAzimuthsDeg needs an azimuth");
+        foreach (var azimuth in sounds ?? new List<double>())
+        {
+            if (!(azimuth >= -180 && azimuth <= 180)) problems.Add(string.Format("auditoryStimulus.startAzimuthsDeg value {0} is outside [-180, 180]", azimuth));
+            else if (azimuth == 0 && task.Target == ConditionTarget.AuditorySide) problems.Add("target auditorySide needs auditoryStimulus.startAzimuthsDeg without 0: the sign is the trial's side");
+            else if (azimuth != 0 && elevationOk && amplitude > 0)
             {
-                foreach (var azimuth in new[] { listed, -listed })
+                var speaker = NearestSpeaker(speakers, azimuth, elevation);
+                if (azimuth > 0 ? speaker.Value.Position.Azimuth <= 0 : speaker.Value.Position.Azimuth >= 0)
                 {
-                    var speaker = NearestSpeaker(speakers, azimuth, elevation);
-                    if (azimuth > 0 ? speaker.Value.Position.Azimuth <= 0 : speaker.Value.Position.Azimuth >= 0)
-                    {
-                        problems.Add(string.Format("rig.yml's speaker nearest azimuth {0} (elevation {1}) is '{2}', not on the {3}", azimuth, elevation, speaker.Key, azimuth > 0 ? "right" : "left"));
-                    }
+                    problems.Add(string.Format("rig.yml's speaker nearest azimuth {0} (elevation {1}) is '{2}', not on the {3}", azimuth, elevation, speaker.Key, azimuth > 0 ? "right" : "left"));
                 }
             }
         }
@@ -463,78 +578,6 @@ public class TrialDraw
         return s.ResponseDelaySeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
     }
 
-    // Every condition type and rulesPerType key, and the five each task type has, in its order (task.py TRIAL_KEYS):
-    // localization's by what a trial shows, the discriminations' by role, goModality or leftModality filling go or left.
-    static readonly string[] AllKeyNames = { Visual, Auditory, AudiovisualCoherent, AudiovisualConflict, Neutral, GoKey, NoGoKey, LeftKey, RightKey };
-
-    /// <summary>The five condition types (and rulesPerType's keys among them) in a task type: localization's TypeNames; discriminationGoNoGo's
-    /// go, noGo, audiovisualCoherent, audiovisualConflict, neutral; discriminationLeftRight's left, right and the same three.</summary>
-    public static string[] Keys(TaskType type)
-    {
-        switch (type)
-        {
-            case TaskType.DiscriminationGoNoGo: return new[] { GoKey, NoGoKey, AudiovisualCoherent, AudiovisualConflict, Neutral };
-            case TaskType.DiscriminationLeftRight: return new[] { LeftKey, RightKey, AudiovisualCoherent, AudiovisualConflict, Neutral };
-            default: return (string[])TypeNames.Clone();
-        }
-    }
-
-    // rulesPerType's values in AllKeyNames' order, null where it gives none.
-    static RepeatRule?[] AllKeys(TrialTypeRules r)
-    {
-        return new[] { r.Visual, r.Auditory, r.AudiovisualCoherent, null, null, r.Go, r.NoGo, r.Left, r.Right };
-    }
-
-    // rulesPerType's keys (task.py RULE_KEYS): only a trial with a right answer repeats, so localization names visual,
-    // auditory, audiovisualCoherent and the discriminations their two one-modality roles.
-    static string[] RuleKeys(TaskType type)
-    {
-        switch (type)
-        {
-            case TaskType.DiscriminationGoNoGo: return new[] { GoKey, NoGoKey };
-            case TaskType.DiscriminationLeftRight: return new[] { LeftKey, RightKey };
-            default: return new[] { Visual, Auditory, AudiovisualCoherent };
-        }
-    }
-
-    static T[] Pick<T>(T?[] all, string[] keys) where T : struct
-    {
-        return keys.Select(k => all[Array.IndexOf(AllKeyNames, k)].GetValueOrDefault()).ToArray();
-    }
-
-    static void KeyProblems<T>(List<string> problems, string name, TaskType type, string[] keys, T?[] values) where T : struct
-    {
-        var given = values == null ? new string[0] : AllKeyNames.Where((k, i) => values[i].HasValue).ToArray();
-        if (!given.OrderBy(k => k).SequenceEqual(keys.OrderBy(k => k)))
-        {
-            problems.Add(string.Format("{0} must give exactly {1} in {2} (it gives {3})", name, string.Join(", ", keys), TaskTypeName(type), given.Length == 0 ? "none" : string.Join(", ", given)));
-        }
-    }
-
-    static string TaskTypeName(TaskType type)
-    {
-        return type == TaskType.DiscriminationGoNoGo ? "discriminationGoNoGo" : type == TaskType.DiscriminationLeftRight ? "discriminationLeftRight" : "localization";
-    }
-
-    // Key order to TypeNames' order: only the first two differ, swapped when the go or left modality is auditory.
-    static T[] ByStimulus<T>(UclOpenCoenDomeDecisionMakingTaskParameters task, T[] byKey)
-    {
-        var modality = task.TaskType == TaskType.DiscriminationGoNoGo ? task.GoModality : task.LeftModality;
-        if (task.TaskType == TaskType.Localization || modality == Modality.Visual) return byKey;
-        var swapped = (T[])byKey.Clone();
-        swapped[0] = byKey[1];
-        swapped[1] = byKey[0];
-        return swapped;
-    }
-
-    static RepeatRule Rule(UclOpenCoenDomeDecisionMakingTaskParameters task, string trialType)
-    {
-        // RuleKeys by stimulus are TypeNames' first two or three: a type past them has no right answer, never repeated.
-        var byStimulus = ByStimulus(task, Pick(AllKeys(task.Repeats.RulesPerType), RuleKeys(task.TaskType)));
-        var type = Array.IndexOf(TypeNames, trialType);
-        return type >= 0 && type < byStimulus.Length ? byStimulus[type] : RepeatRule.Never;
-    }
-
     /// <summary>The speaker in rig.yml at the smallest angle from the location.</summary>
     public static KeyValuePair<string, Speaker> NearestSpeaker(EqualisedSpeakerArray speakers, double azimuth, double elevation)
     {
@@ -579,13 +622,14 @@ public class TrialDraw
         return trial;
     }
 
+    // The repeat rule is the repeated trial's combination's (repeats.maxRepeats, repeats.repeatOn); a probe never repeats.
     bool ShouldRepeat(string outcome)
     {
-        if (!task.AllowRepeats || last.repeatCount >= task.Repeats.MaxRepeats || outcome == TrialOutcomes.Probe) return false;
-        switch (Rule(task, last.trialType))
+        if (lastTask == null || last.repeatCount >= lastTask.Repeats.MaxRepeats || outcome == TrialOutcomes.Probe) return false;
+        switch (lastTask.Repeats.RepeatOn)
         {
-            case RepeatRule.OnFailure: return outcome != TrialOutcomes.Correct;
-            case RepeatRule.OnNoResponse: return outcome == TrialOutcomes.NoResponse;
+            case RepeatOn.NotCorrect: return outcome != TrialOutcomes.Correct;
+            case RepeatOn.NoResponse: return outcome == TrialOutcomes.NoResponse;
             default: return false;
         }
     }
@@ -596,8 +640,10 @@ public class TrialDraw
         int index = WeightedCondition();
         var condition = conditions[index];
         var p = condition.Combinations.Count == 1 ? condition.Combinations[0].Task : condition.Combinations[random.Next(condition.Combinations.Count)].Task;
+        lastTask = p;
         var trial = new Trial();
         trial.trialCondition = index;
+        trial.trialType = condition.Label;
         trial.autoReward = random.NextDouble() < p.AutoRewardProbability;
         trial.spoutMovements = task.SpoutMovements;
         trial.bothSpoutsOffered = random.NextDouble() < p.BothSpoutsProbability;
@@ -605,65 +651,24 @@ public class TrialDraw
         trial.rewardOfferedUl = large ? p.Reward.RewardSizeUl * p.Reward.LargeRewardMultiplier : p.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
-        string type = condition.TrialType;
-        trial.trialType = type;
-        bool discrimination = task.TaskType != TaskType.Localization;
-        // Localization plays a centre sound on visual and neutral trials; the discriminations' are silent.
-        bool showsSound = !discrimination || (type != Visual && type != Neutral);
-
-        // The start azimuth, one of the condition's: its sign is the side. The grating starts there; the sound plays on
-        // the speaker nearest it, a conflict trial's nearest its mirror.
+        // The grating: a contrast and a start azimuth, shown where the contrast is above 0 (0: a grey screen, logged at 0, 0).
         var visual = p.VisualStimulus;
-        double azimuth = type == Neutral ? 0 : visual.StartAzimuthsDeg[random.Next(visual.StartAzimuthsDeg.Count)];
-        double elevation = visual.ElevationDeg;
-        double soundAzimuth = CentreAzimuth, soundElevation = CentreElevation;
-        if (type == Visual || type == AudiovisualCoherent || type == AudiovisualConflict)
+        double contrast = p.Contrasts[random.Next(p.Contrasts.Count)];
+        double azimuth = visual.StartAzimuthsDeg[random.Next(visual.StartAzimuthsDeg.Count)];
+        if (contrast > 0)
         {
             trial.visualAzimuthDeg = azimuth;
-            trial.visualElevationDeg = elevation;
-            trial.visualContrast = p.Contrasts[random.Next(p.Contrasts.Count)];
+            trial.visualElevationDeg = visual.ElevationDeg;
+            trial.visualContrast = contrast;
         }
-        if (type == Auditory || type == AudiovisualCoherent || type == AudiovisualConflict)
+        // The sound: at its amplitude (0: none) on the speaker nearest a start azimuth, at the grating's elevation.
+        var sound = p.AuditoryStimulus;
+        double soundAzimuth = sound.StartAzimuthsDeg[random.Next(sound.StartAzimuthsDeg.Count)];
+        trial.auditoryOn = sound.Amplitude > 0;
+        trial.auditoryAmplitude = sound.Amplitude;
+        if (trial.auditoryOn)
         {
-            soundAzimuth = type == AudiovisualConflict ? -azimuth : azimuth;
-            soundElevation = elevation;
-        }
-        trial.target = azimuth > 0 ? Choice.Right : Choice.Left;
-        if (task.TaskType == TaskType.DiscriminationGoNoGo)
-        {
-            // Lick for goModality (Go), withhold for the other modality (NoGo); a trial showing both modalities or neither
-            // (neutral, the grey screen) is a NoReward probe, never rewarded or penalised (Song et al. 2017).
-            bool oneModality = type == Visual || type == Auditory;
-            bool goShown = oneModality && (type == Visual) == (task.GoModality == Modality.Visual);
-            trial.target = !oneModality ? Target.NoReward : goShown ? Target.Go : Target.NoGo;
-            trial.bothSpoutsOffered = false;                                   // one spout, the left
-            if (trial.target != Target.Go)
-            {
-                trial.autoReward = false;   // auto-reward only on a Go trial
-                trial.rewardOfferedUl = 0;  // no reward on offer: a withheld NoGo is Correct, unrewarded
-            }
-        }
-        else if (task.TaskType == TaskType.DiscriminationLeftRight)
-        {
-            // The answer is the modality: leftModality's trials at the left spout, the other's at the right.
-            if (type == Visual || type == Auditory) trial.target = (type == Visual) == (task.LeftModality == Modality.Visual) ? Choice.Left : Choice.Right;
-        }
-        if (RandomRewardProbe(task.TaskType, type))
-        {
-            // No right answer (left-right's two-modality and neutral trials, localization's conflict and neutral): a
-            // random-reward probe, target Random. Both spouts move in, and a coin drawn now, from the seeded stream, decides
-            // a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored
-            // trial's miss. Its rewardOfferedUl is kept, heads or tails. It never repeats.
-            trial.target = Target.Random;
-            trial.bothSpoutsOffered = true;
-            trial.autoReward = false;
-            trial.probeHeads = random.NextDouble() < 0.5;
-        }
-
-        trial.auditoryOn = showsSound;
-        if (showsSound)
-        {
-            var speaker = NearestSpeaker(speakers, soundAzimuth, soundElevation).Value;
+            var speaker = NearestSpeaker(speakers, soundAzimuth, visual.ElevationDeg).Value;
             trial.speakerChannel = speaker.Channel;
             trial.auditoryAzimuthDeg = speaker.Position.Azimuth;
             trial.auditoryElevationDeg = speaker.Position.Elevation;
@@ -673,6 +678,38 @@ public class TrialDraw
             trial.speakerChannel = -1;
             trial.auditoryAzimuthDeg = double.NaN;
             trial.auditoryElevationDeg = double.NaN;
+        }
+
+        // The target: a side (the grating's or the sound's picked azimuth's, or named), a go/no-go role, or a probe.
+        switch (p.Target)
+        {
+            case ConditionTarget.VisualSide: trial.target = azimuth > 0 ? Choice.Right : Choice.Left; break;
+            case ConditionTarget.AuditorySide: trial.target = soundAzimuth > 0 ? Choice.Right : Choice.Left; break;
+            case ConditionTarget.Left: trial.target = Choice.Left; break;
+            case ConditionTarget.Right: trial.target = Choice.Right; break;
+            case ConditionTarget.Go: trial.target = Target.Go; break;
+            case ConditionTarget.NoGo: trial.target = Target.NoGo; break;
+            case ConditionTarget.NoReward: trial.target = Target.NoReward; break;
+            default: trial.target = Target.Random; break;
+        }
+        if (task.TaskType == TaskType.DiscriminationGoNoGo)
+        {
+            // One spout, the left. Lick on Go, withhold on NoGo; a NoReward trial is a probe, never rewarded or penalised
+            // (Song et al. 2017).
+            trial.bothSpoutsOffered = false;
+            if (trial.target != Target.Go)
+            {
+                trial.autoReward = false;   // auto-reward only on a Go trial
+                trial.rewardOfferedUl = 0;  // no reward on offer: a withheld NoGo is Correct, unrewarded
+            }
+        }
+        if (trial.target == Target.Random)
+        {
+            // No right answer: a random-reward probe. Both spouts move in (bothSpoutsProbability 1, x-rules), and a coin drawn
+            // now, from the seeded stream, decides a choice at either: heads rewarded at that spout, tails penalised as an
+            // incorrect choice; a miss as a scored trial's miss. Its rewardOfferedUl is kept, heads or tails. It never repeats.
+            trial.autoReward = false;
+            trial.probeHeads = random.NextDouble() < 0.5;
         }
 
         var optogenetics = task.Optogenetics;
@@ -687,13 +724,24 @@ public class TrialDraw
         return trial;
     }
 
-    /// <summary>Whether a trial type has no right answer and pays at random: localization's audiovisualConflict and neutral,
-    /// discriminationLeftRight's two-modality and neutral trials. discriminationGoNoGo's probes pay nothing.</summary>
-    public static bool RandomRewardProbe(TaskType taskType, string trialType)
+    /// <summary>The loudest sound the conditions can draw: the largest amplitude of any combination of a condition with a
+    /// weight above 0, and where it is, for the stimulus set's peak check at Go (LevelAuditoryStimulusSet).</summary>
+    public LoudestSound Loudest()
     {
-        if (taskType == TaskType.Localization) return trialType == AudiovisualConflict || trialType == Neutral;
-        return taskType == TaskType.DiscriminationLeftRight && trialType != Visual && trialType != Auditory;
+        var loudest = new LoudestSound { Amplitude = 0, Where = "no condition" };
+        foreach (var condition in conditions.Where(c => c.Weight > 0))
+        {
+            foreach (var combination in condition.Combinations)
+            {
+                if (combination.Task.AuditoryStimulus.Amplitude > loudest.Amplitude)
+                {
+                    loudest = new LoudestSound { Amplitude = combination.Task.AuditoryStimulus.Amplitude, Where = condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) };
+                }
+            }
+        }
+        return loudest;
     }
+
 
     int WeightedCondition()
     {
@@ -783,6 +831,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     }
 
     public LaserTiming Laser { get { return laser; } }
+
+    /// <summary>The loudest sound the task's conditions can draw (TrialDraw.Loudest), for the stimulus set's peak check.</summary>
+    public LoudestSound Loudest { get { return draw.Loudest(); } }
 
     public Trial Draw(TrialOutcome previous)
     {

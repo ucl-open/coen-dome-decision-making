@@ -11,9 +11,10 @@ from ucl_open_coen_dome_decision_making.task import (
     CONDITION_FIELDS,
     MAX_COMBINATIONS,
     MAX_WEIGHT_SUM,
-    RULE_KEYS,
-    TRIAL_KEYS,
+    RULES,
+    TARGETS,
     TaskType,
+    derive_label,
     UclOpenCoenDomeDecisionMakingTaskLogic,
     UclOpenCoenDomeDecisionMakingTaskParameters,
     VisualStimulus,
@@ -72,21 +73,22 @@ def test_the_discrimination_files_keep_the_spouts_in_for_habituation():
         task = _task(name)
         assert task.task_type == task_type
         assert not task.spout_movements   # the defaults are habituation's, the pipeline's first stage
-    assert _task("task-discrimination-left-right.yml").left_modality == "visual"
-    assert _task("task-discrimination-go-no-go.yml").go_modality == "visual"
 
 
 def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
-    # Same mixes and timing (Gerion's), go and noGo where left-right has left and right; go-no-go names goModality,
-    # offers one spout and repeats go and noGo alone, as left-right left and right.
+    # Same mixes and timing (Gerion's), go and noGo where left-right has left and right, noReward probes where it has random
+    # ones (both spouts in); go-no-go offers one spout.
     lr = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     gng = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
     assert gng["bothSpoutsProbability"] == 0
-    roles = {"go": "left", "noGo": "right"}
-    for data, key in ((lr, "leftModality"), (gng, "goModality")):
-        del data["taskType"], data[key], data["bothSpoutsProbability"]
-        data["trialConditions"] = [{**c, "type": roles.get(c["type"], c["type"])} for c in data["trialConditions"]]
-        data["repeats"]["rulesPerType"] = {roles.get(k, k): v for k, v in data["repeats"]["rulesPerType"].items()}
+    roles = {"go": "left", "noGo": "right", "noReward": "random"}
+    for data in (lr, gng):
+        del data["taskType"], data["bothSpoutsProbability"]
+        data["target"] = roles.get(data["target"], data["target"])
+        for c in data["trialConditions"]:
+            c["label"] = roles.get(c["label"], c["label"])
+            c["set"]["target"] = roles.get(c["set"]["target"], c["set"]["target"])
+            c["set"].pop("bothSpoutsProbability", None)
     assert lr == gng
 
 
@@ -307,13 +309,6 @@ def test_the_spout_wait_is_named_by_its_ends():
         assert yaml.safe_load(path.read_text())["taskParameters"]["trialStructure"]["stimulusToSpoutsInSeconds"] == 0.5
 
 
-def test_the_modalities_are_visual_or_auditory():
-    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    for key in ("leftModality", "goModality"):
-        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, key: "auditory"})
-        with pytest.raises(ValidationError):
-            UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, key: "smell"})
-
 def test_reward_size_says_the_calibration_plans_its_pulses():
     from ucl_open_coen_dome_decision_making.task import RewardSettings
     assert "calibration" in RewardSettings.model_fields["reward_size_ul"].description
@@ -334,47 +329,80 @@ def test_the_stimulus_is_off_before_the_next_one_starts():
         TrialStructure(stimulusSeconds=1.6, itiMinSeconds=1.5, itiMaxSeconds=2, drinkSeconds=1, responseDelaySeconds=0, responseWindowSeconds=3)
 
 
-def test_conditions_and_repeat_rules_are_keyed_by_the_task_type_s_keys():
-    # Condition types: localization by what a trial shows (the trialType column's words), the discriminations by role;
-    # rulesPerType names only the trials with a right answer.
+def test_each_committed_condition_is_labelled_as_derived_and_logged():
+    # A label names a condition (the trialType column's words) and drives nothing; the committed files' are the derived ones.
     columns = yaml.safe_load((CONFIG.parent / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))
-    assert tuple(columns["trialType"]["values"]) == TRIAL_KEYS[TaskType.LOCALIZATION]
-    assert RULE_KEYS == {
-        TaskType.LOCALIZATION: ("visual", "auditory", "audiovisualCoherent"),
-        TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo"),
-        TaskType.DISCRIMINATION_LEFT_RIGHT: ("left", "right"),
-    }
     for path in TASK_FILES:
-        task = yaml.safe_load(path.read_text())["taskParameters"]
-        task_type = TaskType(task["taskType"])
-        assert [c["type"] for c in task["trialConditions"]] == list(TRIAL_KEYS[task_type]), path.name
-        assert all(c["set"] == {} for c in task["trialConditions"]), path.name
-        assert set(task["repeats"]["rulesPerType"]) == set(RULE_KEYS[task_type]), path.name
+        task = _task(path.name)
+        for condition in task.trial_conditions:
+            assert condition.label.value in columns["trialType"]["values"]
+            assert derive_label(task, condition) == condition.label.value, (path.name, condition.label)
 
 
-@pytest.mark.parametrize(
-    "name, where, block, words",
-    [
-        ("task-discrimination-go-no-go.yml", "trialConditions", [{"type": "visual", "weight": 10}], "type visual is not one of go, noGo"),
-        ("task-discrimination-left-right.yml", "trialConditions", [{"type": "go", "weight": 10}], "type go is not one of left, right"),
-        ("task-discrimination-go-no-go.yml", "rulesPerType", {"go": "onFailure", "noGo": "onFailure", "neutral": "onNoResponse"}, r"rulesPerType.neutral\s+Extra inputs are not permitted"),
-        ("task-localization.yml", "rulesPerType", {"visual": "onFailure", "auditory": "onFailure", "audiovisualCoherent": "onFailure", "neutral": "never"}, r"rulesPerType.neutral\s+Extra inputs are not permitted"),
-    ],
-)
-def test_keys_of_another_task_type_or_a_probe_s_repeat_rule_are_refused(name, where, block, words):
+@pytest.mark.parametrize("task_type, name", [
+    ("localization", "task-localization.yml"), ("discriminationGoNoGo", "task-discrimination-go-no-go.yml"), ("discriminationLeftRight", "task-discrimination-left-right.yml")])
+def test_a_target_of_another_task_type_is_refused(task_type, name):
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
-    if where == "rulesPerType":
-        data["repeats"]["rulesPerType"] = block
-    else:
-        data[where] = block
+    for target in {"visualSide", "auditorySide", "random", "go", "noGo", "noReward", "left", "right"} - set(TARGETS[TaskType(task_type)]):
+        data["trialConditions"][0]["set"]["target"] = target
+        with pytest.raises(ValidationError, match=rf"taskType {task_type} needs target one of .* \(x-rules\)"):
+            UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
+@pytest.mark.parametrize("set_, words", [
+    ({"target": "random", "bothSpoutsProbability": 0.5, "repeats.repeatOn": "never"}, "target random needs bothSpoutsProbability 1"),
+    ({"target": "random", "bothSpoutsProbability": 1, "repeats.repeatOn": "notCorrect"}, "target random needs repeats.repeatOn never"),
+    ({"repeats.maxRepeats": 0, "repeats.repeatOn": "noResponse"}, "repeats.maxRepeats 0 needs repeats.repeatOn never"),
+    ({"target": "auditorySide", "auditoryStimulus.startAzimuthsDeg": [0, 60]}, "auditorySide needs auditoryStimulus.startAzimuthsDeg without 0"),
+    ({"auditoryStimulus.amplitude": -0.1}, "greater than or equal to 0"),
+    ({"contrasts": [-1]}, "contrasts must each be 0 or more"),
+])
+def test_a_condition_breaking_a_rule_is_refused(set_, words):
     with pytest.raises(ValidationError, match=words):
+        _conditions({"label": "visual", "weight": 1, "set": set_})
+
+
+def test_a_go_no_go_probe_must_not_repeat():
+    data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    data["trialConditions"][4]["set"]["repeats.repeatOn"] = "noResponse"
+    with pytest.raises(ValidationError, match="target noReward needs repeats.repeatOn never"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
+def test_an_amplitude_above_1_is_the_peak_check_s_to_refuse():
+    # Pydantic cannot know the speakers: Go checks the largest amplitude against the -1 dBFS peak (LevelAuditoryStimulusSet).
+    _conditions({"label": "auditory", "weight": 1, "set": {"target": "auditorySide", "contrasts": [0], "auditoryStimulus.amplitude": [1, 4]}})
+
+
+def test_pairs_zip_their_lists_and_the_rest_combine():
+    from ucl_open_coen_dome_decision_making.task import condition_combinations
+
+    base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
+    visual, sound = "visualStimulus.startAzimuthsDeg", "auditoryStimulus.startAzimuthsDeg"
+    combos = condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]])
+    assert combos == [
+        {visual: [-60], sound: [60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
+        {visual: [-60], sound: [60], "contrasts": [1], "auditoryStimulus.amplitude": 1},
+        {visual: [60], sound: [-60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
+        {visual: [60], sound: [-60], "contrasts": [1], "auditoryStimulus.amplitude": 1},
+    ]
+    # Unpaired, a list field set at condition level is one entry per combination; a list in a scalar cell one value.
+    assert condition_combinations(base, {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}) == [
+        {"contrasts": [0.5], "reward.rewardSizeUl": 2}, {"contrasts": [0.5], "reward.rewardSizeUl": 3},
+        {"contrasts": [1], "reward.rewardSizeUl": 2}, {"contrasts": [1], "reward.rewardSizeUl": 3}]
+    with pytest.raises(ValidationError, match=r"pairs \['visualStimulus.startAzimuthsDeg', 'auditoryStimulus.startAzimuthsDeg'\] have lists of lengths 2, 3"):
+        _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {sound: [-60, 0, 60]}})
+    for pairs in ([[visual]], [[visual, sound], [sound, "contrasts"]]):
+        with pytest.raises(ValidationError, match="each pairs group needs two paths or more"):
+            _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": pairs})
+    with pytest.raises(ValidationError, match="pairs trialStructure.itiMinSeconds, which is not a condition field"):
+        _conditions({"label": "visual", "weight": 1, "pairs": [[visual, "trialStructure.itiMinSeconds"]]})
 
 
 def test_a_go_no_go_task_with_no_go_trials_is_refused():
     data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
     data["trialConditions"][0]["weight"] = 0
-    with pytest.raises(ValidationError, match="no go condition with a weight above 0"):
+    with pytest.raises(ValidationError, match="no condition with target go and a weight above 0"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
@@ -382,8 +410,7 @@ def test_a_go_no_go_condition_with_a_set_is_accepted():
     # Each condition is checked as a task of its own (_conditions_run); a noGo condition's copy has no go condition, which
     # refused every go/no-go task with any set until the go-trials rule was left to the whole task (audit round 2).
     data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
-    data["trialConditions"][0]["set"] = {"reward.rewardSizeUl": 2}
-    data["trialConditions"][1]["weight"] = 10
+    data["trialConditions"][0]["set"]["reward.rewardSizeUl"] = 2
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
     data["trialConditions"][0]["weight"] = 1_000_001
     with pytest.raises(ValidationError, match="less than or equal to 1000000"):
@@ -453,27 +480,29 @@ def _conditions(*conditions, name="task-localization.yml", **changes):
 
 def test_the_schema_marks_the_conditions_whole_and_names_the_condition_fields():
     # app-rig-control reads both: trialConditions is one leaf (never indexed or carried), and x-conditionFields is the
-    # allow-list with the types each applies to (TrialDraw.ConditionFields, a C# test holds it to the schema).
+    # allow-list (TrialDraw.ConditionFields), x-rules the rules linking them (TrialDraw.Rules); a C# test holds both to the schema.
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     parameters = schema["$defs"]["UclOpenCoenDomeDecisionMakingTaskParameters"]
     assert parameters["properties"]["trialConditions"]["x-whole"] is True
-    assert parameters["x-conditionFields"] == {path: list(types) for path, types in CONDITION_FIELDS.items()}
+    assert parameters["x-conditionFields"] == list(CONDITION_FIELDS)
+    assert parameters["x-rules"] == [dict(rule) for rule in RULES]
+    # Every path a rule names is a condition field, or the task's type.
+    named = {path for rule in RULES for path in [rule["when"], *rule.get("then", {}), *rule.get("oneOf", {}), *rule.get("unused", [])]}
+    assert named <= set(CONDITION_FIELDS) | {"taskType"}
     assert "trialWeights" not in parameters["properties"]
 
 
 def test_a_condition_s_set_is_built_and_checked_as_a_task():
-    task = _conditions({"type": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3], "visualStimulus.startAzimuthsDeg": [60]}},
-                       {"type": "auditory", "weight": 1})
+    task = _conditions({"label": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3], "visualStimulus.startAzimuthsDeg": [60]}},
+                       {"label": "auditory", "weight": 1})
     assert [c.weight for c in task.trial_conditions] == [3, 1]
     for condition, words in [
-        ({"type": "visual", "weight": 1, "set": {"trialStructure.itiMinSeconds": 4}}, "trialStructure.itiMinSeconds, which is not a condition field of visual"),
-        ({"type": "auditory", "weight": 1, "set": {"contrasts": [1]}}, "contrasts, which is not a condition field of auditory"),
-        ({"type": "neutral", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": [60]}}, "not a condition field of neutral"),
-        ({"type": "visual", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, "with optogenetics off"),
-        ({"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": [60, 0]}}, r"(?s)trial_conditions\[0\] \(visual\).*must not hold 0"),
-        ({"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": [2, 99]}}, r"trial_conditions\[0\] \(visual\) with \{'reward.rewardSizeUl': 99\}"),
-        ({"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": []}}, "is an empty list"),
-        ({"type": "visual", "weight": 0}, "a weight above 0"),
+        ({"label": "visual", "weight": 1, "set": {"trialStructure.itiMinSeconds": 4}}, "sets or pairs trialStructure.itiMinSeconds, which is not a condition field"),
+        ({"label": "visual", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, "with optogenetics off"),
+        ({"label": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": [60, 0]}}, r"(?s)trial_conditions\[0\] \(visual\).*must not hold 0"),
+        ({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": [2, 99]}}, r"trial_conditions\[0\] \(visual\) with \{'reward.rewardSizeUl': 99\}"),
+        ({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": []}}, "is an empty list"),
+        ({"label": "visual", "weight": 0}, "a weight above 0"),
     ]:
         with pytest.raises(ValidationError, match=words):
             _conditions(condition)
@@ -481,36 +510,36 @@ def test_a_condition_s_set_is_built_and_checked_as_a_task():
 
 def test_a_condition_may_expand_into_at_most_the_cap():
     cells = {"reward.rewardSizeUl": [1, 2, 3, 4, 5, 6, 7, 8], "autoRewardProbability": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]}
-    _conditions({"type": "visual", "weight": 1, "set": cells})
+    _conditions({"label": "visual", "weight": 1, "set": cells})
     cells["autoRewardProbability"].append(0.8)
     with pytest.raises(ValidationError, match=f"expands into 72 combinations, more than {MAX_COMBINATIONS}"):
-        _conditions({"type": "visual", "weight": 1, "set": cells})
+        _conditions({"label": "visual", "weight": 1, "set": cells})
 
 
 def test_a_condition_pins_the_laser_with_optogenetics_on():
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     on = {**data["optogenetics"], "enabled": True, "laserPowerMw": 2.0, "laserDurationSeconds": 0.8, "zapitConditionsPath": "C:\\zapit\\conditions.yml"}
-    _conditions({"type": "left", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, {"type": "right", "weight": 1, "set": {"optogenetics.laserOnProbability": 0}},
+    _conditions({"label": "left", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, {"label": "right", "weight": 1, "set": {"optogenetics.laserOnProbability": 0}},
                 name="task-discrimination-left-right.yml", optogenetics=on)
 
 
 def test_condition_edges_a_zero_among_others_duplicates_one_condition_the_weight_cap_and_a_wrong_type():
-    _conditions({"type": "visual", "weight": 0}, {"type": "visual", "weight": 2}, {"type": "visual", "weight": 1, "set": {"contrasts": [1]}})
-    _conditions({"type": "neutral", "weight": 1})
-    _conditions({"type": "visual", "weight": 1000000}, {"type": "auditory", "weight": 1000000})
+    _conditions({"label": "visual", "weight": 0}, {"label": "visual", "weight": 2}, {"label": "visual", "weight": 1, "set": {"contrasts": [1]}})
+    _conditions({"label": "neutral", "weight": 1})
+    _conditions({"label": "visual", "weight": 1000000}, {"label": "auditory", "weight": 1000000})
     with pytest.raises(ValidationError, match="1000000"):
-        _conditions({"type": "visual", "weight": 1000001})
+        _conditions({"label": "visual", "weight": 1000001})
     with pytest.raises(ValidationError):
-        _conditions({"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "abc"}})
+        _conditions({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "abc"}})
     with pytest.raises(ValidationError):
-        _conditions({"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": "left"}})
+        _conditions({"label": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": "left"}})
     with pytest.raises(ValidationError, match="at least 1|no condition|a weight above 0"):
         _conditions()
 
 
 def test_weights_may_add_to_the_draw_s_int_and_no_more():
     # Go refuses the same sum (TrialDraw.CheckTask): 2147 conditions at the cap and one of 483647 make exactly int.MaxValue.
-    full = [{"type": "visual", "weight": 1000000}] * 2147
-    _conditions(*full, {"type": "auditory", "weight": 483647})
+    full = [{"label": "visual", "weight": 1000000}] * 2147
+    _conditions(*full, {"label": "auditory", "weight": 483647})
     with pytest.raises(ValidationError, match=f"weights add to more than {MAX_WEIGHT_SUM}"):
-        _conditions(*full, {"type": "auditory", "weight": 483648})
+        _conditions(*full, {"label": "auditory", "weight": 483648})

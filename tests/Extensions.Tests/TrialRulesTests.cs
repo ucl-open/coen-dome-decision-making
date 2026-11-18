@@ -185,11 +185,7 @@ public class ResponseRuleTests
     public void ARepeatFollowsTheOutcome()
     {
         // Localization stage 4 with every type that has a right answer repeated on failure: a wrong answer repeats the trial, a right one draws anew.
-        var run = new Harness(Rules.Make(t =>
-        {
-            var r = t.Repeats.RulesPerType;
-            r.Visual = r.Auditory = r.AudiovisualCoherent = RepeatRule.OnFailure;
-        }, file: "task-localization.yml"));
+        var run = new Harness(Rules.Make(t => t.Repeats.RepeatOn = RepeatOn.NotCorrect, file: "task-localization.yml"));
         run.RunTo(12.05);
         var wrong = run.Spout(false);
         run.At(12.1, h => h.Lick(wrong)).RunTo(16.2);   // Incorrect at 12.1: the timeout, then trial 2's interval

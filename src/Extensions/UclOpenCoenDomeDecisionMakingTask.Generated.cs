@@ -124,46 +124,67 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)
-    ///plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound). Where it plays is visualStimulus'
-    ///startAzimuthsDeg and elevationDeg, on rig.yml's nearest speaker.
+    /// The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at
+    ///visualStimulus.elevationDeg).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)
-    plays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound). Where it plays is visualStimulus'
-    startAzimuthsDeg and elevationDeg, on rig.yml's nearest speaker.")]
+    [System.ComponentModel.DescriptionAttribute("The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml\'s speaker " +
+        "nearest the picked azimuth (at\nvisualStimulus.elevationDeg).")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class AuditoryStimulus
     {
     
-        private double _levelDbfs;
+        private double _amplitude;
+    
+        private System.Collections.Generic.List<double> _startAzimuthsDeg;
     
         public AuditoryStimulus()
         {
-            _levelDbfs = -30D;
+            _amplitude = 1D;
+            _startAzimuthsDeg = new System.Collections.Generic.List<double>();
         }
     
         protected AuditoryStimulus(AuditoryStimulus other)
         {
-            _levelDbfs = other._levelDbfs;
+            _amplitude = other._amplitude;
+            _startAzimuthsDeg = other._startAzimuthsDeg;
         }
     
         /// <summary>
-        /// Each stimulus sound's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -30. The workflow stops as the sound's buffer is built (at Go for a sound built once, at its trial for one built each trial) if any peak would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix
+        /// Scale of the waveform's samples as stored: 0 no sound, 1 the WAV as stored (-47.2 dBFS RMS, production av-dome's loudness), above 1 louder. Go refuses the largest amplitude any condition can draw if a waveform would peak at -1 dBFS or more after equalisation on any speaker; dB SPL is unknown until the speakers' SPL calibration
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("levelDbfs")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="levelDbfs")]
-        [System.ComponentModel.DescriptionAttribute(@"Each stimulus sound's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -30. The workflow stops as the sound's buffer is built (at Go for a sound built once, at its trial for one built each trial) if any peak would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix")]
-        public double LevelDbfs
+        [Newtonsoft.Json.JsonPropertyAttribute("amplitude")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="amplitude")]
+        [System.ComponentModel.DescriptionAttribute(@"Scale of the waveform's samples as stored: 0 no sound, 1 the WAV as stored (-47.2 dBFS RMS, production av-dome's loudness), above 1 louder. Go refuses the largest amplitude any condition can draw if a waveform would peak at -1 dBFS or more after equalisation on any speaker; dB SPL is unknown until the speakers' SPL calibration")]
+        public double Amplitude
         {
             get
             {
-                return _levelDbfs;
+                return _amplitude;
             }
             set
             {
-                _levelDbfs = value;
+                _amplitude = value;
+            }
+        }
+    
+        /// <summary>
+        /// Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. With target auditorySide the picked azimuth's sign is the trial's side. Unused where the amplitude is 0
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [Newtonsoft.Json.JsonPropertyAttribute("startAzimuthsDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="startAzimuthsDeg")]
+        [System.ComponentModel.DescriptionAttribute(@"Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. With target auditorySide the picked azimuth's sign is the trial's side. Unused where the amplitude is 0")]
+        public System.Collections.Generic.List<double> StartAzimuthsDeg
+        {
+            get
+            {
+                return _startAzimuthsDeg;
+            }
+            set
+            {
+                _startAzimuthsDeg = value;
             }
         }
     
@@ -179,7 +200,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("LevelDbfs = " + _levelDbfs);
+            stringBuilder.Append("Amplitude = " + _amplitude + ", ");
+            stringBuilder.Append("StartAzimuthsDeg = " + _startAzimuthsDeg);
             return true;
         }
     
@@ -292,24 +314,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("}");
             return stringBuilder.ToString();
         }
-    }
-
-
-    /// <summary>
-    /// A stimulus modality.
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
-    public enum Modality
-    {
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="visual")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
-        Visual = 0,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="auditory")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
-        Auditory = 1,
     }
 
 
@@ -743,32 +747,33 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// When a trial type is repeated: never, onFailure (after Incorrect or NoResponse) or onNoResponse (after NoResponse only).
+    /// When a trial is repeated: never, noResponse (after NoResponse) or notCorrect (after Incorrect or NoResponse).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
-    public enum RepeatRule
+    public enum RepeatOn
     {
     
         [System.Runtime.Serialization.EnumMemberAttribute(Value="never")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="never")]
         Never = 0,
     
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="onFailure")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="onFailure")]
-        OnFailure = 1,
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="noResponse")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noResponse")]
+        NoResponse = 1,
     
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="onNoResponse")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="onNoResponse")]
-        OnNoResponse = 2,
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="notCorrect")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="notCorrect")]
+        NotCorrect = 2,
     }
 
 
     /// <summary>
-    /// Trial repetition policy.
+    /// Trial repetition policy, condition fields both: a trial is repeated after the outcome repeatOn names, at most maxRepeats times in a row.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Trial repetition policy.")]
+    [System.ComponentModel.DescriptionAttribute("Trial repetition policy, condition fields both: a trial is repeated after the out" +
+        "come repeatOn names, at most maxRepeats times in a row.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class RepeatSettings
@@ -776,26 +781,27 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private int _maxRepeats;
     
-        private TrialTypeRules _rulesPerType;
+        private RepeatOn _repeatOn;
     
         public RepeatSettings()
         {
             _maxRepeats = 5;
-            _rulesPerType = new TrialTypeRules();
+            _repeatOn = RepeatOn.Never;
         }
     
         protected RepeatSettings(RepeatSettings other)
         {
             _maxRepeats = other._maxRepeats;
-            _rulesPerType = other._rulesPerType;
+            _repeatOn = other._repeatOn;
         }
     
         /// <summary>
-        /// Maximum number of consecutive repeats of the same trial
+        /// Maximum number of consecutive repeats of the same trial; 0 never repeats (repeatOn never, x-rules)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("maxRepeats")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="maxRepeats")]
-        [System.ComponentModel.DescriptionAttribute("Maximum number of consecutive repeats of the same trial")]
+        [System.ComponentModel.DescriptionAttribute("Maximum number of consecutive repeats of the same trial; 0 never repeats (repeatO" +
+            "n never, x-rules)")]
         public int MaxRepeats
         {
             get
@@ -809,23 +815,21 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Repeat rule per kind of trial with a right answer: localization visual, auditory, audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight left, right. The others never repeat
+        /// never; noResponse: after NoResponse; notCorrect: after Incorrect or NoResponse. A probe (target random or noReward) never repeats (x-rules)
         /// </summary>
-        [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("rulesPerType", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="rulesPerType")]
-        [System.ComponentModel.DescriptionAttribute("Repeat rule per kind of trial with a right answer: localization visual, auditory," +
-            " audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight lef" +
-            "t, right. The others never repeat")]
-        public TrialTypeRules RulesPerType
+        [Newtonsoft.Json.JsonPropertyAttribute("repeatOn")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="repeatOn")]
+        [System.ComponentModel.DescriptionAttribute("never; noResponse: after NoResponse; notCorrect: after Incorrect or NoResponse. A" +
+            " probe (target random or noReward) never repeats (x-rules)")]
+        public RepeatOn RepeatOn
         {
             get
             {
-                return _rulesPerType;
+                return _repeatOn;
             }
             set
             {
-                _rulesPerType = value;
+                _repeatOn = value;
             }
         }
     
@@ -842,7 +846,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
             stringBuilder.Append("MaxRepeats = " + _maxRepeats + ", ");
-            stringBuilder.Append("RulesPerType = " + _rulesPerType);
+            stringBuilder.Append("RepeatOn = " + _repeatOn);
             return true;
         }
     
@@ -1078,6 +1082,50 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
+    /// What a trial rewards: localization visualSide, auditorySide or random; discriminationGoNoGo go, noGo or noReward;
+    ///discriminationLeftRight left, right or random (x-rules). Logged as the target column: Left or Right for a side, Go, NoGo,
+    ///NoReward, Random.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
+    [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+    public enum Target
+    {
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="visualSide")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visualSide")]
+        VisualSide = 0,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="auditorySide")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditorySide")]
+        AuditorySide = 1,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="random")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="random")]
+        Random = 2,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="go")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
+        Go = 3,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="noGo")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
+        NoGo = 4,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="noReward")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noReward")]
+        NoReward = 5,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="left")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
+        Left = 6,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="right")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
+        Right = 7,
+    }
+
+
+    /// <summary>
     /// What the mouse answers.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
@@ -1218,51 +1266,57 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// One kind of trial in the mix: its type, its relative weight and its condition-level values (set), by dotted path.
-    ///A list in a scalar field's cell is one value picked at random per trial; a list field (contrasts,
-    ///visualStimulus.startAzimuthsDeg) takes the list as is, one entry picked per trial as at task level.
+    /// One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
+    ///the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
+    ///start azimuths) is one entry picked per trial. Paired lists share one picked index per trial.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its type, its relative weight and its condition-level values (set), by dotted path.
-    A list in a scalar field's cell is one value picked at random per trial; a list field (contrasts,
-    visualStimulus.startAzimuthsDeg) takes the list as is, one entry picked per trial as at task level.")]
+    [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
+    the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
+    start azimuths) is one entry picked per trial. Paired lists share one picked index per trial.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialCondition
     {
     
-        private string _type;
+        private TrialLabel _label;
     
         private int _weight;
+    
+        private System.Collections.Generic.List<System.Collections.Generic.List<string>> _pairs;
     
         private object _set;
     
         public TrialCondition()
         {
+            _pairs = new System.Collections.Generic.List<System.Collections.Generic.List<string>>();
         }
     
         protected TrialCondition(TrialCondition other)
         {
-            _type = other._type;
+            _label = other._label;
             _weight = other._weight;
+            _pairs = other._pairs;
             _set = other._set;
         }
     
         /// <summary>
-        /// The condition's type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three). Its trials' trialType is what they show: the type itself, or for a role the modality goModality or leftModality gives it
+        /// The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (derive_label) unless chosen; it names rows and analysis groups and drives nothing
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("type", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="type")]
-        [System.ComponentModel.DescriptionAttribute(@"The condition's type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three). Its trials' trialType is what they show: the type itself, or for a role the modality goModality or leftModality gives it")]
-        public string Type
+        [Newtonsoft.Json.JsonPropertyAttribute("label", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="label")]
+        [System.ComponentModel.DescriptionAttribute("The condition\'s name, logged as each trial\'s trialType: derived from its contrast" +
+            "s, amplitude, pairing and target (derive_label) unless chosen; it names rows and" +
+            " analysis groups and drives nothing")]
+        public TrialLabel Label
         {
             get
             {
-                return _type;
+                return _label;
             }
             set
             {
-                _type = value;
+                _label = value;
             }
         }
     
@@ -1286,13 +1340,32 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Condition-level values by dotted path (x-conditionFields' paths that apply to the type); the rest are the task's
+        /// Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.startAzimuthsDeg [-60, 60] with auditoryStimulus.startAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [Newtonsoft.Json.JsonPropertyAttribute("pairs")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="pairs")]
+        [System.ComponentModel.DescriptionAttribute(@"Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.startAzimuthsDeg [-60, 60] with auditoryStimulus.startAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
+        public System.Collections.Generic.List<System.Collections.Generic.List<string>> Pairs
+        {
+            get
+            {
+                return _pairs;
+            }
+            set
+            {
+                _pairs = value;
+            }
+        }
+    
+        /// <summary>
+        /// Condition-level values by dotted path (x-conditionFields); the rest are the task's
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("set")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="set")]
-        [System.ComponentModel.DescriptionAttribute("Condition-level values by dotted path (x-conditionFields\' paths that apply to the" +
-            " type); the rest are the task\'s")]
+        [System.ComponentModel.DescriptionAttribute("Condition-level values by dotted path (x-conditionFields); the rest are the task\'" +
+            "s")]
         public object Set
         {
             get
@@ -1317,8 +1390,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("Type = " + _type + ", ");
+            stringBuilder.Append("Label = " + _label + ", ");
             stringBuilder.Append("Weight = " + _weight + ", ");
+            stringBuilder.Append("Pairs = " + _pairs + ", ");
             stringBuilder.Append("Set = " + _set);
             return true;
         }
@@ -1335,6 +1409,52 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("}");
             return stringBuilder.ToString();
         }
+    }
+
+
+    /// <summary>
+    /// A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_label).
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
+    [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+    public enum TrialLabel
+    {
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="visual")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
+        Visual = 0,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="auditory")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
+        Auditory = 1,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualCoherent")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
+        AudiovisualCoherent = 2,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualConflict")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualConflict")]
+        AudiovisualConflict = 3,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="neutral")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
+        Neutral = 4,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="go")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
+        Go = 5,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="noGo")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
+        NoGo = 6,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="left")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
+        Left = 7,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="right")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
+        Right = 8,
     }
 
 
@@ -1631,214 +1751,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The repeat rule of each kind of trial with a right answer, by trialConditions' types: exactly the task type's (RULE_KEYS),
-    ///the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
-    ///trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
-    ///reader refuses it at Go.
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"The repeat rule of each kind of trial with a right answer, by trialConditions' types: exactly the task type's (RULE_KEYS),
-    the others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral
-    trial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's
-    reader refuses it at Go.")]
-    [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
-    [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class TrialTypeRules
-    {
-    
-        private RepeatRule? _visual;
-    
-        private RepeatRule? _auditory;
-    
-        private RepeatRule? _audiovisualCoherent;
-    
-        private RepeatRule? _go;
-    
-        private RepeatRule? _noGo;
-    
-        private RepeatRule? _left;
-    
-        private RepeatRule? _right;
-    
-        public TrialTypeRules()
-        {
-        }
-    
-        protected TrialTypeRules(TrialTypeRules other)
-        {
-            _visual = other._visual;
-            _auditory = other._auditory;
-            _audiovisualCoherent = other._audiovisualCoherent;
-            _go = other._go;
-            _noGo = other._noGo;
-            _left = other._left;
-            _right = other._right;
-        }
-    
-        /// <summary>
-        /// localization only: the grating alone
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("visual")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
-        [System.ComponentModel.DescriptionAttribute("localization only: the grating alone")]
-        public RepeatRule? Visual
-        {
-            get
-            {
-                return _visual;
-            }
-            set
-            {
-                _visual = value;
-            }
-        }
-    
-        /// <summary>
-        /// localization only: the sound alone
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("auditory")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
-        [System.ComponentModel.DescriptionAttribute("localization only: the sound alone")]
-        public RepeatRule? Auditory
-        {
-            get
-            {
-                return _auditory;
-            }
-            set
-            {
-                _auditory = value;
-            }
-        }
-    
-        /// <summary>
-        /// localization only: grating and sound on the same side
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("audiovisualCoherent")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
-        [System.ComponentModel.DescriptionAttribute("localization only: grating and sound on the same side")]
-        public RepeatRule? AudiovisualCoherent
-        {
-            get
-            {
-                return _audiovisualCoherent;
-            }
-            set
-            {
-                _audiovisualCoherent = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationGoNoGo only: goModality alone (Go)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("go")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
-        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: goModality alone (Go)")]
-        public RepeatRule? Go
-        {
-            get
-            {
-                return _go;
-            }
-            set
-            {
-                _go = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationGoNoGo only: the other modality alone (NoGo)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("noGo")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
-        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the other modality alone (NoGo)")]
-        public RepeatRule? NoGo
-        {
-            get
-            {
-                return _noGo;
-            }
-            set
-            {
-                _noGo = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationLeftRight only: leftModality alone
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("left")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
-        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: leftModality alone")]
-        public RepeatRule? Left
-        {
-            get
-            {
-                return _left;
-            }
-            set
-            {
-                _left = value;
-            }
-        }
-    
-        /// <summary>
-        /// discriminationLeftRight only: the other modality alone
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("right")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
-        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the other modality alone")]
-        public RepeatRule? Right
-        {
-            get
-            {
-                return _right;
-            }
-            set
-            {
-                _right = value;
-            }
-        }
-    
-        public System.IObservable<TrialTypeRules> Generate()
-        {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new TrialTypeRules(this)));
-        }
-    
-        public System.IObservable<TrialTypeRules> Generate<TSource>(System.IObservable<TSource> source)
-        {
-            return System.Reactive.Linq.Observable.Select(source, _ => new TrialTypeRules(this));
-        }
-    
-        protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
-        {
-            stringBuilder.Append("Visual = " + _visual + ", ");
-            stringBuilder.Append("Auditory = " + _auditory + ", ");
-            stringBuilder.Append("AudiovisualCoherent = " + _audiovisualCoherent + ", ");
-            stringBuilder.Append("Go = " + _go + ", ");
-            stringBuilder.Append("NoGo = " + _noGo + ", ");
-            stringBuilder.Append("Left = " + _left + ", ");
-            stringBuilder.Append("Right = " + _right);
-            return true;
-        }
-    
-        public override string ToString()
-        {
-            System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
-            stringBuilder.Append(GetType().Name);
-            stringBuilder.Append(" { ");
-            if (PrintMembers(stringBuilder))
-            {
-                stringBuilder.Append(" ");
-            }
-            stringBuilder.Append("}");
-            return stringBuilder.ToString();
-        }
-    }
-
-
-    /// <summary>
     /// Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
@@ -1855,9 +1767,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private TaskType _taskType;
     
-        private Modality _goModality;
-    
-        private Modality _leftModality;
+        private Target _target;
     
         private System.Collections.Generic.List<TrialCondition> _trialConditions;
     
@@ -1883,8 +1793,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private System.Collections.Generic.List<double> _contrasts;
     
-        private bool _allowRepeats;
-    
         private bool _spoutMovements;
     
         private TrainingPipeline _trainingPipeline;
@@ -1892,8 +1800,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         public UclOpenCoenDomeDecisionMakingTaskParameters()
         {
             _autoRewardProbability = 0D;
-            _goModality = Modality.Visual;
-            _leftModality = Modality.Visual;
             _trialConditions = new System.Collections.Generic.List<TrialCondition>();
             _trialStructure = new TrialStructure();
             _visualStimulus = new VisualStimulus();
@@ -1906,7 +1812,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _optogenetics = new OptogeneticsSettings();
             _bothSpoutsProbability = 0D;
             _contrasts = new System.Collections.Generic.List<double>();
-            _allowRepeats = false;
             _spoutMovements = true;
         }
     
@@ -1915,8 +1820,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _autoRewardProbability = other._autoRewardProbability;
             _rngSeed = other._rngSeed;
             _taskType = other._taskType;
-            _goModality = other._goModality;
-            _leftModality = other._leftModality;
+            _target = other._target;
             _trialConditions = other._trialConditions;
             _trialStructure = other._trialStructure;
             _visualStimulus = other._visualStimulus;
@@ -1929,7 +1833,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _optogenetics = other._optogenetics;
             _bothSpoutsProbability = other._bothSpoutsProbability;
             _contrasts = other._contrasts;
-            _allowRepeats = other._allowRepeats;
             _spoutMovements = other._spoutMovements;
             _trainingPipeline = other._trainingPipeline;
         }
@@ -1973,11 +1876,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities, or a neutral trial, is a random-reward probe. In localization (audiovisualConflict, neutral) and discriminationLeftRight a random-reward probe moves both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss
+        /// localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial (Go), withhold on a noGo trial (NoGo); a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
-        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities, or a neutral trial, is a random-reward probe. In localization (audiovisualConflict, neutral) and discriminationLeftRight a random-reward probe moves both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss")]
+        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial (Go), withhold on a noGo trial (NoGo); a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'")]
         public TaskType TaskType
         {
             get
@@ -1991,50 +1894,33 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// discriminationGoNoGo only: the modality to lick for, shown on go trials; the other modality's (noGo) trials are NoGo
+        /// What a trial rewards (a condition field): visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("goModality")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="goModality")]
-        [System.ComponentModel.DescriptionAttribute("discriminationGoNoGo only: the modality to lick for, shown on go trials; the othe" +
-            "r modality\'s (noGo) trials are NoGo")]
-        public Modality GoModality
+        [Newtonsoft.Json.JsonPropertyAttribute("target", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="target")]
+        [System.ComponentModel.DescriptionAttribute("What a trial rewards (a condition field): visualSide or auditorySide, the side of" +
+            " the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold" +
+            "); random, a random-reward probe; noReward, a probe with no reward on offer and " +
+            "no penalty")]
+        public Target Target
         {
             get
             {
-                return _goModality;
+                return _target;
             }
             set
             {
-                _goModality = value;
+                _target = value;
             }
         }
     
         /// <summary>
-        /// discriminationLeftRight only: the modality answered at the left spout, shown on left trials; the other (right) is answered at the right
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("leftModality")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="leftModality")]
-        [System.ComponentModel.DescriptionAttribute("discriminationLeftRight only: the modality answered at the left spout, shown on l" +
-            "eft trials; the other (right) is answered at the right")]
-        public Modality LeftModality
-        {
-            get
-            {
-                return _leftModality;
-            }
-            set
-            {
-                _leftModality = value;
-            }
-        }
-    
-        /// <summary>
-        /// The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. Types: localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index
+        /// The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("trialConditions", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialConditions")]
-        [System.ComponentModel.DescriptionAttribute(@"The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. Types: localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index")]
+        [System.ComponentModel.DescriptionAttribute(@"The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index")]
         public System.Collections.Generic.List<TrialCondition> TrialConditions
         {
             get
@@ -2239,13 +2125,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Candidate grating contrasts, each above 0, one drawn per trial that shows the grating
+        /// Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey screen)
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("contrasts")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="contrasts")]
-        [System.ComponentModel.DescriptionAttribute("Candidate grating contrasts, each above 0, one drawn per trial that shows the gra" +
-            "ting")]
+        [System.ComponentModel.DescriptionAttribute("Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey scre" +
+            "en)")]
         public System.Collections.Generic.List<double> Contrasts
         {
             get
@@ -2255,24 +2141,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _contrasts = value;
-            }
-        }
-    
-        /// <summary>
-        /// Whether failed trials may be repeated (repeats.rulesPerType)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("allowRepeats")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="allowRepeats")]
-        [System.ComponentModel.DescriptionAttribute("Whether failed trials may be repeated (repeats.rulesPerType)")]
-        public bool AllowRepeats
-        {
-            get
-            {
-                return _allowRepeats;
-            }
-            set
-            {
-                _allowRepeats = value;
             }
         }
     
@@ -2330,8 +2198,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
             stringBuilder.Append("RngSeed = " + _rngSeed + ", ");
             stringBuilder.Append("TaskType = " + _taskType + ", ");
-            stringBuilder.Append("GoModality = " + _goModality + ", ");
-            stringBuilder.Append("LeftModality = " + _leftModality + ", ");
+            stringBuilder.Append("Target = " + _target + ", ");
             stringBuilder.Append("TrialConditions = " + _trialConditions + ", ");
             stringBuilder.Append("TrialStructure = " + _trialStructure + ", ");
             stringBuilder.Append("VisualStimulus = " + _visualStimulus + ", ");
@@ -2344,7 +2211,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Optogenetics = " + _optogenetics + ", ");
             stringBuilder.Append("BothSpoutsProbability = " + _bothSpoutsProbability + ", ");
             stringBuilder.Append("Contrasts = " + _contrasts + ", ");
-            stringBuilder.Append("AllowRepeats = " + _allowRepeats + ", ");
             stringBuilder.Append("SpoutMovements = " + _spoutMovements + ", ");
             stringBuilder.Append("TrainingPipeline = " + _trainingPipeline);
             return true;
@@ -2366,11 +2232,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Grating stimulus parameters and the stimulus positions; the contrasts are taskParameters' own.
+    /// Grating stimulus parameters and the grating's positions; the contrasts are taskParameters' own.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Grating stimulus parameters and the stimulus positions; the contrasts are taskPar" +
-        "ameters\' own.")]
+    [System.ComponentModel.DescriptionAttribute("Grating stimulus parameters and the grating\'s positions; the contrasts are taskPa" +
+        "rameters\' own.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class VisualStimulus
@@ -2409,12 +2275,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Signed azimuths a trial's stimulus starts at, in degrees, one picked per trial with a stimulus: positive is right, negative left, never 0. The grating starts there exactly and the sound plays on rig.yml's speaker nearest it (an audiovisualConflict trial's sound at the mirrored azimuth); the picked azimuth's sign is the trial's side
+        /// Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; with target visualSide the picked azimuth's sign is the trial's side. Unused where contrasts are all 0
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("startAzimuthsDeg")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="startAzimuthsDeg")]
-        [System.ComponentModel.DescriptionAttribute(@"Signed azimuths a trial's stimulus starts at, in degrees, one picked per trial with a stimulus: positive is right, negative left, never 0. The grating starts there exactly and the sound plays on rig.yml's speaker nearest it (an audiovisualConflict trial's sound at the mirrored azimuth); the picked azimuth's sign is the trial's side")]
+        [System.ComponentModel.DescriptionAttribute("Signed azimuths the grating starts at, in degrees, one picked per trial: positive" +
+            " is right, negative left, never 0; with target visualSide the picked azimuth\'s s" +
+            "ign is the trial\'s side. Unused where contrasts are all 0")]
         public System.Collections.Generic.List<double> StartAzimuthsDeg
         {
             get
@@ -2633,11 +2501,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<TrialStructure>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<TrialTypeRules> source)
-        {
-            return Process<TrialTypeRules>(source);
-        }
-
         public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> source)
         {
             return Process<UclOpenCoenDomeDecisionMakingTaskParameters>(source);
@@ -2669,7 +2532,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialCondition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeRules>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<VisualStimulus>))]
     public partial class DeserializeFromJson : Bonsai.Expressions.SingleArgumentExpressionBuilder
@@ -2781,11 +2643,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<TrialStructure>(source);
         }
 
-        public System.IObservable<string> Process(System.IObservable<TrialTypeRules> source)
-        {
-            return Process<TrialTypeRules>(source);
-        }
-
         public System.IObservable<string> Process(System.IObservable<UclOpenCoenDomeDecisionMakingTaskParameters> source)
         {
             return Process<UclOpenCoenDomeDecisionMakingTaskParameters>(source);
@@ -2817,7 +2674,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialCondition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialTypeRules>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<VisualStimulus>))]
     public partial class DeserializeFromYaml : Bonsai.Expressions.SingleArgumentExpressionBuilder

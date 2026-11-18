@@ -1,26 +1,38 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making go/no-go modality discrimination (Gerion's, from
-# ActiveExperiemntsWithDiscrimination; his mice ran one spout). One spout, the left: lick on a goModality trial (Go),
-# withhold on the other modality's (NoGo). Go and a lick: Correct, rewarded. Go and none: NoResponse,
+# ActiveExperiemntsWithDiscrimination; his mice ran one spout). One spout, the left: lick on a go trial (Go),
+# withhold on a noGo trial (NoGo). Go and a lick: Correct, rewarded. Go and none: NoResponse,
 # no penalty. NoGo and a lick: Incorrect, the penalty. NoGo and none: Correct, unrewarded. A trial showing both
-# modalities (audiovisualCoherent, audiovisualConflict) or neither (neutral) is a Probe, never rewarded or penalised (Song et al. 2017).
-# trialConditions' types name each kind of trial by its role: go (goModality alone), noGo (the other modality
-# alone), audiovisualCoherent, audiovisualConflict, neutral; goModality, set per mouse, decides which modality fills go.
-# A stage's conditions replace trialConditions whole. Conditions with no
-# go weight are refused at Go. rulesPerType names go and noGo alone: a probe never repeats. Visual-only and neutral trials are silent.
+# modalities (audiovisualCoherent, audiovisualConflict) or neither (neutral) is a Probe (target noReward), never rewarded or
+# penalised, never repeated (Song et al. 2017). Here the grating is Go and the sound NoGo; an auditory-Go mouse gets its own
+# task file. Each condition says what its trials show and reward: its set over the task's values (x-conditionFields), its
+# pairs picking listed values together; its label names it (trialType). A stage's conditions replace them whole.
+# Conditions with no go weight are refused at Go. Visual-only and neutral trials are silent (amplitude 0).
 # bothSpoutsProbability must be 0: only the left spout moves in.
 # The training stages are the share's pipeline (config/training-pipelines/coen-dome-decision-making/<this file's name>):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills trainingPipeline.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: discriminationGoNoGo
-  goModality: visual       # visual or auditory: the modality to lick for; set per mouse on the form
+  target: go               # what a trial rewards, where a condition sets none (x-rules: go, noGo or noReward here)
   trialConditions:         # the trial mix, one whole value: a pipeline stage's conditions replace it; set: condition-level values (x-conditionFields)
-    - { type: go, weight: 10, set: {} }
-    - { type: noGo, weight: 10, set: {} }
-    - { type: audiovisualCoherent, weight: 5, set: {} }
-    - { type: audiovisualConflict, weight: 5, set: {} }
-    - { type: neutral, weight: 1, set: {} }
+    - label: go
+      weight: 10
+      set: { target: go, auditoryStimulus.amplitude: 0 }
+    - label: noGo
+      weight: 10
+      set: { target: noGo, contrasts: [0] }
+    - label: audiovisualCoherent
+      weight: 5
+      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
+      set: { target: noReward, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [-60, 60], repeats.repeatOn: never }
+    - label: audiovisualConflict
+      weight: 5
+      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
+      set: { target: noReward, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [60, -60], repeats.repeatOn: never }
+    - label: neutral
+      weight: 1
+      set: { target: noReward, contrasts: [0], auditoryStimulus.amplitude: 0, repeats.repeatOn: never }
   rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
@@ -34,14 +46,15 @@ taskParameters:
     stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
-    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial with a stimulus; never 0. The grating starts there, the sound on the speaker nearest it (conflict: the mirrored azimuth)
+    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
     elevationDeg: 15          # deg, the grating's and the sound position's elevation
     gaussianWindowSigmaDeg: 20   # deg
     orientationDeg: 0         # deg
     spatialFrequencyCpd: 0.066666667   # cycles/deg
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
-    levelDbfs: -47.2       # dBFS RMS of each waveform as stored, before equalisation: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+    amplitude: 1           # scale of the waveform as stored (-47.2 dBFS RMS, the loudness mice have always had); 0 no sound
+    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
@@ -58,8 +71,8 @@ taskParameters:
     largeRewardMultiplier: 1
     largeRewardProbability: 0.0
   repeats:
-    maxRepeats: 5
-    rulesPerType: { go: onFailure, noGo: onFailure }   # only a trial with a right answer repeats: the probes (audiovisualCoherent, audiovisualConflict, neutral) never do
+    maxRepeats: 5          # repeats in a row at most
+    repeatOn: never        # never, noResponse or notCorrect; a probe (target noReward) never repeats
   optogenetics:
     enabled: false
     zapitConditionsPath: ""
@@ -71,7 +84,6 @@ taskParameters:
     trialsBeforeLaser: 20
   autoRewardProbability: 1.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
   bothSpoutsProbability: 0.0           # chance both spouts move in rather than the correct one alone
-  contrasts: [1.0]                     # grating contrasts, one drawn per trial that shows the grating
-  allowRepeats: false                  # whether failed trials repeat (repeats.rulesPerType)
+  contrasts: [1.0]                     # grating contrasts, one drawn per trial; 0 no grating
   spoutMovements: false                # false keeps the spouts in (habituation): no withdrawal, no single-spout move
   trainingPipeline:                    # app-rig-control fills it at launch (id, label, sha256 of the stage run); empty here: Go refuses it

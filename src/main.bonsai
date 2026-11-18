@@ -134,7 +134,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>CheckTaskAtGo</Name>
-              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): each trial condition built (its set over the task's values, every combination of its list cells), the stage, rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, a go or left modality with no trials, both spouts in go/no-go, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. A problem stops the workflow here, naming each, before the first trial.</Description>
+              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): each trial condition built (its set and pairs over the task's values, every combination), the stage, rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, the x-rules, a go/no-go task with no go trials, both spouts in go/no-go, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. A problem stops the workflow here, naming each, before the first trial.</Description>
               <Combinator xsi:type="ext:CheckTaskAtGo" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
@@ -462,7 +462,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound (and TaskLogic's penalty sound) at the task file's level in dBFS RMS (levelDbfs), checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go at the task's auditoryStimulus.levelDbfs (LevelAuditoryStimulusSet, which stops the workflow if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryAmplitude (1 the waveform as stored), TaskLogic's penalty sound at penalty.sound.levelDbfs, checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go for the largest amplitude any condition can draw (TrialRules.Loudest into LevelAuditoryStimulusSet, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -486,10 +486,10 @@
               <Name>AuditoryStimulusSet</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>TaskConfig</Name>
+              <Name>TrialRules</Name>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>TaskParameters.AuditoryStimulus.LevelDbfs</Selector>
+              <Selector>Loudest</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Zip" />
@@ -505,7 +505,7 @@
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>AuditoryTrial?</Name>
-              <Description>The discriminations' visual and neutral trials play no sound.</Description>
+              <Description>A trial at auditoryStimulus.amplitude 0 plays no sound.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -524,7 +524,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>PlayAuditoryStimulus</Name>
-              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location), at the task's auditoryStimulus.levelDbfs, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
+              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location), scaled by its auditoryAmplitude, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">

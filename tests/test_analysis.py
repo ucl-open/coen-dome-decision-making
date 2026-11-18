@@ -71,8 +71,11 @@ def test_conditions_edges_signed_azimuths_no_set_empty_list_and_zero_weights(tmp
     write([{"type": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": [-75, 60]}}, {"type": "visual", "weight": 0}, {"type": "auditory", "weight": 2, "set": None}])
     read = lf.trial_conditions(s)
     assert read[0]["set"] == {"visualStimulus.startAzimuthsDeg": [-75, 60]} and read[1]["set"] == {} and read[2]["set"] == {}
-    assert [c["type"] for c in read] == ["visual", "visual", "auditory"]   # the list's order is the trialCondition index
+    assert [c["label"] for c in read] == ["visual", "visual", "auditory"]   # the list's order is the trialCondition index
     assert lf.trial_weights(s) == {"visual": 1, "auditory": 2}
+    write([{"label": "go", "weight": 2, "pairs": [], "set": {"target": "go"}}, {"label": "noGo", "weight": 1}])   # the trial-type split's shape
+    assert [(c["label"], c["set"]) for c in lf.trial_conditions(s)] == [("go", {"target": "go"}), ("noGo", {})]
+    assert lf.trial_weights(s) == {"go": 2, "noGo": 1}
     write([])
     assert lf.trial_conditions(s) == [] and lf.trial_weights(s) == {}
 

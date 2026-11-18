@@ -37,6 +37,7 @@ public class TrialRow
     public double visualPhaseRad;
     public double auditoryAzimuthDeg;
     public double auditoryElevationDeg;
+    public double auditoryAmplitude;
     public int auditorySoundFileIndex;
 
     // Left or Right against the target; in discriminationGoNoGo, Lick or NoResponse against Go or NoGo (a withheld
@@ -104,6 +105,7 @@ public class TrialRow
             visualPhaseRad = trial.visualPhaseRad,
             auditoryAzimuthDeg = trial.auditoryAzimuthDeg,
             auditoryElevationDeg = trial.auditoryElevationDeg,
+            auditoryAmplitude = trial.auditoryAmplitude,
             auditorySoundFileIndex = trial.auditorySoundFileIndex,
         };
         return SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised, timeoutSeconds, penaltySoundEnabled);

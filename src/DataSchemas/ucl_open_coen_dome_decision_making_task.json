@@ -1,15 +1,27 @@
 {
   "$defs": {
     "AuditoryStimulus": {
-      "description": "Auditory stimulus parameters common to all trials: every waveform of the set (src/sounds)\nplays at levelDbfs, the lab's block (open_rigs.core.task StimulusSound). Where it plays is visualStimulus'\nstartAzimuthsDeg and elevationDeg, on rig.yml's nearest speaker.",
+      "description": "The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at\nvisualStimulus.elevationDeg).",
       "properties": {
-        "levelDbfs": {
-          "default": -30.0,
-          "description": "Each stimulus sound's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -30. The workflow stops as the sound's buffer is built (at Go for a sound built once, at its trial for one built each trial) if any peak would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix",
-          "maximum": -1.0,
-          "minimum": -120.0,
-          "title": "LevelDbfs",
+        "amplitude": {
+          "default": 1.0,
+          "description": "Scale of the waveform's samples as stored: 0 no sound, 1 the WAV as stored (-47.2 dBFS RMS, production av-dome's loudness), above 1 louder. Go refuses the largest amplitude any condition can draw if a waveform would peak at -1 dBFS or more after equalisation on any speaker; dB SPL is unknown until the speakers' SPL calibration",
+          "minimum": 0,
+          "title": "Amplitude",
           "type": "number"
+        },
+        "startAzimuthsDeg": {
+          "default": [
+            -60.0,
+            60.0
+          ],
+          "description": "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. With target auditorySide the picked azimuth's sign is the trial's side. Unused where the amplitude is 0",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "StartAzimuthsDeg",
+          "type": "array"
         }
       },
       "title": "AuditoryStimulus",
@@ -35,15 +47,6 @@
       },
       "title": "BackgroundNoise",
       "type": "object"
-    },
-    "Modality": {
-      "description": "A stimulus modality.",
-      "enum": [
-        "visual",
-        "auditory"
-      ],
-      "title": "Modality",
-      "type": "string"
     },
     "OptogeneticsSettings": {
       "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a timed stimulus here, where coen-dome-navigation's laserMaxSeconds is a cap.",
@@ -185,35 +188,32 @@
       "title": "PenaltySound",
       "type": "object"
     },
-    "RepeatRule": {
-      "description": "When a trial type is repeated: never, onFailure (after Incorrect or NoResponse) or onNoResponse (after NoResponse only).",
+    "RepeatOn": {
+      "description": "When a trial is repeated: never, noResponse (after NoResponse) or notCorrect (after Incorrect or NoResponse).",
       "enum": [
         "never",
-        "onFailure",
-        "onNoResponse"
+        "noResponse",
+        "notCorrect"
       ],
-      "title": "RepeatRule",
+      "title": "RepeatOn",
       "type": "string"
     },
     "RepeatSettings": {
-      "description": "Trial repetition policy.",
+      "description": "Trial repetition policy, condition fields both: a trial is repeated after the outcome repeatOn names, at most maxRepeats times in a row.",
       "properties": {
         "maxRepeats": {
           "default": 5,
-          "description": "Maximum number of consecutive repeats of the same trial",
+          "description": "Maximum number of consecutive repeats of the same trial; 0 never repeats (repeatOn never, x-rules)",
           "minimum": 0,
           "title": "MaxRepeats",
           "type": "integer"
         },
-        "rulesPerType": {
-          "$ref": "#/$defs/TrialTypeRules",
-          "description": "Repeat rule per kind of trial with a right answer: localization visual, auditory, audiovisualCoherent; discriminationGoNoGo go, noGo; discriminationLeftRight left, right. The others never repeat",
-          "title": "RulesPerType"
+        "repeatOn": {
+          "$ref": "#/$defs/RepeatOn",
+          "default": "never",
+          "description": "never; noResponse: after NoResponse; notCorrect: after Incorrect or NoResponse. A probe (target random or noReward) never repeats (x-rules)"
         }
       },
-      "required": [
-        "rulesPerType"
-      ],
       "title": "RepeatSettings",
       "type": "object"
     },
@@ -269,6 +269,21 @@
       "title": "RewardSettings",
       "type": "object"
     },
+    "Target": {
+      "description": "What a trial rewards: localization visualSide, auditorySide or random; discriminationGoNoGo go, noGo or noReward;\ndiscriminationLeftRight left, right or random (x-rules). Logged as the target column: Left or Right for a side, Go, NoGo,\nNoReward, Random.",
+      "enum": [
+        "visualSide",
+        "auditorySide",
+        "random",
+        "go",
+        "noGo",
+        "noReward",
+        "left",
+        "right"
+      ],
+      "title": "Target",
+      "type": "string"
+    },
     "TaskType": {
       "description": "What the mouse answers.",
       "enum": [
@@ -309,12 +324,12 @@
     },
     "TrialCondition": {
       "additionalProperties": false,
-      "description": "One kind of trial in the mix: its type, its relative weight and its condition-level values (set), by dotted path.\nA list in a scalar field's cell is one value picked at random per trial; a list field (contrasts,\nvisualStimulus.startAzimuthsDeg) takes the list as is, one entry picked per trial as at task level.",
+      "description": "One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the\nstart azimuths) is one entry picked per trial. Paired lists share one picked index per trial.",
       "properties": {
-        "type": {
-          "description": "The condition's type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three). Its trials' trialType is what they show: the type itself, or for a role the modality goModality or leftModality gives it",
-          "title": "Type",
-          "type": "string"
+        "label": {
+          "$ref": "#/$defs/TrialLabel",
+          "description": "The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (derive_label) unless chosen; it names rows and analysis groups and drives nothing",
+          "title": "Label"
         },
         "weight": {
           "description": "Relative draw weight: each new trial picks a condition with these as relative chances",
@@ -323,19 +338,46 @@
           "title": "Weight",
           "type": "integer"
         },
+        "pairs": {
+          "description": "Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.startAzimuthsDeg [-60, 60] with auditoryStimulus.startAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently",
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Pairs",
+          "type": "array"
+        },
         "set": {
           "additionalProperties": true,
-          "description": "Condition-level values by dotted path (x-conditionFields' paths that apply to the type); the rest are the task's",
+          "description": "Condition-level values by dotted path (x-conditionFields); the rest are the task's",
           "title": "Set",
           "type": "object"
         }
       },
       "required": [
-        "type",
+        "label",
         "weight"
       ],
       "title": "TrialCondition",
       "type": "object"
+    },
+    "TrialLabel": {
+      "description": "A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_label).",
+      "enum": [
+        "visual",
+        "auditory",
+        "audiovisualCoherent",
+        "audiovisualConflict",
+        "neutral",
+        "go",
+        "noGo",
+        "left",
+        "right"
+      ],
+      "title": "TrialLabel",
+      "type": "string"
     },
     "TrialStructure": {
       "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can\nonly lengthen it. A lick first counts responseDelaySeconds after stimulus onset, where the\nresponse window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
@@ -426,105 +468,6 @@
       "title": "TrialStructure",
       "type": "object"
     },
-    "TrialTypeRules": {
-      "additionalProperties": false,
-      "description": "The repeat rule of each kind of trial with a right answer, by trialConditions' types: exactly the task type's (RULE_KEYS),\nthe others left out. The rest never repeat: localization's audiovisualConflict and neutral, every two-modality and neutral\ntrial in the discriminations (go/no-go's no-reward probes; left-right's random-reward probes). A key it lacks is refused, as Bonsai's\nreader refuses it at Go.",
-      "properties": {
-        "visual": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RepeatRule"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "localization only: the grating alone",
-          "title": "Visual"
-        },
-        "auditory": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RepeatRule"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "localization only: the sound alone",
-          "title": "Auditory"
-        },
-        "audiovisualCoherent": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RepeatRule"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "localization only: grating and sound on the same side",
-          "title": "AudiovisualCoherent"
-        },
-        "go": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RepeatRule"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "discriminationGoNoGo only: goModality alone (Go)",
-          "title": "Go"
-        },
-        "noGo": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RepeatRule"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "discriminationGoNoGo only: the other modality alone (NoGo)",
-          "title": "NoGo"
-        },
-        "left": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RepeatRule"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "discriminationLeftRight only: leftModality alone",
-          "title": "Left"
-        },
-        "right": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RepeatRule"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "discriminationLeftRight only: the other modality alone",
-          "title": "Right"
-        }
-      },
-      "title": "TrialTypeRules",
-      "type": "object"
-    },
     "UclOpenCoenDomeDecisionMakingTaskLogic": {
       "description": "Task logic definition for the coen-dome-decision-making experiment.",
       "properties": {
@@ -575,22 +518,14 @@
         },
         "taskType": {
           "$ref": "#/$defs/TaskType",
-          "description": "localization: the answer is the side the stimulus came from, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a goModality trial (Go), withhold on the other modality's (NoGo); a trial showing both modalities, or a neutral trial, is a probe, never rewarded or penalised. discriminationLeftRight: the left spout for leftModality, the right spout for the other; a trial showing both modalities, or a neutral trial, is a random-reward probe. In localization (audiovisualConflict, neutral) and discriminationLeftRight a random-reward probe moves both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss"
+          "description": "localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial (Go), withhold on a noGo trial (NoGo); a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'"
         },
-        "goModality": {
-          "$ref": "#/$defs/Modality",
-          "default": "visual",
-          "description": "discriminationGoNoGo only: the modality to lick for, shown on go trials; the other modality's (noGo) trials are NoGo",
-          "title": "GoModality"
-        },
-        "leftModality": {
-          "$ref": "#/$defs/Modality",
-          "default": "visual",
-          "description": "discriminationLeftRight only: the modality answered at the left spout, shown on left trials; the other (right) is answered at the right",
-          "title": "LeftModality"
+        "target": {
+          "$ref": "#/$defs/Target",
+          "description": "What a trial rewards (a condition field): visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty"
         },
         "trialConditions": {
-          "description": "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. Types: localization by what the trial shows (visual, auditory, audiovisualCoherent, audiovisualConflict, neutral); discriminationGoNoGo by role (go, noGo, audiovisualCoherent, audiovisualConflict, neutral), discriminationLeftRight (left, right, audiovisualCoherent, audiovisualConflict, neutral), goModality or leftModality choosing the modality of go or left. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index",
+          "description": "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index",
           "items": {
             "$ref": "#/$defs/TrialCondition"
           },
@@ -655,19 +590,13 @@
           "default": [
             1.0
           ],
-          "description": "Candidate grating contrasts, each above 0, one drawn per trial that shows the grating",
+          "description": "Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey screen)",
           "items": {
             "type": "number"
           },
           "minItems": 1,
           "title": "Contrasts",
           "type": "array"
-        },
-        "allowRepeats": {
-          "default": false,
-          "description": "Whether failed trials may be repeated (repeats.rulesPerType)",
-          "title": "AllowRepeats",
-          "type": "boolean"
         },
         "spoutMovements": {
           "default": true,
@@ -691,6 +620,7 @@
       },
       "required": [
         "taskType",
+        "target",
         "trialConditions",
         "trialStructure",
         "visualStimulus",
@@ -703,91 +633,101 @@
       ],
       "title": "UclOpenCoenDomeDecisionMakingTaskParameters",
       "type": "object",
-      "x-conditionFields": {
-        "autoRewardProbability": [
-          "visual",
-          "auditory",
-          "audiovisualCoherent",
-          "audiovisualConflict",
-          "neutral",
-          "go",
-          "noGo",
-          "left",
-          "right"
-        ],
-        "bothSpoutsProbability": [
-          "visual",
-          "auditory",
-          "audiovisualCoherent",
-          "audiovisualConflict",
-          "neutral",
-          "go",
-          "noGo",
-          "left",
-          "right"
-        ],
-        "contrasts": [
-          "visual",
-          "audiovisualCoherent",
-          "audiovisualConflict",
-          "go",
-          "noGo",
-          "left",
-          "right"
-        ],
-        "optogenetics.laserOnProbability": [
-          "visual",
-          "auditory",
-          "audiovisualCoherent",
-          "audiovisualConflict",
-          "neutral",
-          "go",
-          "noGo",
-          "left",
-          "right"
-        ],
-        "reward.rewardSizeUl": [
-          "visual",
-          "auditory",
-          "audiovisualCoherent",
-          "audiovisualConflict",
-          "neutral",
-          "go",
-          "noGo",
-          "left",
-          "right"
-        ],
-        "visualStimulus.elevationDeg": [
-          "visual",
-          "auditory",
-          "audiovisualCoherent",
-          "audiovisualConflict",
-          "go",
-          "noGo",
-          "left",
-          "right"
-        ],
-        "visualStimulus.startAzimuthsDeg": [
-          "visual",
-          "auditory",
-          "audiovisualCoherent",
-          "audiovisualConflict",
-          "go",
-          "noGo",
-          "left",
-          "right"
-        ]
-      }
+      "x-conditionFields": [
+        "target",
+        "contrasts",
+        "visualStimulus.startAzimuthsDeg",
+        "visualStimulus.elevationDeg",
+        "auditoryStimulus.amplitude",
+        "auditoryStimulus.startAzimuthsDeg",
+        "repeats.maxRepeats",
+        "repeats.repeatOn",
+        "optogenetics.laserOnProbability",
+        "reward.rewardSizeUl",
+        "autoRewardProbability",
+        "bothSpoutsProbability"
+      ],
+      "x-rules": [
+        {
+          "is": 0,
+          "then": {
+            "repeats.repeatOn": "never"
+          },
+          "when": "repeats.maxRepeats"
+        },
+        {
+          "is": "random",
+          "then": {
+            "bothSpoutsProbability": 1,
+            "repeats.repeatOn": "never"
+          },
+          "when": "target"
+        },
+        {
+          "is": "noReward",
+          "then": {
+            "repeats.repeatOn": "never"
+          },
+          "when": "target"
+        },
+        {
+          "is": "localization",
+          "oneOf": {
+            "target": [
+              "visualSide",
+              "auditorySide",
+              "random"
+            ]
+          },
+          "when": "taskType"
+        },
+        {
+          "is": "discriminationGoNoGo",
+          "oneOf": {
+            "target": [
+              "go",
+              "noGo",
+              "noReward"
+            ]
+          },
+          "when": "taskType"
+        },
+        {
+          "is": "discriminationLeftRight",
+          "oneOf": {
+            "target": [
+              "left",
+              "right",
+              "random"
+            ]
+          },
+          "when": "taskType"
+        },
+        {
+          "is": 0,
+          "unused": [
+            "visualStimulus.startAzimuthsDeg"
+          ],
+          "when": "contrasts"
+        },
+        {
+          "is": 0,
+          "unused": [
+            "auditoryStimulus.startAzimuthsDeg"
+          ],
+          "when": "auditoryStimulus.amplitude"
+        }
+      ]
     },
     "VisualStimulus": {
-      "description": "Grating stimulus parameters and the stimulus positions; the contrasts are taskParameters' own.",
+      "description": "Grating stimulus parameters and the grating's positions; the contrasts are taskParameters' own.",
       "properties": {
         "startAzimuthsDeg": {
           "default": [
             -60.0,
             60.0
           ],
-          "description": "Signed azimuths a trial's stimulus starts at, in degrees, one picked per trial with a stimulus: positive is right, negative left, never 0. The grating starts there exactly and the sound plays on rig.yml's speaker nearest it (an audiovisualConflict trial's sound at the mirrored azimuth); the picked azimuth's sign is the trial's side",
+          "description": "Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; with target visualSide the picked azimuth's sign is the trial's side. Unused where contrasts are all 0",
           "items": {
             "type": "number"
           },

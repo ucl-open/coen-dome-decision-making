@@ -142,24 +142,29 @@ public class AuditoryStimulusSetTests
     }
 
     [TestMethod]
-    public void EachStimulusPlaysAtTheTasksLevelOfItsUnequalisedSelf()
+    public void EachStimulusPlaysAtItsAmplitudeOfTheWaveformAsStored()
     {
+        // Amplitude 1 is the waveform as stored (these test waveforms are far louder than the set's); a trial's amplitude
+        // scales it, up to the loudest the conditions can draw, whose every equalised copy is checked under the -1 dBFS peak
+        // at Go, naming the condition and the speaker.
         var set = Load(Speakers());
         Func<Action, string> refusal = Fixture.Refusal;
-        StringAssert.Contains(refusal(() => set.Buffer(7, 2)), "no level yet");
-        var levelled = set.AtLevel(-47.2);
-        var buffer = levelled.Buffer(7, 2);
-        var unequalised = OpenRigs.Audio.Wave.Read(Path.Combine(rig, "sounds", "filtered_pink_pulse_train_7.wav"), 48000);
-        var gain = SoundLevel.Gain(unequalised, -47.2);
+        StringAssert.Contains(refusal(() => set.Buffer(7, 2, 0.1)), "above the 0 the set was checked for at Go");
+        var checkedSet = set.AtLoudest(new LoudestSound { Amplitude = 0.1, Where = "trialConditions[1] (auditory)" });
+        StringAssert.Contains(refusal(() => checkedSet.Buffer(7, 2, 0.2)), "auditory amplitude 0.2, above the 0.1");
         var equalised = Samples(set.Stimulus(7, 2));
-        using (var row = buffer.GetRow(2))
-        using (var copy = new OpenCV.Net.Mat(1, buffer.Cols, OpenCV.Net.Depth.F32, 1))
+        foreach (var amplitude in new[] { 0.1, 0.05 })
         {
-            OpenCV.Net.CV.Copy(row, copy);
-            var played = Samples(copy);
-            for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(equalised[n] * gain, played[n], 1e-6);
+            var buffer = checkedSet.Buffer(7, 2, amplitude);
+            using (var row = buffer.GetRow(2))
+            using (var copy = new OpenCV.Net.Mat(1, buffer.Cols, OpenCV.Net.Depth.F32, 1))
+            {
+                OpenCV.Net.CV.Copy(row, copy);
+                var played = Samples(copy);
+                for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(equalised[n] * amplitude, played[n], 1e-6);
+            }
         }
-        Assert.AreEqual(-47.2, SoundLevel.RmsDbfs(unequalised) + 20 * Math.Log10(gain), 1e-9);
-        StringAssert.Contains(refusal(() => set.AtLevel(-3)), "on speaker 'left' at -3 dBFS RMS (auditoryStimulus.levelDbfs) peaks at");
+        StringAssert.Contains(refusal(() => set.AtLoudest(new LoudestSound { Amplitude = 1000, Where = "trialConditions[2] (visual) with auditoryStimulus.amplitude 1000" })),
+            "on speaker 'left' at amplitude 1000 (auditoryStimulus.amplitude, trialConditions[2] (visual) with auditoryStimulus.amplitude 1000) peaks at");
     }
 }

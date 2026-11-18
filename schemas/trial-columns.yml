@@ -25,9 +25,9 @@ trialNumber:
   description: The trial's number in the experiment, from 1.
 trialType:
   type: string
-  values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral]
-  description: What the trial showed, in words (TrialDraw.TypeNames, also localization's trialConditions types; the discriminations' keys are roles, go or left for goModality or leftModality alone and noGo or right for the other, the two-modality and neutral keys these words) - one modality alone, both on the same side (coherent) or opposite sides (conflict), or neutral (grey screen; a centre sound in localization, silent in the discriminations). In the discriminations each one-modality trial says which modality it showed; the task file's goModality or leftModality (in the manifest) says which modality was Go or answered at the left.
-  history: In earlier experiments a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning.
+  values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral, go, noGo, left, right]
+  description: The label of the trial's condition (trialCondition) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryAmplitude, the azimuths, target). By default it is derived from the condition's settings - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none) - but a pipeline may choose another.
+  history: In earlier experiments a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning. Before the trial-type split (Nov 2026) the condition's type drove the draw, and a discrimination's one-modality trial was logged visual or auditory (its goModality or leftModality in the manifest), not go, noGo, left or right.
 outcome:
   type: string
   values: [Correct, Incorrect, NoResponse, Probe]
@@ -92,11 +92,11 @@ laserTriggerTime:
   description: "Harp time the workflow raised the Zapit trigger line (the laser, or at 0 mW the galvos and masking light alone): the first tick of the 1 ms Harp clock at or after laserToStimulusSeconds before the stimulus was due. NaN without optogenetics and on a trial that ended before its trigger, so a laser-off trial (a time, laserPowerMw 0) and one answered first (NaN) differ."
 trialCondition:
   type: int
-  description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its type, weight and condition-level values (set). A repeat keeps the condition of the trial it repeats.
+  description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its label, weight, pairs and condition-level values (set). A repeat keeps the condition of the trial it repeats.
 target:
   type: string
   values: [Left, Right, Go, NoGo, NoReward, Random]
-  description: The answer the trial rewards - the side in localization and discriminationLeftRight; in discriminationGoNoGo Go (lick, goModality shown) or NoGo (withhold, the other modality). On a trial with no right answer (outcome Probe, never repeated) NoReward or Random - NoReward a no-reward probe in discriminationGoNoGo (both modalities or neither, the neutral grey screen; never rewarded or penalised), Random a random-reward probe in localization (audiovisualConflict, neutral) and discriminationLeftRight (audiovisualCoherent, audiovisualConflict, neutral) - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
+  description: The answer the trial rewards, from its condition's target - Left or Right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo Go (lick) or NoGo (withhold). On a trial with no right answer (outcome Probe, never repeated) NoReward or Random - NoReward a no-reward probe in discriminationGoNoGo (never rewarded or penalised), Random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
 choice:
   type: string
   values: [Left, Right, Lick, NoResponse]
@@ -133,6 +133,10 @@ auditoryElevationDeg:
   type: double
   unit: deg
   description: Elevation of the speaker that played; NaN when none played.
+auditoryAmplitude:
+  type: double
+  description: The sound's amplitude, the task's auditoryStimulus.amplitude for the trial's condition - the scale of the waveform's samples as stored (1 the WAV as stored, -47.2 dBFS RMS before equalisation); 0 when no sound played.
+  history: Added in the trial-type split (Nov 2026); before it every sound played at auditoryStimulus.levelDbfs -47.2, the same loudness as amplitude 1.
 auditorySoundFileIndex:
   type: int
   description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_train_<index>.wav).
