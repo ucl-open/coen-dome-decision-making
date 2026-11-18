@@ -3,19 +3,19 @@
 # own trial log; open_rigs.trial_log reads it from there.
 #
 # Each column: type (int, double, bool or string), and where they apply values (the strings it may hold),
-# unit, description (what it is), and note (this task's detail);
-# copyOf, a task path (dotted) the column copies from the trial's Settings_Combinations row (else Settings_Task), and
-# nanWhen {column, equals}, the rows where it is NaN instead, which open_rigs.trial_log checks on every load. The
-# names and types must also be in the Data Dictionary
-# (K:\config\data-dictionary.json, edited in Rig Control's Settings menu, Lab Names): Rig Control checks both
-# before it launches the workflow.
+# unit, description (what it is), and note (this task's detail); copyOf, a task
+# path (dotted) the column copies from the trial's Settings_Combinations row (else Settings_Task), and nanWhen {column,
+# equals}, the rows where it is NaN instead, which open_rigs.trial_log checks on every load. The names and types must also be in the lab's
+# Data Dictionary (K:\config\data-dictionary.json, edited on app-rig-control's Lab Names page): app-rig-control checks
+# both before it launches the workflow.
 #
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
 # unit (itiSeconds, rewardOfferedUl); never a stored latency.
 #
-# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the optogenetics and quietWait blocks:
-# coen-dome-decision-making and coen-dome-navigation list them in this order with these types, units and
-# descriptions, word for word (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
+# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the optogenetics and quietWait blocks,
+# defined once in lib-open-rigs open_rigs.rigs.trials: coen-dome-decision-making and
+# coen-dome-navigation list them in this order with these types, units and descriptions, word for word
+# (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
 # trialType and outcome are described per task, and which trials are rewarded and penalised in those columns' notes. This task's own columns follow.
 
 harpTime:
