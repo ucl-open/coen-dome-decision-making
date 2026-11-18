@@ -903,6 +903,7 @@
         "trialConditions",
         "taskType",
         "backgroundNoise",
+        "spoutMovements",
         "penalty.sound.levelDbfs",
         "optogenetics.enabled",
         "optogenetics.zapitConditionsPath",
