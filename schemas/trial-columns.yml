@@ -128,14 +128,14 @@ visualPhaseRad:
 auditoryAzimuthDeg:
   type: double
   unit: deg
-  description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played.
+  description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played (auditoryAmplitude 0) or when every speaker played (auditoryStimulus.startAzimuthsDeg all, auditoryAmplitude above 0).
 auditoryElevationDeg:
   type: double
   unit: deg
-  description: Elevation of the speaker that played; NaN when none played.
+  description: Elevation of the speaker that played; NaN when none or every speaker played, as auditoryAzimuthDeg.
 auditoryAmplitude:
   type: double
-  description: The sound's amplitude, the task's auditoryStimulus.amplitude for the trial's condition - the scale of the waveform's samples as stored (1 the WAV as stored, -47.2 dBFS RMS before equalisation); 0 when no sound played.
+  description: The sound's amplitude, the task's auditoryStimulus.amplitude for the trial's condition - the scale of the waveform's samples as stored (1 the WAV as stored, -47.2 dBFS RMS before equalisation); 0 when no sound played, above 0 exactly when one did.
   history: Added in the trial-type split (Nov 2026); before it every sound played at auditoryStimulus.levelDbfs -47.2, the same loudness as amplitude 1.
 auditorySoundFileIndex:
   type: int

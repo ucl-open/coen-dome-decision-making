@@ -164,6 +164,19 @@ public class AuditoryStimulusSetTests
                 for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(equalised[n] * amplitude, played[n], 1e-6);
             }
         }
+        // At "all" every speaker's channel plays its own equalised copy at the amplitude: the per-speaker check above covers it.
+        var everywhere = checkedSet.Buffer(7, Trial.AllSpeakersChannel, 0.1);
+        foreach (var channel in set.Speakers.SpeakerChannels)
+        {
+            var own = Samples(set.Stimulus(7, channel));
+            using (var row = everywhere.GetRow(channel))
+            using (var copy = new OpenCV.Net.Mat(1, everywhere.Cols, OpenCV.Net.Depth.F32, 1))
+            {
+                OpenCV.Net.CV.Copy(row, copy);
+                var played = Samples(copy);
+                for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(own[n] * 0.1, played[n], 1e-6);
+            }
+        }
         StringAssert.Contains(refusal(() => set.AtLoudest(new LoudestSound { Amplitude = 1000, Where = "trialConditions[2] (visual) with auditoryStimulus.amplitude 1000" })),
             "on speaker 'left' at amplitude 1000 (auditoryStimulus.amplitude, trialConditions[2] (visual) with auditoryStimulus.amplitude 1000) peaks at");
     }

@@ -1,7 +1,7 @@
 {
   "$defs": {
     "AuditoryStimulus": {
-      "description": "The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at\nvisualStimulus.elevationDeg).",
+      "description": "The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at\nvisualStimulus.elevationDeg), or on every rig.yml speaker where the pick is \"all\".",
       "properties": {
         "amplitude": {
           "default": 1.0,
@@ -15,9 +15,17 @@
             -60.0,
             60.0
           ],
-          "description": "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. With target auditorySide the picked azimuth's sign is the trial's side. Unused where the amplitude is 0",
+          "description": "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. \"all\" plays it on every rig.yml speaker at once (logged auditoryAzimuthDeg NaN with an amplitude above 0). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and \"all\" are refused. Unused where the amplitude is 0",
           "items": {
-            "type": "number"
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "const": "all",
+                "type": "string"
+              }
+            ]
           },
           "minItems": 1,
           "title": "StartAzimuthsDeg",

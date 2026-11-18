@@ -189,7 +189,7 @@ public class TrialDrawTests
         var trials = Fixture.Draw(Fixture.Task("task-localization.yml", 4), 500);
         foreach (var t in trials)
         {
-            Assert.IsTrue(t.auditoryOn && t.spoutMovements && t.auditoryAmplitude == 1, t.trialType);
+            Assert.IsTrue(t.spoutMovements && t.auditoryAmplitude == 1, t.trialType);
             if (t.trialType == "visual" || t.trialType == "audiovisualCoherent")
                 Assert.AreEqual(t.visualAzimuthDeg > 0 ? "Right" : "Left", t.target, t.trialType);
             if (t.trialType == "auditory" || t.trialType == "audiovisualCoherent")
@@ -274,9 +274,9 @@ public class TrialDrawTests
     {
         foreach (var t in Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), 500))
         {
-            if (t.trialType == "left") Assert.IsTrue(!t.auditoryOn && t.auditoryAmplitude == 0 && t.visualContrast > 0 && t.target == "Left");
-            if (t.trialType == "right") Assert.IsTrue(t.auditoryOn && t.visualContrast == 0 && t.target == "Right");
-            if (t.trialType == "neutral") Assert.IsTrue(!t.auditoryOn && double.IsNaN(t.auditoryAzimuthDeg) && t.speakerChannel == -1);
+            if (t.trialType == "left") Assert.IsTrue(t.auditoryAmplitude == 0 && t.visualContrast > 0 && t.target == "Left");
+            if (t.trialType == "right") Assert.IsTrue(t.auditoryAmplitude > 0 && t.visualContrast == 0 && t.target == "Right");
+            if (t.trialType == "neutral") Assert.IsTrue(t.auditoryAmplitude == 0 && double.IsNaN(t.auditoryAzimuthDeg) && t.speakerChannel == -1);
         }
     }
 
@@ -316,7 +316,7 @@ public class TrialDrawTests
         task.TrialConditions[0].Set = new Dictionary<object, object> { { "target", "go" }, { "contrasts", Fixture.List(0.0) } };
         task.TrialConditions[1].Set = new Dictionary<object, object> { { "target", "noGo" }, { "auditoryStimulus.amplitude", 0.0 } };
         var trials = Fixture.Draw(task, 400);
-        Assert.IsTrue(trials.All(t => t.trialType == "go" ? t.target == Target.Go && t.auditoryOn && t.visualContrast == 0 : t.target == Target.NoGo && !t.auditoryOn && t.visualContrast > 0));
+        Assert.IsTrue(trials.All(t => t.trialType == "go" ? t.target == Target.Go && t.auditoryAmplitude > 0 && t.visualContrast == 0 : t.target == Target.NoGo && t.auditoryAmplitude == 0 && t.visualContrast > 0));
         Assert.AreEqual(0.5, trials.Count(t => t.trialType == "go") / 400.0, 0.08, "go 10, noGo 10");
     }
 
@@ -559,7 +559,7 @@ public class TrialDrawTests
         var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 2);
         Fixture.Weight(goNoGo, "audiovisualCoherent", 0);
         var stage2 = Fixture.Draw(goNoGo, 400);
-        Assert.IsTrue(stage2.All(t => t.trialType == "go" ? t.target == Target.Go && t.visualContrast > 0 && !t.auditoryOn : t.trialType == "noGo" && t.target == Target.NoGo && t.auditoryOn));
+        Assert.IsTrue(stage2.All(t => t.trialType == "go" ? t.target == Target.Go && t.visualContrast > 0 && t.auditoryAmplitude == 0 : t.trialType == "noGo" && t.target == Target.NoGo && t.auditoryAmplitude > 0));
         Assert.AreEqual(0.5, stage2.Count(t => t.trialType == "go") / 400.0, 0.08, "go 10, noGo 10");
         var built = Fixture.Check(Fixture.Task("task-discrimination-left-right.yml", 2), Fixture.Speakers());
         CollectionAssert.AreEqual(new[] { "left", "right", "audiovisualCoherent", "audiovisualConflict", "neutral" }, built.Select(c => c.Label).ToArray());
@@ -865,10 +865,31 @@ public class TrialConditionTests
     {
         // 30 is nearest the centre speaker: refused for a sound at task level and in a condition; a grating may start there.
         var task = Fixture.Task("task-localization.yml", 4);
-        task.AuditoryStimulus.StartAzimuthsDeg = new List<double> { -60, 30 };
+        task.AuditoryStimulus.StartAzimuthsDeg = new List<object> { -60.0, 30.0 };
         StringAssert.Contains(Refused(task), "nearest azimuth 30 (elevation 15) is 'centre', not on the right");
         StringAssert.Contains(Refused(With(Fixture.Condition("auditory", 1, "auditoryStimulus.startAzimuthsDeg", Fixture.List(60.0, -30.0)))), "rig.yml's speaker nearest azimuth -30");
         Assert.AreEqual("accepted", Refused(With(Fixture.Condition("visual", 1, "visualStimulus.startAzimuthsDeg", Fixture.List(60.0, 30.0)))));
+    }
+
+    [TestMethod]
+    public void AllPlaysTheSoundOnEverySpeaker()
+    {
+        // "all" plays on every speaker (speakerChannel AllSpeakersChannel), logged at azimuth and elevation NaN with its
+        // amplitude above 0, which a silent trial's 0 tells apart; paired with the grating's azimuths it keeps their pick.
+        var all = Fixture.Condition("audiovisualCoherent", 1, "visualStimulus.startAzimuthsDeg", Fixture.List(-60.0, 60.0), "auditoryStimulus.startAzimuthsDeg", Fixture.List("all", 60.0));
+        all.Pairs = new List<List<string>> { new List<string> { "visualStimulus.startAzimuthsDeg", "auditoryStimulus.startAzimuthsDeg" } };
+        var trials = Fixture.Draw(With(all), 200);
+        foreach (var t in trials)
+        {
+            Assert.IsTrue(t.auditoryAmplitude > 0);
+            if (t.visualAzimuthDeg < 0) Assert.IsTrue(t.speakerChannel == Trial.AllSpeakersChannel && double.IsNaN(t.auditoryAzimuthDeg) && double.IsNaN(t.auditoryElevationDeg));
+            else Assert.IsTrue(t.speakerChannel >= 0 && t.auditoryAzimuthDeg > 0, "the right speaker nearest 60");
+        }
+        Assert.IsTrue(trials.Any(t => t.visualAzimuthDeg < 0) && trials.Any(t => t.visualAzimuthDeg > 0));
+        StringAssert.Contains(Refused(With(Fixture.Condition("auditory", 1, "target", "auditorySide", "contrasts", Fixture.List(0.0), "auditoryStimulus.startAzimuthsDeg", Fixture.List("all")))),
+            "target auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all");
+        StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "auditoryStimulus.startAzimuthsDeg", Fixture.List("left")))), "value left is neither a number nor all");
+        Assert.AreEqual(-2, Trial.AllSpeakersChannel);
     }
 
     [TestMethod]

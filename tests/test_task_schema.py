@@ -354,7 +354,9 @@ def test_a_target_of_another_task_type_is_refused(task_type, name):
     ({"target": "random", "bothSpoutsProbability": 0.5, "repeats.repeatOn": "never"}, "target random needs bothSpoutsProbability 1"),
     ({"target": "random", "bothSpoutsProbability": 1, "repeats.repeatOn": "notCorrect"}, "target random needs repeats.repeatOn never"),
     ({"repeats.maxRepeats": 0, "repeats.repeatOn": "noResponse"}, "repeats.maxRepeats 0 needs repeats.repeatOn never"),
-    ({"target": "auditorySide", "auditoryStimulus.startAzimuthsDeg": [0, 60]}, "auditorySide needs auditoryStimulus.startAzimuthsDeg without 0"),
+    ({"target": "auditorySide", "auditoryStimulus.startAzimuthsDeg": [0, 60]}, "auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all"),
+    ({"target": "auditorySide", "auditoryStimulus.startAzimuthsDeg": ["all", 60]}, "auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all"),
+    ({"auditoryStimulus.startAzimuthsDeg": ["left"]}, "auditoryStimulus.startAzimuthsDeg"),
     ({"auditoryStimulus.amplitude": -0.1}, "greater than or equal to 0"),
     ({"contrasts": [-1]}, "contrasts must each be 0 or more"),
 ])
@@ -368,6 +370,16 @@ def test_a_go_no_go_probe_must_not_repeat():
     data["trialConditions"][4]["set"]["repeats.repeatOn"] = "noResponse"
     with pytest.raises(ValidationError, match="target noReward needs repeats.repeatOn never"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
+def test_all_plays_on_every_speaker_and_pairs():
+    # "all" is a sound azimuth item: alone, in a list, paired with the grating's azimuths; it has no side, so no cue.
+    visual, sound = "visualStimulus.startAzimuthsDeg", "auditoryStimulus.startAzimuthsDeg"
+    task = _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {visual: [-60, 60], sound: ["all", 60]}},
+                       {"label": "neutral", "weight": 1, "set": {"contrasts": [0], sound: ["all"], "target": "random", "bothSpoutsProbability": 1}})
+    assert derive_label(task, task.trial_conditions[1]) == "neutral"
+    items = json.loads(SCHEMA.read_text())["$defs"]["AuditoryStimulus"]["properties"]["startAzimuthsDeg"]["items"]
+    assert items == {"oneOf": [{"type": "number"}, {"const": "all", "type": "string"}]}   # oneOf: Bonsai.Sgen's List<object>
 
 
 def test_an_amplitude_above_1_is_the_peak_check_s_to_refuse():

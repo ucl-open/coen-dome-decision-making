@@ -50,7 +50,8 @@ public class AuditoryStimulusSet
     /// The set checked for the loudest sound the task's conditions can draw (auditoryStimulus.amplitude, 1 the waveform as
     /// stored): every equalised copy at that amplitude checked against the lab's -1 dBFS peak, so a sound too loud stops the
     /// workflow at Go, naming the condition, the waveform and the speaker, not at the trial that plays it. A trial may then
-    /// play at that amplitude or less (Buffer).
+    /// play at that amplitude or less (Buffer), on one speaker or all ("all": each channel its own speaker's copy, so this
+    /// check holds for it too).
     /// </summary>
     public AuditoryStimulusSet AtLoudest(LoudestSound loudest)
     {
@@ -88,12 +89,19 @@ public class AuditoryStimulusSet
         return waveforms[index];
     }
 
-    /// <summary>The mixer's buffer for a trial: its waveform equalised for the speaker on its channel, scaled by its
-    /// amplitude, with its sync copy.</summary>
+    /// <summary>The mixer's buffer for a trial: its waveform equalised for the speaker on its channel (Trial.AllSpeakersChannel:
+    /// on every speaker's channel, each its own equalised copy), scaled by its amplitude, with its sync copy. Each channel's
+    /// row is one speaker's equalised copy, so AtLoudest's check of every speaker covers a sound on all of them.</summary>
     public Mat Buffer(int index, int channel, double amplitude)
     {
         if (!(amplitude <= largest)) throw new InvalidOperationException("Trial asks for auditory amplitude " + amplitude + ", above the " + largest + " the set was checked for at Go (LevelAuditoryStimulusSet).");
-        return Speakers.Layout(Stimulus(index, channel), new[] { channel }, amplitude, false, true);
+        var channels = channel == Trial.AllSpeakersChannel ? Speakers.SpeakerChannels : new[] { channel };
+        var buffer = Speakers.Layout(Stimulus(index, channels[0]), new[] { channels[0] }, amplitude, false, true);
+        foreach (var other in channels.Skip(1))
+        {
+            using (var row = buffer.GetRow(other)) CV.ConvertScale(Stimulus(index, other), row, amplitude, 0);
+        }
+        return buffer;
     }
 
     /// <summary>
@@ -174,7 +182,7 @@ public class LevelAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditorySoundFileIndex, equalised for its speaker, on that speaker's channel, scaled by its auditoryAmplitude, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the set at its level (LevelAuditoryStimulusSet) and the trial.")]
+[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditorySoundFileIndex, equalised for its speaker, on that speaker's channel (a trial at \"all\": every speaker's, each its own copy), scaled by its auditoryAmplitude, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the set at its level (LevelAuditoryStimulusSet) and the trial.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {

@@ -516,7 +516,7 @@
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>auditoryOn</scr:Expression>
+                    <scr:Expression>auditoryAmplitude &gt; 0</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>
@@ -528,7 +528,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>PlayAuditoryStimulus</Name>
-              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location), scaled by its auditoryAmplitude, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
+              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location; at "all" every speaker's channel, each its own copy), scaled by its auditoryAmplitude, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">

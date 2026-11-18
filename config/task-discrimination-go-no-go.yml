@@ -54,7 +54,7 @@ taskParameters:
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
     amplitude: 1           # scale of the waveform as stored (-47.2 dBFS RMS, the loudness mice have always had); 0 no sound
-    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it
+    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed

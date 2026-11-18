@@ -125,11 +125,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
     /// <summary>
     /// The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at
-    ///visualStimulus.elevationDeg).
+    ///visualStimulus.elevationDeg), or on every rig.yml speaker where the pick is "all".
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute("The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml\'s speaker " +
-        "nearest the picked azimuth (at\nvisualStimulus.elevationDeg).")]
+        "nearest the picked azimuth (at\nvisualStimulus.elevationDeg), or on every rig.yml" +
+        " speaker where the pick is \"all\".")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class AuditoryStimulus
@@ -137,12 +138,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _amplitude;
     
-        private System.Collections.Generic.List<double> _startAzimuthsDeg;
+        private System.Collections.Generic.List<object> _startAzimuthsDeg;
     
         public AuditoryStimulus()
         {
             _amplitude = 1D;
-            _startAzimuthsDeg = new System.Collections.Generic.List<double>();
+            _startAzimuthsDeg = new System.Collections.Generic.List<object>();
         }
     
         protected AuditoryStimulus(AuditoryStimulus other)
@@ -170,13 +171,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. With target auditorySide the picked azimuth's sign is the trial's side. Unused where the amplitude is 0
+        /// Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. "all" plays it on every rig.yml speaker at once (logged auditoryAzimuthDeg NaN with an amplitude above 0). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and "all" are refused. Unused where the amplitude is 0
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("startAzimuthsDeg")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="startAzimuthsDeg")]
-        [System.ComponentModel.DescriptionAttribute(@"Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. With target auditorySide the picked azimuth's sign is the trial's side. Unused where the amplitude is 0")]
-        public System.Collections.Generic.List<double> StartAzimuthsDeg
+        [System.ComponentModel.DescriptionAttribute(@"Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. ""all"" plays it on every rig.yml speaker at once (logged auditoryAzimuthDeg NaN with an amplitude above 0). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and ""all"" are refused. Unused where the amplitude is 0")]
+        public System.Collections.Generic.List<object> StartAzimuthsDeg
         {
             get
             {

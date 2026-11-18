@@ -1,6 +1,6 @@
 import copy
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 # Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt.
 from open_rigs.core.base import Bool, Double, String
@@ -20,7 +20,7 @@ from open_rigs.core.task import (
     WheelQuietWait,
 )
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
-from pydantic import ConfigDict, Field, ValidationError, ValidationInfo, field_validator, model_validator
+from pydantic import ConfigDict, Field, ValidationError, ValidationInfo, WithJsonSchema, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
 
@@ -82,9 +82,14 @@ class VisualStimulus(TaskBlock):
         return value
 
 
+ALL_SPEAKERS = "all"  # an auditoryStimulus.startAzimuthsDeg item: every rig.yml speaker plays (TrialDraw.AllSpeakers)
+# A sound azimuth or "all". oneOf, not pydantic's anyOf: Bonsai.Sgen makes an empty class of an anyOf item, object of a oneOf.
+SoundAzimuth = Annotated[Double | Literal["all"], WithJsonSchema({"oneOf": [{"type": "number"}, {"const": ALL_SPEAKERS, "type": "string"}]})]
+
+
 class AuditoryStimulus(TaskBlock):
     """The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at
-    visualStimulus.elevationDeg)."""
+    visualStimulus.elevationDeg), or on every rig.yml speaker where the pick is "all"."""
 
     amplitude: Double = Field(
         default=1.0,
@@ -95,21 +100,22 @@ class AuditoryStimulus(TaskBlock):
             "equalisation on any speaker; dB SPL is unknown until the speakers' SPL calibration"
         ),
     )
-    start_azimuths_deg: list[Double] = Field(
+    start_azimuths_deg: list[SoundAzimuth] = Field(
         default=[-60.0, 60.0],
         min_length=1,
         description=(
             "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on "
-            "rig.yml's speaker nearest it. With target auditorySide the picked azimuth's sign is the trial's side. Unused where the amplitude is 0"
+            "rig.yml's speaker nearest it. \"all\" plays it on every rig.yml speaker at once (logged auditoryAzimuthDeg NaN with an amplitude "
+            "above 0). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and \"all\" are refused. Unused where the amplitude is 0"
         ),
     )
 
     @field_validator("start_azimuths_deg")
     @classmethod
-    def _in_range(cls, value: list[float]) -> list[float]:
+    def _in_range(cls, value: list) -> list:
         # TrialDraw.CheckTask's same rule, with each azimuth's nearest speaker on its side.
         for azimuth in value:
-            if not -180 <= azimuth <= 180:
+            if azimuth != ALL_SPEAKERS and not -180 <= azimuth <= 180:
                 raise ValueError(f"start_azimuths_deg value {azimuth} is outside [-180, 180]")
         return value
 
@@ -298,8 +304,9 @@ def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[
 
 def derive_label(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition: TrialCondition) -> str:
     """A condition's label from its settings (its set over the task's): a role target names it (go, noGo, left, right); else
-    by what it shows, the grating (a contrast above 0) and the sound as a cue (an amplitude above 0 at an azimuth off centre):
-    both, audiovisualConflict when the azimuths are paired mirrored, else audiovisualCoherent; one alone; or neutral."""
+    by what it shows, the grating (a contrast above 0) and the sound as a cue (an amplitude above 0 at an azimuth off centre;
+    0 and "all" give no side): both, audiovisualConflict when the azimuths are paired mirrored, else audiovisualCoherent; one
+    alone; or neutral."""
     base = task.model_dump(by_alias=True, mode="json")
 
     def value(path) -> list:
@@ -310,7 +317,7 @@ def derive_label(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition:
     if len(target) == 1 and target[0] in ("go", "noGo", "left", "right"):
         return target[0]
     grating = any(contrast > 0 for contrast in value("contrasts"))
-    sound = any(amplitude > 0 for amplitude in value("auditoryStimulus.amplitude")) and any(azimuth != 0 for azimuth in value("auditoryStimulus.startAzimuthsDeg"))
+    sound = any(amplitude > 0 for amplitude in value("auditoryStimulus.amplitude")) and any(azimuth not in (0, ALL_SPEAKERS) for azimuth in value("auditoryStimulus.startAzimuthsDeg"))
     if grating and sound:
         visual, auditory = "visualStimulus.startAzimuthsDeg", "auditoryStimulus.startAzimuthsDeg"
         paired = any(visual in group and auditory in group for group in condition.pairs)
@@ -445,8 +452,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         problems = rule_problems(self.model_dump(by_alias=True, mode="json"))
         if problems:
             raise ValueError("; ".join(problems))
-        if self.target == Target.AUDITORY_SIDE and 0 in self.auditory_stimulus.start_azimuths_deg:
-            raise ValueError("target auditorySide needs auditoryStimulus.startAzimuthsDeg without 0: the sign is the trial's side")
+        if self.target == Target.AUDITORY_SIDE and any(azimuth in (0, ALL_SPEAKERS) for azimuth in self.auditory_stimulus.start_azimuths_deg):
+            raise ValueError("target auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all: the sign is the trial's side")
         if not sum(condition.weight for condition in self.trial_conditions) > 0:
             raise ValueError("trial_conditions needs a condition with a weight above 0")
         if sum(condition.weight for condition in self.trial_conditions) > MAX_WEIGHT_SUM:
