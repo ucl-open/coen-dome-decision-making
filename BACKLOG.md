@@ -46,3 +46,8 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 - "Target" and "Stage" with several qualified meanings: never shown side by side.
 - `localization` (US spelling): the field's term and a recorded value.
 - `spoutMovements: false`: keeps the positive default.
+
+## Trial-conditions audit round 2 (18 Nov 2026): not recommended
+
+- A task file YAML cannot read (`weight: 1.5`, a bad key) stops at Go with YamlDotNet's message rather than one naming the field: main.bonsai's DeserializeFromYaml fails on the same text first, before any trial, and app-rig-control's schema check refuses it at launch.
+- A stale `trialWeights` beside `trialConditions` passes pydantic and the schema (the lab's extra-key policy) and is refused at Go by C# as an unknown property.
