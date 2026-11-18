@@ -1,4 +1,4 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -732,7 +732,7 @@ public class TrialConditionTests
         Assert.IsTrue(trials.All(t => t.rewardOfferedUl == 2 || t.rewardOfferedUl == 4));
         Assert.AreEqual(0.5, trials.Count(t => t.rewardOfferedUl == 2) / 400.0, 0.08);
         var built = Fixture.Check(With(Fixture.Condition("visual", 1, "reward.rewardSizeUl", Fixture.List(2.0, 4.0), "autoRewardProbability", Fixture.List(0.0, 0.5, 1.0))), 4, Fixture.Speakers());
-        Assert.AreEqual(6, built[0].Variants.Count, "every combination");
+        Assert.AreEqual(6, built[0].Combinations.Count, "every combination");
     }
 
     [TestMethod]
@@ -817,10 +817,10 @@ public class TrialConditionTests
             "\"set\":{\"contrasts\":[\"0.5\",\"1\"],\"reward.rewardSizeUl\":[\"2\",\"3\"],\"visualStimulus.startAzimuthsDeg\":[\"60\"]}");
         again.TrainingPipeline = new TrainingPipeline { Id = 4, Label = "x", Sha256 = "y" };
         var built = Fixture.Check(again, 4, Fixture.Speakers());
-        CollectionAssert.AreEqual(new[] { 2.0, 3.0 }, built[0].Variants.Select(v => v.Task.Reward.RewardSizeUl).ToArray());
-        CollectionAssert.AreEqual(new[] { 0.5, 1.0 }, built[0].Variants[0].Task.Contrasts);
-        CollectionAssert.AreEqual(new[] { 60.0 }, built[0].Variants[1].Task.VisualStimulus.StartAzimuthsDeg);
-        Assert.AreEqual(1, built[1].Variants.Count);
-        Assert.AreEqual(3.0, built[1].Variants[0].Task.Reward.RewardSizeUl);
+        CollectionAssert.AreEqual(new[] { 2.0, 3.0 }, built[0].Combinations.Select(v => v.Task.Reward.RewardSizeUl).ToArray());
+        CollectionAssert.AreEqual(new[] { 0.5, 1.0 }, built[0].Combinations[0].Task.Contrasts);
+        CollectionAssert.AreEqual(new[] { 60.0 }, built[0].Combinations[1].Task.VisualStimulus.StartAzimuthsDeg);
+        Assert.AreEqual(1, built[1].Combinations.Count);
+        Assert.AreEqual(3.0, built[1].Combinations[0].Task.Reward.RewardSizeUl);
     }
 }

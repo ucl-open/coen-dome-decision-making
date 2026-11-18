@@ -168,7 +168,7 @@ class TrialCondition(TaskBlock):
 
     model_config = ConfigDict(extra="forbid")
 
-    type: String = Field(description="The trial type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three)")
+    type: String = Field(description="The condition's type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three). Its trials' trialType is what they show: the type itself, or for a role the modality goModality or leftModality gives it")
     weight: int = Field(ge=0, le=1_000_000, description="Relative draw weight: each new trial picks a condition with these as relative chances")
     set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path (x-conditionFields' paths that apply to the type); the rest are the task's")
 

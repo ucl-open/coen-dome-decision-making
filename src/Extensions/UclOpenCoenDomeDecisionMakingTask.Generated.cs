@@ -1249,13 +1249,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The trial type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three)
+        /// The condition's type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three). Its trials' trialType is what they show: the type itself, or for a role the modality goModality or leftModality gives it
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("type", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="type")]
-        [System.ComponentModel.DescriptionAttribute("The trial type: one of the task type\'s keys (localization visual, auditory, audio" +
-            "visualCoherent, audiovisualConflict, neutral; the discriminations by role, go/no" +
-            "Go or left/right, and the last three)")]
+        [System.ComponentModel.DescriptionAttribute(@"The condition's type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three). Its trials' trialType is what they show: the type itself, or for a role the modality goModality or leftModality gives it")]
         public string Type
         {
             get

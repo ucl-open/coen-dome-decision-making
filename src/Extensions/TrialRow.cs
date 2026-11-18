@@ -1,4 +1,4 @@
-﻿using OpenRigs.Devices;
+using OpenRigs.Devices;
 using OpenRigs.Trials;
 
 // One row of WorkflowData_Trials. Each field is a column, named and typed as the Data Dictionary

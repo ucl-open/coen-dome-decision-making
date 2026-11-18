@@ -1,4 +1,4 @@
-﻿using Bonsai;
+using Bonsai;
 using Bonsai.Harp;
 using OpenRigs.Core;
 using OpenRigs.Devices;
@@ -97,16 +97,16 @@ public class TrialConditionDraw
     /// <summary>Where it is, for a message: trialConditions[index] (type).</summary>
     public string Where;
     /// <summary>The task with its set over it, one per combination of its list cells, picked uniformly per trial.</summary>
-    public List<TrialConditionVariant> Variants;
+    public List<TrialConditionCombination> Combinations;
 }
 
 /// <summary>One combination of a condition's list cells: the task with the condition's set over it.</summary>
-public class TrialConditionVariant
+public class TrialConditionCombination
 {
     /// <summary>The task as this combination's trials draw it.</summary>
     public UclOpenCoenDomeDecisionMakingTaskParameters Task;
     /// <summary>The picks that make it, for a message ("" with no list cell).</summary>
-    public string Cells;
+    public string Picks;
 }
 
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
@@ -202,11 +202,11 @@ public class TrialDraw
             // already named is said once).
             foreach (var condition in built)
             {
-                foreach (var variant in condition.Variants)
+                foreach (var combination in condition.Combinations)
                 {
                     var own = new List<string>();
-                    Check(own, variant.Task, speakers);
-                    problems.AddRange(own.Select(p => condition.Where + (variant.Cells.Length == 0 ? "" : " with " + variant.Cells) + ": " + p));
+                    Check(own, combination.Task, speakers);
+                    problems.AddRange(own.Select(p => condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": " + p));
                 }
             }
         }
@@ -276,7 +276,7 @@ public class TrialDraw
             var count = cells.Aggregate(1L, (n, cell) => n * cell.Value.Count);
             if (count > MaxCombinations) problems.Add(string.Format("{0} expands into {1} combinations, more than {2}", where, count, MaxCombinations));
             if (problems.Count > before) continue;
-            var draw = new TrialConditionDraw { Type = c.Type, TrialType = StimulusType(task, c.Type), Weight = c.Weight, Where = where, Variants = new List<TrialConditionVariant>() };
+            var draw = new TrialConditionDraw { Type = c.Type, TrialType = TrialTypeOf(task, c.Type), Weight = c.Weight, Where = where, Combinations = new List<TrialConditionCombination>() };
             for (int n = 0; n < count; n++)
             {
                 var stream = Load(taskText);
@@ -294,7 +294,7 @@ public class TrialDraw
                 stream.Save(writer, false);
                 try
                 {
-                    draw.Variants.Add(new TrialConditionVariant { Task = Read(writer.ToString()).TaskParameters, Cells = string.Join(", ", named) });
+                    draw.Combinations.Add(new TrialConditionCombination { Task = Read(writer.ToString()).TaskParameters, Picks = string.Join(", ", named) });
                 }
                 catch (YamlDotNet.Core.YamlException e)
                 {
@@ -342,7 +342,7 @@ public class TrialDraw
 
     /// <summary>What a condition type shows (TypeNames): localization's types and the two-modality and neutral types are
     /// themselves; go or left is goModality's or leftModality's modality alone, noGo or right the other's.</summary>
-    public static string StimulusType(UclOpenCoenDomeDecisionMakingTaskParameters task, string type)
+    public static string TrialTypeOf(UclOpenCoenDomeDecisionMakingTaskParameters task, string type)
     {
         bool first = type == GoKey || type == LeftKey;
         if (!first && type != NoGoKey && type != RightKey) return type;
@@ -577,7 +577,7 @@ public class TrialDraw
         // The condition by weight, then one of its combinations (its list cells' picks), whose values the trial draws from.
         int index = WeightedCondition();
         var condition = conditions[index];
-        var p = condition.Variants.Count == 1 ? condition.Variants[0].Task : condition.Variants[random.Next(condition.Variants.Count)].Task;
+        var p = condition.Combinations.Count == 1 ? condition.Combinations[0].Task : condition.Combinations[random.Next(condition.Combinations.Count)].Task;
         var trial = new Trial();
         trial.trialCondition = index;
         trial.autoReward = random.NextDouble() < p.AutoRewardProbability;
