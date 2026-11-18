@@ -646,8 +646,8 @@ public class CheckTaskAtGoTests
     {
         var rig = new LabRig { SpeakerArray = Fixture.Speakers() };
         var unfilled = Fixture.Task("task-localization.yml", 4);
-        unfilled.TrainingPipeline = null;
-        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(unfilled), rig, null)), "The task file's trainingPipeline is empty");
+        unfilled.Curriculum = null;
+        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(unfilled), rig, null)), "The task file's curriculum is empty");
         var rules = TrialRules.Create(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), rig, null);
         Assert.IsNull(rules.Laser, "no optogenetics");
         Assert.AreEqual("S04A-k7f2", rules.TrainingCodeVersion);

@@ -16,7 +16,7 @@ from ucl_open_coen_dome_decision_making.task import (
     TaskType,
     derive_label,
     UclOpenCoenDomeDecisionMakingTaskLogic,
-    TrainingPipeline,
+    Curriculum,
     UclOpenCoenDomeDecisionMakingTaskParameters,
     VisualStimulus,
 )
@@ -73,7 +73,7 @@ def test_the_discrimination_files_keep_the_spouts_in_for_habituation():
     for name, task_type in (("task-discrimination-left-right.yml", "discriminationLeftRight"), ("task-discrimination-go-no-go.yml", "discriminationGoNoGo")):
         task = _task(name)
         assert task.task_type == task_type
-        assert not task.spout_movements   # the defaults are habituation's, the pipeline's first stage
+        assert not task.spout_movements   # the defaults are habituation's, the curriculum's first stage
 
 
 def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
@@ -450,17 +450,17 @@ def test_the_generated_csharp_has_every_schema_field():
     assert names == _property_names(json.loads(SCHEMA.read_text(encoding="utf-8")))
 
 
-GOOD_PIPELINE = {"id": 3, "code": "S03A", "version": "k7f2", "path": "A", "label": "Conflict Added", "sha256": "abc"}
+GOOD_CURRICULUM = {"id": 3, "code": "S03A", "version": "k7f2", "path": "A", "label": "Conflict Added", "sha256": "abc"}
 
 
-def test_the_training_pipeline_is_the_stage_s_only_record_and_checks_its_patterns():
+def test_the_curriculum_is_the_stage_s_only_record_and_checks_its_patterns():
     # No TrainingStage parameter: app-rig-control writes exactly these fields and Bonsai only records them.
-    assert set(TrainingPipeline.model_fields) == set(GOOD_PIPELINE)
-    TrainingPipeline(**GOOD_PIPELINE)
+    assert set(Curriculum.model_fields) == set(GOOD_CURRICULUM)
+    Curriculum(**GOOD_CURRICULUM)
     for key, bad in [("id", -1), ("code", "S3A"), ("code", "s03a"), ("code", "S03AB"), ("version", "k7f"), ("version", "k7f1"), ("version", "K7F2"),
                      ("path", "a"), ("path", "AB")]:
         with pytest.raises(ValidationError):
-            TrainingPipeline(**{**GOOD_PIPELINE, key: bad})
+            Curriculum(**{**GOOD_CURRICULUM, key: bad})
     assert "TrainingStage" not in (CONFIG.parent / "src" / "main.bonsai").read_text(encoding="utf-8-sig")
 
 

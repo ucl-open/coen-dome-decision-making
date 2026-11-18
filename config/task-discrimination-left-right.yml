@@ -7,13 +7,13 @@
 # condition says what its trials show and reward: its set over the task's values (x-conditionFields), its pairs picking
 # listed values together; its label names it (trialType). A stage's conditions replace them whole. Visual-only and
 # neutral trials are silent (amplitude 0).
-# The training stages are the share's pipeline (config/training-pipelines/coen-dome-decision-making/<this file's name>):
-# at launch app-rig-control writes the chosen stage's values over these defaults and fills trainingPipeline.
+# The training stages are the share's curriculum (K:\config\curricula\coen-dome-decision-making\<this file's stem>.conditions.yml):
+# at launch app-rig-control writes the chosen stage's values over these defaults and fills curriculum.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
   taskType: discriminationLeftRight
   target: left             # what a trial rewards, where a condition sets none (x-rules: left, right or random here)
-  trialConditions:         # the trial mix, one whole value: a pipeline stage's conditions replace it; set: condition-level values (x-conditionFields)
+  trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (x-conditionFields)
     - label: left
       weight: 10
       set: { target: left, auditoryStimulus.amplitude: 0 }
@@ -84,4 +84,4 @@ taskParameters:
   bothSpoutsProbability: 1.0           # chance both spouts move in rather than the correct one alone
   contrasts: [1.0]                     # grating contrasts, one drawn per trial; 0 no grating
   spoutMovements: false                # false keeps the spouts in (habituation): no withdrawal, no single-spout move
-  trainingPipeline:                    # app-rig-control fills it at launch (id, code, version, path, label, sha256 of the stage run); empty here: Go refuses it
+  curriculum:                    # app-rig-control fills it at launch (id, code, version, path, label, sha256 of the stage run); empty here: Go refuses it

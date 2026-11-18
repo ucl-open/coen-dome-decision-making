@@ -26,7 +26,7 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral, go, noGo, left, right]
-  description: The label of the trial's condition (trialCondition) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryAmplitude, the azimuths, target). By default it is derived from the condition's settings - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none) - but a pipeline may choose another.
+  description: The label of the trial's condition (trialCondition) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryAmplitude, the azimuths, target). By default it is derived from the condition's settings - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none) - but a curriculum may choose another.
   history: In earlier experiments a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning. Before the trial-type split (Nov 2026) the condition's type drove the draw, and a discrimination's one-modality trial was logged visual or auditory (its goModality or leftModality in the manifest), not go, noGo, left or right.
 outcome:
   type: string

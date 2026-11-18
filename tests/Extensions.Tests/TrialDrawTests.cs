@@ -18,7 +18,7 @@ static class Fixture
         return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(here), "..", ".."));
     }
 
-    // The share's training pipeline stages of each task file (config\training-pipelines), as the task file's rows were
+    // The share's Mouse Curriculum stages of each task file (config\curricula), as the task file's rows were
     // before they moved there: the ticked fields only, a stage's weights by condition label, null left to the task file.
     class Stage
     {
@@ -52,13 +52,13 @@ static class Fixture
             new Stage { Label = "Wide Contrasts", Auto = 0, Both = both, Contrasts = new[] { 0.5, 1.0, 2.0, 3.0 } } };
     }
 
-    // The task file as app-rig-control writes it at launch for a pipeline stage: the stage's values over the file's, and
-    // trainingPipeline filled.
+    // The task file as app-rig-control writes it at launch for a curriculum stage: the stage's values over the file's, and
+    // curriculum filled.
     public static UclOpenCoenDomeDecisionMakingTaskParameters Task(string file, int stage)
     {
         var text = File.ReadAllText(Path.Combine(Repo(), "config", file));
         var task = new DeserializerBuilder().Build().Deserialize<UclOpenCoenDomeDecisionMakingTaskLogic>(text).TaskParameters;
-        Assert.IsNull(task.TrainingPipeline, "the repo's task files leave trainingPipeline empty");
+        Assert.IsNull(task.Curriculum, "the repo's task files leave curriculum empty");
         var s = Stages[file][stage];
         if (s.Weights != null) task.TrialConditions = Conditions(task.TrialConditions, s.Weights);
         task.AutoRewardProbability = s.Auto;
@@ -66,15 +66,15 @@ static class Fixture
         task.Contrasts = s.Contrasts.ToList();
         task.Repeats.RepeatOn = s.Repeats ? RepeatOn.NotCorrect : RepeatOn.Never;
         task.SpoutMovements = s.Moves;
-        task.TrainingPipeline = Pipeline(stage, s.Label);
+        task.Curriculum = Curriculum(stage, s.Label);
         task.RngSeed = 1;
         return task;
     }
 
-    /// <summary>A well formed trainingPipeline for a stage (id, code S0nA, a fixed version, path A).</summary>
-    public static TrainingPipeline Pipeline(int id, string label)
+    /// <summary>A well formed curriculum for a stage (id, code S0nA, a fixed version, path A).</summary>
+    public static Curriculum Curriculum(int id, string label)
     {
-        return new TrainingPipeline { Id = id, Code = "S0" + id + "A", Version = "k7f2", Path = "A", Label = label, Sha256 = "test" };
+        return new Curriculum { Id = id, Code = "S0" + id + "A", Version = "k7f2", Path = "A", Label = label, Sha256 = "test" };
     }
 
     // A stage's trial mix: the file's conditions weighted by label.
@@ -525,30 +525,30 @@ public class TrialDrawTests
     }
 
     [TestMethod]
-    public void TheTrainingPipelineStageIsCheckedAtGoBeforeTheFirstTrial()
+    public void TheCurriculumStageIsCheckedAtGoBeforeTheFirstTrial()
     {
-        // trainingPipeline (app-rig-control's at launch) is the task file's only record of the stage: present and well formed.
+        // curriculum (app-rig-control's at launch) is the task file's only record of the stage: present and well formed.
         var task = Fixture.Task("task-localization.yml", 4);
         Assert.AreEqual("accepted", Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())));
         Action<string> broken = reason =>
         {
-            var pipeline = Fixture.Pipeline(4, "Conflict Added");
-            task.TrainingPipeline = pipeline;
+            var curriculum = Fixture.Curriculum(4, "Conflict Added");
+            task.Curriculum = curriculum;
             switch (reason)
             {
-                case "code": pipeline.Code = "S3A"; break;
-                case "version": pipeline.Version = "k7f1"; break;
-                case "path": pipeline.Path = "a"; break;
-                case "sha256": pipeline.Sha256 = ""; break;
-                case "label": pipeline.Label = ""; break;
-                case "id": pipeline.Id = -1; break;
+                case "code": curriculum.Code = "S3A"; break;
+                case "version": curriculum.Version = "k7f1"; break;
+                case "path": curriculum.Path = "a"; break;
+                case "sha256": curriculum.Sha256 = ""; break;
+                case "label": curriculum.Label = ""; break;
+                case "id": curriculum.Id = -1; break;
             }
-            StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "The task file's trainingPipeline is malformed (");
+            StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "The task file's curriculum is malformed (");
             StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), reason == "id" ? "id -1" : reason);
         };
         foreach (var reason in new[] { "code", "version", "path", "sha256", "label", "id" }) broken(reason);
-        task.TrainingPipeline = null;
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "The task file's trainingPipeline is empty: launch it from app-rig-control");
+        task.Curriculum = null;
+        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "The task file's curriculum is empty: launch it from app-rig-control");
     }
 
     [TestMethod]
@@ -930,7 +930,7 @@ public class TrialConditionTests
         var again = TrialDraw.Read(Fixture.Text(task)).TaskParameters;
         StringAssert.Contains(Newtonsoft.Json.JsonConvert.SerializeObject(again.TrialConditions[0]),
             "\"set\":{\"contrasts\":[0.5,1],\"reward.rewardSizeUl\":[2,3],\"visualStimulus.startAzimuthsDeg\":[60]}");
-        again.TrainingPipeline = Fixture.Pipeline(4, "x");
+        again.Curriculum = Fixture.Curriculum(4, "x");
         var built = Fixture.Check(again, Fixture.Speakers());
         // A list field's entries are one combination each (contrasts first, then the rewards): the draw's chances unchanged.
         CollectionAssert.AreEqual(new[] { 2.0, 2.0, 3.0, 3.0 }, built[0].Combinations.Select(v => v.Task.Reward.RewardSizeUl).ToArray());

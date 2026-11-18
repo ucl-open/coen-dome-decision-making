@@ -40,11 +40,22 @@ def test_trial_weights_read_the_session_s_stage(tmp_path):
     # The stage is the session's own TrainingStage (Settings_Experiment), its own weights replacing the task's.
     assert lf.trial_weights(session(tmp_path, "ses-001_a", "av-dome", stage=0)) == {"visual": 9}
     assert lf.trial_weights(session(tmp_path, "ses-002_b", "av-dome", stage=1)) == WEIGHTS
-    # From the training pipeline on, the task file holds the stage's values at the top level.
+    # From the Mouse Curriculum on, the task file holds the stage's values at the top level.
     flat = session(tmp_path, "ses-003_c", "coen-dome-decision-making", stage=3)
     task_file = flat / "Settings" / "Settings_Task_2026-11-16T10-00-00.json"
-    task_file.write_text(json.dumps({"taskParameters": {"trialWeights": WEIGHTS, "trainingPipeline": {"id": 3}}}), encoding="utf-8")
+    task_file.write_text(json.dumps({"taskParameters": {"trialWeights": WEIGHTS, "curriculum": {"id": 3}}}), encoding="utf-8")
     assert lf.trial_weights(flat) == WEIGHTS
+
+
+def test_curriculum_stage_reads_curriculum_and_the_older_training_pipeline(tmp_path):
+    stage = {"id": 3, "code": "S03A", "version": "k7f2", "path": "A", "label": "Conflict Added", "sha256": "abc"}
+    for i, key in enumerate(("curriculum", "trainingPipeline")):
+        s = session(tmp_path, f"ses-10{i}_x", "coen-dome-decision-making")
+        (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(
+            json.dumps({"taskParameters": {"trialWeights": WEIGHTS, key: stage}}), encoding="utf-8")
+        assert lf.curriculum_stage(s) == stage
+    old = session(tmp_path, "ses-102_x", "coen-dome-decision-making")
+    assert lf.curriculum_stage(old) is None
 
 
 def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
@@ -54,7 +65,7 @@ def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
     conditions = [{"type": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}},
                   {"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": 2.5}}, {"type": "auditory", "weight": 0, "set": {}}]
     (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(
-        json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions, "trainingPipeline": {"id": 4}}}), encoding="utf-8")
+        json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions, "curriculum": {"id": 4}}}), encoding="utf-8")
     read = lf.trial_conditions(s)
     assert read[0]["set"] == {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]} and read[1]["set"] == {"reward.rewardSizeUl": 2.5}
     assert lf.trial_weights(s) == {"visual": 4, "auditory": 0}

@@ -251,7 +251,7 @@ def test_the_background_noise_is_the_shared_include():
 
 
 def test_the_stage_is_the_task_file_s_alone():
-    # No TrainingStage parameter, include or subject: the stage is the task file's trainingPipeline, which CheckTaskAtGo found
+    # No TrainingStage parameter, include or subject: the stage is the task file's curriculum, which CheckTaskAtGo found
     # well formed; TaskFile publishes its code-version as TrainingCodeVersion (from the TrialRules) and reports it as the metric trainingStage.
     assert "TrainingStage" not in TEXT
     nodes, edges = _scope(_named("TaskFile"))

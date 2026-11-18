@@ -48,6 +48,55 @@
       "title": "BackgroundNoise",
       "type": "object"
     },
+    "Curriculum": {
+      "description": "The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at\nlaunch from the share's curriculum file (K:\\config\\curricula\\<repo>\\<task file stem>.conditions.yml), its stage's values written over the task\nfile's; empty in the repo's task files. Bonsai only records it.",
+      "properties": {
+        "id": {
+          "description": "The stage's id in the curriculum, fixed and hidden: never shown to the experimenter",
+          "minimum": 0,
+          "title": "Id",
+          "type": "integer"
+        },
+        "code": {
+          "description": "The stage's code in the curriculum, S then two digits then a capital letter (S03A)",
+          "pattern": "^S\\d{2}[A-Z]$",
+          "title": "Code",
+          "type": "string"
+        },
+        "version": {
+          "description": "The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)",
+          "pattern": "^[abcdefghjkmnpqrstuvwxyz23456789]{4}$",
+          "title": "Version",
+          "type": "string"
+        },
+        "path": {
+          "description": "The stage's path in the curriculum, one capital letter (A)",
+          "pattern": "^[A-Z]$",
+          "title": "Path",
+          "type": "string"
+        },
+        "label": {
+          "description": "The stage's name in the curriculum",
+          "title": "Label",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "SHA-256 of the curriculum file's text the stage was read from",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "version",
+        "path",
+        "label",
+        "sha256"
+      ],
+      "title": "Curriculum",
+      "type": "object"
+    },
     "OptogeneticsSettings": {
       "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a timed stimulus here, where coen-dome-navigation's laserMaxSeconds is a cap.",
       "if": {
@@ -294,55 +343,6 @@
       "title": "TaskType",
       "type": "string"
     },
-    "TrainingPipeline": {
-      "description": "The training pipeline stage these values are, and the task file's only record of the stage: app-rig-control fills it at\nlaunch from the share's pipeline file (the share's config/training-pipelines), its stage's values written over the task\nfile's; empty in the repo's task files. Bonsai only records it.",
-      "properties": {
-        "id": {
-          "description": "The stage's id in the pipeline, fixed and hidden: never shown to the experimenter",
-          "minimum": 0,
-          "title": "Id",
-          "type": "integer"
-        },
-        "code": {
-          "description": "The stage's code in the pipeline, S then two digits then a capital letter (S03A)",
-          "pattern": "^S\\d{2}[A-Z]$",
-          "title": "Code",
-          "type": "string"
-        },
-        "version": {
-          "description": "The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)",
-          "pattern": "^[abcdefghjkmnpqrstuvwxyz23456789]{4}$",
-          "title": "Version",
-          "type": "string"
-        },
-        "path": {
-          "description": "The stage's path in the pipeline, one capital letter (A)",
-          "pattern": "^[A-Z]$",
-          "title": "Path",
-          "type": "string"
-        },
-        "label": {
-          "description": "The stage's name in the pipeline",
-          "title": "Label",
-          "type": "string"
-        },
-        "sha256": {
-          "description": "SHA-256 of the pipeline file's text the stage was read from",
-          "title": "Sha256",
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "code",
-        "version",
-        "path",
-        "label",
-        "sha256"
-      ],
-      "title": "TrainingPipeline",
-      "type": "object"
-    },
     "TrialCondition": {
       "additionalProperties": false,
       "description": "One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the\nstart azimuths) is one entry picked per trial. Paired lists share one picked index per trial.",
@@ -546,7 +546,7 @@
           "description": "What a trial rewards (a condition field): visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty"
         },
         "trialConditions": {
-          "description": "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index",
+          "description": "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a curriculum stage's conditions replace it; the trialCondition column is its 0-based index",
           "items": {
             "$ref": "#/$defs/TrialCondition"
           },
@@ -625,18 +625,18 @@
           "title": "SpoutMovements",
           "type": "boolean"
         },
-        "trainingPipeline": {
+        "curriculum": {
           "anyOf": [
             {
-              "$ref": "#/$defs/TrainingPipeline"
+              "$ref": "#/$defs/Curriculum"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "The training pipeline stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go",
-          "title": "TrainingPipeline"
+          "description": "The Mouse Curriculum stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go",
+          "title": "Curriculum"
         }
       },
       "required": [

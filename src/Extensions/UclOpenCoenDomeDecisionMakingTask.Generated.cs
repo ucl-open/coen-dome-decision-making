@@ -318,6 +318,192 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
+    /// The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at
+    ///launch from the share's curriculum file (K:\config\curricula\<repo>\<task file stem>.conditions.yml), its stage's values written over the task
+    ///file's; empty in the repo's task files. Bonsai only records it.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
+    [System.ComponentModel.DescriptionAttribute(@"The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at
+    launch from the share's curriculum file (K:\config\curricula\<repo>\<task file stem>.conditions.yml), its stage's values written over the task
+    file's; empty in the repo's task files. Bonsai only records it.")]
+    [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
+    [Bonsai.CombinatorAttribute(MethodName="Generate")]
+    public partial class Curriculum
+    {
+    
+        private int _id;
+    
+        private string _code;
+    
+        private string _version;
+    
+        private string _path;
+    
+        private string _label;
+    
+        private string _sha256;
+    
+        public Curriculum()
+        {
+        }
+    
+        protected Curriculum(Curriculum other)
+        {
+            _id = other._id;
+            _code = other._code;
+            _version = other._version;
+            _path = other._path;
+            _label = other._label;
+            _sha256 = other._sha256;
+        }
+    
+        /// <summary>
+        /// The stage's id in the curriculum, fixed and hidden: never shown to the experimenter
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("id", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="id")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s id in the curriculum, fixed and hidden: never shown to the experiment" +
+            "er")]
+        public int Id
+        {
+            get
+            {
+                return _id;
+            }
+            set
+            {
+                _id = value;
+            }
+        }
+    
+        /// <summary>
+        /// The stage's code in the curriculum, S then two digits then a capital letter (S03A)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("code", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="code")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s code in the curriculum, S then two digits then a capital letter (S03A" +
+            ")")]
+        public string Code
+        {
+            get
+            {
+                return _code;
+            }
+            set
+            {
+                _code = value;
+            }
+        }
+    
+        /// <summary>
+        /// The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("version", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="version")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)")]
+        public string Version
+        {
+            get
+            {
+                return _version;
+            }
+            set
+            {
+                _version = value;
+            }
+        }
+    
+        /// <summary>
+        /// The stage's path in the curriculum, one capital letter (A)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("path", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="path")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s path in the curriculum, one capital letter (A)")]
+        public string Path
+        {
+            get
+            {
+                return _path;
+            }
+            set
+            {
+                _path = value;
+            }
+        }
+    
+        /// <summary>
+        /// The stage's name in the curriculum
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("label", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="label")]
+        [System.ComponentModel.DescriptionAttribute("The stage\'s name in the curriculum")]
+        public string Label
+        {
+            get
+            {
+                return _label;
+            }
+            set
+            {
+                _label = value;
+            }
+        }
+    
+        /// <summary>
+        /// SHA-256 of the curriculum file's text the stage was read from
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("sha256", Required=Newtonsoft.Json.Required.Always)]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="sha256")]
+        [System.ComponentModel.DescriptionAttribute("SHA-256 of the curriculum file\'s text the stage was read from")]
+        public string Sha256
+        {
+            get
+            {
+                return _sha256;
+            }
+            set
+            {
+                _sha256 = value;
+            }
+        }
+    
+        public System.IObservable<Curriculum> Generate()
+        {
+            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new Curriculum(this)));
+        }
+    
+        public System.IObservable<Curriculum> Generate<TSource>(System.IObservable<TSource> source)
+        {
+            return System.Reactive.Linq.Observable.Select(source, _ => new Curriculum(this));
+        }
+    
+        protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
+        {
+            stringBuilder.Append("Id = " + _id + ", ");
+            stringBuilder.Append("Code = " + _code + ", ");
+            stringBuilder.Append("Version = " + _version + ", ");
+            stringBuilder.Append("Path = " + _path + ", ");
+            stringBuilder.Append("Label = " + _label + ", ");
+            stringBuilder.Append("Sha256 = " + _sha256);
+            return true;
+        }
+    
+        public override string ToString()
+        {
+            System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
+            stringBuilder.Append(GetType().Name);
+            stringBuilder.Append(" { ");
+            if (PrintMembers(stringBuilder))
+            {
+                stringBuilder.Append(" ");
+            }
+            stringBuilder.Append("}");
+            return stringBuilder.ToString();
+        }
+    }
+
+
+    /// <summary>
     /// Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
     ///laserDurationSeconds is a timed stimulus here, where coen-dome-navigation's laserMaxSeconds is a cap.
     /// </summary>
@@ -1148,191 +1334,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The training pipeline stage these values are, and the task file's only record of the stage: app-rig-control fills it at
-    ///launch from the share's pipeline file (the share's config/training-pipelines), its stage's values written over the task
-    ///file's; empty in the repo's task files. Bonsai only records it.
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"The training pipeline stage these values are, and the task file's only record of the stage: app-rig-control fills it at
-    launch from the share's pipeline file (the share's config/training-pipelines), its stage's values written over the task
-    file's; empty in the repo's task files. Bonsai only records it.")]
-    [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
-    [Bonsai.CombinatorAttribute(MethodName="Generate")]
-    public partial class TrainingPipeline
-    {
-    
-        private int _id;
-    
-        private string _code;
-    
-        private string _version;
-    
-        private string _path;
-    
-        private string _label;
-    
-        private string _sha256;
-    
-        public TrainingPipeline()
-        {
-        }
-    
-        protected TrainingPipeline(TrainingPipeline other)
-        {
-            _id = other._id;
-            _code = other._code;
-            _version = other._version;
-            _path = other._path;
-            _label = other._label;
-            _sha256 = other._sha256;
-        }
-    
-        /// <summary>
-        /// The stage's id in the pipeline, fixed and hidden: never shown to the experimenter
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("id", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="id")]
-        [System.ComponentModel.DescriptionAttribute("The stage\'s id in the pipeline, fixed and hidden: never shown to the experimenter" +
-            "")]
-        public int Id
-        {
-            get
-            {
-                return _id;
-            }
-            set
-            {
-                _id = value;
-            }
-        }
-    
-        /// <summary>
-        /// The stage's code in the pipeline, S then two digits then a capital letter (S03A)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("code", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="code")]
-        [System.ComponentModel.DescriptionAttribute("The stage\'s code in the pipeline, S then two digits then a capital letter (S03A)")]
-        public string Code
-        {
-            get
-            {
-                return _code;
-            }
-            set
-            {
-                _code = value;
-            }
-        }
-    
-        /// <summary>
-        /// The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("version", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="version")]
-        [System.ComponentModel.DescriptionAttribute("The stage\'s version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)")]
-        public string Version
-        {
-            get
-            {
-                return _version;
-            }
-            set
-            {
-                _version = value;
-            }
-        }
-    
-        /// <summary>
-        /// The stage's path in the pipeline, one capital letter (A)
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("path", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="path")]
-        [System.ComponentModel.DescriptionAttribute("The stage\'s path in the pipeline, one capital letter (A)")]
-        public string Path
-        {
-            get
-            {
-                return _path;
-            }
-            set
-            {
-                _path = value;
-            }
-        }
-    
-        /// <summary>
-        /// The stage's name in the pipeline
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("label", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="label")]
-        [System.ComponentModel.DescriptionAttribute("The stage\'s name in the pipeline")]
-        public string Label
-        {
-            get
-            {
-                return _label;
-            }
-            set
-            {
-                _label = value;
-            }
-        }
-    
-        /// <summary>
-        /// SHA-256 of the pipeline file's text the stage was read from
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("sha256", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="sha256")]
-        [System.ComponentModel.DescriptionAttribute("SHA-256 of the pipeline file\'s text the stage was read from")]
-        public string Sha256
-        {
-            get
-            {
-                return _sha256;
-            }
-            set
-            {
-                _sha256 = value;
-            }
-        }
-    
-        public System.IObservable<TrainingPipeline> Generate()
-        {
-            return System.Reactive.Linq.Observable.Defer(() => System.Reactive.Linq.Observable.Return(new TrainingPipeline(this)));
-        }
-    
-        public System.IObservable<TrainingPipeline> Generate<TSource>(System.IObservable<TSource> source)
-        {
-            return System.Reactive.Linq.Observable.Select(source, _ => new TrainingPipeline(this));
-        }
-    
-        protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
-        {
-            stringBuilder.Append("Id = " + _id + ", ");
-            stringBuilder.Append("Code = " + _code + ", ");
-            stringBuilder.Append("Version = " + _version + ", ");
-            stringBuilder.Append("Path = " + _path + ", ");
-            stringBuilder.Append("Label = " + _label + ", ");
-            stringBuilder.Append("Sha256 = " + _sha256);
-            return true;
-        }
-    
-        public override string ToString()
-        {
-            System.Text.StringBuilder stringBuilder = new System.Text.StringBuilder();
-            stringBuilder.Append(GetType().Name);
-            stringBuilder.Append(" { ");
-            if (PrintMembers(stringBuilder))
-            {
-                stringBuilder.Append(" ");
-            }
-            stringBuilder.Append("}");
-            return stringBuilder.ToString();
-        }
-    }
-
-
-    /// <summary>
     /// One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
     ///the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
     ///start azimuths) is one entry picked per trial. Paired lists share one picked index per trial.
@@ -1862,7 +1863,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private bool _spoutMovements;
     
-        private TrainingPipeline _trainingPipeline;
+        private Curriculum _curriculum;
     
         public UclOpenCoenDomeDecisionMakingTaskParameters()
         {
@@ -1901,7 +1902,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _bothSpoutsProbability = other._bothSpoutsProbability;
             _contrasts = other._contrasts;
             _spoutMovements = other._spoutMovements;
-            _trainingPipeline = other._trainingPipeline;
+            _curriculum = other._curriculum;
         }
     
         /// <summary>
@@ -1982,12 +1983,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index
+        /// The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a curriculum stage's conditions replace it; the trialCondition column is its 0-based index
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("trialConditions", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialConditions")]
-        [System.ComponentModel.DescriptionAttribute(@"The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a pipeline stage's conditions replace it; the trialCondition column is its 0-based index")]
+        [System.ComponentModel.DescriptionAttribute(@"The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a curriculum stage's conditions replace it; the trialCondition column is its 0-based index")]
         public System.Collections.Generic.List<TrialCondition> TrialConditions
         {
             get
@@ -2231,22 +2232,22 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The training pipeline stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go
+        /// The Mouse Curriculum stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("trainingPipeline")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trainingPipeline")]
-        [System.ComponentModel.DescriptionAttribute("The training pipeline stage these values are, the only record of the stage, fille" +
-            "d by app-rig-control at launch; empty or malformed stops the workflow at Go")]
-        public TrainingPipeline TrainingPipeline
+        [Newtonsoft.Json.JsonPropertyAttribute("curriculum")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="curriculum")]
+        [System.ComponentModel.DescriptionAttribute("The Mouse Curriculum stage these values are, the only record of the stage, filled" +
+            " by app-rig-control at launch; empty or malformed stops the workflow at Go")]
+        public Curriculum Curriculum
         {
             get
             {
-                return _trainingPipeline;
+                return _curriculum;
             }
             set
             {
-                _trainingPipeline = value;
+                _curriculum = value;
             }
         }
     
@@ -2279,7 +2280,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("BothSpoutsProbability = " + _bothSpoutsProbability + ", ");
             stringBuilder.Append("Contrasts = " + _contrasts + ", ");
             stringBuilder.Append("SpoutMovements = " + _spoutMovements + ", ");
-            stringBuilder.Append("TrainingPipeline = " + _trainingPipeline);
+            stringBuilder.Append("Curriculum = " + _curriculum);
             return true;
         }
     
@@ -2523,6 +2524,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<BackgroundNoise>(source);
         }
 
+        public System.IObservable<string> Process(System.IObservable<Curriculum> source)
+        {
+            return Process<Curriculum>(source);
+        }
+
         public System.IObservable<string> Process(System.IObservable<OptogeneticsSettings> source)
         {
             return Process<OptogeneticsSettings>(source);
@@ -2551,11 +2557,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         public System.IObservable<string> Process(System.IObservable<RewardSettings> source)
         {
             return Process<RewardSettings>(source);
-        }
-
-        public System.IObservable<string> Process(System.IObservable<TrainingPipeline> source)
-        {
-            return Process<TrainingPipeline>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<TrialCondition> source)
@@ -2590,13 +2591,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AuditoryStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BackgroundNoise>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Curriculum>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Penalty>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<PenaltySound>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RepeatSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialCondition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]
@@ -2665,6 +2666,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
             return Process<BackgroundNoise>(source);
         }
 
+        public System.IObservable<string> Process(System.IObservable<Curriculum> source)
+        {
+            return Process<Curriculum>(source);
+        }
+
         public System.IObservable<string> Process(System.IObservable<OptogeneticsSettings> source)
         {
             return Process<OptogeneticsSettings>(source);
@@ -2693,11 +2699,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         public System.IObservable<string> Process(System.IObservable<RewardSettings> source)
         {
             return Process<RewardSettings>(source);
-        }
-
-        public System.IObservable<string> Process(System.IObservable<TrainingPipeline> source)
-        {
-            return Process<TrainingPipeline>(source);
         }
 
         public System.IObservable<string> Process(System.IObservable<TrialCondition> source)
@@ -2732,13 +2733,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskLogic>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<AuditoryStimulus>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<BackgroundNoise>))]
+    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Curriculum>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<OptogeneticsSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<Penalty>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<PenaltySound>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RepeatSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<ResponseSettings>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<RewardSettings>))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrainingPipeline>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialCondition>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<TrialStructure>))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(Bonsai.Expressions.TypeMapping<UclOpenCoenDomeDecisionMakingTaskParameters>))]

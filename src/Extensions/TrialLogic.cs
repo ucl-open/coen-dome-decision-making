@@ -67,7 +67,7 @@ public class ReadTask
 }
 
 [Combinator]
-[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): trainingPipeline is present and well formed, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task file's text and rig.yml; stops the workflow naming every problem.")]
+[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): curriculum is present and well formed, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task file's text and rig.yml; stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
@@ -214,30 +214,30 @@ public class TrialDraw
         random = new Random(Seed);
     }
 
-    /// <summary>What is wrong with a trainingPipeline (null when present and well formed: an id of 0 or more, a code like S03A, a
+    /// <summary>What is wrong with a curriculum (null when present and well formed: an id of 0 or more, a code like S03A, a
     /// 4-character version, a path of one capital letter, a label and a sha256), else the reason.</summary>
-    public static string PipelineProblem(TrainingPipeline pipeline)
+    public static string CurriculumProblem(Curriculum curriculum)
     {
-        if (pipeline == null) return "is empty";
+        if (curriculum == null) return "is empty";
         var bad = new List<string>();
-        if (pipeline.Id < 0) bad.Add("id " + pipeline.Id + " is below 0");
-        if (pipeline.Code == null || !System.Text.RegularExpressions.Regex.IsMatch(pipeline.Code, @"^S\d{2}[A-Z]$")) bad.Add("code '" + pipeline.Code + "' is not like S03A");
-        if (pipeline.Version == null || !System.Text.RegularExpressions.Regex.IsMatch(pipeline.Version, "^[abcdefghjkmnpqrstuvwxyz23456789]{4}$")) bad.Add("version '" + pipeline.Version + "' is not 4 characters of abcdefghjkmnpqrstuvwxyz23456789");
-        if (pipeline.Path == null || !System.Text.RegularExpressions.Regex.IsMatch(pipeline.Path, "^[A-Z]$")) bad.Add("path '" + pipeline.Path + "' is not one capital letter");
-        if (string.IsNullOrEmpty(pipeline.Label)) bad.Add("label is empty");
-        if (string.IsNullOrEmpty(pipeline.Sha256)) bad.Add("sha256 is empty");
+        if (curriculum.Id < 0) bad.Add("id " + curriculum.Id + " is below 0");
+        if (curriculum.Code == null || !System.Text.RegularExpressions.Regex.IsMatch(curriculum.Code, @"^S\d{2}[A-Z]$")) bad.Add("code '" + curriculum.Code + "' is not like S03A");
+        if (curriculum.Version == null || !System.Text.RegularExpressions.Regex.IsMatch(curriculum.Version, "^[abcdefghjkmnpqrstuvwxyz23456789]{4}$")) bad.Add("version '" + curriculum.Version + "' is not 4 characters of abcdefghjkmnpqrstuvwxyz23456789");
+        if (curriculum.Path == null || !System.Text.RegularExpressions.Regex.IsMatch(curriculum.Path, "^[A-Z]$")) bad.Add("path '" + curriculum.Path + "' is not one capital letter");
+        if (string.IsNullOrEmpty(curriculum.Label)) bad.Add("label is empty");
+        if (string.IsNullOrEmpty(curriculum.Sha256)) bad.Add("sha256 is empty");
         return bad.Count == 0 ? null : "is malformed (" + string.Join("; ", bad) + ")";
     }
 
-    /// <summary>The task the text holds and its conditions as drawn (BuildConditions); throws unless the task file's trainingPipeline (the
+    /// <summary>The task the text holds and its conditions as drawn (BuildConditions); throws unless the task file's curriculum (the
     /// only record of the stage, which app-rig-control fills at launch) is present and well formed and the task and every condition can be run on
     /// these speakers, naming every problem.</summary>
     public static List<TrialConditionDraw> CheckTask(string taskText, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         task = Read(taskText).TaskParameters;
-        var pipeline = task.TrainingPipeline;
-        var pipeline_problem = PipelineProblem(pipeline);
-        if (pipeline_problem != null) throw new InvalidOperationException("The task file's trainingPipeline " + pipeline_problem + ": launch it from app-rig-control, which writes the stage's values and fills it.");
+        var curriculum = task.Curriculum;
+        var curriculumProblem = CurriculumProblem(curriculum);
+        if (curriculumProblem != null) throw new InvalidOperationException("The task file's curriculum " + curriculumProblem + ": launch it from app-rig-control, which writes the stage's values and fills it.");
         var problems = new List<string>();
         Check(problems, task, speakers);
         var built = problems.Count == 0 ? BuildConditions(taskText, task, problems) : null;
@@ -839,8 +839,8 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     public LaserTiming Laser { get { return laser; } }
 
-    /// <summary>The stage as code-version (S03A-k7f2) from the task file's trainingPipeline, which the check has found well formed.</summary>
-    public string TrainingCodeVersion { get { return task.TrainingPipeline.Code + "-" + task.TrainingPipeline.Version; } }
+    /// <summary>The stage as code-version (S03A-k7f2) from the task file's curriculum, which the check has found well formed.</summary>
+    public string TrainingCodeVersion { get { return task.Curriculum.Code + "-" + task.Curriculum.Version; } }
 
     /// <summary>The loudest sound the task's conditions can draw (TrialDraw.Loudest), for the stimulus set's peak check.</summary>
     public LoudestSound Loudest { get { return draw.Loudest(); } }

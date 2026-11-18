@@ -339,17 +339,17 @@ class OptogeneticsSettings(Optogenetics):
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
 
 
-class TrainingPipeline(TaskBlock):
-    """The training pipeline stage these values are, and the task file's only record of the stage: app-rig-control fills it at
-    launch from the share's pipeline file (the share's config/training-pipelines), its stage's values written over the task
+class Curriculum(TaskBlock):
+    """The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at
+    launch from the share's curriculum file (K:\config\curricula\<repo>\<task file stem>.conditions.yml), its stage's values written over the task
     file's; empty in the repo's task files. Bonsai only records it."""
 
-    id: int = Field(ge=0, description="The stage's id in the pipeline, fixed and hidden: never shown to the experimenter")
-    code: String = Field(pattern=r"^S\d{2}[A-Z]$", description="The stage's code in the pipeline, S then two digits then a capital letter (S03A)")
+    id: int = Field(ge=0, description="The stage's id in the curriculum, fixed and hidden: never shown to the experimenter")
+    code: String = Field(pattern=r"^S\d{2}[A-Z]$", description="The stage's code in the curriculum, S then two digits then a capital letter (S03A)")
     version: String = Field(pattern=r"^[abcdefghjkmnpqrstuvwxyz23456789]{4}$", description="The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)")
-    path: String = Field(pattern=r"^[A-Z]$", description="The stage's path in the pipeline, one capital letter (A)")
-    label: String = Field(description="The stage's name in the pipeline")
-    sha256: String = Field(description="SHA-256 of the pipeline file's text the stage was read from")
+    path: String = Field(pattern=r"^[A-Z]$", description="The stage's path in the curriculum, one capital letter (A)")
+    label: String = Field(description="The stage's name in the curriculum")
+    sha256: String = Field(description="SHA-256 of the curriculum file's text the stage was read from")
 
 
 class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
@@ -377,7 +377,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         min_length=1,
         description=(
             "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other "
-            "trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a pipeline "
+            "trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a curriculum "
             "stage's conditions replace it; the trialCondition column is its 0-based index"
         ),
         json_schema_extra={"x-whole": True},
@@ -407,9 +407,9 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         default=True,
         description="Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
     )
-    training_pipeline: TrainingPipeline | None = Field(
+    curriculum: Curriculum | None = Field(
         default=None,
-        description="The training pipeline stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go",
+        description="The Mouse Curriculum stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go",
     )
 
     @field_validator("contrasts")

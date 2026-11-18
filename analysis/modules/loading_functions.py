@@ -109,6 +109,17 @@ def session_summary(df):
     return pd.DataFrame(rows)
 
 
+def curriculum_stage(session):
+    """The Mouse Curriculum stage a session ran ({id, code, version, path, label, sha256}) from its Settings_Task_*.json:
+    the `curriculum` block, or `trainingPipeline` in a session recorded before the rename (18 Nov 2026). None when the
+    task file has neither (older sessions) or there is no task file."""
+    task = _settings(session, "Task")
+    if not task:
+        return None
+    task = task.get("taskParameters", task)
+    return task.get("curriculum") or task.get("trainingPipeline")
+
+
 def trial_conditions(session):
     """The trialConditions a session ran with, from its Settings_Task_*.json: the list the trialCondition column
     indexes, each {label, weight, pairs, set} (a missing set as {}; from 17 to 18 Nov 2026 {type, weight, set}, its type
@@ -124,7 +135,7 @@ def trial_weights(session):
     """The weight of each trial type a session ran with: from trial conditions on (17 Nov 2026), its conditions' weights
     added by label (the trialType column); before, its trialWeights from its Settings_Task_*.json at its TrainingStage (Settings_Experiment_*.json's
     parameters), the stage's own when it has them, else the top-level one. None without a task file. A task file from the
-    training pipeline on (no trainingStages) holds the stage's values at the top level."""
+    Mouse Curriculum on (no trainingStages) holds the stage's values at the top level."""
     task = _settings(session, "Task")
     if not task:
         return None
