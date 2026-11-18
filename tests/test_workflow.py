@@ -196,7 +196,7 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
 
 def test_the_metrics_are_the_view_s():
     names = {c.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") for c in MAIN.iter(W + "Combinator") if c.get(XSI) == "orcl:ReportMetric"}
-    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition", "trainingStage"}
+    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition", "curriculumStage"}
 
 
 def test_zapit_s_hardware_triggering_is_rig_yml_s():
@@ -252,14 +252,14 @@ def test_the_background_noise_is_the_shared_include():
 
 def test_the_stage_is_the_task_file_s_alone():
     # No TrainingStage parameter, include or subject: the stage is the task file's curriculum, which CheckTaskAtGo found
-    # well formed; TaskFile publishes its code-version as TrainingCodeVersion (from the TrialRules) and reports it as the metric trainingStage.
+    # well formed; TaskFile publishes its code-version as CurriculumStage (from the TrialRules) and reports it as the metric curriculumStage.
     assert "TrainingStage" not in TEXT
     nodes, edges = _scope(_named("TaskFile"))
-    (subject,) = [i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "TrainingCodeVersion"]
+    (subject,) = [i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "CurriculumStage"]
     (source,) = [a for a, b, _ in edges if b == subject]
-    assert nodes[source].get(XSI) == "MemberSelector" and nodes[source].findtext(W + "Selector") == "TrainingCodeVersion"
+    assert nodes[source].get(XSI) == "MemberSelector" and nodes[source].findtext(W + "Selector") == "CurriculumStage"
     (metric,) = [b for a, b, _ in edges if a == subject]
-    assert nodes[metric].find(W + "Combinator").findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") == "trainingStage"
+    assert nodes[metric].find(W + "Combinator").findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") == "curriculumStage"
 
 
 def test_the_hardware_is_the_lab_s_pieces():

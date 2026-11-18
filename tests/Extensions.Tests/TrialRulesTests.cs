@@ -650,7 +650,7 @@ public class CheckTaskAtGoTests
         StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(unfilled), rig, null)), "The task file's curriculum is empty");
         var rules = TrialRules.Create(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), rig, null);
         Assert.IsNull(rules.Laser, "no optogenetics");
-        Assert.AreEqual("S04A-k7f2", rules.TrainingCodeVersion);
+        Assert.AreEqual("S04A-k7f2", rules.CurriculumStage);
         var timing = rules.Timing(rules.Draw(null));
         Assert.IsTrue(timing.LaserToStimulusSeconds == 0.5 && !timing.Laser && timing.ResponseDelaySeconds == 0 && timing.ResponseWindowSeconds == 1.5);
         CollectionAssert.AreEqual(new[] { TrialRules.GratingOffCue, TrialRules.SpoutsInCue, TrialRules.DrinkCue }, timing.Cues.Select(c => c.Name).ToList());

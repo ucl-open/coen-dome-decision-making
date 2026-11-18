@@ -31,7 +31,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Initialization</Name>
-        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test), SessionId and LaunchId (the launcher's run id, which the manifest records) are the launch's; the experiment declares no parameter of its own: the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath, its curriculum the only record of the stage; the pieces declare their own parameters and commands.The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskPath at Start and ExperimentIds (SubjectId, SessionId) at Go. TaskFile publishes the stage as TrainingCodeVersion (code-version, like S03A-k7f2, from the task file's curriculum) at Go and reports it as the metric trainingStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardValve-Left.Reward and RewardValve-Right.Reward each give 2.5 ul before and during a run through the valve's calibration (each RewardValve piece's manual drop, a fixed drop).</Description>
+        <Description>The experiment controller (OpenRigs.Control, ExperimentControl) over TCP 5561: SubjectId (the mouse's lab ID, or test), SessionId and LaunchId (the launcher's run id, which the manifest records) are the launch's; the experiment declares no parameter of its own: the task's own settings are the task file's, which rig-control writes at launch and again at Go with the form's edits, and names in TaskPath, its curriculum the only record of the stage; the pieces declare their own parameters and commands.The workflow starts into ready mode (devices connected, spouts homed and at this mouse's positions, live view on, nothing recorded) and reports Ready from Hardware. LaunchSettings (OpenRigs.Control) publishes SubjectId and TaskPath at Start and ExperimentIds (SubjectId, SessionId) at Go. TaskFile publishes the stage as CurriculumStage (code-version, like S03A-k7f2, from the task file's curriculum) at Go and reports it as the metric curriculumStage. SpoutStepSize and the spout commands are DomeHardware's LickSpoutStage's, which takes the step size live and shows its default. RewardValve-Left.Reward and RewardValve-Right.Reward each give 2.5 ul before and during a run through the valve's calibration (each RewardValve piece's manual drop, a fixed drop).</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="ExternalizedMapping">
@@ -131,15 +131,15 @@
               <Name>TrialRules</Name>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>TrainingCodeVersion</Selector>
+              <Selector>CurriculumStage</Selector>
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
-              <Name>TrainingCodeVersion</Name>
+              <Name>CurriculumStage</Name>
               <Description>The stage as code-version (S03A-k7f2) from the task file's curriculum, found well formed by CheckTaskAtGo.</Description>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="orcl:ReportMetric">
-                <orcl:Name>trainingStage</orcl:Name>
+                <orcl:Name>curriculumStage</orcl:Name>
               </Combinator>
             </Expression>
           </Nodes>
@@ -614,7 +614,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Status</Name>
-        <Description>The current trial's facts as metrics, named as WorkflowData_Trials's columns (trialNumber, target, trialType, visualAzimuthDeg, auditoryAzimuthDeg, rewardOfferedUl, laserCondition; the trainingStage, code-version, is TaskFile's); rig-control computes counts, water and performance from the files.</Description>
+        <Description>The current trial's facts as metrics, named as WorkflowData_Trials's columns (trialNumber, target, trialType, visualAzimuthDeg, auditoryAzimuthDeg, rewardOfferedUl, laserCondition; the curriculumStage, code-version, is TaskFile's); rig-control computes counts, water and performance from the files.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">

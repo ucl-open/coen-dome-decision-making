@@ -840,7 +840,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public LaserTiming Laser { get { return laser; } }
 
     /// <summary>The stage as code-version (S03A-k7f2) from the task file's curriculum, which the check has found well formed.</summary>
-    public string TrainingCodeVersion { get { return task.Curriculum.Code + "-" + task.Curriculum.Version; } }
+    public string CurriculumStage { get { return task.Curriculum.Code + "-" + task.Curriculum.Version; } }
 
     /// <summary>The loudest sound the task's conditions can draw (TrialDraw.Loudest), for the stimulus set's peak check.</summary>
     public LoudestSound Loudest { get { return draw.Loudest(); } }
