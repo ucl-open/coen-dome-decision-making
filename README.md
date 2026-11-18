@@ -1,6 +1,6 @@
 # coen-dome-decision-making
 
-The audiovisual dome decision-making tasks (localization and two modality discriminations, go/no-go and left/right), as an open-rigs project on the lab's shared blocks (lib-open-rigs, [Building Blocks](https://github.com/Coen-Lab/lib-open-rigs/blob/main/docs/articles/building-blocks.md)). It was `ucl-open/av-dome`'s `pip/main-switchover` branch, moved here with its history so production av-dome is never touched. A mouse's experiments recorded as av-dome's switch-over branch before the move count as this workflow's: anything that reads a mouse's history (a stage suggestion, for one) reads both. Only the current format is read: production av-dome's TrialSettings logs, task files without `taskType` and folders named by eartag are not (their readers were deleted; migrating every mouse's past sessions is planned in its own session).
+The audiovisual dome decision-making tasks (localization and two modality discriminations, go/no-go and left/right), as an open-rigs project on the lab's shared blocks (lib-open-rigs, [Building Blocks](https://github.com/Coen-Lab/lib-open-rigs/blob/main/docs/articles/building-blocks.md)). It was `ucl-open/av-dome`'s `pip/main-switchover` branch, moved here with its history so production av-dome is never touched. Only this repository's sessions in the current format are read: av-dome's (the switch-over branch's included), older task files and logs are not, and a reader given an older shape fails.
 
 The rig's hardware is in `C:\Coen-Lab-Local\RigConfigs\<MACHINE-NAME>\rig.yml`, the lab rig model `open_rigs.rigs.lab_rig.LabRig` (start from open-rigs' `rigs\rig-template.yml`).
 
@@ -30,7 +30,7 @@ The trial is one state machine on the Harp clock, lib-open-rigs' `TrialLoop` (th
 | `schemas\trial-columns.yml` | What each `WorkflowData_Trials` column means |
 | `src\sounds` | The 100 stimulus waveforms (`filtered_pink_pulse_train_<n>.wav`), the same on every rig, checked against the mixer's rate at Start |
 | `src\ucl_open_coen_dome_decision_making` | The task model (`regenerate-schemas` makes `src\DataSchemas` and its C#; the rig model is lib-open-rigs' `open_rigs.rigs.lab_rig`, its C# OpenRigs.Devices' and its template open-rigs' `rigs\rig-template.yml`), stage suggestion |
-| `analysis` | `analysis.ipynb` and `modules\loading_functions.py`: this workflow's sessions from `ROOT` (default jacuzzi's `J:\data\RDSS\Live-Data`, or `DOME_DECISION_ROOT`), av-dome switch-over sessions included (by repository name and a task file with `taskType`), new-draw accuracy per session (Correct over Correct plus Incorrect on new draws; not lib-open-rigs' performance), water, probe reward and penalty rates, and each session's trial weights at its stage |
+| `analysis` | `analysis.ipynb` and `modules\loading_functions.py`: this workflow's sessions from `ROOT` (default jacuzzi's `J:\data\RDSS\Live-Data`, or `DOME_DECISION_ROOT`) (by repository name), new-draw accuracy per session (Correct over Correct plus Incorrect on new draws; not lib-open-rigs' performance), water, probe reward and penalty rates, and each session's trial weights at its stage |
 | `local_packages` | The lab's OpenRigs packages from `Coen-Lab/lib-open-rigs`; never edited here |
 
 ## Shared Blocks

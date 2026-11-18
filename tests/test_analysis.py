@@ -12,79 +12,66 @@ ANALYSIS = Path(__file__).parents[1] / "analysis"
 sys.path.insert(0, str(ANALYSIS))
 from modules import loading_functions as lf  # noqa: E402
 
-WEIGHTS = {"visual": 1, "auditory": 1, "audiovisualCoherent": 1, "audiovisualConflict": 0, "neutral": 0}
+CONDITIONS = [{"trialType": "visual", "weight": 3, "pairs": [], "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}},
+              {"trialType": "visual", "weight": 1, "pairs": [], "set": {"reward.rewardSizeUl": 2.5}},
+              {"trialType": "auditory", "weight": 0, "pairs": [], "set": {}}]
 
 
-def session(root: Path, name: str, repo: str, task_type: str | None = "localization", stage: int = 1) -> Path:
+def session(root: Path, name: str, repo: str, task: dict | None = None) -> Path:
     s = root / "sub-GN1" / name
     (s / "Settings").mkdir(parents=True)
     (s / "manifest.json").write_text(json.dumps({"source": {"repo": repo}}), encoding="utf-8")
-    task = {"trialWeights": WEIGHTS, "trainingStages": [{"trialWeights": {"visual": 9}}, {"trialWeights": None}]}
-    if task_type:
-        task["taskType"] = task_type
+    task = task or {"taskType": "localization", "trialConditions": CONDITIONS}
     (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(json.dumps({"taskParameters": task}), encoding="utf-8")
-    (s / "Settings" / "Settings_Experiment_2026-11-16T10-00-00.json").write_text(json.dumps({"parameters": {"TrainingStage": str(stage)}}), encoding="utf-8")
     return s
 
 
-def test_switch_over_sessions_count_and_production_av_dome_and_lookalikes_do_not(tmp_path):
-    # The README counts av-dome's switch-over branch; a substring match missed it and matched a lookalike repo.
+def test_this_repo_s_sessions_count_and_av_dome_s_and_lookalikes_do_not(tmp_path):
+    # A substring match matched a lookalike repo.
     ours = session(tmp_path, "ses-001_a", "https://github.com/Coen-Lab/coen-dome-decision-making.git")
-    switch = session(tmp_path, "ses-002_b", "https://github.com/ucl-open/av-dome")
-    session(tmp_path, "ses-003_c", "https://github.com/ucl-open/av-dome", task_type=None)   # production av-dome
+    session(tmp_path, "ses-002_b", "https://github.com/ucl-open/av-dome")
     session(tmp_path, "ses-004_d", "https://github.com/x/coen-dome-decision-making-2p")
-    assert lf.find_sessions(tmp_path) == [ours, switch]
+    assert lf.find_sessions(tmp_path) == [ours]
 
 
-def test_trial_weights_read_the_session_s_stage(tmp_path):
-    # The stage is the session's own TrainingStage (Settings_Experiment), its own weights replacing the task's.
-    assert lf.trial_weights(session(tmp_path, "ses-001_a", "av-dome", stage=0)) == {"visual": 9}
-    assert lf.trial_weights(session(tmp_path, "ses-002_b", "av-dome", stage=1)) == WEIGHTS
-    # From the Mouse Curriculum on, the task file holds the stage's values at the top level.
-    flat = session(tmp_path, "ses-003_c", "coen-dome-decision-making", stage=3)
-    task_file = flat / "Settings" / "Settings_Task_2026-11-16T10-00-00.json"
-    task_file.write_text(json.dumps({"taskParameters": {"trialWeights": WEIGHTS, "curriculum": {"id": 3}}}), encoding="utf-8")
-    assert lf.trial_weights(flat) == WEIGHTS
-
-
-def test_curriculum_stage_reads_curriculum_and_the_older_training_pipeline(tmp_path):
+def test_curriculum_stage_reads_curriculum(tmp_path):
     stage = {"id": 3, "code": "S03A", "version": "k7f2", "path": "A", "label": "Conflict Added", "sha256": "abc"}
-    for i, key in enumerate(("curriculum", "trainingPipeline")):
-        s = session(tmp_path, f"ses-10{i}_x", "coen-dome-decision-making")
-        (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(
-            json.dumps({"taskParameters": {"trialWeights": WEIGHTS, key: stage}}), encoding="utf-8")
-        assert lf.curriculum_stage(s) == stage
-    old = session(tmp_path, "ses-102_x", "coen-dome-decision-making")
-    assert lf.curriculum_stage(old) is None
+    s = session(tmp_path, "ses-100_x", "coen-dome-decision-making", {"trialConditions": CONDITIONS, "curriculum": stage})
+    assert lf.curriculum_stage(s) == stage
+    assert lf.curriculum_stage(session(tmp_path, "ses-101_x", "coen-dome-decision-making")) is None
+
+
+def test_an_old_task_file_fails_loudly(tmp_path):
+    # Clean break: a task file without taskParameters.trialConditions (trialWeights, trainingStages) is refused, never read.
+    s = session(tmp_path, "ses-001_a", "coen-dome-decision-making", {"trialWeights": {"visual": 1}})
+    with pytest.raises(KeyError):
+        lf.trial_weights(s)
 
 
 def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
-    # From trial conditions on, Settings_Task has trialConditions, no trialWeights; set values are YAML text
-    # (TrialDrawTests.TheConditionsSetRoundTrips), read back typed.
-    s = session(tmp_path, "ses-001_a", "coen-dome-decision-making", stage=4)
-    conditions = [{"type": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}},
-                  {"type": "visual", "weight": 1, "set": {"reward.rewardSizeUl": 2.5}}, {"type": "auditory", "weight": 0, "set": {}}]
-    (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(
-        json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions, "curriculum": {"id": 4}}}), encoding="utf-8")
+    # Settings_Task's set values are YAML text (TrialDrawTests.TheConditionsSetRoundTrips), read back typed.
+    s = session(tmp_path, "ses-001_a", "coen-dome-decision-making")
     read = lf.trial_conditions(s)
     assert read[0]["set"] == {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]} and read[1]["set"] == {"reward.rewardSizeUl": 2.5}
     assert lf.trial_weights(s) == {"visual": 4, "auditory": 0}
-    assert lf.trial_conditions(session(tmp_path, "ses-002_b", "av-dome")) is None
+    empty = tmp_path / "sub-GN1" / "ses-002_b"
+    (empty / "Settings").mkdir(parents=True)
+    assert lf.trial_conditions(empty) is None and lf.trial_weights(empty) is None
 
 
 def test_conditions_edges_signed_azimuths_no_set_empty_list_and_zero_weights(tmp_path):
-    s = session(tmp_path, "ses-001_a", "coen-dome-decision-making", stage=4)
+    s = session(tmp_path, "ses-001_a", "coen-dome-decision-making")
     task_file = s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json"
 
     def write(conditions):
         task_file.write_text(json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions}}), encoding="utf-8")
 
-    write([{"type": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": [-75, 60]}}, {"type": "visual", "weight": 0}, {"type": "auditory", "weight": 2, "set": None}])
+    write([{"trialType": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": [-75, 60]}}, {"trialType": "visual", "weight": 0}, {"trialType": "auditory", "weight": 2, "set": None}])
     read = lf.trial_conditions(s)
     assert read[0]["set"] == {"visualStimulus.initialAzimuthsDeg": [-75, 60]} and read[1]["set"] == {} and read[2]["set"] == {}
     assert [c["trialType"] for c in read] == ["visual", "visual", "auditory"]   # the list's order is the trialCondition index
     assert lf.trial_weights(s) == {"visual": 1, "auditory": 2}
-    write([{"trialType": "go", "weight": 2, "pairs": [], "set": {"target": "go"}}, {"trialType": "noGo", "weight": 1}])   # the trial-type split's shape
+    write([{"trialType": "go", "weight": 2, "pairs": [], "set": {"target": "go"}}, {"trialType": "noGo", "weight": 1}])
     assert [(c["trialType"], c["set"]) for c in lf.trial_conditions(s)] == [("go", {"target": "go"}), ("noGo", {})]
     assert lf.trial_weights(s) == {"go": 2, "noGo": 1}
     write([])

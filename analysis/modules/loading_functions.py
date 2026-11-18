@@ -9,9 +9,7 @@ from pathlib import Path
 import pandas as pd
 from open_rigs import trial_log
 
-# The repositories whose sessions count, by name alone: this workflow and av-dome's switch-over branch,
-# which wrote this workflow's files before the move (README); production av-dome's are told apart by their task file.
-OURS = ("coen-dome-decision-making", "av-dome")
+REPO = "coen-dome-decision-making"   # the repository whose sessions count, by name alone (any owner, fork or branch)
 SCORED = ("Correct", "Incorrect")   # outcome Probe has no right answer and NoResponse is no choice: neither is counted
 
 
@@ -29,13 +27,9 @@ def _settings(session, kind):
 
 
 def is_this_workflow(session):
-    """True for this workflow's sessions (Live-Data holds every workflow's): the manifest's source.repo named in
-    OURS (any owner, fork or branch), and a Settings_Task with taskType, so production av-dome's are left out."""
+    """True for this workflow's sessions (Live-Data holds every workflow's): the manifest's source.repo is REPO."""
     repo = ((_manifest(session).get("source") or {}).get("repo") or "").rstrip("/").rsplit("/", 1)[-1].lower().removesuffix(".git")
-    if repo not in OURS:
-        return False
-    task = _settings(session, "Task")
-    return "taskType" in task.get("taskParameters", task)
+    return repo == REPO
 
 
 def find_sessions(root, subjects=None):
@@ -109,45 +103,35 @@ def session_summary(df):
     return pd.DataFrame(rows)
 
 
-def curriculum_stage(session):
-    """The Mouse Curriculum stage a session ran ({id, code, version, path, label, sha256}) from its Settings_Task_*.json:
-    the `curriculum` block, or `trainingPipeline` in a session recorded before the rename (18 Nov 2026). None when the
-    task file has neither (older sessions) or there is no task file."""
+def _task(session):
+    """The session's Settings_Task_*.json taskParameters, or None when it has no task file."""
     task = _settings(session, "Task")
-    if not task:
-        return None
-    task = task.get("taskParameters", task)
-    return task.get("curriculum") or task.get("trainingPipeline")
+    return task["taskParameters"] if task else None
+
+
+def curriculum_stage(session):
+    """The Mouse Curriculum stage a session ran ({id, code, version, path, label, sha256}), its Settings_Task_*.json's
+    `curriculum`: None when the task file has none or there is no task file."""
+    task = _task(session)
+    return task.get("curriculum") if task else None
 
 
 def trial_conditions(session):
     """The trialConditions a session ran with, from its Settings_Task_*.json: the list the trialCondition column
-    indexes, each {trialType, weight, pairs, set} (a missing set as {}; from 17 to 18 Nov 2026 {type, weight, set}, its type
-    given as the trialType too). None for a session from before trial conditions (17 Nov 2026) or without a task file."""
-    task = _settings(session, "Task")
-    conditions = task.get("taskParameters", task).get("trialConditions")
-    if conditions is None:
+    indexes, each {trialType, weight, pairs, set} (a missing set as {}). None without a task file."""
+    task = _task(session)
+    if task is None:
         return None
-    return [{"trialType": c.get("trialType", c.get("type")), **c, "set": c.get("set") or {}} for c in conditions]
+    return [{**c, "set": c.get("set") or {}} for c in task["trialConditions"]]
 
 
 def trial_weights(session):
-    """The weight of each trial type a session ran with: from trial conditions on (17 Nov 2026), its conditions' weights
-    added by trialType (the trialType column); before, its trialWeights from its Settings_Task_*.json at its TrainingStage (Settings_Experiment_*.json's
-    parameters), the stage's own when it has them, else the top-level one. None without a task file. A task file from the
-    Mouse Curriculum on (no trainingStages) holds the stage's values at the top level."""
-    task = _settings(session, "Task")
-    if not task:
-        return None
+    """The weight of each trial type a session ran with, its conditions' weights added by trialType (the trialType
+    column). None without a task file."""
     conditions = trial_conditions(session)
-    if conditions is not None:
-        weights = {}
-        for c in conditions:
-            weights[c["trialType"]] = weights.get(c["trialType"], 0) + c["weight"]
-        return weights
-    task = task.get("taskParameters", task)
-    if "trainingStages" not in task:
-        return task.get("trialWeights")
-    stage = int(float(_settings(session, "Experiment")["parameters"]["TrainingStage"]))
-    own = (task.get("trainingStages") or [])[stage].get("trialWeights")
-    return own or task.get("trialWeights")
+    if conditions is None:
+        return None
+    weights = {}
+    for c in conditions:
+        weights[c["trialType"]] = weights.get(c["trialType"], 0) + c["weight"]
+    return weights

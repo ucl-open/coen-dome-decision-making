@@ -178,50 +178,6 @@ static class Fixture
         catch (InvalidOperationException e) { return e.Message; }
         return "accepted";
     }
-
-    // Each old trial type's draw (TrialDraw.New before the trial-type split, 18 Nov 2026) on the test speakers (left -90,
-    // right 90, centre 0), by task file: grating on, its azimuth, the speaker's azimuth (NaN silent), the target, both
-    // spouts (Signature). The converted files draw exactly these per trialType, and every one of them.
-    public static readonly Dictionary<string, Dictionary<string, string[]>> OldDraws = new Dictionary<string, Dictionary<string, string[]>>
-    {
-        { "task-localization.yml", new Dictionary<string, string[]> {
-            { "visual", new[] { "on -60 0 Left", "on 60 0 Right" } },
-            { "auditory", new[] { "off NaN -90 Left", "off NaN 90 Right" } },
-            { "audiovisualCoherent", new[] { "on -60 -90 Left", "on 60 90 Right" } },
-            { "audiovisualConflict", new[] { "on -60 90 Random both", "on 60 -90 Random both" } },
-            { "neutral", new[] { "off NaN 0 Random both" } } } },
-        { "task-discrimination-go-no-go.yml", new Dictionary<string, string[]> {
-            { "go", new[] { "on -60 NaN Go", "on 60 NaN Go" } },
-            { "noGo", new[] { "off NaN -90 NoGo", "off NaN 90 NoGo" } },
-            { "audiovisualCoherent", new[] { "on -60 -90 NoReward", "on 60 90 NoReward" } },
-            { "audiovisualConflict", new[] { "on -60 90 NoReward", "on 60 -90 NoReward" } },
-            { "neutral", new[] { "off NaN NaN NoReward" } } } },
-        { "task-discrimination-left-right.yml", new Dictionary<string, string[]> {
-            { "left", new[] { "on -60 NaN Left", "on 60 NaN Left" } },
-            { "right", new[] { "off NaN -90 Right", "off NaN 90 Right" } },
-            { "audiovisualCoherent", new[] { "on -60 -90 Random both", "on 60 90 Random both" } },
-            { "audiovisualConflict", new[] { "on -60 90 Random both", "on 60 -90 Random both" } },
-            { "neutral", new[] { "off NaN NaN Random both" } } } },
-    };
-
-    /// <summary>A drawn trial as OldDraws writes it.</summary>
-    public static string Signature(Trial t)
-    {
-        return Signature(t.visualContrast, t.visualAzimuthDeg, t.auditoryAzimuthDeg, t.target, t.bothSpoutsOffered);
-    }
-
-    /// <summary>A logged row as OldDraws writes it.</summary>
-    public static string Signature(TrialRow r)
-    {
-        return Signature(r.visualContrast, r.visualAzimuthDeg, r.auditoryAzimuthDeg, r.target, r.bothSpoutsOffered);
-    }
-
-    static string Signature(double contrast, double visualAzimuth, double auditoryAzimuth, string target, bool both)
-    {
-        var inv = System.Globalization.CultureInfo.InvariantCulture;
-        return string.Format(inv, "{0} {1} {2} {3}{4}", contrast > 0 ? "on" : "off", visualAzimuth,
-            double.IsNaN(auditoryAzimuth) ? "NaN" : auditoryAzimuth.ToString(inv), target, target == Target.Random ? (both ? " both" : " one") : "");
-    }
 }
 
 [TestClass]
@@ -244,19 +200,6 @@ public class TrialDrawTests
                 Assert.AreEqual(2, t.speakerChannel, "the centre speaker");
         }
         CollectionAssert.AreEquivalent(new[] { "visual", "auditory", "audiovisualCoherent", "audiovisualConflict", "neutral" }, trials.Select(t => t.trialType).Distinct().ToArray());
-    }
-
-    [TestMethod]
-    public void TheConvertedFilesDrawWhatEachOldTrialTypeDrew()
-    {
-        foreach (var file in Fixture.OldDraws)
-        {
-            var task = Fixture.Task(file.Key, 4);
-            task.BothSpoutsProbability = file.Key.Contains("go-no-go") ? 0 : 0.5;   // both spouts only where the target forces them
-            var drawn = Fixture.Draw(task, 3000).GroupBy(t => t.trialType).ToDictionary(g => g.Key, g => g.Select(Fixture.Signature).Distinct().OrderBy(s => s).ToArray());
-            CollectionAssert.AreEquivalent(file.Value.Keys.ToList(), drawn.Keys.ToList(), file.Key);
-            foreach (var type in file.Value) CollectionAssert.AreEqual(type.Value.OrderBy(s => s).ToArray(), drawn[type.Key], file.Key + " " + type.Key);
-        }
     }
 
     [TestMethod]

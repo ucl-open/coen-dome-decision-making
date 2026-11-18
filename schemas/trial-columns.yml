@@ -3,7 +3,7 @@
 # own trial log; open_rigs.trial_log reads it from there.
 #
 # Each column: type (int, double, bool or string), and where they apply values (the strings it may hold),
-# unit, description (what it is), note (this task's detail) and history (what recorded data meant before a change);
+# unit, description (what it is), and note (this task's detail);
 # copyOf, a task path (dotted) the column copies from the trial's Settings_Combinations row (else Settings_Task), and
 # nanWhen {column, equals}, the rows where it is NaN instead, which open_rigs.trial_log checks on every load. The
 # names and types must also be in the Data Dictionary
@@ -29,7 +29,6 @@ trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral, go, noGo, left, right]
   description: The label of the trial's condition (trialCondition) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryAmplitude, the azimuths, target). By default it is derived from the condition's settings - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none) - but a curriculum may choose another.
-  history: In earlier experiments a code, 0 Visual (discrimination - target), 1 Audio (distractor), 2 AVCoherent, 3 AVConflict, 4 Neutral; those experiments' manifests carry that meaning. Before the trial-type split (Nov 2026) the condition's type drove the draw, and a discrimination's one-modality trial was logged visual or auditory (its goModality or leftModality in the manifest), not go, noGo, left or right.
 outcome:
   type: string
   values: [Correct, Incorrect, NoResponse, Probe]
@@ -98,7 +97,6 @@ trialCondition:
 trialCombinationId:
   type: int
   description: The trial's row in the experiment's Settings_Combinations (0-based, session-wide) - the combination it was drawn from, every list pick (each list cell of the condition's set and each list field, contrasts and the initial azimuths, one entry; pairs zipped), whose values that differ between combinations or from Settings_Task are the row's values. The row's trialCondition and trialType are this trial's. A repeat keeps the combination of the trial it repeats.
-  history: Added 18 Nov 2026 with Settings_Combinations, replacing trialCombination (briefly logged that day, the index within the condition); before it, a condition's list picks were rebuilt from their own columns.
 target:
   type: string
   values: [Left, Right, Go, NoGo, NoReward, Random]
@@ -145,7 +143,6 @@ auditoryElevationDeg:
 auditoryAmplitude:
   type: double
   description: The sound's amplitude, the task's auditoryStimulus.amplitude for the trial's condition - the scale of the waveform's samples as stored (1 the WAV as stored, -47.2 dBFS RMS before equalisation); 0 when no sound played, above 0 exactly when one did.
-  history: Added in the trial-type split (Nov 2026); before it every sound played at auditoryStimulus.levelDbfs -47.2, the same loudness as amplitude 1.
   copyOf: auditoryStimulus.amplitude
 auditorySoundFileIndex:
   type: int

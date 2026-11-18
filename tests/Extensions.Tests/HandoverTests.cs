@@ -11,7 +11,7 @@ using Event = OpenRigs.Trials.TrialEvent<global::Trial, global::DecisionUpdate, 
 
 /// <summary>The task files app-rig-control writes at launch (tests\fixtures\handover, golden files its tests\test_handover.py
 /// writes for every stage of the share's curricula; HANDOVER_DIR names another folder, as its scripts\mutation_check.py
-/// does), each read as the workflow reads it and drawn by this repo's C#: the draw, the old trial types' meaning, and the
+/// does), each read as the workflow reads it and drawn by this repo's C#: the draw and the
 /// trials run by lib-open-rigs' TrialLoop with a pretend mouse licking at random, each logged row checked.</summary>
 [TestClass]
 public class HandoverTests
@@ -55,12 +55,6 @@ public class HandoverTests
         UclOpenCoenDomeDecisionMakingTaskParameters task;
         try { return TrialDraw.CheckTask(text, Fixture.Speakers(), out task); }
         catch (InvalidOperationException e) { Assert.Fail(name + ": " + e.Message); return null; }
-    }
-
-    // The old task file a golden file was written from: task-localization-S02A.yml -> task-localization.yml.
-    static string OldFile(string name)
-    {
-        return name.Substring(0, name.LastIndexOf('-')) + ".yml";
     }
 
     [TestMethod]
@@ -156,24 +150,6 @@ public class HandoverTests
             : c.Target == UclOpenCoenDomeDecisionMakingTask.Target.AuditorySide ? (soundAzimuth > 0 ? Choice.Right : Choice.Left)
             : char.ToUpperInvariant(named[0]) + named.Substring(1);
         Assert.AreEqual(expected, target, where);
-    }
-
-    [TestMethod]
-    public void EachTrialTypeDrawsWhatItsOldTypeDrew()
-    {
-        // Item 2: convert-on-read keeps an old type's name as the trialType, so each trialType's draws are among what that
-        // old type drew (Fixture.OldDraws, on the same speakers).
-        foreach (var golden in Goldens())
-        {
-            var old = Fixture.OldDraws[OldFile(golden.Key)];
-            var draw = new TrialDraw(golden.Value, Fixture.Speakers(), path => 2);
-            for (int n = 0; n < 1000; n++)
-            {
-                var t = draw.Next("Correct");
-                Assert.IsTrue(old.ContainsKey(t.trialType), golden.Key + ": no old type " + t.trialType);
-                CollectionAssert.Contains(old[t.trialType], Fixture.Signature(t), golden.Key + " " + t.trialType);
-            }
-        }
     }
 
     [TestMethod]
