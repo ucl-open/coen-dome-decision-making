@@ -682,7 +682,10 @@
               "repeats.maxRepeats": {
                 "const": 0
               }
-            }
+            },
+            "required": [
+              "repeats.maxRepeats"
+            ]
           },
           "message": "repeats.maxRepeats 0 needs repeats.repeatOn never",
           "then": {
@@ -699,7 +702,10 @@
               "target": {
                 "const": "random"
               }
-            }
+            },
+            "required": [
+              "target"
+            ]
           },
           "message": "target random needs bothSpoutsProbability 1 and repeats.repeatOn never",
           "then": {
@@ -719,7 +725,10 @@
               "target": {
                 "const": "noReward"
               }
-            }
+            },
+            "required": [
+              "target"
+            ]
           },
           "message": "target noReward needs repeats.repeatOn never",
           "then": {
@@ -736,7 +745,10 @@
               "taskType": {
                 "const": "localization"
               }
-            }
+            },
+            "required": [
+              "taskType"
+            ]
           },
           "message": "taskType localization needs target one of visualSide, auditorySide, random",
           "then": {
@@ -757,7 +769,10 @@
               "taskType": {
                 "const": "discriminationGoNoGo"
               }
-            }
+            },
+            "required": [
+              "taskType"
+            ]
           },
           "message": "taskType discriminationGoNoGo needs target one of go, noGo, noReward",
           "then": {
@@ -778,7 +793,10 @@
               "taskType": {
                 "const": "discriminationLeftRight"
               }
-            }
+            },
+            "required": [
+              "taskType"
+            ]
           },
           "message": "taskType discriminationLeftRight needs target one of left, right, random",
           "then": {
@@ -806,7 +824,11 @@
                   "const": "visualSide"
                 }
               }
-            }
+            },
+            "required": [
+              "contrasts",
+              "target"
+            ]
           },
           "message": "contrasts 0 shows no grating, so its azimuths are unread unless target visualSide",
           "unused": [
@@ -824,7 +846,11 @@
                   "const": "auditorySide"
                 }
               }
-            }
+            },
+            "required": [
+              "auditoryStimulus.amplitude",
+              "target"
+            ]
           },
           "message": "auditoryStimulus.amplitude 0 plays no sound, so its azimuths are unread unless target auditorySide",
           "unused": [
@@ -837,7 +863,10 @@
               "target": {
                 "const": "auditorySide"
               }
-            }
+            },
+            "required": [
+              "target"
+            ]
           },
           "message": "target auditorySide needs auditory azimuths without 0 or all",
           "then": {
@@ -865,7 +894,10 @@
                   "const": "go"
                 }
               }
-            }
+            },
+            "required": [
+              "target"
+            ]
           },
           "trialType": "go"
         },
@@ -877,7 +909,10 @@
                   "const": "noGo"
                 }
               }
-            }
+            },
+            "required": [
+              "target"
+            ]
           },
           "trialType": "noGo"
         },
@@ -889,7 +924,10 @@
                   "const": "left"
                 }
               }
-            }
+            },
+            "required": [
+              "target"
+            ]
           },
           "trialType": "left"
         },
@@ -901,7 +939,10 @@
                   "const": "right"
                 }
               }
-            }
+            },
+            "required": [
+              "target"
+            ]
           },
           "trialType": "right"
         },
@@ -928,7 +969,12 @@
                   }
                 }
               }
-            }
+            },
+            "required": [
+              "contrasts",
+              "auditoryStimulus.amplitude",
+              "auditoryStimulus.initialAzimuthsDeg"
+            ]
           },
           "mirrored": [
             "visualStimulus.initialAzimuthsDeg",
@@ -959,7 +1005,12 @@
                   }
                 }
               }
-            }
+            },
+            "required": [
+              "contrasts",
+              "auditoryStimulus.amplitude",
+              "auditoryStimulus.initialAzimuthsDeg"
+            ]
           },
           "trialType": "audiovisualCoherent"
         },
@@ -971,7 +1022,10 @@
                   "exclusiveMinimum": 0
                 }
               }
-            }
+            },
+            "required": [
+              "contrasts"
+            ]
           },
           "trialType": "visual"
         },
@@ -993,7 +1047,11 @@
                   }
                 }
               }
-            }
+            },
+            "required": [
+              "auditoryStimulus.amplitude",
+              "auditoryStimulus.initialAzimuthsDeg"
+            ]
           },
           "trialType": "auditory"
         },

@@ -212,22 +212,27 @@ def _props(schemas: dict) -> dict:
     return {"properties": schemas}
 
 
+def _if(schemas: dict) -> dict:
+    """An if over these paths, required: JSON Schema passes a missing path's properties vacuously."""
+    return {"properties": schemas, "required": list(schemas)}
+
+
 SIDELESS = [0, ALL_SPEAKERS]  # sound azimuths with no side
 RULES = (
-    {"if": _props({"repeats.maxRepeats": {"const": 0}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
+    {"if": _if({"repeats.maxRepeats": {"const": 0}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
      "message": "repeats.maxRepeats 0 needs repeats.repeatOn never"},
-    {"if": _props({"target": {"const": "random"}}), "then": _props({"bothSpoutsProbability": {"const": 1}, "repeats.repeatOn": {"const": "never"}}),
+    {"if": _if({"target": {"const": "random"}}), "then": _props({"bothSpoutsProbability": {"const": 1}, "repeats.repeatOn": {"const": "never"}}),
      "message": "target random needs bothSpoutsProbability 1 and repeats.repeatOn never"},
-    {"if": _props({"target": {"const": "noReward"}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
+    {"if": _if({"target": {"const": "noReward"}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
      "message": "target noReward needs repeats.repeatOn never"},
-    *({"if": _props({"taskType": {"const": task_type.value}}), "then": _props({"target": {"enum": list(targets)}}),
+    *({"if": _if({"taskType": {"const": task_type.value}}), "then": _props({"target": {"enum": list(targets)}}),
        "message": f"taskType {task_type.value} needs target one of {', '.join(targets)}"} for task_type, targets in TARGETS.items()),
-    {"if": _props({"contrasts": {"items": {"const": 0}}, "target": {"not": {"const": "visualSide"}}}), "unused": ["visualStimulus.initialAzimuthsDeg"],
+    {"if": _if({"contrasts": {"items": {"const": 0}}, "target": {"not": {"const": "visualSide"}}}), "unused": ["visualStimulus.initialAzimuthsDeg"],
      "message": "contrasts 0 shows no grating, so its azimuths are unread unless target visualSide"},
-    {"if": _props({"auditoryStimulus.amplitude": {"const": 0}, "target": {"not": {"const": "auditorySide"}}}), "unused": ["auditoryStimulus.initialAzimuthsDeg"],
+    {"if": _if({"auditoryStimulus.amplitude": {"const": 0}, "target": {"not": {"const": "auditorySide"}}}), "unused": ["auditoryStimulus.initialAzimuthsDeg"],
      "message": "auditoryStimulus.amplitude 0 plays no sound, so its azimuths are unread unless target auditorySide"},
     # The picked sound azimuth's sign is the side: 0 and "all" have none.
-    {"if": _props({"target": {"const": "auditorySide"}}), "then": _props({"auditoryStimulus.initialAzimuthsDeg": {"items": {"not": {"enum": SIDELESS}}}}),
+    {"if": _if({"target": {"const": "auditorySide"}}), "then": _props({"auditoryStimulus.initialAzimuthsDeg": {"items": {"not": {"enum": SIDELESS}}}}),
      "message": "target auditorySide needs auditory azimuths without 0 or all"},
 )
 # How a condition is named (the schema's x-trial-types; derive_trial_type): first match wins, on the condition's values
@@ -237,12 +242,12 @@ RULES = (
 _ABOVE_0 = {"contains": {"exclusiveMinimum": 0}}
 _CUE = {"auditoryStimulus.amplitude": _ABOVE_0, "auditoryStimulus.initialAzimuthsDeg": {"contains": {"not": {"enum": SIDELESS}}}}
 TRIAL_TYPES = (
-    *({"trialType": role, "if": _props({"target": {"items": {"const": role}}})} for role in ("go", "noGo", "left", "right")),
-    {"trialType": "audiovisualConflict", "if": _props({"contrasts": _ABOVE_0, **_CUE}),
+    *({"trialType": role, "if": _if({"target": {"items": {"const": role}}})} for role in ("go", "noGo", "left", "right")),
+    {"trialType": "audiovisualConflict", "if": _if({"contrasts": _ABOVE_0, **_CUE}),
      "mirrored": ["visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"]},
-    {"trialType": "audiovisualCoherent", "if": _props({"contrasts": _ABOVE_0, **_CUE})},
-    {"trialType": "visual", "if": _props({"contrasts": _ABOVE_0})},
-    {"trialType": "auditory", "if": _props(_CUE)},
+    {"trialType": "audiovisualCoherent", "if": _if({"contrasts": _ABOVE_0, **_CUE})},
+    {"trialType": "visual", "if": _if({"contrasts": _ABOVE_0})},
+    {"trialType": "auditory", "if": _if(_CUE)},
     {"trialType": "neutral"},
 )
 # The most combinations one condition may expand into (TrialDraw.MaxCombinations).

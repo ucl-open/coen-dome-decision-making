@@ -593,7 +593,8 @@ def test_weights_may_add_to_the_draw_s_int_and_no_more():
 
 def test_side_target_keeps_its_azimuth_read():
     # visualSide and auditorySide set the reward side from the picked azimuth, shown or not (TrialDraw.New).
-    unshown = {"contrasts": [0], "auditoryStimulus": {"amplitude": 0}}
+    base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
+    unshown = {**base, "contrasts": [0], "auditoryStimulus": {**base["auditoryStimulus"], "amplitude": 0}}
     assert unused_paths(RULES, {**unshown, "target": "left"}) == {"visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"}
     assert unused_paths(RULES, {**unshown, "target": "visualSide"}) == {"auditoryStimulus.initialAzimuthsDeg"}
     assert unused_paths(RULES, {**unshown, "target": "auditorySide"}) == {"visualStimulus.initialAzimuthsDeg"}
