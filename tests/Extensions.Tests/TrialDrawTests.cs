@@ -8,6 +8,7 @@ using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Trials;
 using UclOpenCoenDomeDecisionMakingTask;
+using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 
 static class Fixture
@@ -633,6 +634,33 @@ public class TrialDrawTests
         task = Fixture.Task("task-localization.yml", 4);
         task.AutoRewardProbability = 1.5;
         StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, 4, Fixture.Speakers())), "autoRewardProbability is 1.5, not from 0 to 1");
+    }
+
+    [TestMethod]
+    public void AConditionTheTypedReadWouldMisreadIsRefused()
+    {
+        // A hand-edited file run from the editor: the typed read fills a missing weight with 0, merges a << key and ignores a
+        // set that is not a map, where the draw reads the node tree; each is refused at Go, naming the condition.
+        Func<YamlSequenceNode, YamlMappingNode> first = s => (YamlMappingNode)s.Children[0];
+        var cases = new Dictionary<string, Action<YamlSequenceNode>>
+        {
+            { "trialConditions[0] (visual): it has no weight", s => first(s).Children.Remove(new YamlScalarNode("weight")) },
+            { "trialConditions[0] (visual): its set is not a map", s => first(s).Children[new YamlScalarNode("set")] = new YamlScalarNode("5") },
+            // Condition [1] merges condition [0] (an alias, saved as *anchor): the typed read sees [0]'s set, the node tree does not.
+            { "trialConditions[1] (visual): a YAML merge key (<<)", s => ((YamlMappingNode)s.Children[1]).Children[new YamlScalarNode("<<")] = first(s) },
+            { "trialConditions[0] (visual): its weight is above 1000000", s => first(s).Children[new YamlScalarNode("weight")] = new YamlScalarNode("1000001") },
+        };
+        foreach (var c in cases)
+        {
+            var stream = new YamlStream();
+            stream.Load(new StringReader(Fixture.Text(Fixture.Task("task-localization.yml", 4))));
+            var parameters = ((YamlMappingNode)stream.Documents[0].RootNode).Children.Values.OfType<YamlMappingNode>().First(m => m.Children.ContainsKey(new YamlScalarNode("trialConditions")));
+            c.Value((YamlSequenceNode)parameters.Children[new YamlScalarNode("trialConditions")]);
+            var writer = new StringWriter();
+            stream.Save(writer, true);   // true: a node met twice is saved once with an anchor, then as its alias
+            UclOpenCoenDomeDecisionMakingTaskParameters read;
+            StringAssert.Contains(Fixture.Refusal(() => TrialDraw.CheckTask(writer.ToString(), 4, Fixture.Speakers(), out read)), c.Key);
+        }
     }
 }
 

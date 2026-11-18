@@ -169,7 +169,7 @@ class TrialCondition(TaskBlock):
     model_config = ConfigDict(extra="forbid")
 
     type: String = Field(description="The trial type: one of the task type's keys (localization visual, auditory, audiovisualCoherent, audiovisualConflict, neutral; the discriminations by role, go/noGo or left/right, and the last three)")
-    weight: int = Field(ge=0, description="Relative draw weight: each new trial picks a condition with these as relative chances")
+    weight: int = Field(ge=0, le=1_000_000, description="Relative draw weight: each new trial picks a condition with these as relative chances")
     set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path (x-conditionFields' paths that apply to the type); the rest are the task's")
 
 
@@ -337,9 +337,9 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         return self
 
     @model_validator(mode="after")
-    def _keys_of_the_task_type(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+    def _keys_of_the_task_type(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.CheckTask's same rules: rulesPerType names exactly its task type's keys; each condition is of one of
-        # them, a go/no-go task has Go trials.
+        # them, a go/no-go task has Go trials (the whole task's, not one condition's copy in _conditions_run).
         rules = RULE_KEYS[self.task_type]
         given = set(self.repeats.rules_per_type.model_dump(by_alias=True, exclude_none=True))
         if given != set(rules):
@@ -350,7 +350,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
                 raise ValueError(f"trial_conditions[{i}]'s type {condition.type} is not one of {', '.join(keys)} in {self.task_type.value}")
         if not sum(condition.weight for condition in self.trial_conditions) > 0:
             raise ValueError("trial_conditions needs a condition with a weight above 0")
-        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO and not any(c.type == "go" and c.weight > 0 for c in self.trial_conditions):
+        if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO and not (info.context or {}).get("condition") and not any(c.type == "go" and c.weight > 0 for c in self.trial_conditions):
             raise ValueError("trial_conditions has no go condition with a weight above 0, so the task has no Go trials")
         return self
 

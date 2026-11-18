@@ -137,6 +137,8 @@ public class TrialDraw
     };
     /// <summary>The most combinations of list-valued scalar cells one condition may expand into (task.py MAX_COMBINATIONS).</summary>
     public const int MaxCombinations = 64;
+    /// <summary>The most a condition's weight may be (task.py's TrialCondition.weight le), so the weights' sum stays an int.</summary>
+    public const int MaxWeight = 1000000;
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly List<TrialConditionDraw> conditions;
@@ -242,12 +244,21 @@ public class TrialDraw
             var before = problems.Count;
             if (!keys.Contains(c.Type)) problems.Add(string.Format("{0}: its type is not one of {1} in {2}", where, string.Join(", ", keys), TaskTypeName(task.TaskType)));
             if (c.Weight < 0) problems.Add(where + ": its weight is below 0");
+            if (c.Weight > MaxWeight) problems.Add(string.Format("{0}: its weight is above {1}", where, MaxWeight));
+            var conditionNode = (YamlMappingNode)conditionNodes[i];
+            // The typed read fills a missing weight with 0 and merges a << key, which the node tree below does not: refuse both.
+            if (!conditionNode.Children.ContainsKey(new YamlScalarNode("weight"))) problems.Add(where + ": it has no weight");
             var cells = new List<KeyValuePair<string, List<YamlNode>>>();
             YamlNode set;
-            if (((YamlMappingNode)conditionNodes[i]).Children.TryGetValue(new YamlScalarNode("set"), out set) && set is YamlMappingNode)
+            var hasSet = conditionNode.Children.TryGetValue(new YamlScalarNode("set"), out set);
+            if (conditionNode.Children.ContainsKey(new YamlScalarNode("<<")) || (set is YamlMappingNode && ((YamlMappingNode)set).Children.ContainsKey(new YamlScalarNode("<<"))))
+                problems.Add(where + ": a YAML merge key (<<) is not read by the draw; write the condition out in full");
+            if (hasSet && !(set is YamlMappingNode)) problems.Add(where + ": its set is not a map");
+            else if (hasSet)
             {
                 foreach (var cell in ((YamlMappingNode)set).Children)
                 {
+                    if (!(cell.Key is YamlScalarNode)) { problems.Add(where + ": a set key is not a dotted path"); continue; }
                     var path = ((YamlScalarNode)cell.Key).Value;
                     string[] types;
                     if (!ConditionFields.TryGetValue(path, out types) || !types.Contains(c.Type))
@@ -295,7 +306,7 @@ public class TrialDraw
         }
         if (problems.Count == 0)
         {
-            if (built.Sum(c => c.Weight) <= 0) problems.Add("trialConditions needs a condition with a weight above 0");
+            if (built.Sum(c => (long)c.Weight) <= 0) problems.Add("trialConditions needs a condition with a weight above 0");
             if (task.TaskType == TaskType.DiscriminationGoNoGo && !built.Any(c => c.Type == GoKey && c.Weight > 0)) problems.Add("trialConditions has no Go trials: no go condition has a weight above 0");
         }
         return problems.Count == 0 ? built : null;

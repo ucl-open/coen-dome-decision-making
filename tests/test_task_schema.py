@@ -375,6 +375,16 @@ def test_a_go_no_go_task_with_no_go_trials_is_refused():
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
+def test_a_go_no_go_condition_with_a_set_is_accepted():
+    # Each condition is checked as a task of its own (_conditions_run); a noGo condition's copy has no go condition, which
+    # refused every go/no-go task with any set until the go-trials rule was left to the whole task (audit round 2).
+    data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    data["trialConditions"][0]["set"] = {"reward.rewardSizeUl": 2}
+    data["trialConditions"][1]["weight"] = 10
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    data["trialConditions"][0]["weight"] = 1_000_001
+    with pytest.raises(ValidationError, match="less than or equal to 1000000"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 def test_every_task_file_states_its_task_type():
