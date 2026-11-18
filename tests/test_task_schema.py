@@ -411,11 +411,12 @@ def test_an_amplitude_above_1_is_the_peak_check_s_to_refuse():
 
 
 def test_pairs_zip_their_lists_and_the_rest_combine():
-    from ucl_open_coen_dome_decision_making.task import condition_combinations
+    from open_rigs.rigs.conditions import condition_combinations
+    from ucl_open_coen_dome_decision_making.task import LIST_FIELDS
 
     base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
-    combos = condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]])
+    combos = condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]], LIST_FIELDS)
     # The first cell's pick changes fastest (TrialDraw.BuildConditions' order, logged as trialCombination).
     assert combos == [
         {visual: [-60], sound: [60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
@@ -425,7 +426,7 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
     ]
     # Unpaired, every list field (the set's or the task's) is one entry per combination, a list in a scalar cell one value,
     # by path, the first changing fastest.
-    combos = condition_combinations(base, {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]})
+    combos = condition_combinations(base, {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}, list_fields=LIST_FIELDS)
     assert len(combos) == 16 and combos[:3] == [
         {sound: [-60], "contrasts": [0.5], "reward.rewardSizeUl": 2, visual: [-60]},
         {sound: [60], "contrasts": [0.5], "reward.rewardSizeUl": 2, visual: [-60]},

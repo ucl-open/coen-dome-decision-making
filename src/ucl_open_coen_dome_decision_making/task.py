@@ -288,42 +288,6 @@ def _put(data: dict, dotted, value: Any) -> None:
     data[key] = value
 
 
-def _get(data: dict, dotted) -> Any:
-    for part in dotted.split("."):
-        data = data[part]
-    return data
-
-
-def _options(base: dict, values: dict[str, Any], path) -> list:
-    # A cell's picks: a list field's entries, each a one-entry list; a scalar field's list, else its one value (a whole
-    # list, x-whole, is one value).
-    value = values[path] if path in values else _get(base, path)
-    if path in LIST_FIELDS:
-        return [[entry] for entry in value] if isinstance(value, list) else [value]
-    return value if isinstance(value, list) and not isinstance(_get(base, path), list) else [value]
-
-
-def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[str]] = ()) -> list[dict[str, Any]]:
-    """Every combination of a condition: each pairs group's lists zipped (equal lengths), then by path each other list cell
-    of its set and every list field (LIST_FIELDS, the set's or the task's list) one pick, all combined as a product, the
-    first cell's pick changing fastest (TrialDraw.BuildConditions' order, whose index is the trialCombination column). A
-    list field's entry is a one-entry list, so the draw's chances are those of picking each list's entry per trial."""
-    cells: list[tuple[tuple[str, ...], list[tuple]]] = []
-    paired = [path for group in pairs for path in group]
-    for group in pairs:
-        lists = [_options(base, values, path) for path in group]
-        if len({len(options) for options in lists}) > 1:
-            raise ValueError(f"pairs {group} have lists of lengths {', '.join(str(len(options)) for options in lists)}; paired lists must be equally long")
-        cells.append((tuple(group), list(zip(*lists))))
-    cells += [((path,), [(option,) for option in _options(base, values, path)]) for path in sorted({*values, *LIST_FIELDS} - {*paired})]
-    combos: list[dict[str, Any]] = [{}]
-    for paths, options in cells:
-        if not options:
-            raise ValueError(f"{', '.join(paths)} is an empty list")
-        combos = [{**combo, **dict(zip(paths, option))} for option in options for combo in combos]
-    return combos
-
-
 def session_field(path) -> str | None:
     """The session field a dotted path is or lies under (SESSION_FIELDS), else None."""
     return next((field for field in SESSION_FIELDS if path == field or path.startswith(field + ".")), None)
@@ -502,7 +466,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     def _combinations(self, base: dict, condition: TrialCondition, where) -> list[dict]:
         """A condition's combinations as tasks' values (by alias, as JSON), each checked as a task."""
         try:
-            combos = condition_combinations(base, condition.set, condition.pairs)
+            combos = conditions.condition_combinations(base, condition.set, condition.pairs, LIST_FIELDS)
         except ValueError as e:
             raise ValueError(f"{where}: {e}") from None
         if len(combos) > conditions.MAX_COMBINATIONS:
