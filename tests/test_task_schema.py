@@ -41,14 +41,14 @@ def test_committed_task_files_start_with_the_laser_off(path):
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
 def test_committed_task_files_start_at_the_two_azimuths(path):
     visual = yaml.safe_load(path.read_text())["taskParameters"]["visualStimulus"]
-    assert (visual["startAzimuthsDeg"], visual["elevationDeg"]) == ([-60, 60], 15)
+    assert (visual["initialAzimuthsDeg"], visual["elevationDeg"]) == ([-60, 60], 15)
 
 
 @pytest.mark.parametrize("values, words", [([0], "must not hold 0"), ([-60, 0], "must not hold 0"), ([-60, 200], "outside"), ([], "at least 1")])
-def test_start_azimuths_are_signed_and_never_zero(values, words):
+def test_initial_azimuths_are_signed_and_never_zero(values, words):
     with pytest.raises(ValidationError, match=words):
-        VisualStimulus(startAzimuthsDeg=values)
-    assert VisualStimulus(startAzimuthsDeg=[30]).start_azimuths_deg == [30]   # one side alone is a task's choice
+        VisualStimulus(initialAzimuthsDeg=values)
+    assert VisualStimulus(initialAzimuthsDeg=[30]).initial_azimuths_deg == [30]   # one side alone is a task's choice
 
 
 def _task(name):
@@ -211,7 +211,7 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
 
 @pytest.mark.parametrize(
     "block, key, value",
-    [("trialStructure", "itiMaxSeconds", float("inf")), ("visualStimulus", "startAzimuthsDeg", [float("nan"), 60]), ("reward", "largeRewardMultiplier", float("inf")),
+    [("trialStructure", "itiMaxSeconds", float("inf")), ("visualStimulus", "initialAzimuthsDeg", [float("nan"), 60]), ("reward", "largeRewardMultiplier", float("inf")),
      ("response", "degreesPerLick", float("nan"))],
 )
 def test_the_task_s_own_blocks_refuse_inf_and_nan(block, key, value):
@@ -354,9 +354,9 @@ def test_a_target_of_another_task_type_is_refused(task_type, name):
     ({"target": "random", "bothSpoutsProbability": 0.5, "repeats.repeatOn": "never"}, "target random needs bothSpoutsProbability 1"),
     ({"target": "random", "bothSpoutsProbability": 1, "repeats.repeatOn": "notCorrect"}, "target random needs repeats.repeatOn never"),
     ({"repeats.maxRepeats": 0, "repeats.repeatOn": "noResponse"}, "repeats.maxRepeats 0 needs repeats.repeatOn never"),
-    ({"target": "auditorySide", "auditoryStimulus.startAzimuthsDeg": [0, 60]}, "auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all"),
-    ({"target": "auditorySide", "auditoryStimulus.startAzimuthsDeg": ["all", 60]}, "auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all"),
-    ({"auditoryStimulus.startAzimuthsDeg": ["left"]}, "auditoryStimulus.startAzimuthsDeg"),
+    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": [0, 60]}, "auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all"),
+    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": ["all", 60]}, "auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all"),
+    ({"auditoryStimulus.initialAzimuthsDeg": ["left"]}, "auditoryStimulus.initialAzimuthsDeg"),
     ({"auditoryStimulus.amplitude": -0.1}, "greater than or equal to 0"),
     ({"contrasts": [-1]}, "contrasts must each be 0 or more"),
 ])
@@ -374,11 +374,11 @@ def test_a_go_no_go_probe_must_not_repeat():
 
 def test_all_plays_on_every_speaker_and_pairs():
     # "all" is a sound azimuth item: alone, in a list, paired with the grating's azimuths; it has no side, so no cue.
-    visual, sound = "visualStimulus.startAzimuthsDeg", "auditoryStimulus.startAzimuthsDeg"
+    visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
     task = _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {visual: [-60, 60], sound: ["all", 60]}},
                        {"label": "neutral", "weight": 1, "set": {"contrasts": [0], sound: ["all"], "target": "random", "bothSpoutsProbability": 1}})
     assert derive_label(task, task.trial_conditions[1]) == "neutral"
-    items = json.loads(SCHEMA.read_text())["$defs"]["AuditoryStimulus"]["properties"]["startAzimuthsDeg"]["items"]
+    items = json.loads(SCHEMA.read_text())["$defs"]["AuditoryStimulus"]["properties"]["initialAzimuthsDeg"]["items"]
     assert items == {"oneOf": [{"type": "number"}, {"const": "all", "type": "string"}]}   # oneOf: Bonsai.Sgen's List<object>
 
 
@@ -391,7 +391,7 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
     from ucl_open_coen_dome_decision_making.task import condition_combinations
 
     base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
-    visual, sound = "visualStimulus.startAzimuthsDeg", "auditoryStimulus.startAzimuthsDeg"
+    visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
     combos = condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]])
     assert combos == [
         {visual: [-60], sound: [60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
@@ -403,7 +403,7 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
     assert condition_combinations(base, {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}) == [
         {"contrasts": [0.5], "reward.rewardSizeUl": 2}, {"contrasts": [0.5], "reward.rewardSizeUl": 3},
         {"contrasts": [1], "reward.rewardSizeUl": 2}, {"contrasts": [1], "reward.rewardSizeUl": 3}]
-    with pytest.raises(ValidationError, match=r"pairs \['visualStimulus.startAzimuthsDeg', 'auditoryStimulus.startAzimuthsDeg'\] have lists of lengths 2, 3"):
+    with pytest.raises(ValidationError, match=r"pairs \['visualStimulus.initialAzimuthsDeg', 'auditoryStimulus.initialAzimuthsDeg'\] have lists of lengths 2, 3"):
         _conditions({"label": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {sound: [-60, 0, 60]}})
     for pairs in ([[visual]], [[visual, sound], [sound, "contrasts"]]):
         with pytest.raises(ValidationError, match="each pairs group needs two paths or more"):
@@ -514,13 +514,13 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_condition_fields():
 
 
 def test_a_condition_s_set_is_built_and_checked_as_a_task():
-    task = _conditions({"label": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3], "visualStimulus.startAzimuthsDeg": [60]}},
+    task = _conditions({"label": "visual", "weight": 3, "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3], "visualStimulus.initialAzimuthsDeg": [60]}},
                        {"label": "auditory", "weight": 1})
     assert [c.weight for c in task.trial_conditions] == [3, 1]
     for condition, words in [
         ({"label": "visual", "weight": 1, "set": {"trialStructure.itiMinSeconds": 4}}, "sets or pairs trialStructure.itiMinSeconds, which is not a condition field"),
         ({"label": "visual", "weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, "with optogenetics off"),
-        ({"label": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": [60, 0]}}, r"(?s)trial_conditions\[0\] \(visual\).*must not hold 0"),
+        ({"label": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": [60, 0]}}, r"(?s)trial_conditions\[0\] \(visual\).*must not hold 0"),
         ({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": [2, 99]}}, r"trial_conditions\[0\] \(visual\) with \{'reward.rewardSizeUl': 99\}"),
         ({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": []}}, "is an empty list"),
         ({"label": "visual", "weight": 0}, "a weight above 0"),
@@ -553,7 +553,7 @@ def test_condition_edges_a_zero_among_others_duplicates_one_condition_the_weight
     with pytest.raises(ValidationError):
         _conditions({"label": "visual", "weight": 1, "set": {"reward.rewardSizeUl": "abc"}})
     with pytest.raises(ValidationError):
-        _conditions({"label": "visual", "weight": 1, "set": {"visualStimulus.startAzimuthsDeg": "left"}})
+        _conditions({"label": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": "left"}})
     with pytest.raises(ValidationError, match="at least 1|no condition|a weight above 0"):
         _conditions()
 

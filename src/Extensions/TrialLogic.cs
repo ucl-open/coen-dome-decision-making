@@ -50,7 +50,7 @@ public class Trial : IZapitTrial
     public bool spoutMovements;
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
 
-    /// <summary>speakerChannel on a trial whose sound plays on every rig.yml speaker (auditoryStimulus.startAzimuthsDeg "all").</summary>
+    /// <summary>speakerChannel on a trial whose sound plays on every rig.yml speaker (auditoryStimulus.initialAzimuthsDeg "all").</summary>
     public const int AllSpeakersChannel = -2;
 
     public Trial Clone()
@@ -157,8 +157,8 @@ public class TrialDraw
     /// equal). Only what New alone reads per trial.</summary>
     public static readonly string[] ConditionFields =
     {
-        "target", "contrasts", "visualStimulus.startAzimuthsDeg", "visualStimulus.elevationDeg", "auditoryStimulus.amplitude",
-        "auditoryStimulus.startAzimuthsDeg", "repeats.maxRepeats", "repeats.repeatOn", "optogenetics.laserOnProbability",
+        "target", "contrasts", "visualStimulus.initialAzimuthsDeg", "visualStimulus.elevationDeg", "auditoryStimulus.amplitude",
+        "auditoryStimulus.initialAzimuthsDeg", "repeats.maxRepeats", "repeats.repeatOn", "optogenetics.laserOnProbability",
         "reward.rewardSizeUl", "autoRewardProbability", "bothSpoutsProbability",
     };
 
@@ -172,14 +172,14 @@ public class TrialDraw
         new ConditionRule { when = "taskType", @is = "localization", oneOf = new Dictionary<string, string[]> { { "target", new[] { "visualSide", "auditorySide", "random" } } } },
         new ConditionRule { when = "taskType", @is = "discriminationGoNoGo", oneOf = new Dictionary<string, string[]> { { "target", new[] { "go", "noGo", "noReward" } } } },
         new ConditionRule { when = "taskType", @is = "discriminationLeftRight", oneOf = new Dictionary<string, string[]> { { "target", new[] { "left", "right", "random" } } } },
-        new ConditionRule { when = "contrasts", @is = 0, unused = new[] { "visualStimulus.startAzimuthsDeg" } },
-        new ConditionRule { when = "auditoryStimulus.amplitude", @is = 0, unused = new[] { "auditoryStimulus.startAzimuthsDeg" } },
+        new ConditionRule { when = "contrasts", @is = 0, unused = new[] { "visualStimulus.initialAzimuthsDeg" } },
+        new ConditionRule { when = "auditoryStimulus.amplitude", @is = 0, unused = new[] { "auditoryStimulus.initialAzimuthsDeg" } },
     };
 
-    /// <summary>The auditoryStimulus.startAzimuthsDeg item that plays the sound on every rig.yml speaker (task.py ALL_SPEAKERS).</summary>
+    /// <summary>The auditoryStimulus.initialAzimuthsDeg item that plays the sound on every rig.yml speaker (task.py ALL_SPEAKERS).</summary>
     public const string AllSpeakers = "all";
 
-    /// <summary>An auditoryStimulus.startAzimuthsDeg item as read (a number, or AllSpeakers): its azimuth in degrees, NaN
+    /// <summary>An auditoryStimulus.initialAzimuthsDeg item as read (a number, or AllSpeakers): its azimuth in degrees, NaN
     /// for AllSpeakers, null for anything else.</summary>
     public static double? SoundAzimuth(object item)
     {
@@ -519,26 +519,26 @@ public class TrialDraw
         var elevation = visual.ElevationDeg;
         bool elevationOk = elevation >= -90 && elevation <= 90;
         if (!elevationOk) problems.Add("visualStimulus.elevationDeg must be in [-90, 90]");
-        if (visual.StartAzimuthsDeg == null || visual.StartAzimuthsDeg.Count == 0) problems.Add("visualStimulus.startAzimuthsDeg needs an azimuth");
-        foreach (var listed in visual.StartAzimuthsDeg ?? new List<double>())
+        if (visual.InitialAzimuthsDeg == null || visual.InitialAzimuthsDeg.Count == 0) problems.Add("visualStimulus.initialAzimuthsDeg needs an azimuth");
+        foreach (var listed in visual.InitialAzimuthsDeg ?? new List<double>())
         {
-            if (!(listed >= -180 && listed <= 180)) problems.Add(string.Format("visualStimulus.startAzimuthsDeg value {0} is outside [-180, 180]", listed));
-            else if (listed == 0) problems.Add("visualStimulus.startAzimuthsDeg must not hold 0: the sign is the trial's side");
+            if (!(listed >= -180 && listed <= 180)) problems.Add(string.Format("visualStimulus.initialAzimuthsDeg value {0} is outside [-180, 180]", listed));
+            else if (listed == 0) problems.Add("visualStimulus.initialAzimuthsDeg must not hold 0: the sign is the trial's side");
         }
-        var sounds = task.AuditoryStimulus.StartAzimuthsDeg;
-        if (sounds == null || sounds.Count == 0) problems.Add("auditoryStimulus.startAzimuthsDeg needs an azimuth");
+        var sounds = task.AuditoryStimulus.InitialAzimuthsDeg;
+        if (sounds == null || sounds.Count == 0) problems.Add("auditoryStimulus.initialAzimuthsDeg needs an azimuth");
         foreach (var item in sounds ?? new List<object>())
         {
             var read = SoundAzimuth(item);
-            if (read == null) { problems.Add(string.Format("auditoryStimulus.startAzimuthsDeg value {0} is neither a number nor {1}", item, AllSpeakers)); continue; }
+            if (read == null) { problems.Add(string.Format("auditoryStimulus.initialAzimuthsDeg value {0} is neither a number nor {1}", item, AllSpeakers)); continue; }
             var azimuth = read.Value;
             if (double.IsNaN(azimuth))
             {
-                if (task.Target == ConditionTarget.AuditorySide) problems.Add("target auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all: the sign is the trial's side");
-                else if (amplitude > 0 && (speakers == null || speakers.Speakers == null || speakers.Speakers.Count == 0)) problems.Add("rig.yml has no speakerArray.speakers to play auditoryStimulus.startAzimuthsDeg all on");
+                if (task.Target == ConditionTarget.AuditorySide) problems.Add("target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all: the sign is the trial's side");
+                else if (amplitude > 0 && (speakers == null || speakers.Speakers == null || speakers.Speakers.Count == 0)) problems.Add("rig.yml has no speakerArray.speakers to play auditoryStimulus.initialAzimuthsDeg all on");
             }
-            else if (!(azimuth >= -180 && azimuth <= 180)) problems.Add(string.Format("auditoryStimulus.startAzimuthsDeg value {0} is outside [-180, 180]", azimuth));
-            else if (azimuth == 0 && task.Target == ConditionTarget.AuditorySide) problems.Add("target auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all: the sign is the trial's side");
+            else if (!(azimuth >= -180 && azimuth <= 180)) problems.Add(string.Format("auditoryStimulus.initialAzimuthsDeg value {0} is outside [-180, 180]", azimuth));
+            else if (azimuth == 0 && task.Target == ConditionTarget.AuditorySide) problems.Add("target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all: the sign is the trial's side");
             else if (azimuth != 0 && elevationOk && amplitude > 0)
             {
                 var speaker = NearestSpeaker(speakers, azimuth, elevation);
@@ -685,10 +685,10 @@ public class TrialDraw
         trial.rewardOfferedUl = large ? p.Reward.RewardSizeUl * p.Reward.LargeRewardMultiplier : p.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
-        // The grating: a contrast and a start azimuth, shown where the contrast is above 0 (0: a grey screen, logged at NaN, NaN; the renderer's start at 0, 0 under contrast 0).
+        // The grating: a contrast and an initial azimuth, shown where the contrast is above 0 (0: a grey screen, logged at NaN, NaN; the renderer's start at 0, 0 under contrast 0).
         var visual = p.VisualStimulus;
         double contrast = p.Contrasts[random.Next(p.Contrasts.Count)];
-        double azimuth = visual.StartAzimuthsDeg[random.Next(visual.StartAzimuthsDeg.Count)];
+        double azimuth = visual.InitialAzimuthsDeg[random.Next(visual.InitialAzimuthsDeg.Count)];
         trial.visualAzimuthDeg = double.NaN;
         trial.visualElevationDeg = double.NaN;
         if (contrast > 0)
@@ -699,10 +699,10 @@ public class TrialDraw
             trial.gratingElevationDeg = visual.ElevationDeg;
             trial.visualContrast = contrast;
         }
-        // The sound: at its amplitude (0: none) on the speaker nearest a start azimuth, at the grating's elevation, or on
+        // The sound: at its amplitude (0: none) on the speaker nearest an initial azimuth, at the grating's elevation, or on
         // every speaker at "all" (logged at azimuth and elevation NaN, its amplitude above 0).
         var sound = p.AuditoryStimulus;
-        double soundAzimuth = SoundAzimuth(sound.StartAzimuthsDeg[random.Next(sound.StartAzimuthsDeg.Count)]).Value;   // checked at Go
+        double soundAzimuth = SoundAzimuth(sound.InitialAzimuthsDeg[random.Next(sound.InitialAzimuthsDeg.Count)]).Value;   // checked at Go
         trial.auditoryAmplitude = sound.Amplitude;
         if (sound.Amplitude > 0 && double.IsNaN(soundAzimuth))
         {

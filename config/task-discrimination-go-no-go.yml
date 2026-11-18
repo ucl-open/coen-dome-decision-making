@@ -24,12 +24,12 @@ taskParameters:
       set: { target: noGo, contrasts: [0] }
     - label: audiovisualCoherent
       weight: 5
-      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
-      set: { target: noReward, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [-60, 60], repeats.repeatOn: never }
+      pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
+      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60], repeats.repeatOn: never }
     - label: audiovisualConflict
       weight: 5
-      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
-      set: { target: noReward, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [60, -60], repeats.repeatOn: never }
+      pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
+      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60], repeats.repeatOn: never }
     - label: neutral
       weight: 1
       set: { target: noReward, contrasts: [0], auditoryStimulus.amplitude: 0, repeats.repeatOn: never }
@@ -46,7 +46,7 @@ taskParameters:
     stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
-    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
+    initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
     elevationDeg: 15          # deg, the grating's and the sound position's elevation
     gaussianWindowSigmaDeg: 20   # deg
     orientationDeg: 0         # deg
@@ -54,7 +54,7 @@ taskParameters:
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
     amplitude: 1           # scale of the waveform as stored (-47.2 dBFS RMS, the loudness mice have always had); 0 no sound
-    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
+    initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed

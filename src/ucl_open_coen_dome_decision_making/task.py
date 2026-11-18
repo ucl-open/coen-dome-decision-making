@@ -56,7 +56,7 @@ class TrialStructure(Iti, ResponseWindow, LickQuietWait, WheelQuietWait):
 class VisualStimulus(TaskBlock):
     """Grating stimulus parameters and the grating's positions; the contrasts are taskParameters' own."""
 
-    start_azimuths_deg: list[Double] = Field(
+    initial_azimuths_deg: list[Double] = Field(
         default=[-60.0, 60.0],
         min_length=1,
         description=(
@@ -70,19 +70,19 @@ class VisualStimulus(TaskBlock):
     spatial_frequency_cpd: Double = Field(default=0.066666667, description="Grating spatial frequency, in cycles per degree")
     temporal_frequency_hz: Double = Field(default=0.0, ge=0, description="Unsigned grating drift rate, in Hz, drifting orthogonal to orientationDeg (orientationDeg + 90 degrees); 0 is static")
 
-    @field_validator("start_azimuths_deg")
+    @field_validator("initial_azimuths_deg")
     @classmethod
     def _signed(cls, value: list[float]) -> list[float]:
         # TrialDraw.CheckTask's same rule, with each azimuth's nearest speaker on its side.
         for azimuth in value:
             if not -180 <= azimuth <= 180:
-                raise ValueError(f"start_azimuths_deg value {azimuth} is outside [-180, 180]")
+                raise ValueError(f"initial_azimuths_deg value {azimuth} is outside [-180, 180]")
             if azimuth == 0:
-                raise ValueError("start_azimuths_deg must not hold 0: the sign is the trial's side")
+                raise ValueError("initial_azimuths_deg must not hold 0: the sign is the trial's side")
         return value
 
 
-ALL_SPEAKERS = "all"  # an auditoryStimulus.startAzimuthsDeg item: every rig.yml speaker plays (TrialDraw.AllSpeakers)
+ALL_SPEAKERS = "all"  # an auditoryStimulus.initialAzimuthsDeg item: every rig.yml speaker plays (TrialDraw.AllSpeakers)
 # A sound azimuth or "all". oneOf, not pydantic's anyOf: Bonsai.Sgen makes an empty class of an anyOf item, object of a oneOf.
 SoundAzimuth = Annotated[Double | Literal["all"], WithJsonSchema({"oneOf": [{"type": "number"}, {"const": ALL_SPEAKERS, "type": "string"}]})]
 
@@ -100,7 +100,7 @@ class AuditoryStimulus(TaskBlock):
             "equalisation on any speaker; dB SPL is unknown until the speakers' SPL calibration"
         ),
     )
-    start_azimuths_deg: list[SoundAzimuth] = Field(
+    initial_azimuths_deg: list[SoundAzimuth] = Field(
         default=[-60.0, 60.0],
         min_length=1,
         description=(
@@ -110,13 +110,13 @@ class AuditoryStimulus(TaskBlock):
         ),
     )
 
-    @field_validator("start_azimuths_deg")
+    @field_validator("initial_azimuths_deg")
     @classmethod
     def _in_range(cls, value: list) -> list:
         # TrialDraw.CheckTask's same rule, with each azimuth's nearest speaker on its side.
         for azimuth in value:
             if azimuth != ALL_SPEAKERS and not -180 <= azimuth <= 180:
-                raise ValueError(f"start_azimuths_deg value {azimuth} is outside [-180, 180]")
+                raise ValueError(f"initial_azimuths_deg value {azimuth} is outside [-180, 180]")
         return value
 
 
@@ -186,10 +186,10 @@ MAX_WEIGHT_SUM = 2147483647  # the most trial_conditions' weights may add to: th
 CONDITION_FIELDS = (
     "target",
     "contrasts",
-    "visualStimulus.startAzimuthsDeg",
+    "visualStimulus.initialAzimuthsDeg",
     "visualStimulus.elevationDeg",
     "auditoryStimulus.amplitude",
-    "auditoryStimulus.startAzimuthsDeg",
+    "auditoryStimulus.initialAzimuthsDeg",
     "repeats.maxRepeats",
     "repeats.repeatOn",
     "optogenetics.laserOnProbability",
@@ -210,8 +210,8 @@ RULES = (
     {"when": "target", "is": "random", "then": {"bothSpoutsProbability": 1, "repeats.repeatOn": "never"}},
     {"when": "target", "is": "noReward", "then": {"repeats.repeatOn": "never"}},
     *({"when": "taskType", "is": task_type.value, "oneOf": {"target": list(targets)}} for task_type, targets in TARGETS.items()),
-    {"when": "contrasts", "is": 0, "unused": ["visualStimulus.startAzimuthsDeg"]},
-    {"when": "auditoryStimulus.amplitude", "is": 0, "unused": ["auditoryStimulus.startAzimuthsDeg"]},
+    {"when": "contrasts", "is": 0, "unused": ["visualStimulus.initialAzimuthsDeg"]},
+    {"when": "auditoryStimulus.amplitude", "is": 0, "unused": ["auditoryStimulus.initialAzimuthsDeg"]},
 )
 # The most combinations one condition may expand into (TrialDraw.MaxCombinations).
 MAX_COMBINATIONS = 64
@@ -241,7 +241,7 @@ def rule_problems(values: dict) -> list[str]:
 class TrialCondition(TaskBlock):
     """One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
     the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
-    start azimuths) is one entry picked per trial. Paired lists share one picked index per trial."""
+    initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -253,7 +253,7 @@ class TrialCondition(TaskBlock):
         default_factory=list,
         description=(
             "Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: "
-            "audiovisualCoherent pairs visualStimulus.startAzimuthsDeg [-60, 60] with auditoryStimulus.startAzimuthsDeg [-60, 60], "
+            "audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], "
             "audiovisualConflict with [60, -60]. Unpaired lists are picked independently"
         ),
     )
@@ -317,9 +317,9 @@ def derive_label(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition:
     if len(target) == 1 and target[0] in ("go", "noGo", "left", "right"):
         return target[0]
     grating = any(contrast > 0 for contrast in value("contrasts"))
-    sound = any(amplitude > 0 for amplitude in value("auditoryStimulus.amplitude")) and any(azimuth not in (0, ALL_SPEAKERS) for azimuth in value("auditoryStimulus.startAzimuthsDeg"))
+    sound = any(amplitude > 0 for amplitude in value("auditoryStimulus.amplitude")) and any(azimuth not in (0, ALL_SPEAKERS) for azimuth in value("auditoryStimulus.initialAzimuthsDeg"))
     if grating and sound:
-        visual, auditory = "visualStimulus.startAzimuthsDeg", "auditoryStimulus.startAzimuthsDeg"
+        visual, auditory = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
         paired = any(visual in group and auditory in group for group in condition.pairs)
         return "audiovisualConflict" if paired and [-azimuth for azimuth in value(visual)] == value(auditory) else "audiovisualCoherent"
     return "visual" if grating else "auditory" if sound else "neutral"
@@ -452,8 +452,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         problems = rule_problems(self.model_dump(by_alias=True, mode="json"))
         if problems:
             raise ValueError("; ".join(problems))
-        if self.target == Target.AUDITORY_SIDE and any(azimuth in (0, ALL_SPEAKERS) for azimuth in self.auditory_stimulus.start_azimuths_deg):
-            raise ValueError("target auditorySide needs auditoryStimulus.startAzimuthsDeg without 0 or all: the sign is the trial's side")
+        if self.target == Target.AUDITORY_SIDE and any(azimuth in (0, ALL_SPEAKERS) for azimuth in self.auditory_stimulus.initial_azimuths_deg):
+            raise ValueError("target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all: the sign is the trial's side")
         if not sum(condition.weight for condition in self.trial_conditions) > 0:
             raise ValueError("trial_conditions needs a condition with a weight above 0")
         if sum(condition.weight for condition in self.trial_conditions) > MAX_WEIGHT_SUM:

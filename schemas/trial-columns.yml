@@ -128,7 +128,7 @@ visualPhaseRad:
 auditoryAzimuthDeg:
   type: double
   unit: deg
-  description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played (auditoryAmplitude 0) or when every speaker played (auditoryStimulus.startAzimuthsDeg all, auditoryAmplitude above 0).
+  description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played (auditoryAmplitude 0) or when every speaker played (auditoryStimulus.initialAzimuthsDeg all, auditoryAmplitude above 0).
 auditoryElevationDeg:
   type: double
   unit: deg

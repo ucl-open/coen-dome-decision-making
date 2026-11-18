@@ -138,18 +138,18 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _amplitude;
     
-        private System.Collections.Generic.List<object> _startAzimuthsDeg;
+        private System.Collections.Generic.List<object> _initialAzimuthsDeg;
     
         public AuditoryStimulus()
         {
             _amplitude = 1D;
-            _startAzimuthsDeg = new System.Collections.Generic.List<object>();
+            _initialAzimuthsDeg = new System.Collections.Generic.List<object>();
         }
     
         protected AuditoryStimulus(AuditoryStimulus other)
         {
             _amplitude = other._amplitude;
-            _startAzimuthsDeg = other._startAzimuthsDeg;
+            _initialAzimuthsDeg = other._initialAzimuthsDeg;
         }
     
         /// <summary>
@@ -174,18 +174,18 @@ namespace UclOpenCoenDomeDecisionMakingTask
         /// Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. "all" plays it on every rig.yml speaker at once (logged auditoryAzimuthDeg NaN with an amplitude above 0). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and "all" are refused. Unused where the amplitude is 0
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("startAzimuthsDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="startAzimuthsDeg")]
+        [Newtonsoft.Json.JsonPropertyAttribute("initialAzimuthsDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialAzimuthsDeg")]
         [System.ComponentModel.DescriptionAttribute(@"Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. ""all"" plays it on every rig.yml speaker at once (logged auditoryAzimuthDeg NaN with an amplitude above 0). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and ""all"" are refused. Unused where the amplitude is 0")]
-        public System.Collections.Generic.List<object> StartAzimuthsDeg
+        public System.Collections.Generic.List<object> InitialAzimuthsDeg
         {
             get
             {
-                return _startAzimuthsDeg;
+                return _initialAzimuthsDeg;
             }
             set
             {
-                _startAzimuthsDeg = value;
+                _initialAzimuthsDeg = value;
             }
         }
     
@@ -202,7 +202,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
             stringBuilder.Append("Amplitude = " + _amplitude + ", ");
-            stringBuilder.Append("StartAzimuthsDeg = " + _startAzimuthsDeg);
+            stringBuilder.Append("InitialAzimuthsDeg = " + _initialAzimuthsDeg);
             return true;
         }
     
@@ -1337,12 +1337,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// <summary>
     /// One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
     ///the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
-    ///start azimuths) is one entry picked per trial. Paired lists share one picked index per trial.
+    ///initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and
     the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the
-    start azimuths) is one entry picked per trial. Paired lists share one picked index per trial.")]
+    initial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialCondition
@@ -1409,12 +1409,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.startAzimuthsDeg [-60, 60] with auditoryStimulus.startAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
+        /// Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("pairs")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="pairs")]
-        [System.ComponentModel.DescriptionAttribute(@"Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.startAzimuthsDeg [-60, 60] with auditoryStimulus.startAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
+        [System.ComponentModel.DescriptionAttribute(@"Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
         public System.Collections.Generic.List<System.Collections.Generic.List<string>> Pairs
         {
             get
@@ -2311,7 +2311,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     public partial class VisualStimulus
     {
     
-        private System.Collections.Generic.List<double> _startAzimuthsDeg;
+        private System.Collections.Generic.List<double> _initialAzimuthsDeg;
     
         private double _elevationDeg;
     
@@ -2325,7 +2325,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         public VisualStimulus()
         {
-            _startAzimuthsDeg = new System.Collections.Generic.List<double>();
+            _initialAzimuthsDeg = new System.Collections.Generic.List<double>();
             _elevationDeg = 15D;
             _gaussianWindowSigmaDeg = 20D;
             _orientationDeg = 0D;
@@ -2335,7 +2335,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected VisualStimulus(VisualStimulus other)
         {
-            _startAzimuthsDeg = other._startAzimuthsDeg;
+            _initialAzimuthsDeg = other._initialAzimuthsDeg;
             _elevationDeg = other._elevationDeg;
             _gaussianWindowSigmaDeg = other._gaussianWindowSigmaDeg;
             _orientationDeg = other._orientationDeg;
@@ -2347,20 +2347,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
         /// Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; with target visualSide the picked azimuth's sign is the trial's side. Unused where contrasts are all 0
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("startAzimuthsDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="startAzimuthsDeg")]
+        [Newtonsoft.Json.JsonPropertyAttribute("initialAzimuthsDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialAzimuthsDeg")]
         [System.ComponentModel.DescriptionAttribute("Signed azimuths the grating starts at, in degrees, one picked per trial: positive" +
             " is right, negative left, never 0; with target visualSide the picked azimuth\'s s" +
             "ign is the trial\'s side. Unused where contrasts are all 0")]
-        public System.Collections.Generic.List<double> StartAzimuthsDeg
+        public System.Collections.Generic.List<double> InitialAzimuthsDeg
         {
             get
             {
-                return _startAzimuthsDeg;
+                return _initialAzimuthsDeg;
             }
             set
             {
-                _startAzimuthsDeg = value;
+                _initialAzimuthsDeg = value;
             }
         }
     
@@ -2468,7 +2468,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("StartAzimuthsDeg = " + _startAzimuthsDeg + ", ");
+            stringBuilder.Append("InitialAzimuthsDeg = " + _initialAzimuthsDeg + ", ");
             stringBuilder.Append("ElevationDeg = " + _elevationDeg + ", ");
             stringBuilder.Append("GaussianWindowSigmaDeg = " + _gaussianWindowSigmaDeg + ", ");
             stringBuilder.Append("OrientationDeg = " + _orientationDeg + ", ");

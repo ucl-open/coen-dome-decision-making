@@ -15,21 +15,21 @@ taskParameters:
   trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (x-conditionFields)
     - label: visual
       weight: 10
-      set: { target: visualSide, auditoryStimulus.startAzimuthsDeg: [0] }
+      set: { target: visualSide, auditoryStimulus.initialAzimuthsDeg: [0] }
     - label: auditory
       weight: 10
       set: { target: auditorySide, contrasts: [0] }
     - label: audiovisualCoherent
       weight: 5
-      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
-      set: { target: visualSide, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [-60, 60] }
+      pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
+      set: { target: visualSide, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
     - label: audiovisualConflict
       weight: 5
-      pairs: [[visualStimulus.startAzimuthsDeg, auditoryStimulus.startAzimuthsDeg]]
-      set: { target: random, visualStimulus.startAzimuthsDeg: [-60, 60], auditoryStimulus.startAzimuthsDeg: [60, -60], bothSpoutsProbability: 1, repeats.repeatOn: never }
+      pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
+      set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60], bothSpoutsProbability: 1, repeats.repeatOn: never }
     - label: neutral
       weight: 1
-      set: { target: random, contrasts: [0], auditoryStimulus.startAzimuthsDeg: [0], bothSpoutsProbability: 1, repeats.repeatOn: never }
+      set: { target: random, contrasts: [0], auditoryStimulus.initialAzimuthsDeg: [0], bothSpoutsProbability: 1, repeats.repeatOn: never }
   rngSeed: null           # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   trialStructure:
     itiMinSeconds: 3.4            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included
@@ -43,7 +43,7 @@ taskParameters:
     stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
-    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
+    initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
     elevationDeg: 15          # deg, the grating's and the sound position's elevation
     gaussianWindowSigmaDeg: 20   # deg
     orientationDeg: 0         # deg
@@ -51,7 +51,7 @@ taskParameters:
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
     amplitude: 1           # scale of the waveform as stored (-47.2 dBFS RMS, the loudness mice have always had); 0 no sound
-    startAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
+    initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
   response:
     thresholdLicks: 1      # net lick difference ending the response window; 1 = first-lick 2AFC
     degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed

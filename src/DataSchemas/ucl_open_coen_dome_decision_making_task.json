@@ -10,7 +10,7 @@
           "title": "Amplitude",
           "type": "number"
         },
-        "startAzimuthsDeg": {
+        "initialAzimuthsDeg": {
           "default": [
             -60.0,
             60.0
@@ -28,7 +28,7 @@
             ]
           },
           "minItems": 1,
-          "title": "StartAzimuthsDeg",
+          "title": "InitialAzimuthsDeg",
           "type": "array"
         }
       },
@@ -353,7 +353,7 @@
     },
     "TrialCondition": {
       "additionalProperties": false,
-      "description": "One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the\nstart azimuths) is one entry picked per trial. Paired lists share one picked index per trial.",
+      "description": "One kind of trial in the mix: its label, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (contrasts, the\ninitial azimuths) is one entry picked per trial. Paired lists share one picked index per trial.",
       "properties": {
         "label": {
           "$ref": "#/$defs/TrialLabel",
@@ -368,7 +368,7 @@
           "type": "integer"
         },
         "pairs": {
-          "description": "Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.startAzimuthsDeg [-60, 60] with auditoryStimulus.startAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently",
+          "description": "Groups of x-conditionFields paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently",
           "items": {
             "items": {
               "type": "string"
@@ -665,10 +665,10 @@
       "x-conditionFields": [
         "target",
         "contrasts",
-        "visualStimulus.startAzimuthsDeg",
+        "visualStimulus.initialAzimuthsDeg",
         "visualStimulus.elevationDeg",
         "auditoryStimulus.amplitude",
-        "auditoryStimulus.startAzimuthsDeg",
+        "auditoryStimulus.initialAzimuthsDeg",
         "repeats.maxRepeats",
         "repeats.repeatOn",
         "optogenetics.laserOnProbability",
@@ -735,14 +735,14 @@
         {
           "is": 0,
           "unused": [
-            "visualStimulus.startAzimuthsDeg"
+            "visualStimulus.initialAzimuthsDeg"
           ],
           "when": "contrasts"
         },
         {
           "is": 0,
           "unused": [
-            "auditoryStimulus.startAzimuthsDeg"
+            "auditoryStimulus.initialAzimuthsDeg"
           ],
           "when": "auditoryStimulus.amplitude"
         }
@@ -751,7 +751,7 @@
     "VisualStimulus": {
       "description": "Grating stimulus parameters and the grating's positions; the contrasts are taskParameters' own.",
       "properties": {
-        "startAzimuthsDeg": {
+        "initialAzimuthsDeg": {
           "default": [
             -60.0,
             60.0
@@ -761,7 +761,7 @@
             "type": "number"
           },
           "minItems": 1,
-          "title": "StartAzimuthsDeg",
+          "title": "InitialAzimuthsDeg",
           "type": "array"
         },
         "elevationDeg": {
