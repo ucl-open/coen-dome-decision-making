@@ -307,7 +307,7 @@
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
                       <Property Name="Contrast" Selector="visualContrast" />
-                      <Property Name="LocationY" Selector="visualElevationDeg" />
+                      <Property Name="LocationY" Selector="gratingElevationDeg" />
                       <Property Name="Phase" Selector="visualPhaseRad" />
                     </PropertyMappings>
                   </Expression>
@@ -414,7 +414,7 @@
                     <Name>VisualTrial</Name>
                   </Expression>
                   <Expression xsi:type="MemberSelector">
-                    <Selector>visualAzimuthDeg</Selector>
+                    <Selector>gratingAzimuthDeg</Selector>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:Merge" />

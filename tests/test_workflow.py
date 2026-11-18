@@ -137,13 +137,13 @@ def test_zapit_s_start_stimulus_goes_at_arm_or_at_the_trigger():
 
 
 def test_each_grating_starts_at_its_own_trial_s_azimuth():
-    # GratingAzimuthDeg is a PublishSubject: the grating's LocationX is its trial's visualAzimuthDeg, then each lick's move.
+    # GratingAzimuthDeg is a PublishSubject: the grating's LocationX is its trial's gratingAzimuthDeg (visualAzimuthDeg, 0 with no grating), then each lick's move.
     nodes, edges = _scope(_named("ShowGrating"))
     (location,) = [i for i, n in enumerate(nodes) if n.get(XSI) == "PropertyMapping" and 'Name="LocationX"' in ET.tostring(n, encoding="unicode")]
     (merge,) = [a for a, b, _ in edges if b == location]
     assert _kind(nodes[merge]) == "rx:Merge"
     sources = {label: a for a, b, label in edges if b == merge}
-    assert nodes[sources["Source1"]].findtext(W + "Selector") == "visualAzimuthDeg"
+    assert nodes[sources["Source1"]].findtext(W + "Selector") == "gratingAzimuthDeg"
     assert nodes[sources["Source2"]].findtext(W + "Name") == "GratingAzimuthDeg"
     declared = next(n for n in _named("Declarations").iter(W + "Expression") if n.findtext("{clr-namespace:Bonsai.Reactive;assembly=Bonsai.Core}Name") == "GratingAzimuthDeg")
     assert declared.get(XSI) == "rx:PublishSubject"

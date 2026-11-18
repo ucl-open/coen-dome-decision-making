@@ -193,7 +193,7 @@ public class ResponseRuleTests
         var starts = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         Assert.AreEqual(2, starts.Count);
         Assert.AreEqual("Incorrect", run.Row().outcome);
-        Assert.IsTrue(starts[1].trialNumber == 2 && starts[1].repeatCount == 1 && starts[1].visualAzimuthDeg == starts[0].visualAzimuthDeg
+        Assert.IsTrue(starts[1].trialNumber == 2 && starts[1].repeatCount == 1 && starts[1].visualAzimuthDeg.Equals(starts[0].visualAzimuthDeg)
                       && starts[1].target == starts[0].target && starts[1].trialType == starts[0].trialType);
         var right = starts[1].target == "Left" ? 0 : 1;
         run.At(18.2, h => h.Lick(right)).RunTo(21);

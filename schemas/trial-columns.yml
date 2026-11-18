@@ -113,11 +113,11 @@ bothSpoutsOffered:
 visualAzimuthDeg:
   type: double
   unit: deg
-  description: Grating azimuth.
+  description: Grating azimuth; NaN when no grating was shown (visualContrast 0), as auditoryAzimuthDeg when no sound played.
 visualElevationDeg:
   type: double
   unit: deg
-  description: Grating elevation.
+  description: Grating elevation; NaN when no grating was shown (visualContrast 0), as visualAzimuthDeg.
 visualContrast:
   type: double
   description: Grating contrast as BonVision's Contrast, 1 full contrast; the task files' habituation stages draw 3.0.

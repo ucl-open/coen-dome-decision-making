@@ -31,8 +31,10 @@ public class Trial : IZapitTrial
     public bool bothSpoutsOffered;
     public int repeatCount;            // 0 for a new draw
     public double itiSeconds;          // the interval drawn for this trial: its start to the stimulus, with a quiet mouse
-    public double visualAzimuthDeg;
-    public double visualElevationDeg;
+    public double visualAzimuthDeg;    // NaN with no grating (visualContrast 0), as the sound's when none plays
+    public double visualElevationDeg;  // NaN with no grating
+    public double gratingAzimuthDeg;   // what the renderer starts the grating at (not logged): visualAzimuthDeg, 0 with no grating (hidden at contrast 0)
+    public double gratingElevationDeg; // likewise visualElevationDeg
     public double visualContrast;      // 0: grey screen
     public double visualPhaseRad;
     public double auditoryAmplitude;   // the waveform's scale as stored; 0 when silent (no sound plays)
@@ -683,14 +685,18 @@ public class TrialDraw
         trial.rewardOfferedUl = large ? p.Reward.RewardSizeUl * p.Reward.LargeRewardMultiplier : p.Reward.RewardSizeUl;
         trial.visualPhaseRad = 2 * Math.PI * random.NextDouble();
 
-        // The grating: a contrast and a start azimuth, shown where the contrast is above 0 (0: a grey screen, logged at 0, 0).
+        // The grating: a contrast and a start azimuth, shown where the contrast is above 0 (0: a grey screen, logged at NaN, NaN; the renderer's start at 0, 0 under contrast 0).
         var visual = p.VisualStimulus;
         double contrast = p.Contrasts[random.Next(p.Contrasts.Count)];
         double azimuth = visual.StartAzimuthsDeg[random.Next(visual.StartAzimuthsDeg.Count)];
+        trial.visualAzimuthDeg = double.NaN;
+        trial.visualElevationDeg = double.NaN;
         if (contrast > 0)
         {
             trial.visualAzimuthDeg = azimuth;
             trial.visualElevationDeg = visual.ElevationDeg;
+            trial.gratingAzimuthDeg = azimuth;
+            trial.gratingElevationDeg = visual.ElevationDeg;
             trial.visualContrast = contrast;
         }
         // The sound: at its amplitude (0: none) on the speaker nearest a start azimuth, at the grating's elevation, or on
@@ -944,7 +950,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     DecisionUpdate Update(Trial trial)
     {
-        return new DecisionUpdate { GratingAzimuthDeg = decision * task.Response.DegreesPerLick + trial.visualAzimuthDeg };
+        return new DecisionUpdate { GratingAzimuthDeg = decision * task.Response.DegreesPerLick + trial.gratingAzimuthDeg };
     }
 
     TrialOutcome Outcome(Trial trial, string choice, TrialTimes times)

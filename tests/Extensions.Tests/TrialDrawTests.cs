@@ -209,22 +209,22 @@ public class TrialDrawTests
     {
         { "task-localization.yml", new Dictionary<string, string[]> {
             { "visual", new[] { "on -60 0 Left", "on 60 0 Right" } },
-            { "auditory", new[] { "off 0 -90 Left", "off 0 90 Right" } },
+            { "auditory", new[] { "off NaN -90 Left", "off NaN 90 Right" } },
             { "audiovisualCoherent", new[] { "on -60 -90 Left", "on 60 90 Right" } },
             { "audiovisualConflict", new[] { "on -60 90 Random both", "on 60 -90 Random both" } },
-            { "neutral", new[] { "off 0 0 Random both" } } } },
+            { "neutral", new[] { "off NaN 0 Random both" } } } },
         { "task-discrimination-go-no-go.yml", new Dictionary<string, string[]> {
             { "go", new[] { "on -60 NaN Go", "on 60 NaN Go" } },
-            { "noGo", new[] { "off 0 -90 NoGo", "off 0 90 NoGo" } },
+            { "noGo", new[] { "off NaN -90 NoGo", "off NaN 90 NoGo" } },
             { "audiovisualCoherent", new[] { "on -60 -90 NoReward", "on 60 90 NoReward" } },
             { "audiovisualConflict", new[] { "on -60 90 NoReward", "on 60 -90 NoReward" } },
-            { "neutral", new[] { "off 0 NaN NoReward" } } } },
+            { "neutral", new[] { "off NaN NaN NoReward" } } } },
         { "task-discrimination-left-right.yml", new Dictionary<string, string[]> {
             { "left", new[] { "on -60 NaN Left", "on 60 NaN Left" } },
-            { "right", new[] { "off 0 -90 Right", "off 0 90 Right" } },
+            { "right", new[] { "off NaN -90 Right", "off NaN 90 Right" } },
             { "audiovisualCoherent", new[] { "on -60 -90 Random both", "on 60 90 Random both" } },
             { "audiovisualConflict", new[] { "on -60 90 Random both", "on 60 -90 Random both" } },
-            { "neutral", new[] { "off 0 NaN Random both" } } } },
+            { "neutral", new[] { "off NaN NaN Random both" } } } },
     };
 
     [TestMethod]
@@ -399,7 +399,7 @@ public class TrialDrawTests
             bool repeats = before.repeatCount < task.Repeats.MaxRepeats &&
                 (before.trialType == "visual" || before.trialType == "auditory" || before.trialType == "audiovisualCoherent");
             Assert.AreEqual(repeats ? before.repeatCount + 1 : 0, trials[i].repeatCount, before.trialType);
-            if (repeats) Assert.IsTrue(before.visualAzimuthDeg == trials[i].visualAzimuthDeg && before.trialCondition == trials[i].trialCondition);
+            if (repeats) Assert.IsTrue(before.visualAzimuthDeg.Equals(trials[i].visualAzimuthDeg) && before.trialCondition == trials[i].trialCondition);
         }
         Assert.IsTrue(trials.Any(t => t.repeatCount == task.Repeats.MaxRepeats));
         // Only a trial with a right answer repeats: never a conflict or neutral one (repeatOn never, x-rules).
@@ -784,6 +784,16 @@ public class TrialConditionTests
         var mixed = Fixture.Draw(With(Fixture.Condition("visual", 1, "visualStimulus.startAzimuthsDeg", Fixture.List(-60.0, 60.0))), 200);
         Assert.AreEqual(0.5, mixed.Count(t => t.target == "Right") / 200.0, 0.1);
         Assert.IsTrue(mixed.All(t => (t.visualAzimuthDeg > 0) == (t.target == "Right")));
+    }
+
+    [TestMethod]
+    public void ANoGratingTrialLogsItsAzimuthAndElevationAsNaNAndRendersAtZero()
+    {
+        var none = Fixture.Draw(With(Fixture.Condition("auditory", 1, "contrasts", Fixture.List(0.0))), 20);
+        Assert.IsTrue(none.All(t => t.visualContrast == 0 && double.IsNaN(t.visualAzimuthDeg) && double.IsNaN(t.visualElevationDeg)), "logged NaN, contrast 0");
+        Assert.IsTrue(none.All(t => t.gratingAzimuthDeg == 0 && t.gratingElevationDeg == 0), "the renderer never gets NaN");
+        var shown = Fixture.Draw(With(Fixture.Condition("visual", 1, "contrasts", Fixture.List(1.0))), 20);
+        Assert.IsTrue(shown.All(t => t.gratingAzimuthDeg == t.visualAzimuthDeg && t.gratingElevationDeg == t.visualElevationDeg && !double.IsNaN(t.visualAzimuthDeg)));
     }
 
     [TestMethod]
