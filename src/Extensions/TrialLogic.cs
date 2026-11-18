@@ -135,7 +135,8 @@ public class LoudestSound
 
 /// <summary>One of the rules linking condition fields (task.py RULES, the schema's x-rules): when the value at the path
 /// `when` is `is` (a list: every entry is) and no `unless` path is one of its values, each `then` path must be its value,
-/// each `oneOf` path one of its values, and the `unused` paths are not read. Named as the schema's keys.</summary>
+/// each `oneOf` path one of its values, no entry of each `noneOf` path one of its values, and the `unused` paths are not
+/// read. Named as the schema's keys.</summary>
 public class ConditionRule
 {
     /// <summary>The dotted path the rule looks at.</summary>
@@ -146,6 +147,8 @@ public class ConditionRule
     public Dictionary<string, object> then;
     /// <summary>Paths and the values each may then have.</summary>
     public Dictionary<string, string[]> oneOf;
+    /// <summary>List paths and the values none of their entries may then be.</summary>
+    public Dictionary<string, object[]> noneOf;
     /// <summary>Paths then not read.</summary>
     public string[] unused;
     /// <summary>Paths and the values that keep the rule out.</summary>
@@ -177,6 +180,8 @@ public class TrialDraw
         // A side target reads its azimuth to set the reward side, even unshown.
         new ConditionRule { when = "contrasts", @is = 0, unless = new Dictionary<string, string[]> { { "target", new[] { "visualSide" } } }, unused = new[] { "visualStimulus.initialAzimuthsDeg" } },
         new ConditionRule { when = "auditoryStimulus.amplitude", @is = 0, unless = new Dictionary<string, string[]> { { "target", new[] { "auditorySide" } } }, unused = new[] { "auditoryStimulus.initialAzimuthsDeg" } },
+        // The picked sound azimuth's sign is the side: 0 and "all" have none.
+        new ConditionRule { when = "target", @is = "auditorySide", noneOf = new Dictionary<string, object[]> { { "auditoryStimulus.initialAzimuthsDeg", new object[] { 0, AllSpeakers } } } },
     };
 
     /// <summary>The auditoryStimulus.initialAzimuthsDeg item that plays the sound on every rig.yml speaker (task.py ALL_SPEAKERS).</summary>
@@ -436,6 +441,7 @@ public class TrialDraw
             case "bothSpoutsProbability": return task.BothSpoutsProbability;
             case "contrasts": return task.Contrasts;
             case "auditoryStimulus.amplitude": return task.AuditoryStimulus.Amplitude;
+            case "auditoryStimulus.initialAzimuthsDeg": return (task.AuditoryStimulus.InitialAzimuthsDeg ?? new List<object>()).Select(item => SoundAzimuth(item)).Select(read => read.HasValue && double.IsNaN(read.Value) ? AllSpeakers : (object)read).ToList();
             default: throw new ArgumentException("x-rules names " + path + ", which TrialDraw.Value does not read.");
         }
     }
@@ -467,6 +473,10 @@ public class TrialDraw
             foreach (var oneOf in rule.oneOf ?? new Dictionary<string, string[]>())
             {
                 if (!oneOf.Value.Contains(Value(task, oneOf.Key) as string)) yield return string.Format("{0} {1} needs {2} one of {3} (x-rules)", rule.when, rule.@is, oneOf.Key, string.Join(", ", oneOf.Value));
+            }
+            foreach (var noneOf in rule.noneOf ?? new Dictionary<string, object[]>())
+            {
+                if (((List<object>)Value(task, noneOf.Key)).Any(entry => noneOf.Value.Any(refused => entry != null && Same(entry, refused)))) yield return string.Format("{0} {1} needs {2} none of {3} (x-rules)", rule.when, rule.@is, noneOf.Key, string.Join(", ", noneOf.Value));
             }
         }
     }
@@ -516,8 +526,7 @@ public class TrialDraw
         var amplitude = task.AuditoryStimulus.Amplitude;
         if (!(amplitude >= 0) || double.IsInfinity(amplitude)) problems.Add("auditoryStimulus.amplitude must be a finite number, 0 or more");
         // The positions (task.py's same rules): each grating azimuth signed and never 0 (its sign is the side); each sound
-        // azimuth's nearest speaker on its side (0: any), and off centre where its sign is the side (target auditorySide);
-        // "all" (every speaker) has no side.
+        // azimuth's nearest speaker on its side (0: any; target auditorySide refuses 0 and "all", x-rules).
         var visual = task.VisualStimulus;
         var elevation = visual.ElevationDeg;
         bool elevationOk = elevation >= -90 && elevation <= 90;
@@ -537,11 +546,9 @@ public class TrialDraw
             var azimuth = read.Value;
             if (double.IsNaN(azimuth))
             {
-                if (task.Target == ConditionTarget.AuditorySide) problems.Add("target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all: the sign is the trial's side");
-                else if (amplitude > 0 && (speakers == null || speakers.Speakers == null || speakers.Speakers.Count == 0)) problems.Add("rig.yml has no speakerArray.speakers to play auditoryStimulus.initialAzimuthsDeg all on");
+                if (task.Target != ConditionTarget.AuditorySide && amplitude > 0 && (speakers == null || speakers.Speakers == null || speakers.Speakers.Count == 0)) problems.Add("rig.yml has no speakerArray.speakers to play auditoryStimulus.initialAzimuthsDeg all on");
             }
             else if (!(azimuth >= -180 && azimuth <= 180)) problems.Add(string.Format("auditoryStimulus.initialAzimuthsDeg value {0} is outside [-180, 180]", azimuth));
-            else if (azimuth == 0 && task.Target == ConditionTarget.AuditorySide) problems.Add("target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all: the sign is the trial's side");
             else if (azimuth != 0 && elevationOk && amplitude > 0)
             {
                 var speaker = NearestSpeaker(speakers, azimuth, elevation);

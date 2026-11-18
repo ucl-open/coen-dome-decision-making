@@ -9,11 +9,13 @@ from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
     CONDITION_FIELDS,
+    LABELS,
     MAX_COMBINATIONS,
     MAX_WEIGHT_SUM,
     RULES,
     TARGETS,
     TaskType,
+    TrialCondition,
     applies,
     derive_label,
     UclOpenCoenDomeDecisionMakingTaskLogic,
@@ -355,8 +357,8 @@ def test_a_target_of_another_task_type_is_refused(task_type, name):
     ({"target": "random", "bothSpoutsProbability": 0.5, "repeats.repeatOn": "never"}, "target random needs bothSpoutsProbability 1"),
     ({"target": "random", "bothSpoutsProbability": 1, "repeats.repeatOn": "notCorrect"}, "target random needs repeats.repeatOn never"),
     ({"repeats.maxRepeats": 0, "repeats.repeatOn": "noResponse"}, "repeats.maxRepeats 0 needs repeats.repeatOn never"),
-    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": [0, 60]}, "auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all"),
-    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": ["all", 60]}, "auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all"),
+    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": [0, 60]}, r"auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all \(x-rules\)"),
+    ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": ["all", 60]}, r"auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all \(x-rules\)"),
     ({"auditoryStimulus.initialAzimuthsDeg": ["left"]}, "auditoryStimulus.initialAzimuthsDeg"),
     ({"auditoryStimulus.amplitude": -0.1}, "greater than or equal to 0"),
     ({"contrasts": [-1]}, "contrasts must each be 0 or more"),
@@ -364,6 +366,25 @@ def test_a_target_of_another_task_type_is_refused(task_type, name):
 def test_a_condition_breaking_a_rule_is_refused(set_, words):
     with pytest.raises(ValidationError, match=words):
         _conditions({"label": "visual", "weight": 1, "set": set_})
+
+
+V, S = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
+
+
+@pytest.mark.parametrize("set_, pairs, label", [
+    ({"target": "go"}, [], "go"), ({"target": "noGo", "contrasts": [0]}, [], "noGo"), ({"target": "left"}, [], "left"), ({"target": "right"}, [], "right"),
+    ({}, [], "audiovisualCoherent"), ({V: [-60, 60], S: [-60, 60]}, [[V, S]], "audiovisualCoherent"),
+    ({V: [-60, 60], S: [60, -60]}, [[V, S]], "audiovisualConflict"), ({V: [-60, 60], S: [60, -60]}, [], "audiovisualCoherent"),
+    ({S: [0]}, [], "visual"), ({S: ["all"]}, [], "visual"), ({S: [0, "all"]}, [], "visual"), ({S: [0, 60]}, [], "audiovisualCoherent"),
+    ({"auditoryStimulus.amplitude": 0}, [], "visual"), ({"auditoryStimulus.amplitude": [0, 0.5]}, [], "audiovisualCoherent"),
+    ({"contrasts": [0]}, [], "auditory"), ({"contrasts": [0, 0.5]}, [], "audiovisualCoherent"),
+    ({"contrasts": [0], S: ["all"]}, [], "neutral"), ({"contrasts": [0], S: [0]}, [], "neutral"),
+    ({"contrasts": [0], "auditoryStimulus.amplitude": 0}, [], "neutral"), ({"target": "random", "contrasts": [0], S: [0]}, [], "neutral"),
+])
+def test_every_label_is_derived_by_x_labels(set_, pairs, label):
+    # The localization task's contrast 3 and amplitude 1 at [-60, 60] under each set; the condition itself is not checked.
+    task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"])
+    assert derive_label(task, TrialCondition(label="neutral", weight=1, set=set_, pairs=pairs)) == label
 
 
 def test_a_go_no_go_probe_must_not_repeat():
@@ -508,8 +529,9 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_condition_fields():
     assert parameters["properties"]["trialConditions"]["x-whole"] is True
     assert parameters["x-conditionFields"] == list(CONDITION_FIELDS)
     assert parameters["x-rules"] == [dict(rule) for rule in RULES]
+    assert parameters["x-labels"] == [dict(label) for label in LABELS]
     # Every path a rule names is a condition field, or the task's type.
-    named = {path for rule in RULES for path in [rule["when"], *rule.get("then", {}), *rule.get("oneOf", {}), *rule.get("unless", {}), *rule.get("unused", [])]}
+    named = {path for rule in RULES for path in [rule["when"], *rule.get("then", {}), *rule.get("oneOf", {}), *rule.get("unless", {}), *rule.get("noneOf", {}), *rule.get("unused", [])]}
     assert named <= set(CONDITION_FIELDS) | {"taskType"}
     assert "trialWeights" not in parameters["properties"]
 

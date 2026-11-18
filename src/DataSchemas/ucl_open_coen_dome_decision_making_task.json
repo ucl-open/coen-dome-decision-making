@@ -676,6 +676,79 @@
         "autoRewardProbability",
         "bothSpoutsProbability"
       ],
+      "x-labels": [
+        {
+          "is": "go",
+          "label": "go",
+          "when": "target"
+        },
+        {
+          "is": "noGo",
+          "label": "noGo",
+          "when": "target"
+        },
+        {
+          "is": "left",
+          "label": "left",
+          "when": "target"
+        },
+        {
+          "is": "right",
+          "label": "right",
+          "when": "target"
+        },
+        {
+          "anyAbove": {
+            "auditoryStimulus.amplitude": 0,
+            "contrasts": 0
+          },
+          "anyNotIn": {
+            "auditoryStimulus.initialAzimuthsDeg": [
+              0,
+              "all"
+            ]
+          },
+          "label": "audiovisualConflict",
+          "mirrored": [
+            "visualStimulus.initialAzimuthsDeg",
+            "auditoryStimulus.initialAzimuthsDeg"
+          ]
+        },
+        {
+          "anyAbove": {
+            "auditoryStimulus.amplitude": 0,
+            "contrasts": 0
+          },
+          "anyNotIn": {
+            "auditoryStimulus.initialAzimuthsDeg": [
+              0,
+              "all"
+            ]
+          },
+          "label": "audiovisualCoherent"
+        },
+        {
+          "anyAbove": {
+            "contrasts": 0
+          },
+          "label": "visual"
+        },
+        {
+          "anyAbove": {
+            "auditoryStimulus.amplitude": 0
+          },
+          "anyNotIn": {
+            "auditoryStimulus.initialAzimuthsDeg": [
+              0,
+              "all"
+            ]
+          },
+          "label": "auditory"
+        },
+        {
+          "label": "neutral"
+        }
+      ],
       "x-rules": [
         {
           "is": 0,
@@ -755,6 +828,16 @@
             "auditoryStimulus.initialAzimuthsDeg"
           ],
           "when": "auditoryStimulus.amplitude"
+        },
+        {
+          "is": "auditorySide",
+          "noneOf": {
+            "auditoryStimulus.initialAzimuthsDeg": [
+              0,
+              "all"
+            ]
+          },
+          "when": "target"
         }
       ]
     },

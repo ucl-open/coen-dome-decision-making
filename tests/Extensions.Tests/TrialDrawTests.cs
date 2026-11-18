@@ -362,7 +362,7 @@ public class TrialDrawTests
         StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "trialConditions[5] (go): taskType localization needs target one of visualSide, auditorySide, random");
         task = Fixture.Task("task-localization.yml", 4);
         task.TrialConditions[1].Set = new Dictionary<object, object> { { "target", "auditorySide" }, { "contrasts", Fixture.List(0.0) }, { "auditoryStimulus.initialAzimuthsDeg", Fixture.List(0.0, 60.0) } };
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0");
+        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "target auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all (x-rules)");
     }
 
     [TestMethod]
@@ -897,7 +897,7 @@ public class TrialConditionTests
         }
         Assert.IsTrue(trials.Any(t => t.visualAzimuthDeg < 0) && trials.Any(t => t.visualAzimuthDeg > 0));
         StringAssert.Contains(Refused(With(Fixture.Condition("auditory", 1, "target", "auditorySide", "contrasts", Fixture.List(0.0), "auditoryStimulus.initialAzimuthsDeg", Fixture.List("all")))),
-            "target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all");
+            "target auditorySide needs auditoryStimulus.initialAzimuthsDeg none of 0, all (x-rules)");
         StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "auditoryStimulus.initialAzimuthsDeg", Fixture.List("left")))), "value left is neither a number nor all");
         Assert.AreEqual(-2, Trial.AllSpeakersChannel);
     }

@@ -20,6 +20,7 @@ from open_rigs.core.task import (
     WheelQuietWait,
 )
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS
+from open_rigs.rigs import conditions
 from pydantic import ConfigDict, Field, ValidationError, ValidationInfo, WithJsonSchema, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
@@ -200,7 +201,8 @@ CONDITION_FIELDS = (
 # Where one setting limits another (the schema's x-rules; TrialDraw.Rules, a test holds both), checked on the task and
 # on every combination of every condition, here and at Go. Each rule: when the path `when` is `is` (a list: every entry
 # is) and no `unless` path is one of its values, then each `then` path must be its value, each `oneOf` path one of its
-# values, and the `unused` paths are not read. A side target reads its azimuth to set the reward side, even unshown.
+# values, no entry of each `noneOf` path one of its values, and the `unused` paths are not read. A side target reads its
+# azimuth to set the reward side, even unshown.
 TARGETS = {
     TaskType.LOCALIZATION: ("visualSide", "auditorySide", "random"),
     TaskType.DISCRIMINATION_GO_NO_GO: ("go", "noGo", "noReward"),
@@ -214,6 +216,23 @@ RULES = (
     {"when": "contrasts", "is": 0, "unless": {"target": ["visualSide"]}, "unused": ["visualStimulus.initialAzimuthsDeg"]},
     {"when": "auditoryStimulus.amplitude", "is": 0, "unless": {"target": ["auditorySide"]},
      "unused": ["auditoryStimulus.initialAzimuthsDeg"]},
+    # The picked sound azimuth's sign is the side: 0 and "all" have none.
+    {"when": "target", "is": "auditorySide", "noneOf": {"auditoryStimulus.initialAzimuthsDeg": [0, ALL_SPEAKERS]}},
+)
+# How a condition is named (the schema's x-labels, open_rigs.rigs.conditions' format; derive_label): first match wins. A role
+# target names it; else by what it shows, the grating (a contrast above 0) and the sound as a cue (an amplitude above 0 at
+# an azimuth off centre: 0 and "all" give no side): both, audiovisualConflict when the azimuths are paired mirrored, else
+# audiovisualCoherent; one alone; or neutral.
+_BOTH = {"contrasts": 0, "auditoryStimulus.amplitude": 0}
+_OFF_CENTRE = {"auditoryStimulus.initialAzimuthsDeg": [0, ALL_SPEAKERS]}
+LABELS = (
+    *({"label": role, "when": "target", "is": role} for role in ("go", "noGo", "left", "right")),
+    {"label": "audiovisualConflict", "anyAbove": _BOTH, "anyNotIn": _OFF_CENTRE,
+     "mirrored": ["visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"]},
+    {"label": "audiovisualCoherent", "anyAbove": _BOTH, "anyNotIn": _OFF_CENTRE},
+    {"label": "visual", "anyAbove": {"contrasts": 0}},
+    {"label": "auditory", "anyAbove": {"auditoryStimulus.amplitude": 0}, "anyNotIn": _OFF_CENTRE},
+    {"label": "neutral"},
 )
 # The most combinations one condition may expand into (TrialDraw.MaxCombinations).
 MAX_COMBINATIONS = 64
@@ -243,6 +262,9 @@ def rule_problems(values: dict) -> list[str]:
         for path, allowed in rule.get("oneOf", {}).items():
             if _get(values, path) not in allowed:
                 problems.append(f"{rule['when']} {rule['is']} needs {path} one of {', '.join(map(str, allowed))} (x-rules)")
+        for path, refused in rule.get("noneOf", {}).items():
+            if any(entry in refused for entry in _get(values, path)):
+                problems.append(f"{rule['when']} {rule['is']} needs {path} none of {', '.join(map(str, refused))} (x-rules)")
     return problems
 
 
@@ -311,26 +333,8 @@ def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[
 
 
 def derive_label(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition: TrialCondition) -> str:
-    """A condition's label from its settings (its set over the task's): a role target names it (go, noGo, left, right); else
-    by what it shows, the grating (a contrast above 0) and the sound as a cue (an amplitude above 0 at an azimuth off centre;
-    0 and "all" give no side): both, audiovisualConflict when the azimuths are paired mirrored, else audiovisualCoherent; one
-    alone; or neutral."""
-    base = task.model_dump(by_alias=True, mode="json")
-
-    def value(path) -> list:
-        found = condition.set.get(path, _get(base, path))
-        return found if isinstance(found, list) else [found]
-
-    target = value("target")
-    if len(target) == 1 and target[0] in ("go", "noGo", "left", "right"):
-        return target[0]
-    grating = any(contrast > 0 for contrast in value("contrasts"))
-    sound = any(amplitude > 0 for amplitude in value("auditoryStimulus.amplitude")) and any(azimuth not in (0, ALL_SPEAKERS) for azimuth in value("auditoryStimulus.initialAzimuthsDeg"))
-    if grating and sound:
-        visual, auditory = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
-        paired = any(visual in group and auditory in group for group in condition.pairs)
-        return "audiovisualConflict" if paired and [-azimuth for azimuth in value(visual)] == value(auditory) else "audiovisualCoherent"
-    return "visual" if grating else "auditory" if sound else "neutral"
+    """A condition's label from its settings (its set over the task's), by LABELS (x-labels)."""
+    return conditions.derive_label(LABELS, task.model_dump(by_alias=True, mode="json"), condition.set, condition.pairs)
 
 
 class RepeatSettings(TaskBlock):
@@ -370,7 +374,7 @@ class Curriculum(TaskBlock):
 class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
-    model_config = ConfigDict(json_schema_extra={"x-conditionFields": list(CONDITION_FIELDS), "x-rules": [dict(rule) for rule in RULES]})
+    model_config = ConfigDict(json_schema_extra={"x-conditionFields": list(CONDITION_FIELDS), "x-rules": [dict(rule) for rule in RULES], "x-labels": [dict(label) for label in LABELS]})
 
     task_type: TaskType = Field(
         description=(
@@ -456,12 +460,10 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
     @model_validator(mode="after")
     def _weights_and_rules(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.CheckTask's same rules: x-rules on the task's own values (each combination's in _conditions_run), the
-        # weights' sum, a sound's side off centre.
+        # weights' sum.
         problems = rule_problems(self.model_dump(by_alias=True, mode="json"))
         if problems:
             raise ValueError("; ".join(problems))
-        if self.target == Target.AUDITORY_SIDE and any(azimuth in (0, ALL_SPEAKERS) for azimuth in self.auditory_stimulus.initial_azimuths_deg):
-            raise ValueError("target auditorySide needs auditoryStimulus.initialAzimuthsDeg without 0 or all: the sign is the trial's side")
         if not sum(condition.weight for condition in self.trial_conditions) > 0:
             raise ValueError("trial_conditions needs a condition with a weight above 0")
         if sum(condition.weight for condition in self.trial_conditions) > MAX_WEIGHT_SUM:
