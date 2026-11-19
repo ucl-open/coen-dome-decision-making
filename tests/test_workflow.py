@@ -205,6 +205,11 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
 
 def test_the_metrics_are_the_view_s():
     names = {c.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Name") for c in MAIN.iter(W + "Combinator") if c.get(XSI) == "orcl:ReportMetric"}
+    # The shared four are OpenRigs.Control's ReportTrialMetrics', once, at its default members.
+    (shared,) = [c for c in MAIN.iter(W + "Combinator") if c.get(XSI) == "orcl:ReportTrialMetrics"]
+    members = shared.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Members").split(",")
+    assert members == ["trialNumber", "trialType", "rewardOfferedUl", "laserCondition"] and not names & set(members)
+    names |= set(members)
     assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition", "curriculumStage"}
 
 
@@ -337,12 +342,15 @@ def test_no_wall_clock_wait_inside_task_logic():
 
 
 def test_the_rng_seed_is_logged_at_trial_1s_start():
-    # OpenRigs.Logging's LogRngSeed at TaskLogic's top level, given each trial's seed from its Start event.
+    # OpenRigs.Logging's LogRngSeed at TaskLogic's top level, given the rules' seed (TrialRules.Seed) at each trial's Start event.
     assert lint.rng_seed_problems(WORKFLOW) == []
     nodes, edges = lint.scope(WORKFLOW.named("TaskLogic"))
     (log,) = [i for i, n in enumerate(nodes) if n.get("Path") == lint.LOG_RNG_SEED]
     (seed,) = [a for a, b, _ in edges if b == log]
-    assert nodes[seed].findtext(lint.W + "Selector") == "rngSeed"
+    assert nodes[seed].findtext(lint.W + "Selector") == "Item2.Seed"
+    (latest,) = [a for a, b, _ in edges if b == seed]
+    assert _kind(nodes[latest]) == "rx:WithLatestFrom"
+    assert [nodes[a].findtext(W + "Name") for a, b, label in edges if b == latest and label == "Source2"] == ["TrialRules"]
     picks = [i for i in lint.upstream(edges, seed) if _kind(nodes[i]) == PICK]
     assert [nodes[i].find(W + "Combinator").findtext(TRL + "Kind") for i in picks] == ["Start"]
 

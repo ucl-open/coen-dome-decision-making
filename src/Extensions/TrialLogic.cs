@@ -54,7 +54,6 @@ public class Trial : IZapitTrial
     public bool autoReward;
     public bool probeHeads;            // a Random trial's coin: heads rewards a choice, tails penalises it
     public bool spoutMovements;
-    public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
     internal UclOpenCoenDomeDecisionMakingTaskParameters values;  // its combination's values, which the rules read per trial
 
     public Trial Clone()
@@ -324,7 +323,6 @@ public class TrialDraw
             trial = New();
         }
         trial.trialNumber = ++drawn;
-        trial.rngSeed = Seed;
         // Every trial, a repeat too, draws its own interval.
         var structure = trial.values.TrialStructure;
         trial.itiSeconds = Uniform(structure.ItiMinSeconds, structure.ItiMaxSeconds);
@@ -547,6 +545,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     public LaserTiming Laser { get { return laser; } }
 
+    /// <summary>The seed every draw of the experiment follows from (TrialDraw.Seed), logged once as an RngSeed event at trial 1's start.</summary>
+    public int Seed { get { return draw.Seed; } }
+
     /// <summary>The stage as code-version (S03A-k7f2) from the task file's curriculum, which the check has found well formed.</summary>
     public string CurriculumStage { get { return task.Curriculum.Code + "-" + task.Curriculum.Version; } }
 
@@ -554,7 +555,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public LoudestSound Loudest { get { return draw.Loudest(); } }
 
     /// <summary>Settings_Combinations' text (OpenRigs.Trials TrialConditions.CombinationsJson): every combination built at Go, each a row the trial
-    /// log's trialCombinationId names; logged through LogDataSchema in the Logging group.</summary>
+    /// log's trialCombinationId names; logged by OpenRigs.Logging ConditionedTaskLogs in the Logging group.</summary>
     public string CombinationsJson { get { return TrialConditions.CombinationsJson(draw.Task, draw.Conditions, TrialDraw.Schema); } }
 
     public Trial Draw(TrialOutcome previous)
