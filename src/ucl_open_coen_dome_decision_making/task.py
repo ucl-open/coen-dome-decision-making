@@ -253,7 +253,7 @@ class Optogenetics(LabOptogenetics):
 
 
 class Curriculum(ct.Curriculum):
-    """The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at
+    r"""The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at
     launch from the share's curriculum file (K:\config\curricula\<repo>\<task file stem>.conditions.yml), its stage's values written over the task
     file's; empty in the repo's task files. Bonsai only records it."""
 

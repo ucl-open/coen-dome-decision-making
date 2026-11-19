@@ -389,6 +389,7 @@ public class TrialDrawTests
         Assert.IsFalse(lr.Any(t => t.repeatCount > 0 && (t.trialType == "audiovisualCoherent" || t.trialType == "audiovisualConflict" || t.trialType == "neutral")));
         // A condition's own rule: the left condition never repeats, the right does.
         ((IDictionary<object, object>)leftRight.TrialConditions[0].Set)["repeats.repeatOn"] = "never";
+        ((IDictionary<object, object>)leftRight.TrialConditions[0].Set)["repeats.maxRepeats"] = 0;
         lr = Fixture.Draw(leftRight, 400, t => TrialOutcomes.Incorrect);
         Assert.IsTrue(lr.Any(t => t.repeatCount > 0 && t.trialType == "right") && !lr.Any(t => t.repeatCount > 0 && t.trialType == "left"));
     }
@@ -407,8 +408,8 @@ public class TrialDrawTests
         Assert.IsTrue(missed.Any(t => t.repeatCount == 2) && missed.All(t => t.repeatCount <= 2));
         set["repeats.repeatOn"] = "notCorrect";
         var refusal = Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
-        StringAssert.Contains(refusal, "trialConditions[3] (audiovisualConflict) with ");
-        StringAssert.Contains(refusal, "a probe (target random or noReward) needs repeats.repeatOn never or noResponse, not notCorrect");
+        StringAssert.Contains(refusal, "trialConditions[3] (audiovisualConflict): a probe (target random or noReward) needs repeats.repeatOn never or noResponse, not notCorrect");
+        Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(refusal, "a probe [(]target").Count, "said once per condition");
         // A withheld noGo is correct, its choice noResponse: never a noResponse repeat.
         var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 2);
         Fixture.Only(goNoGo, "noGo");
@@ -518,6 +519,23 @@ public class TrialDrawTests
         task = Fixture.Task("task-localization.yml", 4);
         task.Penalty.Sound.LevelDbfs = "off";
         StringAssert.Contains(refusal(task), "penalty.sound.levelDbfs: A sound level is a number of dBFS RMS or mute, not off");
+        // The penalty's level is bounded at Go as the stimulus's is, naming the condition: task-wide, and in a condition's set naming it.
+        task = Fixture.Task("task-localization.yml", 4);
+        task.Penalty.Sound.LevelDbfs = 0;
+        StringAssert.Contains(refusal(task), "penalty.sound.levelDbfs 0 is above -1 dBFS");
+        task = Fixture.Task("task-localization.yml", 4);
+        ((IDictionary<object, object>)task.TrialConditions[1].Set)["penalty.sound.levelDbfs"] = 10;
+        StringAssert.Contains(refusal(task), "trialConditions[1]");
+        StringAssert.Contains(refusal(task), "penalty.sound.levelDbfs 10 is above -1 dBFS");
+        // repeatOn never exactly when maxRepeats is 0 (task.py's x-rule), both ways.
+        task = Fixture.Task("task-localization.yml", 4);
+        task.Repeats.RepeatOn = RepeatOn.Never;
+        task.Repeats.MaxRepeats = 3;
+        StringAssert.Contains(refusal(task), "repeats.repeatOn never needs repeats.maxRepeats 0");
+        task = Fixture.Task("task-localization.yml", 4);
+        task.Repeats.RepeatOn = RepeatOn.NoResponse;
+        task.Repeats.MaxRepeats = 0;
+        StringAssert.Contains(refusal(task), "repeats.maxRepeats 0 needs repeats.repeatOn never");
 
         task = Fixture.Task("task-localization.yml", 4);
         task.VisualStimulus.InitialAzimuthsDeg = new List<double> { -60, 200 };

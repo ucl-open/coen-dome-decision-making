@@ -105,7 +105,7 @@ def test_the_task_is_checked_once_at_go_into_the_rules():
 
 
 def test_each_trial_event_reaches_its_hardware():
-    assert _reached("Start") == {"Trial", "LogRngSeed.bonsai"}   # Trial at the trial's start
+    assert _reached("Start") == {"Trial"}   # Trial at the trial's start; LogRngSeed reads Trial through its own subscription
     assert _reached("Stimulus") == {"StimulusTrial"}   # one subject, read by Display and Audio
     assert _reached("Update") == {"GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"GratingOff"}
@@ -275,8 +275,9 @@ def test_the_rng_seed_is_logged_at_trial_1s_start():
     (latest,) = [a for a, b, _ in edges if b == seed]
     assert _kind(nodes[latest]) == "rx:WithLatestFrom"
     assert [nodes[a].findtext(W + "Name") for a, b, label in edges if b == latest and label == "Source2"] == ["TrialRules"]
-    picks = [i for i in lint.upstream(edges, seed) if _kind(nodes[i]) == PICK]
-    assert [nodes[i].find(W + "Combinator").findtext(TRL + "Kind") for i in picks] == ["Start"]
+    (source,) = [a for a, b, label in edges if b == latest and label == "Source1"]
+    assert (nodes[source].get(XSI), nodes[source].findtext(W + "Name")) == ("SubscribeSubject", "Trial")
+    assert not [i for i in lint.upstream(edges, seed) if _kind(nodes[i]) == PICK]   # its own Trial, not the Multicast's chain
 
 
 def test_each_trial_s_sound_carries_its_sync_copy():

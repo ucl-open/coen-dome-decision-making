@@ -161,7 +161,8 @@ public class TrialDraw
                     if (target == null) own.Add("needs a target in its set");
                     else if ((target == ConditionTarget.Random || target == ConditionTarget.NoReward) && combination.Task.Repeats.RepeatOn == RepeatOn.NotCorrect)
                     {
-                        own.Add("a probe (target random or noReward) needs repeats.repeatOn never or noResponse, not notCorrect");
+                        // The condition's, not the combination's: said once however many combinations it has
+                        problems.Add(condition.Where + ": a probe (target random or noReward) needs repeats.repeatOn never or noResponse, not notCorrect");
                     }
                     problems.AddRange(own.Select(p => condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": " + p));
                 }
@@ -199,6 +200,9 @@ public class TrialDraw
             return;
         }
         if (task.Repeats.MaxRepeats < 0) problems.Add("repeats.maxRepeats must be 0 or more");
+        // x-rules (task.py): never exactly when maxRepeats is 0, checked here too, as Go is the last check of an edited task file.
+        else if (task.Repeats.RepeatOn == RepeatOn.Never && task.Repeats.MaxRepeats > 0) problems.Add("repeats.repeatOn never needs repeats.maxRepeats 0");
+        else if (task.Repeats.RepeatOn != RepeatOn.Never && task.Repeats.MaxRepeats == 0) problems.Add("repeats.maxRepeats 0 needs repeats.repeatOn never");
         var visual = task.VisualStimulus;
         var contrasts = visual.Contrasts ?? new List<double>();
         if (contrasts.Count == 0 || contrasts.Any(c => !(c >= 0) || double.IsInfinity(c))) problems.Add("visualStimulus.contrasts must each be a finite number, 0 or more, at least one");
@@ -207,8 +211,10 @@ public class TrialDraw
         try { level = SoundLevels.Parse(task.AuditoryStimulus.LevelDbfs); }
         catch (InvalidOperationException e) { problems.Add("auditoryStimulus.levelDbfs: " + e.Message); }
         if (level > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("auditoryStimulus.levelDbfs {0} is above {1} dBFS", level, SoundLevel.PeakLimitDbfs));
-        try { SoundLevels.Parse(task.Penalty.Sound.LevelDbfs); }
+        double penalty = double.NaN;
+        try { penalty = SoundLevels.Parse(task.Penalty.Sound.LevelDbfs); }
         catch (InvalidOperationException e) { problems.Add("penalty.sound.levelDbfs: " + e.Message); }
+        if (penalty > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("penalty.sound.levelDbfs {0} is above {1} dBFS", penalty, SoundLevel.PeakLimitDbfs));
         bool sounding = !double.IsNaN(level);
         // The positions (task.py's same rules): each grating azimuth signed and never 0 (its sign is the side); each sound
         // azimuth's nearest speaker, at auditoryStimulus.elevationDeg, on its side (0: any).
