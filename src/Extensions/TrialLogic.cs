@@ -15,7 +15,7 @@ using System.Reactive.Linq;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
 using ConditionTarget = UclOpenCoenDomeDecisionMakingTask.Target;
-using TrialConditionDraw = OpenRigs.Trials.TrialConditionDraw<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
+using BuiltTrialCondition = OpenRigs.Trials.BuiltTrialCondition<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
 
 /// <summary>One trial as drawn: the lab's conditioned trial (OpenRigs.Trials ConditionedTrial: trialNumber, trialType,
 /// trialConditionId, trialCombinationId, itiSeconds, rewardOfferedUl, the stimulus, the laser, autoReward) and this task's
@@ -99,7 +99,7 @@ public class TrialDraw
     public static readonly ConditionsSchema Schema = new ConditionsSchema(TaskSchema.SessionFields, TaskSchema.ListFields, TaskSchema.MaxCombinations, TaskSchema.TrialTypes);
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
-    readonly List<TrialConditionDraw> conditions;
+    readonly List<BuiltTrialCondition> conditions;
     readonly EqualisedSpeakerArray speakers;
     readonly Random random;
     readonly int conditionCount;
@@ -113,7 +113,7 @@ public class TrialDraw
     public UclOpenCoenDomeDecisionMakingTaskParameters Task { get { return task; } }
 
     /// <summary>The conditions as built at Go, in trialConditions' order.</summary>
-    public IList<TrialConditionDraw> Conditions { get { return conditions; } }
+    public IList<BuiltTrialCondition> Conditions { get { return conditions; } }
 
     /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers; throws naming every problem.</summary>
     public TrialDraw(string taskText, EqualisedSpeakerArray speakers, Func<string, int> zapitConditionCount)
@@ -137,7 +137,7 @@ public class TrialDraw
     /// <summary>The task the text holds and its conditions as drawn (OpenRigs.Trials TrialConditions.Build); throws unless the task file's curriculum (the
     /// only record of the stage, which app-rig-control fills at launch) is present and well formed and the task and every condition can be run on
     /// these speakers, naming every problem.</summary>
-    public static List<TrialConditionDraw> CheckTask(string taskText, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
+    public static List<BuiltTrialCondition> CheckTask(string taskText, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         task = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(taskText).TaskParameters;
         var curriculumProblem = CurriculumCheck.Problem(task.Curriculum);
@@ -295,7 +295,7 @@ public class TrialDraw
     }
 
     /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least responseDelaySeconds
-    /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, the longest ramp-down a
+    /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, the maximum ramp-down a
     /// conditions file may have (Zapit refuses the next StartStimulus until it has played) and Zapit's reply margin must fit
     /// before the next trigger.</summary>
     public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
@@ -446,18 +446,18 @@ public class TrialDraw
         return trial;
     }
 
-    /// <summary>The loudest stimulus sound the conditions can draw: the highest auditoryStimulus.levelDbfs of any combination
+    /// <summary>The highest stimulus level the conditions can draw: the highest auditoryStimulus.levelDbfs of any combination
     /// of a condition with a weight above 0 (NaN when all are mute), and where it is, for the stimulus set's peak check at Go
     /// (LevelAuditoryStimulusSet).</summary>
-    public LoudestSound MaxStimulusLevel()
+    public MaxSoundLevel MaxStimulusLevel()
     {
-        return LoudestSound.Of(conditions, t => t.AuditoryStimulus.LevelDbfs);
+        return MaxSoundLevel.Of(conditions, t => t.AuditoryStimulus.LevelDbfs);
     }
 
-    /// <summary>The loudest penalty sound the conditions can draw (penalty.sound.levelDbfs), for PlayPenaltySound's buffer at Go.</summary>
-    public LoudestSound MaxPenaltyLevel()
+    /// <summary>The highest penalty level the conditions can draw (penalty.sound.levelDbfs), for PlayPenaltySound's buffer at Go.</summary>
+    public MaxSoundLevel MaxPenaltyLevel()
     {
-        return LoudestSound.Of(conditions, t => t.Penalty.Sound.LevelDbfs);
+        return MaxSoundLevel.Of(conditions, t => t.Penalty.Sound.LevelDbfs);
     }
 
     int WeightedCondition()
@@ -537,7 +537,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         task = draw.Task;
         var optogenetics = task.Optogenetics;
         // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
-        // longest ramp-down a conditions file may have has played (Zapit refuses a StartStimulus until then).
+        // maximum ramp-down a conditions file may have has played (Zapit refuses a StartStimulus until then).
         laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, ZapitConditions.MaximumRampDownSeconds) : null;
     }
 
@@ -555,12 +555,12 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     /// <summary>The stage as code-version (S03A-k7f2) from the task file's curriculum, which the check has found well formed.</summary>
     public string CurriculumStage { get { return task.Curriculum.Code + "-" + task.Curriculum.Version; } }
 
-    /// <summary>The loudest sound the task's conditions can draw (TrialDraw.MaxStimulusLevel), for the stimulus set's peak check.</summary>
-    public LoudestSound Loudest { get { return draw.MaxStimulusLevel(); } }
+    /// <summary>The highest sound level the task's conditions can draw (TrialDraw.MaxStimulusLevel), for the stimulus set's peak check.</summary>
+    public MaxSoundLevel MaxStimulusLevel { get { return draw.MaxStimulusLevel(); } }
 
-    /// <summary>The loudest penalty level the conditions can draw (NaN when all are mute): lib-open-rigs' PlayPenaltySound
+    /// <summary>The highest penalty level the conditions can draw (NaN when all are mute): lib-open-rigs' PlayPenaltySound
     /// lays out its buffer at it at Go and plays each penalised trial's level from it.</summary>
-    public double LoudestPenaltyLevelDbfs { get { return draw.MaxPenaltyLevel().LevelDbfs; } }
+    public double MaxPenaltyLevelDbfs { get { return draw.MaxPenaltyLevel().LevelDbfs; } }
 
     /// <summary>Settings_Combinations' text (OpenRigs.Trials TrialConditions.CombinationsJson): every combination built at Go, each a row the trial
     /// log's trialCombinationId names; logged by OpenRigs.Logging ConditionedTaskLogs in the Logging group.</summary>

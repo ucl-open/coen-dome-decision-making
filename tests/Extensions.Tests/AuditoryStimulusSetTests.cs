@@ -162,15 +162,15 @@ public class AuditoryStimulusSetTests
     }
 
     [TestMethod]
-    public void EachStimulusPlaysAtItsLevelUpToTheLoudestCheckedAtGo()
+    public void EachStimulusPlaysAtItsLevelUpToTheMaxLevelCheckedAtGo()
     {
-        // A trial's level scales the equalised waveform by the set's one gain, up to the loudest the conditions can draw, whose
+        // A trial's level scales the equalised waveform by the set's one gain, up to the highest level the conditions can draw, whose
         // every equalised copy is checked under the -1 dBFS peak at Go, naming the condition and the speaker.
         var set = Load(Speakers());
         Func<Action, string> refusal = Fixture.Refusal;
         StringAssert.Contains(refusal(() => set.Buffer(7, 2, -40)), "not at or below the NaN the set was checked for at Go");
         var loud = set.LevelDbfs - 20;
-        var checkedSet = set.AtLoudest(new LoudestSound { LevelDbfs = loud, Where = "trialConditions[1] (auditory)" });
+        var checkedSet = set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = loud, Where = "trialConditions[1] (auditory)" });
         StringAssert.Contains(refusal(() => checkedSet.Buffer(7, 2, loud + 1)), "the " + loud + " the set was checked for at Go");
         var equalised = Samples(set.Stimulus(7, 2));
         foreach (var level in new[] { loud, loud - 6 })
@@ -197,7 +197,7 @@ public class AuditoryStimulusSetTests
                 for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(own[n] * set.Gain(loud), played[n], 1e-6);
             }
         }
-        StringAssert.Contains(refusal(() => set.AtLoudest(new LoudestSound { LevelDbfs = -2, Where = "trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2" })),
+        StringAssert.Contains(refusal(() => set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = -2, Where = "trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2" })),
             "on speaker 'left' at -2 dBFS (auditoryStimulus.levelDbfs, trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2) peaks at");
     }
 }

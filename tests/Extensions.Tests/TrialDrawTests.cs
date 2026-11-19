@@ -11,7 +11,7 @@ using OpenRigs.Trials;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
-using TrialConditionDraw = OpenRigs.Trials.TrialConditionDraw<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
+using BuiltTrialCondition = OpenRigs.Trials.BuiltTrialCondition<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
 
 static class Fixture
 {
@@ -154,7 +154,7 @@ static class Fixture
     }
 
     /// <summary>TrialDraw.CheckTask on the task's text: its conditions as built, or the refusal thrown.</summary>
-    public static List<TrialConditionDraw> Check(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
+    public static List<BuiltTrialCondition> Check(UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
     {
         UclOpenCoenDomeDecisionMakingTaskParameters read;
         return TrialDraw.CheckTask(Text(task), speakers, out read);
@@ -837,25 +837,25 @@ public class TrialConditionTests
     }
 
     [TestMethod]
-    public void TheLoudestSoundIsTheHighestLevelAWeightedConditionDraws()
+    public void TheMaxSoundLevelIsTheHighestLevelAWeightedConditionDraws()
     {
         var rules = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.levelDbfs", Fixture.List("mute", -46.0, -38.0)), Fixture.Condition(0, "auditoryStimulus.levelDbfs", -10.0))),
             Fixture.Speakers(), false, path => 2);
-        Assert.AreEqual(-38.0, rules.Loudest.LevelDbfs);
-        StringAssert.StartsWith(rules.Loudest.Where, "trialConditions[0] (audiovisualCoherent) with ");
-        StringAssert.Contains(rules.Loudest.Where, "auditoryStimulus.levelDbfs -38, ");
+        Assert.AreEqual(-38.0, rules.MaxStimulusLevel.LevelDbfs);
+        StringAssert.StartsWith(rules.MaxStimulusLevel.Where, "trialConditions[0] (audiovisualCoherent) with ");
+        StringAssert.Contains(rules.MaxStimulusLevel.Where, "auditoryStimulus.levelDbfs -38, ");
         var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.levelDbfs", "mute"))), Fixture.Speakers(), false, path => 2);
-        Assert.IsTrue(double.IsNaN(mute.Loudest.LevelDbfs), "all mute: none");
+        Assert.IsTrue(double.IsNaN(mute.MaxStimulusLevel.LevelDbfs), "all mute: none");
     }
 
     [TestMethod]
-    public void ThePenaltyLevelIsEachTrialsAndTheLoudestIsLaidOutAtGo()
+    public void ThePenaltyLevelIsEachTrialsAndTheMaxPenaltyLevelIsLaidOutAtGo()
     {
         // P19: penalty.sound.levelDbfs is condition-level; each outcome carries its trial's level (NaN mute), and
-        // LoudestPenaltyLevelDbfs is the highest a weighted condition draws, for PlayPenaltySound's buffer at Go.
+        // MaxPenaltyLevelDbfs is the highest a weighted condition draws, for PlayPenaltySound's buffer at Go.
         var task = With(Fixture.Condition(1, "penalty.sound.levelDbfs", -50.0), Fixture.Condition(1, "penalty.sound.levelDbfs", "mute"),
             Fixture.Condition(0, "penalty.sound.levelDbfs", -20.0));
-        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => 2).LoudestPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
+        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => 2).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
         foreach (var t in Fixture.Draw(task, 100))
         {
             var miss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, t, new TrialTimes { Now = 1 }, 4), t);

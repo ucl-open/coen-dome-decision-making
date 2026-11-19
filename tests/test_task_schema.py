@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
     MAX_WEIGHT_SUM,
-    REQUIRED,
+    REQUIRED_CONDITIONS,
     RULES,
     SESSION_FIELDS,
     TARGETS,
@@ -267,7 +267,7 @@ def test_the_constants_are_the_c_sharp_s():
     # The ramp-down and reward caps are lib-open-rigs' too, each tied there to its C# value.
     assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS" in task_py
     assert "check_zapit_free_in_time" in task_py
-    assert "    MAX_REWARD_UL,\n" in task_py and "class Reward(ct.Reward)" in task_py
+    assert "    MAX_REWARD_UL,\n" in task_py and "class Reward(CoreReward)" in task_py
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task LickQuietWait and
     # WheelQuietWait in task.py, OpenRigs.Core QuietWait.LickProblems and WheelProblems at Go).
     # MAX_COMBINATIONS and MAX_WEIGHT_SUM (the int.MaxValue the draw refuses a weight sum above) are open_rigs.rigs'.
@@ -563,10 +563,10 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_session_fields():
     assert "x-condition-fields" not in parameters
     assert parameters["x-rules"] == list(RULES)
     assert parameters["x-trial-types"] == list(TRIAL_TYPES)
-    assert parameters["x-required-conditions"] == list(REQUIRED)
+    assert parameters["x-required-conditions"] == list(REQUIRED_CONDITIONS)
     # Every path a rule, trial type or requirement names is a task field; only the task's type is a session field.
     leaves = set(flatten(_task("task-localization.yml").model_dump(by_alias=True, mode="json")))
-    entries = [*RULES, *TRIAL_TYPES, *REQUIRED]
+    entries = [*RULES, *TRIAL_TYPES, *REQUIRED_CONDITIONS]
     named = {path for entry in entries for part in ("if", "then", "some") for path in entry.get(part, {}).get("properties", {})}
     named |= {path for entry in entries for path in [*entry.get("unused", []), *entry.get("mirrored", [])]}
     assert named <= leaves and {ct.session_field(path, SESSION_FIELDS) for path in named} == {None, "taskType"}

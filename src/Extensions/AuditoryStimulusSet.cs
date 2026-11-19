@@ -30,7 +30,7 @@ public class AuditoryStimulusSet
 
     readonly Mat[] raw;
     readonly Dictionary<int, Mat[]> equalised;
-    readonly double loudestDbfs = double.NaN;
+    readonly double maxLevelDbfs = double.NaN;
 
     internal AuditoryStimulusSet(Mat[] raw, SpeakerSet speakers)
     {
@@ -40,13 +40,13 @@ public class AuditoryStimulusSet
         equalised = speakers.SpeakerChannels.ToDictionary(channel => channel, channel => raw.Select(waveform => speakers.Equalise(waveform, channel)).ToArray());
     }
 
-    AuditoryStimulusSet(AuditoryStimulusSet set, double loudestDbfs)
+    AuditoryStimulusSet(AuditoryStimulusSet set, double maxLevelDbfs)
     {
         raw = set.raw;
         equalised = set.equalised;
         Speakers = set.Speakers;
         LevelDbfs = set.LevelDbfs;
-        this.loudestDbfs = loudestDbfs;
+        this.maxLevelDbfs = maxLevelDbfs;
     }
 
     /// <summary>The set's level as stored, in dBFS RMS (OpenRigs.Audio SoundLevel's rule, silent stretches left out): the
@@ -68,15 +68,15 @@ public class AuditoryStimulusSet
     }
 
     /// <summary>
-    /// The set checked for the loudest sound the task's conditions can draw (auditoryStimulus.levelDbfs, one gain for the
+    /// The set checked for the highest sound level the task's conditions can draw (auditoryStimulus.levelDbfs, one gain for the
     /// set): every equalised copy at that level checked against the lab's -1 dBFS peak, so a sound too loud stops the
     /// workflow at Go, naming the condition, the waveform and the speaker, not at the trial that plays it. A trial may then
     /// play at that level or less (Buffer), on one speaker or all ("all": each channel its own speaker's copy, so this
     /// check holds for it too).
     /// </summary>
-    public AuditoryStimulusSet AtLoudest(LoudestSound loudest)
+    public AuditoryStimulusSet AtMaxLevel(MaxSoundLevel maxLevel)
     {
-        var gain = Gain(loudest.LevelDbfs);
+        var gain = Gain(maxLevel.LevelDbfs);
         foreach (var speaker in Speakers.Speakers)
         {
             for (int i = 0; i < raw.Length && gain > 0; i++)
@@ -85,11 +85,11 @@ public class AuditoryStimulusSet
                 {
                     CV.ConvertScale(equalised[speaker.Channel][i], played, gain, 0);
                     SoundLevel.CheckPeak(played, "Auditory stimulus " + i + " on speaker '" + speaker.Name + "' at " +
-                        loudest.LevelDbfs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " dBFS (auditoryStimulus.levelDbfs, " + loudest.Where + ")");
+                        maxLevel.LevelDbfs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " dBFS (auditoryStimulus.levelDbfs, " + maxLevel.Where + ")");
                 }
             }
         }
-        return new AuditoryStimulusSet(this, loudest.LevelDbfs);
+        return new AuditoryStimulusSet(this, maxLevel.LevelDbfs);
     }
 
     /// <summary>The speakers the set is equalised for.</summary>
@@ -113,10 +113,10 @@ public class AuditoryStimulusSet
 
     /// <summary>The mixer's buffer for a trial: its waveform equalised for the speaker on its channel (SoundAzimuths.AllSpeakersChannel:
     /// on every speaker's channel, each its own equalised copy), at its level (the set's one gain), with its sync copy. Each channel's
-    /// row is one speaker's equalised copy, so AtLoudest's check of every speaker covers a sound on all of them.</summary>
+    /// row is one speaker's equalised copy, so AtMaxLevel's check of every speaker covers a sound on all of them.</summary>
     public Mat Buffer(int index, int channel, double levelDbfs)
     {
-        if (!(levelDbfs <= loudestDbfs)) throw new InvalidOperationException("Trial asks for auditory level " + levelDbfs + " dBFS, not at or below the " + loudestDbfs + " the set was checked for at Go (LevelAuditoryStimulusSet).");
+        if (!(levelDbfs <= maxLevelDbfs)) throw new InvalidOperationException("Trial asks for auditory level " + levelDbfs + " dBFS, not at or below the " + maxLevelDbfs + " the set was checked for at Go (LevelAuditoryStimulusSet).");
         var gain = Gain(levelDbfs);
         var channels = channel == SoundAzimuths.AllSpeakersChannel ? Speakers.SpeakerChannels : new[] { channel };
         var buffer = Speakers.Layout(Stimulus(index, channels[0]), new[] { channels[0] }, gain, false, true);
@@ -194,13 +194,13 @@ public class LoadAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The auditory stimulus set checked for the loudest sound the task's conditions can draw (TrialRules.Loudest: the highest auditoryStimulus.levelDbfs, the set measured as one): stops the workflow, naming the condition, waveform and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the loudest sound.")]
+[Description("The auditory stimulus set checked for the highest sound level the task's conditions can draw (TrialRules.MaxStimulusLevel: the highest auditoryStimulus.levelDbfs, the set measured as one): stops the workflow, naming the condition, waveform and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the loudest sound.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LevelAuditoryStimulusSet
 {
-    public IObservable<AuditoryStimulusSet> Process(IObservable<Tuple<AuditoryStimulusSet, LoudestSound>> source)
+    public IObservable<AuditoryStimulusSet> Process(IObservable<Tuple<AuditoryStimulusSet, MaxSoundLevel>> source)
     {
-        return source.Select(input => input.Item1.AtLoudest(input.Item2));
+        return source.Select(input => input.Item1.AtMaxLevel(input.Item2));
     }
 }
 

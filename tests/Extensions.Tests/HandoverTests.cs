@@ -8,7 +8,7 @@ using System.IO;
 using System.Linq;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
-using TrialConditionDraw = OpenRigs.Trials.TrialConditionDraw<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
+using BuiltTrialCondition = OpenRigs.Trials.BuiltTrialCondition<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
 using Event = OpenRigs.Trials.TrialEvent<global::Trial, global::DecisionUpdate, global::TrialOutcome>;
 
 /// <summary>The task files app-rig-control writes at launch (tests\fixtures\handover, golden files its tests\test_handover.py
@@ -42,7 +42,7 @@ public class HandoverTests
         }).ToList();
     }
 
-    static List<TrialConditionDraw> Built(string name, string text)
+    static List<BuiltTrialCondition> Built(string name, string text)
     {
         UclOpenCoenDomeDecisionMakingTaskParameters task;
         try { return TrialDraw.CheckTask(text, Fixture.Speakers(), out task); }
@@ -109,7 +109,7 @@ public class HandoverTests
     // One trial against its combination (the file's values as BuildConditions picked them): its trialType its condition's, the
     // grating (NaN azimuth at contrast 0), the sound at its level on the speaker nearest its azimuth (NaN mute or at all), the target
     // as the combination names it (a side target from the side picked).
-    static void CheckTrial(string file, List<TrialConditionDraw> built, string trialType, int condition, int combinationId, double contrast,
+    static void CheckTrial(string file, List<BuiltTrialCondition> built, string trialType, int condition, int combinationId, double contrast,
         double visualAzimuth, double levelDbfs, double auditoryAzimuth, string target)
     {
         var where = file + " " + built[condition].Where + " combination " + combinationId;

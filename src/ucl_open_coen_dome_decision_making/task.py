@@ -10,6 +10,7 @@ from open_rigs.core.task import (
     LickQuietWait,
     Penalty,
     ResponseWindow,
+    Reward as CoreReward,
     Task,
     TaskBlock,
     TaskParameters,
@@ -112,7 +113,7 @@ class AuditoryStimulus(ct.AuditoryStimulus):
     )
 
 
-class Reward(ct.Reward):
+class Reward(CoreReward):
     """Reward delivery: the reward size and the large-reward trials (the lab's reward block)."""
 
 
@@ -206,7 +207,7 @@ TRIAL_TYPES = (
     {"trialType": "neutral"},
 )
 # What some weighted condition must draw (the schema's x-required-conditions; open_rigs.rigs.conditions.required_problems).
-REQUIRED = (
+REQUIRED_CONDITIONS = (
     {"if": if_({"taskType": {"const": TaskType.DISCRIMINATION_GO_NO_GO.value}}), "some": if_({"target": {"const": "go"}}),
      "message": "taskType discriminationGoNoGo needs a condition with a weight above 0 that draws target go, or the task has no Go trials"},
 )
@@ -260,11 +261,11 @@ class Curriculum(ct.Curriculum):
 class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.ConditionedTask):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
-    model_config = ConfigDict(json_schema_extra=ct.schema_extra(SESSION_FIELDS, RULES, TRIAL_TYPES, REQUIRED))
+    model_config = ConfigDict(json_schema_extra=ct.schema_extra(SESSION_FIELDS, RULES, TRIAL_TYPES, REQUIRED_CONDITIONS))
     SESSION_FIELDS = SESSION_FIELDS
     RULES = RULES
     TRIAL_TYPES = TRIAL_TYPES
-    REQUIRED = REQUIRED
+    REQUIRED_CONDITIONS = REQUIRED_CONDITIONS
 
     curriculum: Curriculum | None = Field(
         default=None,
@@ -391,15 +392,15 @@ def _between_trials(tasks: list[dict]) -> None:
     s = [task["trialStructure"] for task in tasks]
     iti = min(x["itiMinSeconds"] for x in s)
     for name in ("outcomeToSpoutsOutSeconds", "visualStimulusSeconds"):
-        if (longest := max(x[name] for x in s)) > iti + 1e-9:
-            raise ValueError(f"trialStructure.{name} {longest:g} s exceeds trialStructure.itiMinSeconds {iti:g} s of a combination that may come next")
+        if (maximum := max(x[name] for x in s)) > iti + 1e-9:
+            raise ValueError(f"trialStructure.{name} {maximum:g} s exceeds trialStructure.itiMinSeconds {iti:g} s of a combination that may come next")
     if tasks[0]["optogenetics"]["enabled"]:
         leads = [task["optogenetics"]["laserToStimulusSeconds"] for task in tasks]
-        longest = (min(lead + x["responseDelaySeconds"] for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
+        cap = (min(lead + x["responseDelaySeconds"] for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
                    - ZAPIT_MAX_RAMP_DOWN_SECONDS - ZAPIT_REPLY_MARGIN_SECONDS)
         duration = max(task["optogenetics"]["laserDurationSeconds"] for task in tasks)
-        if duration > longest + 1e-9:
-            raise ValueError(f"optogenetics.laserDurationSeconds ({duration} s) must be at most {longest:g} s across the combinations: "
+        if duration > cap + 1e-9:
+            raise ValueError(f"optogenetics.laserDurationSeconds ({duration} s) must be at most {cap:g} s across the combinations: "
                              "the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin")
 
 

@@ -387,7 +387,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryLevelDbfs (the set measured as one, one gain), TaskLogic's penalty sound at each penalised trial's penalty.sound.levelDbfs, laid out at Go at the loudest any condition can draw; the background noise at the lab's -60 dBFS, sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the highest level any condition can draw (TrialRules.Loudest into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryLevelDbfs (the set measured as one, one gain), TaskLogic's penalty sound at each penalised trial's penalty.sound.levelDbfs, laid out at Go at the highest level any condition can draw; the background noise at the lab's -60 dBFS, sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the highest level any condition can draw (TrialRules.MaxStimulusLevel into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -414,7 +414,7 @@
               <Name>TrialRules</Name>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>Loudest</Selector>
+              <Selector>MaxStimulusLevel</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Zip" />
@@ -609,7 +609,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>RunTrials</Name>
-              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last outcome plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window responseDelaySeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved azimuthShiftPerLickDeg a lick; left at thresholdLicks, right at -thresholdLicks, else noResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once the longest ramp-down has played. Inputs: the rules, the clock, the wheel, the left and right lick states, Zapit's replies.</Description>
+              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last outcome plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window responseDelaySeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved azimuthShiftPerLickDeg a lick; left at thresholdLicks, right at -thresholdLicks, else noResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once the maximum ramp-down has played. Inputs: the rules, the clock, the wheel, the left and right lick states, Zapit's replies.</Description>
               <Combinator xsi:type="ext:RunTrials" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
