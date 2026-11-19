@@ -251,7 +251,7 @@ public class ResponseRuleTests
             {
                 var t = probes[i];
                 var choice = i % 2 == 0 ? Choice.Left : Choice.Right;
-                var o = TrialOutcome.Of(TrialRow.Build(choice, t, times, 4), t);
+                var o = TrialOutcome.At(choice, t, times);
                 Assert.AreEqual(TrialOutcomes.Probe, o.Row.Value.outcome);
                 Assert.AreNotEqual(o.Rewarded, o.Penalised, "rewarded or penalised, never both or neither");
                 Assert.IsTrue(o.Row.Value.rewarded == o.Rewarded && o.Row.Value.penalised == o.Penalised, "the row says what the valve and the penalty did");
@@ -268,9 +268,9 @@ public class ResponseRuleTests
                     Assert.IsTrue(!t.probeHeads && o.Reward == null && o.PenaltyTimeoutSeconds == 4 && o.SpoutCommand == LickSpoutCommand.SpoutsOut);
                 }
                 // A miss: exactly a scored miss (a penalty in these tasks), whatever the coin.
-                var miss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, t, times, 4), t);
+                var miss = TrialOutcome.At(Choice.NoResponse, t, times);
                 var scored = all.First(s => s.target != TargetWords.Random && !s.autoReward);
-                var scoredMiss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, scored, times, 4), scored);
+                var scoredMiss = TrialOutcome.At(Choice.NoResponse, scored, times);
                 Assert.IsTrue(miss.Row.Value.outcome == TrialOutcomes.Probe && !miss.Rewarded && !miss.Row.Value.rewarded && miss.Row.Value.penalised, "no choice, nothing paid");
                 Assert.AreEqual(t.rewardOfferedUl, miss.Row.Value.rewardOfferedUl, "the offer kept on a miss");
                 Assert.IsTrue(miss.Penalised == scoredMiss.Penalised && miss.PenaltyTimeoutSeconds == scoredMiss.PenaltyTimeoutSeconds && scoredMiss.Penalised, file);
@@ -289,7 +289,7 @@ public class ResponseRuleTests
         Func<string, string, TrialOutcome> score = (target, choice) =>
         {
             var t = Rules.Made(target, target == TargetWords.Go ? 3 : 0);
-            return TrialOutcome.Of(TrialRow.Build(choice, t, times, 4), t);
+            return TrialOutcome.At(choice, t, times);
         };
         var hit = score(TargetWords.Go, Choice.Go);
         Assert.AreEqual(TrialOutcomes.Correct, hit.Row.Value.outcome);
@@ -654,20 +654,20 @@ public class TrialRowTests
     public void TheRowSaysWhatTheOutcomeCost()
     {
         var trial = new Trial { target = TargetWords.Left, autoReward = false, itiSeconds = 3 };
-        var incorrect = TrialRow.Build(Choice.Right, trial, Times(10), 4);
+        var incorrect = TrialRow.Build(Choice.Right, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
         Assert.IsTrue(incorrect.outcome == TrialOutcomes.Incorrect && incorrect.penalised && incorrect.penaltyTimeoutSeconds == 4 && incorrect.outcomeTime == 10);
         Assert.IsTrue(incorrect.itiSeconds == 3 && incorrect.itiStartTime == 50 && incorrect.quietWaitSeconds == 0.2 && incorrect.trialStartTime == 8.5 && incorrect.stimulusOnsetTime == 9);
         // A miss: the outcome at the end of the response window, and the penalty sound with its timeout.
-        var miss = TrialRow.Build(Choice.NoResponse, trial, Times(10), 4);
+        var miss = TrialRow.Build(Choice.NoResponse, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
         Assert.IsTrue(miss.outcome == TrialOutcomes.NoResponse && miss.penalised && miss.penaltyTimeoutSeconds == 4 && !miss.rewarded);
         trial.autoReward = true;
-        var rewardedMiss = TrialRow.Build(Choice.NoResponse, trial, Times(10), 4);
+        var rewardedMiss = TrialRow.Build(Choice.NoResponse, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
         Assert.IsTrue(rewardedMiss.outcome == TrialOutcomes.Auto && rewardedMiss.autoReward && rewardedMiss.rewarded && rewardedMiss.penaltyTimeoutSeconds == 0 && !rewardedMiss.penalised, "an auto-rewarded miss: outcome auto, autoReward and rewarded");
-        var correct = TrialRow.Build(Choice.Left, trial, Times(10), 4);
-        Assert.AreEqual(TrialOutcomes.Incorrect, TrialRow.Build(Choice.Right, trial, Times(10), 4).outcome, "a side chosen on an auto-reward trial keeps its outcome");
+        var correct = TrialRow.Build(Choice.Left, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
+        Assert.AreEqual(TrialOutcomes.Incorrect, TrialRow.Build(Choice.Right, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 }).outcome, "a side chosen on an auto-reward trial keeps its outcome");
         var goTrial = new Trial { target = TargetWords.Go, autoReward = true };
-        Assert.AreEqual(TrialOutcomes.Auto, TrialRow.Build(Choice.NoResponse, goTrial, Times(10), 4).outcome, "go/no-go: an auto-rewarded go miss");
-        Assert.AreEqual(TrialOutcomes.Correct, TrialRow.Build(Choice.Go, goTrial, Times(10), 4).outcome, "go/no-go: a licked auto-reward go trial");
+        Assert.AreEqual(TrialOutcomes.Auto, TrialRow.Build(Choice.NoResponse, goTrial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 }).outcome, "go/no-go: an auto-rewarded go miss");
+        Assert.AreEqual(TrialOutcomes.Correct, TrialRow.Build(Choice.Go, goTrial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 }).outcome, "go/no-go: a licked auto-reward go trial");
         Assert.IsTrue(correct.outcome == TrialOutcomes.Correct && !correct.penalised && correct.penaltyTimeoutSeconds == 0 && correct.rewarded);
     }
 
@@ -677,9 +677,9 @@ public class TrialRowTests
         var trial = new Trial { target = TargetWords.Left, laserCondition = 2, laserOn = true, laserPowerMw = 3 };
         var times = Times(10);
         times.LaserTriggerTime = 9.25;
-        var row = TrialRow.Build(Choice.Left, trial, times, 4);
+        var row = TrialRow.Build(Choice.Left, trial, times, new ResolvedPenalty { TimeoutSeconds = 4 });
         Assert.IsTrue(row.laserCondition == 2 && row.laserPowerMw == 3 && row.laserTriggerTime == 9.25);
-        var answered = TrialRow.Build(Choice.Left, trial, Times(10), 4);
+        var answered = TrialRow.Build(Choice.Left, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
         Assert.IsTrue(answered.laserCondition == 2 && answered.laserPowerMw == 0 && double.IsNaN(answered.laserTriggerTime), "answered before its trigger");
     }
 
@@ -702,7 +702,7 @@ public class ConsequenceTests
     {
         var trial = Rules.Made(Choice.Right, 3, !movements);
         trial.autoReward = autoReward;
-        return TrialOutcome.Of(TrialRow.Build(choice, trial, new TrialTimes { Now = 1 }, 4), trial);
+        return TrialOutcome.At(choice, trial, new TrialTimes { Now = 1 });
     }
 
     [TestMethod]
@@ -736,7 +736,7 @@ public class ConsequenceTests
         {
             var t = Rules.Made(TargetWords.Random, 3);
             t.probeHeads = up;
-            return TrialOutcome.Of(TrialRow.Build(choice, t, new TrialTimes { Now = 1 }, 4), t);
+            return TrialOutcome.At(choice, t, new TrialTimes { Now = 1 });
         };
         var heads = score(Choice.Left, true);
         Assert.IsTrue(heads.Row.Value.rewarded && !heads.Row.Value.penalised && heads.Reward.Equals(Tuple.Create("left", 3.0)) && heads.SpoutCommand == LickSpoutCommand.LeftOnly);

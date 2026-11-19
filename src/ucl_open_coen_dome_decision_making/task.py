@@ -191,6 +191,10 @@ RULES = (
     # The picked sound azimuth's sign is the side: 0 and "all" have none.
     {"if": if_({"target": {"const": "auditorySide"}}), "then": ct.props({"auditoryStimulus.initialAzimuthsDeg": {"items": {"not": {"enum": SIDELESS}}}}),
      "message": "target auditorySide needs auditory azimuths without 0 or all"},
+    # A go/no-go miss is never penalised, so a miss's own cost would never be used (TrialDraw.Check's same rule).
+    {"if": if_({"taskType": {"const": TaskType.DISCRIMINATION_GO_NO_GO.value}}),
+     "then": ct.props({"penalty.noResponse.timeoutSeconds": {"type": "null"}, "penalty.noResponse.sound.levelDbfs": {"type": "null"}}),
+     "message": "taskType discriminationGoNoGo never penalises a miss, so penalty.noResponse.timeoutSeconds and penalty.noResponse.sound.levelDbfs must be null"},
 )
 # How a condition is named (the schema's x-trial-types; derive_trial_type): first match wins, on the condition's values
 # each as a list. A role target names it; else by what it shows, the grating (a contrast above 0) and the sound as a cue
@@ -291,7 +295,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         description="Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is never repeated (neither noResponse nor notCorrect); 0: never, 1: every trial",
     )
     penalty: Penalty = Field(
-        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a noGo trial (a go miss and a no-reward probe have neither), open_rigs.core.task Penalty"
+        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a noGo trial (a go miss and a no-reward probe have neither). A penalised miss (a probe's too) costs penalty.noResponse's values where not null, which discriminationGoNoGo refuses; open_rigs.core.task Penalty"
     )
     optogenetics: Optogenetics = Field(description="Zapit optogenetic stimulation")
     task_type: TaskType = Field(

@@ -5,7 +5,7 @@
 # picking listed values together; its trialType is derived from them (x-trial-types). A stage's conditions replace them whole. audiovisualConflict
 # and neutral trials have no right answer: random-reward probes (target random, outcome probe), both spouts in,
 # a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss. Visual and neutral
-# trials play the sound at the centre.
+# trials play the sound at the centre. A penalised miss has the timeout but no penalty sound (penalty.noResponse).
 # The training stages are the share's curriculum (K:\config\curricula\coen-dome-decision-making\<this file's stem>.conditions.yml):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills curriculum.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
@@ -54,9 +54,13 @@ taskParameters:
     largeProbability: 0.0  # 0: no large rewards
   autoRewardProbability: 0.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
   penalty:
-    timeoutSeconds: 4.0   # s, after an incorrect choice, a miss (not an auto-rewarded one) or a probe's choice on the coin's tails
-    sound:               # the penalty sound, with every timeout
+    timeoutSeconds: 4.0   # s, after an incorrect choice or a probe's choice on the coin's tails, and a miss unless noResponse sets its own
+    sound:               # the penalty sound, with a penalised choice's timeout
       levelDbfs: -35     # dBFS RMS; mute: no sound
+    noResponse:          # a penalised miss (not an auto-rewarded one; a probe's as a scored trial's); null: the choice's above
+      timeoutSeconds: null   # s; null: timeoutSeconds above
+      sound:
+        levelDbfs: mute  # dBFS RMS; mute: no sound on a miss; null: sound.levelDbfs above
   optogenetics:
     enabled: false
     zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml

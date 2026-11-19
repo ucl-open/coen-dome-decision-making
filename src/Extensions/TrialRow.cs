@@ -87,9 +87,17 @@ public class TrialRow
         return !trial.autoReward;
     }
 
+    // What the trial costs if penalised (lib-open-rigs Penalties.Resolve): a miss (no choice, a probe's too) its
+    // penalty.noResponse values where not null, a choice penalty.timeoutSeconds and penalty.sound.levelDbfs.
+    public static ResolvedPenalty Cost(string choice, Trial trial)
+    {
+        var p = trial.values.Penalty;
+        return Penalties.Resolve(p.TimeoutSeconds, p.Sound.LevelDbfs, p.NoResponse.TimeoutSeconds, p.NoResponse.Sound.LevelDbfs, choice == Choice.NoResponse);
+    }
+
     // The trial's row at its outcome, the choice made now (times.Now: the lick, or the end of the response window,
-    // the row's own time too); the shared block's times are the trial loop's (TrialTimes).
-    public static TrialRow Build(string choice, Trial trial, TrialTimes times, double timeoutSeconds)
+    // the row's own time too), at the cost Cost resolved; the shared block's times are the trial loop's (TrialTimes).
+    public static TrialRow Build(string choice, Trial trial, TrialTimes times, ResolvedPenalty cost)
     {
         var outcome = Outcome(choice, trial);
         var penalised = Penalised(outcome, choice, trial);
@@ -115,6 +123,6 @@ public class TrialRow
             visualInitialAzimuthDeg = trial.visualInitialAzimuthDeg,
             auditorySoundFileIndex = trial.auditorySoundFileIndex,
         };
-        return SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised, timeoutSeconds);
+        return SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised, cost.TimeoutSeconds);
     }
 }

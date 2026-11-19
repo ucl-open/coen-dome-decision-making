@@ -417,7 +417,7 @@ public class TrialDrawTests
         goNoGo.Repeats.MaxRepeats = 5;
         var draw = new TrialDraw(Fixture.Text(goNoGo), Fixture.Speakers(), path => 2);
         var first = draw.Next(null);
-        Assert.AreEqual(0, draw.Next(TrialRow.Build(Choice.NoResponse, first, new TrialTimes { Now = 1 }, 4)).repeatCount);
+        Assert.AreEqual(0, draw.Next(TrialRow.Build(Choice.NoResponse, first, new TrialTimes { Now = 1 }, new ResolvedPenalty { TimeoutSeconds = 4 })).repeatCount);
     }
 
     [TestMethod]
@@ -889,11 +889,75 @@ public class TrialConditionTests
         Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => 2).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
         foreach (var t in Fixture.Draw(task, 100))
         {
-            var miss = TrialOutcome.Of(TrialRow.Build(Choice.NoResponse, t, new TrialTimes { Now = 1 }, 4), t);
-            Assert.IsTrue(miss.Penalised && miss.Row.Value.penalised);
-            if (t.trialConditionId == 0) Assert.AreEqual(-50.0, miss.PenaltyLevelDbfs);
-            else Assert.IsTrue(double.IsNaN(miss.PenaltyLevelDbfs), "mute: penalised, no sound");
+            var wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
+            Assert.IsTrue(wrong.Penalised && wrong.Row.Value.penalised);
+            if (t.trialConditionId == 0) Assert.AreEqual(-50.0, wrong.PenaltyLevelDbfs);
+            else Assert.IsTrue(double.IsNaN(wrong.PenaltyLevelDbfs), "mute: penalised, no sound");
         }
+    }
+
+    [TestMethod]
+    public void AMissCostsPenaltyNoResponseWhereSetAndTheChoicesElse()
+    {
+        // The localization file: a miss has the 4 s timeout and no sound (noResponse.sound.levelDbfs mute), a wrong choice both.
+        var task = With(Fixture.Condition(1));
+        var t = Fixture.Draw(task, 1)[0];
+        var wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
+        var miss = TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 });
+        Assert.IsTrue(wrong.PenaltyTimeoutSeconds == 4 && wrong.PenaltyLevelDbfs == -35 && wrong.Row.Value.penaltyTimeoutSeconds == 4);
+        Assert.IsTrue(miss.Penalised && miss.PenaltyTimeoutSeconds == 4 && double.IsNaN(miss.PenaltyLevelDbfs) && miss.Row.Value.penaltyTimeoutSeconds == 4);
+        // Both fields set: the miss's own, the choice's unchanged; the row logs the timeout it used.
+        task.Penalty.NoResponse.TimeoutSeconds = 2;
+        task.Penalty.NoResponse.Sound.LevelDbfs = -45.0;
+        t = Fixture.Draw(task, 1)[0];
+        miss = TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 });
+        wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
+        Assert.IsTrue(miss.PenaltyTimeoutSeconds == 2 && miss.PenaltyLevelDbfs == -45 && miss.Row.Value.penaltyTimeoutSeconds == 2);
+        Assert.IsTrue(wrong.PenaltyTimeoutSeconds == 4 && wrong.PenaltyLevelDbfs == -35);
+        // A random-reward probe's miss (outcome probe) is a miss; its choice on tails is a choice.
+        var probe = Fixture.Draw(With(Fixture.Condition(1, "target", "random", "penalty.noResponse.timeoutSeconds", 2.0)), 1)[0];
+        probe.probeHeads = false;
+        var probeMiss = TrialOutcome.At(Choice.NoResponse, probe, new TrialTimes { Now = 1 });
+        var tails = TrialOutcome.At(Choice.Left, probe, new TrialTimes { Now = 1 });
+        Assert.IsTrue(probeMiss.Row.Value.outcome == TrialOutcomes.Probe && probeMiss.Penalised && probeMiss.PenaltyTimeoutSeconds == 2 && double.IsNaN(probeMiss.PenaltyLevelDbfs));
+        Assert.IsTrue(tails.Penalised && tails.PenaltyTimeoutSeconds == 4 && tails.PenaltyLevelDbfs == -35);
+    }
+
+    [TestMethod]
+    public void TheMaxPenaltyLevelCountsAMissesLevelAndAConditionMaySetIt()
+    {
+        // A condition sets penalty.noResponse.sound.levelDbfs: louder than every choice's, it is the buffer's level, named.
+        var task = With(Fixture.Condition(1), Fixture.Condition(1, "penalty.noResponse.sound.levelDbfs", -30.0), Fixture.Condition(0, "penalty.noResponse.sound.levelDbfs", -20.0));
+        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => 2);
+        Assert.AreEqual(-30.0, rules.MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
+        var draw = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => 2);
+        StringAssert.StartsWith(draw.MaxPenaltyLevel().Where, "trialConditions[1]");
+        foreach (var t in Fixture.Draw(task, 40).Where(x => x.trialConditionId == 1))
+            Assert.AreEqual(-30.0, TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 }).PenaltyLevelDbfs);
+        // Null (left-right's file): the choice's level alone.
+        Assert.AreEqual(-35.0, new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), false, path => 2).MaxPenaltyLevelDbfs);
+    }
+
+    [TestMethod]
+    public void GoNoGoRefusesAMissesOwnCostAndTheOverrideIsCheckedAsTheChoices()
+    {
+        Func<UclOpenCoenDomeDecisionMakingTaskParameters, string> refusal = parameters =>
+            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), Fixture.Speakers(), path => 2));
+        var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 4);
+        goNoGo.Penalty.NoResponse.Sound.LevelDbfs = "mute";
+        StringAssert.Contains(refusal(goNoGo), "penalty.noResponse.sound.levelDbfs must be null in discriminationGoNoGo");
+        goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 4);
+        goNoGo.Penalty.NoResponse.TimeoutSeconds = 2;
+        StringAssert.Contains(refusal(goNoGo), "penalty.noResponse.timeoutSeconds must be null in discriminationGoNoGo");
+        var task = Fixture.Task("task-discrimination-left-right.yml", 4);
+        task.Penalty.NoResponse.Sound.LevelDbfs = 0;
+        task.Penalty.NoResponse.TimeoutSeconds = double.NaN;
+        var said = refusal(task);
+        StringAssert.Contains(said, "penalty.noResponse.sound.levelDbfs 0 is above -1 dBFS");
+        StringAssert.Contains(said, "penalty.noResponse.timeoutSeconds must be a finite number, 0 or more");
+        task = Fixture.Task("task-discrimination-left-right.yml", 4);
+        task.Penalty.NoResponse.Sound.LevelDbfs = "off";
+        StringAssert.Contains(refusal(task), "penalty.noResponse.sound.levelDbfs: A sound level is a number of dBFS RMS or mute, not off");
     }
 
     [TestMethod]

@@ -58,6 +58,10 @@ taskParameters:
     timeoutSeconds: 4.0   # s, after an incorrect choice, a miss (not an auto-rewarded one) or a probe's choice on the coin's tails
     sound:               # the penalty sound, with every timeout
       levelDbfs: -35     # dBFS RMS; mute: no sound
+    noResponse:          # a penalised miss's own cost (a probe's miss too); null: the choice's above
+      timeoutSeconds: null   # s; null: timeoutSeconds above
+      sound:
+        levelDbfs: null  # dBFS RMS or mute; null: sound.levelDbfs above
   optogenetics:
     enabled: false
     zapitConditionsPath: ""

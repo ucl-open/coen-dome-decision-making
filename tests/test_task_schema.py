@@ -469,6 +469,25 @@ def test_a_go_no_go_task_with_no_go_trials_is_refused():
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
+@pytest.mark.parametrize("path,value", [("timeoutSeconds", 2.0), ("sound.levelDbfs", "mute")])
+def test_a_go_no_go_miss_s_own_cost_is_refused(path, value):
+    # A go/no-go miss is never penalised (TrialDraw.Check's same rule); the committed file's null leaves validate.
+    data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    block = data["penalty"]["noResponse"]
+    *parents, leaf = path.split(".")
+    for key in parents:
+        block = block[key]
+    block[leaf] = value
+    with pytest.raises(ValidationError, match="discriminationGoNoGo never penalises a miss"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
+def test_the_localization_file_mutes_a_miss_and_keeps_its_timeout():
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    assert data["penalty"]["noResponse"] == {"timeoutSeconds": None, "sound": {"levelDbfs": "mute"}}
+
+
 def test_a_go_no_go_condition_with_a_set_is_accepted():
     # Each condition is checked as a task of its own (_conditions_run); a noGo condition's copy has no go condition, which
     # refused every go/no-go task with any set until the go-trials rule was left to the whole task (audit round 2).

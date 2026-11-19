@@ -60,6 +60,10 @@ taskParameters:
     timeoutSeconds: 4.0   # s, after a false alarm (a lick on a noGo trial); a miss on a go trial has none, nor does a probe
     sound:               # the penalty sound, with every timeout
       levelDbfs: -35     # dBFS RMS; mute: no sound
+    noResponse:          # a penalised miss's own cost: null here, as discriminationGoNoGo never penalises a miss (refused at Go)
+      timeoutSeconds: null
+      sound:
+        levelDbfs: null
   optogenetics:
     enabled: false
     zapitConditionsPath: ""

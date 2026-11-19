@@ -215,6 +215,25 @@ public class TrialDraw
         try { penalty = SoundLevels.Parse(task.Penalty.Sound.LevelDbfs); }
         catch (InvalidOperationException e) { problems.Add("penalty.sound.levelDbfs: " + e.Message); }
         if (penalty > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("penalty.sound.levelDbfs {0} is above {1} dBFS", penalty, SoundLevel.PeakLimitDbfs));
+        // A penalised miss's own cost: each field null (the choice's) or as the choice's is checked. discriminationGoNoGo never
+        // penalises a miss, so a value there would never be used.
+        var miss = task.Penalty.NoResponse;
+        if (miss == null || miss.Sound == null) problems.Add("penalty.noResponse and its sound must be given (their fields may be null)");
+        else
+        {
+            if (miss.Sound.LevelDbfs != null)
+            {
+                double missLevel = double.NaN;
+                try { missLevel = SoundLevels.Parse(miss.Sound.LevelDbfs); }
+                catch (InvalidOperationException e) { problems.Add("penalty.noResponse.sound.levelDbfs: " + e.Message); }
+                if (missLevel > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("penalty.noResponse.sound.levelDbfs {0} is above {1} dBFS", missLevel, SoundLevel.PeakLimitDbfs));
+            }
+            if (task.TaskType == TaskType.DiscriminationGoNoGo)
+            {
+                if (miss.TimeoutSeconds.HasValue) problems.Add("penalty.noResponse.timeoutSeconds must be null in discriminationGoNoGo, which never penalises a miss");
+                if (miss.Sound.LevelDbfs != null) problems.Add("penalty.noResponse.sound.levelDbfs must be null in discriminationGoNoGo, which never penalises a miss");
+            }
+        }
         bool sounding = !double.IsNaN(level);
         // The positions (task.py's same rules): each grating azimuth signed and never 0 (its sign is the side); each sound
         // azimuth's nearest speaker, at auditoryStimulus.elevationDeg, on its side (0: any).
@@ -269,6 +288,7 @@ public class TrialDraw
         finite("trialStructure.visualStimulusSeconds", structure.VisualStimulusSeconds);
         finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
         finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
+        if (miss != null && miss.TimeoutSeconds.HasValue) finite("penalty.noResponse.timeoutSeconds", miss.TimeoutSeconds.Value);
         // The quiet waits, the lab's one check each (OpenRigs.Core QuietWait: finite, 0 or more, at most 10 s and 20 cm, the
         // wheel's distance 0 no movement at all): a long wait and a licking mouse would hold the trial start with no message.
         foreach (var p in QuietWait.LickProblems(structure.LickQuietSeconds)) problems.Add("trialStructure." + p);
@@ -460,10 +480,11 @@ public class TrialDraw
         return MaxSoundLevel.Of(conditions, t => t.AuditoryStimulus.LevelDbfs);
     }
 
-    /// <summary>The highest penalty level the conditions can draw (penalty.sound.levelDbfs), for PlayPenaltySound's buffer at Go.</summary>
+    /// <summary>The highest penalty level the conditions can draw (penalty.sound.levelDbfs and a miss's
+    /// penalty.noResponse.sound.levelDbfs), for PlayPenaltySound's buffer at Go.</summary>
     public MaxSoundLevel MaxPenaltyLevel()
     {
-        return MaxSoundLevel.Of(conditions, t => t.Penalty.Sound.LevelDbfs);
+        return MaxSoundLevel.Of(conditions, t => t.Penalty.Sound.LevelDbfs, t => t.Penalty.NoResponse.Sound.LevelDbfs);
     }
 
     int WeightedCondition()
@@ -500,13 +521,17 @@ public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
     /// (discriminationGoNoGo's: the left), a random trial's at the spout chosen, the other spout drawn back. Anything else
-    /// draws both back, with the penalty sound (at the trial's penalty.sound.levelDbfs) and timeout if it was penalised. A
-    /// trial whose spouts stay in leaves them where they are.</summary>
-    public static TrialOutcome Of(TrialRow row, Trial trial)
+    /// draws both back, with the penalty sound and timeout if it was penalised (TrialRow.Cost: a miss's penalty.noResponse
+    /// values where set, else penalty.sound.levelDbfs and penalty.timeoutSeconds). A trial whose spouts stay in leaves them
+    /// where they are.</summary>
+    public static TrialOutcome At(string choice, Trial trial, TrialTimes times)
     {
+        // Resolved once, for the row's timeout and the sound's level alike.
+        var cost = TrialRow.Cost(choice, trial);
+        var row = TrialRow.Build(choice, trial, times, cost);
         // The valve's instance as rig.yml's wiring names it; go is answered at the left spout.
         var instance = (trial.target == TargetWords.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
-        var o = new TrialOutcome(row, instance, SoundLevels.Parse(trial.values.Penalty.Sound.LevelDbfs));
+        var o = new TrialOutcome(row, instance, cost.LevelDbfs);
         o.SpoutsStayIn = trial.SpoutsStayIn;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
             : instance == "left" ? LickSpoutCommand.LeftOnly : LickSpoutCommand.RightOnly;
@@ -645,8 +670,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     TrialOutcome Outcome(Trial trial, string choice, TrialTimes times)
     {
-        var row = TrialRow.Build(choice, trial, times, trial.values.Penalty.TimeoutSeconds);
-        return TrialOutcome.Of(row, trial);
+        return TrialOutcome.At(choice, trial, times);
     }
 }
 

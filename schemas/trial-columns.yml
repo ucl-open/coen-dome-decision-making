@@ -72,11 +72,11 @@ rewarded:
 penaltyTimeoutSeconds:
   type: double
   unit: s
-  description: 'The timeout after this trial: the task''s penalty.timeoutSeconds when the trial was penalised, else 0. The next interval starts after it (itiStartTime).'
+  description: 'The timeout after this trial when it was penalised, else 0: the trial''s penalty.timeoutSeconds, or on a miss its penalty.noResponse.timeoutSeconds unless null. The next interval starts after it (itiStartTime).'
   note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
 penalised:
   type: bool
-  description: 'True when the trial was penalised: the task''s penalty timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.sound.levelDbfs (none when mute) followed its outcome. Which outcomes are penalised is the task''s (its note).'
+  description: 'True when the trial was penalised: the timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.sound.levelDbfs, or on a miss its penalty.noResponse.sound.levelDbfs unless null (none when mute), followed its outcome. Which trials are penalised, and which are misses, is the task''s (its note).'
   note: An incorrect choice, or a miss that was not on an auto-reward trial; in discriminationGoNoGo only a lick on a noGo trial (a false alarm; a go miss and a noReward trial are unpenalised); on a random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
 laserCondition:
   type: int
