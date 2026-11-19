@@ -6,7 +6,7 @@ taskParameters:
     code: S02A
     version: u9vr
     path: A
-    label: NoGo Added
+    label: No-Go Added
     sha256: handover
   trialConditions:
   - weight: 10
