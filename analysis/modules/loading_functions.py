@@ -9,7 +9,7 @@ from open_rigs import experiments
 from open_rigs.experiments import curriculum_stage, trial_conditions, trial_weights  # noqa: F401 (this module's API)
 
 REPO = "coen-dome-decision-making"   # the repository whose experiments count, by name alone (any owner, fork or branch)
-SCORED = ("correct", "incorrect")   # outcome probe has no right answer and noResponse is no choice: neither is counted
+SCORED = ("correct", "incorrect")   # outcome probe has no right answer, noResponse and auto are no choice: none is counted
 
 
 def is_this_workflow(experiment):

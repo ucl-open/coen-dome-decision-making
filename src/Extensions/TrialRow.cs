@@ -40,18 +40,25 @@ public class TrialRow
     public double visualInitialAzimuthDeg;
     public int auditorySoundFileIndex;
 
-    // left or right against the target; in discriminationGoNoGo, go or noResponse against go or noGo (a withheld
-    // noGo is correct), and a probe's outcome is probe whatever the choice.
+    // left or right against the target, or no choice (NoChoice); in discriminationGoNoGo, go or no choice against go or
+    // noGo (a withheld noGo is correct), and a probe's outcome is probe whatever the choice.
     public static string Outcome(string choice, Trial trial)
     {
         switch (trial.target)
         {
             case TargetWords.NoReward:
             case TargetWords.Random: return TrialOutcomes.Probe;
-            case TargetWords.Go: return choice == Choice.Go ? TrialOutcomes.Correct : TrialOutcomes.NoResponse;
+            case TargetWords.Go: return choice == Choice.Go ? TrialOutcomes.Correct : NoChoice(trial);
             case TargetWords.NoGo: return choice == Choice.Go ? TrialOutcomes.Incorrect : TrialOutcomes.Correct;
-            default: return choice == Choice.NoResponse ? TrialOutcomes.NoResponse : choice == trial.target ? TrialOutcomes.Correct : TrialOutcomes.Incorrect;
+            default: return choice == Choice.NoResponse ? NoChoice(trial) : choice == trial.target ? TrialOutcomes.Correct : TrialOutcomes.Incorrect;
         }
+    }
+
+    // A trial with no choice: auto when the auto-reward answered it (autoReward, never on a probe or a noGo trial), else
+    // noResponse.
+    static string NoChoice(Trial trial)
+    {
+        return trial.autoReward ? TrialOutcomes.Auto : TrialOutcomes.NoResponse;
     }
 
     // Penalised (the penalty sound and timeout): an incorrect choice, or a miss that was not auto-rewarded, except a

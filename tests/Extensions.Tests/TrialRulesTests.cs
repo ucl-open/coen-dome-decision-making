@@ -662,8 +662,12 @@ public class TrialRowTests
         Assert.IsTrue(miss.outcome == TrialOutcomes.NoResponse && miss.penalised && miss.penaltyTimeoutSeconds == 4 && !miss.rewarded);
         trial.autoReward = true;
         var rewardedMiss = TrialRow.Build(Choice.NoResponse, trial, Times(10), 4);
-        Assert.IsTrue(rewardedMiss.autoReward && rewardedMiss.rewarded && rewardedMiss.penaltyTimeoutSeconds == 0 && !rewardedMiss.penalised, "an auto-rewarded miss: autoReward and rewarded");
+        Assert.IsTrue(rewardedMiss.outcome == TrialOutcomes.Auto && rewardedMiss.autoReward && rewardedMiss.rewarded && rewardedMiss.penaltyTimeoutSeconds == 0 && !rewardedMiss.penalised, "an auto-rewarded miss: outcome auto, autoReward and rewarded");
         var correct = TrialRow.Build(Choice.Left, trial, Times(10), 4);
+        Assert.AreEqual(TrialOutcomes.Incorrect, TrialRow.Build(Choice.Right, trial, Times(10), 4).outcome, "a side chosen on an auto-reward trial keeps its outcome");
+        var goTrial = new Trial { target = TargetWords.Go, autoReward = true };
+        Assert.AreEqual(TrialOutcomes.Auto, TrialRow.Build(Choice.NoResponse, goTrial, Times(10), 4).outcome, "go/no-go: an auto-rewarded go miss");
+        Assert.AreEqual(TrialOutcomes.Correct, TrialRow.Build(Choice.Go, goTrial, Times(10), 4).outcome, "go/no-go: a licked auto-reward go trial");
         Assert.IsTrue(correct.outcome == TrialOutcomes.Correct && !correct.penalised && correct.penaltyTimeoutSeconds == 0 && correct.rewarded);
     }
 

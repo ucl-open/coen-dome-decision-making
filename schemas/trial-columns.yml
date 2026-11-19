@@ -32,8 +32,8 @@ trialType:
   description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryLevelDbfs, the azimuths, target). It is derived at Go from the condition's settings (the task schema's x-trial-types), never stored - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none).
 outcome:
   type: string
-  values: [correct, incorrect, noResponse, probe]
-  description: The trial's result - correct when the choice was the target, incorrect when it was the other side, noResponse with no choice in the response window. In discriminationGoNoGo a lick (choice go) on a go trial is correct and none noResponse, a lick on noGo incorrect and none correct. A probe trial (target noReward or random, a trial with no right answer) is probe whatever the choice, and left out of performance; rewarded and penalised say what it got.
+  values: [correct, incorrect, noResponse, probe, auto]
+  description: The trial's result - correct when the choice was the target, incorrect when it was the other side, noResponse with no choice in the response window, auto with no choice on an auto-reward trial (the auto-reward answered it; autoReward, rewarded). In discriminationGoNoGo a lick (choice go) on a go trial is correct and none noResponse (auto on an auto-reward go trial), a lick on noGo incorrect and none correct. A probe trial (target noReward or random, a trial with no right answer) is probe whatever the choice, and left out of performance; rewarded and penalised say what it got.
 itiStartTime:
   type: double
   unit: s
@@ -67,8 +67,8 @@ rewardOfferedUl:
   note: The task file's reward.sizeUl times reward.largeMultiplier on a large-reward trial; 0 on a discriminationGoNoGo noGo or noReward trial, which offers none; a random trial's offer whether its coin came up heads or tails, and every trial's on a miss.
 rewarded:
   type: bool
-  description: 'True when the trial''s outcome delivered its reward (rewardOfferedUl, at outcomeTime): the value the workflow''s reward command is made from. Which outcomes are rewarded is the task''s (its note).'
-  note: A correct choice (but a withheld noGo, correct and unrewarded), an auto-reward trial's miss (autoReward, choice noResponse), and a choice on a random trial whose coin came up heads, rewarded at the spout chosen.
+  description: 'True when the valve planned the trial''s reward (rewardOfferedUl; its RewardDelivered row in WorkflowData_Events, at outcomeTime); false on an outcome that earned it when the stop came first. Which outcomes are rewarded is the task''s (its note).'
+  note: A correct choice (but a withheld noGo, correct and unrewarded), an auto-reward trial's miss (autoReward, choice noResponse, outcome auto), and a choice on a random trial whose coin came up heads, rewarded at the spout chosen.
 penaltyTimeoutSeconds:
   type: double
   unit: s
@@ -118,8 +118,8 @@ auditoryElevationDeg:
   description: Elevation of the speaker that played; NaN when none or every speaker played, as auditoryInitialAzimuthDeg.
 autoReward:
   type: bool
-  description: 'True on an auto-reward trial (drawn with the task''s autoRewardProbability): one rewarded without a correct response; how, and so whether its reward came from the auto-reward, is the task''s (its note).'
-  note: 'Its reward came from the auto-reward when the mouse made no choice (choice noResponse): its miss was rewarded at the target spout. Forced false on a trial other than go in discriminationGoNoGo and on a random-reward probe.'
+  description: 'True on an auto-reward trial (drawn with the task''s autoRewardProbability): one rewarded without a correct response, its outcome auto when the auto-reward answered it with no response of the mouse''s own; how, and so whether its reward came from the auto-reward, is the task''s (its note).'
+  note: 'Its reward came from the auto-reward when the mouse made no choice (choice noResponse, outcome auto): its miss was rewarded at the target spout; a side chosen keeps its outcome, correct or incorrect. Forced false on a trial other than go in discriminationGoNoGo and on a random-reward probe.'
 target:
   type: string
   values: [left, right, go, noGo, noReward, random]

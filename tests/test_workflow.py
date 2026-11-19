@@ -4,6 +4,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import yaml
 from open_rigs.rigs import workflow_checks
 from open_rigs.rigs import workflow_lint as lint
 
@@ -40,6 +41,18 @@ def _upstream(edges, start):
                 seen.add(a)
                 frontier.append(a)
     return seen
+
+
+def test_rewarded_follows_the_valve():
+    # F12: rewarded is the valve's, through lib's TrialOutcomeEffects (the reward requested first, then the row by
+    # RewardedAsDelivered over RewardDelivered, which Rewards declares before it), so a stop that cuts the reward off logs
+    # it unrewarded. Included once, and no row of main.bonsai's own goes into TrialRow around it.
+    effects = 'Path="OpenRigs.Trials:TrialOutcomeEffects.bonsai"'
+    assert TEXT.count(effects) == 1
+    assert not [e for e in MAIN.iter(W + "Expression") if e.get(XSI) == "MulticastSubject" and e.findtext(W + "Name") == "TrialRow"]
+    assert TEXT.index('Path="OpenRigs.Devices:Rewards.bonsai"') < TEXT.index(effects)
+    rewarded = yaml.safe_load((ROOT / "schemas" / "trial-columns.yml").read_text(encoding="utf-8"))["rewarded"]["description"]
+    assert rewarded.startswith("True when the valve planned the trial's reward") and "the stop came first" in rewarded
 
 
 PICK = "trl:PickTrialEvents"

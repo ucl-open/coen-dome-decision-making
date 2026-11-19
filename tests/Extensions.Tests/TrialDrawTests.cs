@@ -444,6 +444,8 @@ public class TrialDrawTests
         task.Repeats.RepeatOn = RepeatOn.NoResponse;
         Assert.IsTrue(Fixture.Draw(task, 100, t => TrialOutcomes.Incorrect).All(t => t.repeatCount == 0));
         Assert.IsTrue(Fixture.Draw(task, 100, t => Choice.NoResponse).Any(t => t.repeatCount > 0));
+        // An auto trial (an auto-rewarded miss, noResponse before outcome auto) repeats as a miss.
+        Assert.IsTrue(Fixture.Draw(task, 100, t => TrialOutcomes.Auto).Any(t => t.repeatCount > 0));
     }
 
     [TestMethod]

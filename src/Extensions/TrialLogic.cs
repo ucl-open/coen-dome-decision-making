@@ -338,7 +338,7 @@ public class TrialDraw
 
     // The repeat rule is the repeated trial's combination's (repeats.maxRepeats, repeats.repeatOn). A probe (outcome probe,
     // whatever the choice) repeats only on noResponse after a miss; notCorrect on a probe is refused at Go. A withheld noGo
-    // is correct, never a repeat.
+    // is correct, never a repeat. An auto trial (an auto-rewarded miss, noResponse before outcome auto) repeats as a miss.
     bool ShouldRepeat(string outcome, string choice)
     {
         var repeats = last.values.Repeats;
@@ -346,7 +346,7 @@ public class TrialDraw
         switch (repeats.RepeatOn)
         {
             case RepeatOn.NotCorrect: return outcome != TrialOutcomes.Correct && outcome != TrialOutcomes.Probe;
-            case RepeatOn.NoResponse: return outcome == TrialOutcomes.NoResponse || (outcome == TrialOutcomes.Probe && choice == Choice.NoResponse);
+            case RepeatOn.NoResponse: return outcome == TrialOutcomes.NoResponse || outcome == TrialOutcomes.Auto || (outcome == TrialOutcomes.Probe && choice == Choice.NoResponse);
             default: return false;
         }
     }
