@@ -9,7 +9,7 @@ from open_rigs import sessions
 from open_rigs.sessions import curriculum_stage, trial_conditions, trial_weights  # noqa: F401 (this module's API)
 
 REPO = "coen-dome-decision-making"   # the repository whose sessions count, by name alone (any owner, fork or branch)
-SCORED = ("Correct", "Incorrect")   # outcome Probe has no right answer and NoResponse is no choice: neither is counted
+SCORED = ("correct", "incorrect")   # outcome probe has no right answer and noResponse is no choice: neither is counted
 
 
 def is_this_workflow(session):
@@ -28,17 +28,17 @@ def load_sessions(root, subjects=None):
 
 
 def scored(df):
-    """The trials new_draw_accuracy counts: a Correct or Incorrect choice on a new draw (no repeat). An auto-rewarded trial
-    is a NoResponse, and a Probe (target NoReward or Random) has no right answer: neither is in it."""
+    """The trials new_draw_accuracy counts: a correct or incorrect choice on a new draw (no repeat). An auto-rewarded trial
+    is a noResponse, and a probe (target noReward or random) has no right answer: neither is in it."""
     return df[df["outcome"].isin(SCORED) & (df["repeatCount"] == 0)]
 
 
 def new_draw_accuracy(df):
-    """(fraction Correct, number of scored trials) for one session's trials: every new draw with a choice, one spout or
+    """(fraction correct, number of scored trials) for one session's trials: every new draw with a choice, one spout or
     two. Not lib-open-rigs' performance (summarise-experiment, app-rig-control), which counts the both-spout and go/no-go
     trials, repeats included."""
     s = scored(df)
-    return (float((s["outcome"] == "Correct").mean()) if len(s) else float("nan")), len(s)
+    return (float((s["outcome"] == "correct").mean()) if len(s) else float("nan")), len(s)
 
 
 def water_ul(df):
@@ -47,8 +47,8 @@ def water_ul(df):
 
 
 def probe_rates(df):
-    """Per probe target (NoReward, Random): trials, fraction rewarded and fraction penalised."""
-    p = df[df["outcome"] == "Probe"].copy()
+    """Per probe target (noReward, random): trials, fraction rewarded and fraction penalised."""
+    p = df[df["outcome"] == "probe"].copy()
     if p.empty:
         return pd.DataFrame(columns=["target", "trials", "rewardedRate", "penalisedRate"])
     p["rewarded"] = p["rewarded"].astype(bool)
@@ -62,7 +62,7 @@ def session_summary(df):
     rows = []
     for (subject, session), s in df.groupby(["subject", "session"], sort=True):
         accuracy, n = new_draw_accuracy(s)
-        probes = s[s["outcome"] == "Probe"]
+        probes = s[s["outcome"] == "probe"]
         rows.append({
             "subject": subject, "session": session, "trials": len(s), "scored": n, "newDrawAccuracy": accuracy,
             "waterUl": water_ul(s), "probes": len(probes),

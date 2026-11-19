@@ -30,45 +30,66 @@ public class AuditoryStimulusSet
 
     readonly Mat[] raw;
     readonly Dictionary<int, Mat[]> equalised;
-    readonly double largest;
+    readonly double loudestDbfs = double.NaN;
 
     internal AuditoryStimulusSet(Mat[] raw, SpeakerSet speakers)
     {
         this.raw = raw;
         Speakers = speakers;
+        LevelDbfs = SetLevelDbfs(raw, speakers.SampleRate);
         equalised = speakers.SpeakerChannels.ToDictionary(channel => channel, channel => raw.Select(waveform => speakers.Equalise(waveform, channel)).ToArray());
     }
 
-    AuditoryStimulusSet(AuditoryStimulusSet set, double largest)
+    AuditoryStimulusSet(AuditoryStimulusSet set, double loudestDbfs)
     {
         raw = set.raw;
         equalised = set.equalised;
         Speakers = set.Speakers;
-        this.largest = largest;
+        LevelDbfs = set.LevelDbfs;
+        this.loudestDbfs = loudestDbfs;
+    }
+
+    /// <summary>The set's level as stored, in dBFS RMS (OpenRigs.Audio SoundLevel's rule, silent stretches left out): the
+    /// power mean of its waveforms' levels, which agree within 0.01 dB (-43.22). A trial's auditoryStimulus.levelDbfs is
+    /// one gain over the whole set: every waveform keeps its place relative to the others.</summary>
+    public double LevelDbfs { get; private set; }
+
+    /// <summary>The power mean of the waveforms' levels (each SoundLevel.RmsDbfs), in dBFS RMS.</summary>
+    public static double SetLevelDbfs(IList<Mat> waveforms, int sampleRate)
+    {
+        var power = waveforms.Average(w => Math.Pow(10, SoundLevel.RmsDbfs(w, sampleRate) / 10));
+        return 10 * Math.Log10(power);
+    }
+
+    /// <summary>The gain on the stored samples that puts the set at levelDbfs; 0 at NaN (mute).</summary>
+    public double Gain(double levelDbfs)
+    {
+        return double.IsNaN(levelDbfs) ? 0 : Math.Pow(10, (levelDbfs - LevelDbfs) / 20);
     }
 
     /// <summary>
-    /// The set checked for the loudest sound the task's conditions can draw (auditoryStimulus.amplitude, 1 the waveform as
-    /// stored): every equalised copy at that amplitude checked against the lab's -1 dBFS peak, so a sound too loud stops the
+    /// The set checked for the loudest sound the task's conditions can draw (auditoryStimulus.levelDbfs, one gain for the
+    /// set): every equalised copy at that level checked against the lab's -1 dBFS peak, so a sound too loud stops the
     /// workflow at Go, naming the condition, the waveform and the speaker, not at the trial that plays it. A trial may then
-    /// play at that amplitude or less (Buffer), on one speaker or all ("all": each channel its own speaker's copy, so this
+    /// play at that level or less (Buffer), on one speaker or all ("all": each channel its own speaker's copy, so this
     /// check holds for it too).
     /// </summary>
     public AuditoryStimulusSet AtLoudest(LoudestSound loudest)
     {
+        var gain = Gain(loudest.LevelDbfs);
         foreach (var speaker in Speakers.Speakers)
         {
-            for (int i = 0; i < raw.Length && loudest.Amplitude > 0; i++)
+            for (int i = 0; i < raw.Length && gain > 0; i++)
             {
                 using (var played = new Mat(1, raw[i].Cols, Depth.F32, 1))
                 {
-                    CV.ConvertScale(equalised[speaker.Channel][i], played, loudest.Amplitude, 0);
-                    SoundLevel.CheckPeak(played, "Auditory stimulus " + i + " on speaker '" + speaker.Name + "' at amplitude " +
-                        loudest.Amplitude.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + " (auditoryStimulus.amplitude, " + loudest.Where + ")");
+                    CV.ConvertScale(equalised[speaker.Channel][i], played, gain, 0);
+                    SoundLevel.CheckPeak(played, "Auditory stimulus " + i + " on speaker '" + speaker.Name + "' at " +
+                        loudest.LevelDbfs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " dBFS (auditoryStimulus.levelDbfs, " + loudest.Where + ")");
                 }
             }
         }
-        return new AuditoryStimulusSet(this, loudest.Amplitude);
+        return new AuditoryStimulusSet(this, loudest.LevelDbfs);
     }
 
     /// <summary>The speakers the set is equalised for.</summary>
@@ -91,11 +112,12 @@ public class AuditoryStimulusSet
     }
 
     /// <summary>The mixer's buffer for a trial: its waveform equalised for the speaker on its channel (SoundAzimuths.AllSpeakersChannel:
-    /// on every speaker's channel, each its own equalised copy), scaled by its amplitude, with its sync copy. Each channel's
+    /// on every speaker's channel, each its own equalised copy), at its level (the set's one gain), with its sync copy. Each channel's
     /// row is one speaker's equalised copy, so AtLoudest's check of every speaker covers a sound on all of them.</summary>
-    public Mat Buffer(int index, int channel, double amplitude)
+    public Mat Buffer(int index, int channel, double levelDbfs)
     {
-        if (!(amplitude <= largest)) throw new InvalidOperationException("Trial asks for auditory amplitude " + amplitude + ", above the " + largest + " the set was checked for at Go (LevelAuditoryStimulusSet).");
+        if (!(levelDbfs <= loudestDbfs)) throw new InvalidOperationException("Trial asks for auditory level " + levelDbfs + " dBFS, not at or below the " + loudestDbfs + " the set was checked for at Go (LevelAuditoryStimulusSet).");
+        var amplitude = Gain(levelDbfs);
         var channels = channel == SoundAzimuths.AllSpeakersChannel ? Speakers.SpeakerChannels : new[] { channel };
         var buffer = Speakers.Layout(Stimulus(index, channels[0]), new[] { channels[0] }, amplitude, false, true);
         foreach (var other in channels.Skip(1))
@@ -172,7 +194,7 @@ public class LoadAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The auditory stimulus set checked for the loudest sound the task's conditions can draw (TrialRules.Loudest: the largest auditoryStimulus.amplitude, 1 the waveform as stored): stops the workflow, naming the condition, waveform and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the loudest sound.")]
+[Description("The auditory stimulus set checked for the loudest sound the task's conditions can draw (TrialRules.Loudest: the highest auditoryStimulus.levelDbfs, the set measured as one): stops the workflow, naming the condition, waveform and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the loudest sound.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LevelAuditoryStimulusSet
 {
@@ -183,12 +205,12 @@ public class LevelAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditorySoundFileIndex, equalised for its speaker, on that speaker's channel (a trial at \"all\": every speaker's, each its own copy), scaled by its auditoryAmplitude, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the trial and the set at its level (LevelAuditoryStimulusSet), as WithLatestFrom pairs them.")]
+[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditorySoundFileIndex, equalised for its speaker, on that speaker's channel (a trial at \"all\": every speaker's, each its own copy), at its auditoryLevelDbfs (one gain for the set), with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the trial and the set at its level (LevelAuditoryStimulusSet), as WithLatestFrom pairs them.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {
     public IObservable<Mat> Process(IObservable<Tuple<Trial, AuditoryStimulusSet>> source)
     {
-        return source.Select(input => input.Item2.Buffer(input.Item1.auditorySoundFileIndex, input.Item1.speakerChannel, input.Item1.auditoryAmplitude));
+        return source.Select(input => input.Item2.Buffer(input.Item1.auditorySoundFileIndex, input.Item1.speakerChannel, input.Item1.auditoryLevelDbfs));
     }
 }

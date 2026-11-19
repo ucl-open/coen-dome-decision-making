@@ -12,7 +12,8 @@
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
 # unit (itiSeconds, rewardOfferedUl); never a stored latency.
 #
-# The first 18 columns, harpTime to laserTriggerTime, are the lab's shared block, its core with the optogenetics and quietWait blocks,
+# The first 25 columns, harpTime to autoReward, are the lab's shared block, its core with the quietWait, optogenetics,
+# conditions, stimulus and autoReward blocks,
 # defined once in lib-open-rigs open_rigs.rigs.trials: coen-dome-decision-making and
 # coen-dome-navigation list them in this order with these types, units and descriptions, word for word
 # (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
@@ -28,20 +29,20 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral, go, noGo, left, right]
-  description: The label of the trial's condition (trialCondition) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryAmplitude, the azimuths, target). By default it is derived from the condition's settings - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none) - but a curriculum may choose another.
+  description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryLevelDbfs, the azimuths, target). By default it is derived from the condition's settings - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none) - but a curriculum may choose another.
 outcome:
   type: string
-  values: [Correct, Incorrect, NoResponse, Probe]
-  description: The trial's result - Correct when the choice was the target, Incorrect when it was the other side, NoResponse with no choice in the response window. In discriminationGoNoGo a lick on Go is Correct and none NoResponse, a lick on NoGo Incorrect and none Correct. A Probe trial (target NoReward or Random, a trial with no right answer) is Probe whatever the choice, and left out of performance; rewarded and penalised say what it got.
+  values: [correct, incorrect, noResponse, probe]
+  description: The trial's result - correct when the choice was the target, incorrect when it was the other side, noResponse with no choice in the response window. In discriminationGoNoGo a lick (choice go) on a go trial is correct and none noResponse, a lick on noGo incorrect and none correct. A probe trial (target noReward or random, a trial with no right answer) is probe whatever the choice, and left out of performance; rewarded and penalised say what it got.
 itiStartTime:
   type: double
   unit: s
-  description: "Harp time the inter-trial interval before this trial began: the last trial's outcomeTime plus its penaltyTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started."
+  description: 'Harp time the inter-trial interval before this trial began: the last trial''s outcomeTime plus its penaltyTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started.'
 itiSeconds:
   type: double
   unit: s
-  description: "The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial's stimulus with a quiet mouse, the time to drink included. A task's quiet waits add quietWaitSeconds, so the stimulus was due at itiStartTime + itiSeconds + quietWaitSeconds (stimulusOnsetTime)."
-  note: The time to drink is trialStructure.drinkSeconds, and the interval starts after any timeout (penaltyTimeoutSeconds).
+  description: 'The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial''s stimulus with a quiet mouse, the time to drink included. A task''s quiet waits add quietWaitSeconds, so the stimulus was due at itiStartTime + itiSeconds + quietWaitSeconds (stimulusOnsetTime).'
+  note: The time to drink is trialStructure.outcomeToSpoutsOutSeconds, and the interval starts after any timeout (penaltyTimeoutSeconds).
 quietWaitSeconds:
   type: double
   unit: s
@@ -49,40 +50,37 @@ quietWaitSeconds:
 trialStartTime:
   type: double
   unit: s
-  description: "Harp time the trial started: the end of its interval less the lead, max(laserToStimulusSeconds, 0) in the task file (Settings_Task) and 0 for a task file with no optogenetics block, plus quietWaitSeconds where the task has quiet waits."
+  description: 'Harp time the trial started: the end of its interval less the lead, max(laserToStimulusSeconds, 0) in the task file (Settings_Task) and 0 for a task file with no optogenetics block, plus quietWaitSeconds where the task has quiet waits.'
 stimulusOnsetTime:
   type: double
   unit: s
-  description: "Harp time the workflow commanded the stimulus on, NaN if it never was: the first tick of the 1 ms Harp clock at or after trialStartTime plus the lead, in every experiment. The physical onset is in the hardware logs."
+  description: 'Harp time the workflow commanded the stimulus on, NaN if it never was: the first tick of the 1 ms Harp clock at or after trialStartTime plus the lead, in every experiment. The physical onset is in the hardware logs.'
 outcomeTime:
   type: double
   unit: s
   description: Harp time the workflow knew the outcome, the same time as harpTime, as its own column so that every moment of a trial is named; the reward, the penalty sound and the timeout are timed from it. On a lick it is the Harp clock's latest tick when the workflow saw the lick, a few ms after it; each lick's own Harp time is in the lick detectors' logs.
-  note: When the workflow saw the lick it counted as the choice, or the end of the response window on NoResponse.
+  note: When the workflow saw the lick it counted as the choice, or the end of the response window on noResponse.
 rewardOfferedUl:
   type: double
   unit: ul
-  description: "Microlitres a reward on this trial gives, on every trial whether or not it was rewarded: the size the task drew for it (the task file's rewardSizeUl, or a larger reward where the task has one); 0 on a trial that offers none. rewarded says whether it was given; what was delivered is RewardDelivered in WorkflowData_Events."
-  note: The task file's reward.rewardSizeUl times reward.largeRewardMultiplier on a large-reward trial; 0 on a discriminationGoNoGo NoGo or NoReward trial, which offers none; a Random trial's offer whether its coin came up heads or tails, and every trial's on a miss.
+  description: 'Microlitres a reward on this trial gives, on every trial whether or not it was rewarded: the size the task drew for it (the task file''s reward size, or a larger reward where the task has one); 0 on a trial that offers none. rewarded says whether it was given; what was delivered is RewardDelivered in WorkflowData_Events.'
+  note: The task file's reward.sizeUl times reward.largeMultiplier on a large-reward trial; 0 on a discriminationGoNoGo noGo or noReward trial, which offers none; a random trial's offer whether its coin came up heads or tails, and every trial's on a miss.
 rewarded:
   type: bool
-  description: "True when the trial's outcome delivered its reward (rewardOfferedUl, at outcomeTime): the value the workflow's reward command is made from. Which outcomes are rewarded is the task's (its note)."
-  note: A correct choice (but a withheld NoGo, Correct and unrewarded), an auto-rewarded miss (autoRewarded), and a choice on a Random trial whose coin came up heads, rewarded at the spout chosen.
-penaltySoundOn:
-  type: bool
-  description: "True when the trial was penalised and the task's penalty sound is enabled."
+  description: 'True when the trial''s outcome delivered its reward (rewardOfferedUl, at outcomeTime): the value the workflow''s reward command is made from. Which outcomes are rewarded is the task''s (its note).'
+  note: A correct choice (but a withheld noGo, correct and unrewarded), an auto-reward trial's miss (autoReward, choice noResponse), and a choice on a random trial whose coin came up heads, rewarded at the spout chosen.
 penaltyTimeoutSeconds:
   type: double
   unit: s
-  description: "The timeout after this trial: the task's penalty.timeoutSeconds when the trial was penalised, else 0. The next interval starts after it (itiStartTime)."
+  description: 'The timeout after this trial: the task''s penalty.timeoutSeconds when the trial was penalised, else 0. The next interval starts after it (itiStartTime).'
   note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a Go miss is unpenalised); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
 penalised:
   type: bool
-  description: "True when the trial was penalised: the task's penalty timeout (penaltyTimeoutSeconds) and, with its penalty.sound enabled, the penalty sound (penaltySoundOn) followed its outcome. Which outcomes are penalised is the task's (its note)."
-  note: An incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a false alarm; a Go miss and a NoReward trial are unpenalised); on a Random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
+  description: 'True when the trial was penalised: the task''s penalty timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.sound.levelDbfs (none when mute) followed its outcome. Which outcomes are penalised is the task''s (its note).'
+  note: An incorrect choice, or a miss that was not on an auto-reward trial; in discriminationGoNoGo only a lick on a noGo trial (a false alarm; a go miss and a noReward trial are unpenalised); on a random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
 laserCondition:
   type: int
-  description: "The Zapit condition sent to Zapit this trial (its conditions file's number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics."
+  description: 'The Zapit condition sent to Zapit this trial (its conditions file''s number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics.'
 laserPowerMw:
   type: double
   unit: mW
@@ -90,60 +88,58 @@ laserPowerMw:
 laserTriggerTime:
   type: double
   unit: s
-  description: "Harp time the workflow raised the Zapit trigger line (the laser, or at 0 mW the galvos and masking light alone): the first tick of the 1 ms Harp clock at or after laserToStimulusSeconds before the stimulus was due. NaN without optogenetics and on a trial that ended before its trigger, so a laser-off trial (a time, laserPowerMw 0) and one answered first (NaN) differ."
-trialCondition:
+  description: 'Harp time the workflow raised the Zapit trigger line (the laser, or at 0 mW the galvos and masking light alone): the first tick of the 1 ms Harp clock at or after laserToStimulusSeconds before the stimulus was due. NaN without optogenetics and on a trial that ended before its trigger, so a laser-off trial (a time, laserPowerMw 0) and one answered first (NaN) differ.'
+trialConditionId:
   type: int
-  description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its label, weight, pairs and condition-level values (set). A repeat keeps the condition of the trial it repeats.
+  description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its trialType, weight, pairs and condition-level values (set). A repeat keeps the condition of the trial it repeats.
 trialCombinationId:
   type: int
-  description: The trial's row in the experiment's Settings_Combinations (0-based, session-wide) - the combination it was drawn from, every list pick (each list cell of the condition's set and each list field, contrasts and the initial azimuths, one entry; pairs zipped), whose values that differ between combinations or from Settings_Task are the row's values. The row's trialCondition and trialType are this trial's. A repeat keeps the combination of the trial it repeats.
-target:
-  type: string
-  values: [Left, Right, Go, NoGo, NoReward, Random]
-  description: The answer the trial rewards, from its condition's target - Left or Right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo Go (lick) or NoGo (withhold). On a trial with no right answer (outcome Probe, never repeated) NoReward or Random - NoReward a no-reward probe in discriminationGoNoGo (never rewarded or penalised), Random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
-choice:
-  type: string
-  values: [Left, Right, Lick, NoResponse]
-  description: The side the mouse chose; in discriminationGoNoGo Lick (thresholdLicks at the left spout).
-repeatCount:
-  type: int
-  description: How many times in a row the trial has been repeated, 0 for a new draw.
-autoRewarded:
-  type: bool
-  description: True when a miss on an auto-reward trial was rewarded at the target spout.
-bothSpoutsOffered:
-  type: bool
-  description: True when both spouts were offered (otherwise only the target's; in discriminationGoNoGo the left, for NoGo and NoReward trials too); always on a random-reward probe.
-visualAzimuthDeg:
-  type: double
-  unit: deg
-  description: Grating azimuth; NaN when no grating was shown (visualContrast 0), as auditoryAzimuthDeg when no sound played.
-  copyOf: visualStimulus.initialAzimuthsDeg
-  nanWhen: {column: visualContrast, equals: 0}
-visualElevationDeg:
-  type: double
-  unit: deg
-  description: Grating elevation; NaN when no grating was shown (visualContrast 0), as visualAzimuthDeg.
+  description: 'The trial''s row in the experiment''s Settings_Combinations (0-based, session-wide): the combination it was drawn from, one pick of every list (pairs zipped), whose values that differ between combinations or from Settings_Task are the row''s values; the row''s trialConditionId and trialType are this trial''s. A repeat keeps the combination of the trial it repeats.'
 visualContrast:
   type: double
-  description: Grating contrast as BonVision's Contrast, 1 full contrast; the task files' habituation stages draw 3.0.
-  copyOf: contrasts
+  description: Grating contrast as BonVision's Contrast, 1 full contrast; 0 when no grating was shown.
+  copyOf: visualStimulus.contrasts
 visualPhaseRad:
   type: double
   unit: rad
-  description: Grating phase.
-auditoryAzimuthDeg:
+  description: The grating's phase, drawn uniformly from 0 to 2 pi for every trial from the seeded stream (OpenRigs.Trials ConditionedTrial).
+auditoryLevelDbfs:
+  type: double
+  unit: dBFS
+  description: The sound's level in dBFS RMS, the trial's auditoryStimulus.levelDbfs; NaN when no sound played (mute).
+  copyOf: auditoryStimulus.levelDbfs
+auditoryInitialAzimuthDeg:
   type: double
   unit: deg
-  description: Azimuth of the speaker that played, rig.yml's nearest to the location drawn; NaN when none played (auditoryAmplitude 0) or when every speaker played (auditoryStimulus.initialAzimuthsDeg all, auditoryAmplitude above 0).
+  description: Azimuth of the speaker that played, rig.yml's nearest to the initial azimuth drawn; NaN when none played (auditoryLevelDbfs NaN) or when every speaker played (auditoryStimulus.initialAzimuthsDeg all).
 auditoryElevationDeg:
   type: double
   unit: deg
-  description: Elevation of the speaker that played; NaN when none or every speaker played, as auditoryAzimuthDeg.
-auditoryAmplitude:
+  description: Elevation of the speaker that played; NaN when none or every speaker played, as auditoryInitialAzimuthDeg.
+autoReward:
+  type: bool
+  description: 'True on an auto-reward trial (drawn with the task''s autoRewardProbability): one rewarded without a correct response; how, and so whether its reward came from the auto-reward, is the task''s (its note).'
+  note: 'Its reward came from the auto-reward when the mouse made no choice (choice noResponse): its miss was rewarded at the target spout. Forced false on a trial other than go in discriminationGoNoGo and on a random-reward probe.'
+target:
+  type: string
+  values: [left, right, go, noGo, noReward, random]
+  description: The answer the trial rewards, from its condition's target, in the task file's spelling - left or right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo go (lick) or noGo (withhold). On a trial with no right answer (outcome probe, never repeated) noReward or random - noReward a no-reward probe in discriminationGoNoGo (never rewarded or penalised), random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
+choice:
+  type: string
+  values: [left, right, go, noResponse]
+  description: The side the mouse chose, in the target's spelling; in discriminationGoNoGo go (thresholdLicks at the left spout), so a correct go trial has choice equal to target.
+repeatCount:
+  type: int
+  description: How many times in a row the trial has been repeated, 0 for a new draw.
+singleSpoutOffered:
+  type: bool
+  description: True when only the target's spout came in (in discriminationGoNoGo the left, on every trial); else both did. Drawn with singleSpoutProbability on a scored trial whose spouts move (spoutsStayIn false); never on a random-reward probe.
+visualInitialAzimuthDeg:
   type: double
-  description: The sound's amplitude, the task's auditoryStimulus.amplitude for the trial's condition - the scale of the waveform's samples as stored (1 the WAV as stored, -47.2 dBFS RMS before equalisation); 0 when no sound played, above 0 exactly when one did.
-  copyOf: auditoryStimulus.amplitude
+  unit: deg
+  description: The azimuth the grating started at, one of visualStimulus.initialAzimuthsDeg (the licks then move it by azimuthShiftPerLickDeg); NaN when no grating was shown (visualContrast 0), as auditoryInitialAzimuthDeg when no sound played.
+  copyOf: visualStimulus.initialAzimuthsDeg
+  nanWhen: {column: visualContrast, equals: 0}
 auditorySoundFileIndex:
   type: int
   description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_train_<index>.wav).

@@ -2,9 +2,9 @@
 public static class TaskSchema
 {
     /// <summary>x-session-fields: what a condition may not set (the path or any path under it).</summary>
-    public static readonly string[] SessionFields = { "rngSeed", "curriculum", "trialConditions", "taskType", "backgroundNoise", "spoutMovements", "penalty.sound.levelDbfs", "optogenetics.enabled", "optogenetics.zapitConditionsPath", "optogenetics.laserDurationSeconds" };
+    public static readonly string[] SessionFields = { "rngSeed", "curriculum", "trialConditions", "optogenetics.enabled", "optogenetics.zapitConditionsPath", "taskType" };
     /// <summary>x-max-combinations: the most combinations one condition may expand into.</summary>
     public const int MaxCombinations = 1024;
     /// <summary>The list fields one entry of which each trial draws (open_rigs.rigs.conditions.pick_lists), by path.</summary>
-    public static readonly string[] ListFields = { "auditoryStimulus.initialAzimuthsDeg", "contrasts", "visualStimulus.initialAzimuthsDeg" };
+    public static readonly string[] ListFields = { "auditoryStimulus.initialAzimuthsDeg", "visualStimulus.contrasts", "visualStimulus.initialAzimuthsDeg" };
 }

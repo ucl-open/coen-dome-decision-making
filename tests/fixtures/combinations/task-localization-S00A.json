@@ -2,21 +2,23 @@
   "rows": [
     {
       "trialCombinationId": 0,
-      "trialCondition": 0,
+      "trialConditionId": 0,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
+        "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
     },
     {
       "trialCombinationId": 1,
-      "trialCondition": 0,
+      "trialConditionId": 0,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
+        "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
     }

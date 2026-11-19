@@ -2,121 +2,121 @@
   "rows": [
     {
       "trialCombinationId": 0,
-      "trialCondition": 0,
+      "trialConditionId": 0,
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
-        "contrasts": 0.0,
         "target": "auditorySide",
+        "visualStimulus.contrasts": 0.0,
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
     },
     {
       "trialCombinationId": 1,
-      "trialCondition": 0,
+      "trialConditionId": 0,
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
-        "contrasts": 0.0,
         "target": "auditorySide",
+        "visualStimulus.contrasts": 0.0,
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
     },
     {
       "trialCombinationId": 2,
-      "trialCondition": 0,
+      "trialConditionId": 0,
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
-        "contrasts": 0.0,
         "target": "auditorySide",
+        "visualStimulus.contrasts": 0.0,
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
     },
     {
       "trialCombinationId": 3,
-      "trialCondition": 0,
+      "trialConditionId": 0,
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
-        "contrasts": 0.0,
         "target": "auditorySide",
+        "visualStimulus.contrasts": 0.0,
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
     },
     {
       "trialCombinationId": 4,
-      "trialCondition": 1,
+      "trialConditionId": 1,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
-        "contrasts": 0.25,
         "target": "visualSide",
+        "visualStimulus.contrasts": 0.25,
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
     },
     {
       "trialCombinationId": 5,
-      "trialCondition": 1,
+      "trialConditionId": 1,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
-        "contrasts": 0.25,
         "target": "visualSide",
+        "visualStimulus.contrasts": 0.25,
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
     },
     {
       "trialCombinationId": 6,
-      "trialCondition": 1,
+      "trialConditionId": 1,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
-        "contrasts": 0.5,
         "target": "visualSide",
+        "visualStimulus.contrasts": 0.5,
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
     },
     {
       "trialCombinationId": 7,
-      "trialCondition": 1,
+      "trialConditionId": 1,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
-        "contrasts": 0.5,
         "target": "visualSide",
+        "visualStimulus.contrasts": 0.5,
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
     },
     {
       "trialCombinationId": 8,
-      "trialCondition": 1,
+      "trialConditionId": 1,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
-        "contrasts": 1.0,
         "target": "visualSide",
+        "visualStimulus.contrasts": 1.0,
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
     },
     {
       "trialCombinationId": 9,
-      "trialCondition": 1,
+      "trialConditionId": 1,
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
-        "contrasts": 1.0,
         "target": "visualSide",
+        "visualStimulus.contrasts": 1.0,
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
     }

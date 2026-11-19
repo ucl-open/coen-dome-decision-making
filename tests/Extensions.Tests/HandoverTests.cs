@@ -99,8 +99,8 @@ public class HandoverTests
             var counts = new Dictionary<int, int>();
             for (int n = 0; n < Draws; n++)
             {
-                var t = draw.Next("Correct");   // never repeated, so every trial is a new draw
-                CheckTrial(golden.Key, built, t.trialType, t.trialCondition, t.trialCombinationId, t.visualContrast, t.visualAzimuthDeg, t.auditoryAmplitude, t.auditoryAzimuthDeg, t.target);
+                var t = draw.Next(new TrialRow { outcome = TrialOutcomes.Correct, choice = Choice.Left });   // never repeated, so every trial is a new draw
+                CheckTrial(golden.Key, built, t.trialType, t.trialConditionId, t.trialCombinationId, t.visualContrast, t.visualInitialAzimuthDeg, t.auditoryLevelDbfs, t.auditoryInitialAzimuthDeg, t.target);
                 counts[t.trialCombinationId] = (counts.ContainsKey(t.trialCombinationId) ? counts[t.trialCombinationId] : 0) + 1;
             }
             // Each Settings_Combinations row at its condition's weight over the sum of weights over its number of combinations.
@@ -109,10 +109,10 @@ public class HandoverTests
     }
 
     // One trial against its combination (the file's values as BuildConditions picked them): its trialType the file's, the
-    // grating (NaN azimuth at contrast 0), the sound on the speaker nearest its azimuth (NaN silent or at all), the target
+    // grating (NaN azimuth at contrast 0), the sound at its level on the speaker nearest its azimuth (NaN mute or at all), the target
     // as the combination names it (a side target from the side picked).
     static void CheckTrial(string file, List<TrialConditionDraw> built, string trialType, int condition, int combinationId, double contrast,
-        double visualAzimuth, double amplitude, double auditoryAzimuth, string target)
+        double visualAzimuth, double levelDbfs, double auditoryAzimuth, string target)
     {
         var where = file + " " + built[condition].Where + " combination " + combinationId;
         Assert.AreEqual(built[condition].TrialType, trialType, where);
@@ -120,18 +120,18 @@ public class HandoverTests
         var combination = built[condition].Combinations.SingleOrDefault(m => m.Id == combinationId);
         Assert.IsNotNull(combination, where + ": not a combination of its condition");
         var c = combination.Task;
-        var picked = c.Contrasts[0];
+        var picked = c.VisualStimulus.Contrasts[0];
         Assert.AreEqual(picked, contrast, where);
         Assert.AreEqual(picked > 0 ? c.VisualStimulus.InitialAzimuthsDeg[0] : double.NaN, visualAzimuth, where);
-        Assert.AreEqual(c.AuditoryStimulus.Amplitude, amplitude, where);
+        Assert.AreEqual(SoundLevels.Parse(c.AuditoryStimulus.LevelDbfs), levelDbfs, where);
         var soundAzimuth = SoundAzimuths.Parse(c.AuditoryStimulus.InitialAzimuthsDeg[0]).Value;
-        var heard = amplitude > 0 && !double.IsNaN(soundAzimuth)
-            ? SoundAzimuths.NearestSpeaker(Fixture.Speakers(), soundAzimuth, c.VisualStimulus.ElevationDeg).Value.Position.Azimuth : double.NaN;
+        var heard = !double.IsNaN(levelDbfs) && !double.IsNaN(soundAzimuth)
+            ? SoundAzimuths.NearestSpeaker(Fixture.Speakers(), soundAzimuth, c.AuditoryStimulus.ElevationDeg).Value.Position.Azimuth : double.NaN;
         Assert.AreEqual(heard, auditoryAzimuth, where);
-        var named = EnumNames.Name(c.Target);
+        var named = EnumNames.Name(c.Target.Value);
         var expected = c.Target == UclOpenCoenDomeDecisionMakingTask.Target.VisualSide ? (c.VisualStimulus.InitialAzimuthsDeg[0] > 0 ? Choice.Right : Choice.Left)
             : c.Target == UclOpenCoenDomeDecisionMakingTask.Target.AuditorySide ? (soundAzimuth > 0 ? Choice.Right : Choice.Left)
-            : char.ToUpperInvariant(named[0]) + named.Substring(1);
+            : named;
         Assert.AreEqual(expected, target, where);
     }
 
@@ -174,9 +174,9 @@ public class HandoverTests
             }
             foreach (var r in rows)
             {
-                CheckTrial(golden.Key, built, r.trialType, r.trialCondition, r.trialCombinationId, r.visualContrast, r.visualAzimuthDeg, r.auditoryAmplitude, r.auditoryAzimuthDeg, r.target);
+                CheckTrial(golden.Key, built, r.trialType, r.trialConditionId, r.trialCombinationId, r.visualContrast, r.visualInitialAzimuthDeg, r.auditoryLevelDbfs, r.auditoryInitialAzimuthDeg, r.target);
                 Assert.AreEqual(trials[r.trialNumber].trialCombinationId, r.trialCombinationId, golden.Key);
-                if (r.target == Target.NoGo && r.choice == Choice.Lick)
+                if (r.target == Target.NoGo && r.choice == Choice.Go)
                 {
                     noGoLicked++;
                     Assert.IsTrue(!r.rewarded && r.outcome == TrialOutcomes.Incorrect, golden.Key + ": a lick on a NoGo trial is rewarded");
@@ -220,7 +220,7 @@ public class HandoverTests
                 var where = golden.Key + " row " + n;
                 Assert.AreEqual(n, (int)row["trialCombinationId"], where);
                 Assert.AreEqual(n, combinations[n].Item3.Id, where);
-                Assert.AreEqual(combinations[n].Item1, (int)row["trialCondition"], where);
+                Assert.AreEqual(combinations[n].Item1, (int)row["trialConditionId"], where);
                 Assert.AreEqual(combinations[n].Item2.TrialType, (string)row["trialType"], where);
                 Assert.AreEqual(combinations[n].Item2.Weight, (int)row["conditionWeight"], where);
                 var values = (Newtonsoft.Json.Linq.JObject)row["values"];

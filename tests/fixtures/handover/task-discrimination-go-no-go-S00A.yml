@@ -1,71 +1,6 @@
 # Written by app-rig-control's tests/handover.py: the task file a launch writes at Go, rngSeed left null.
 taskParameters:
-  taskType: discriminationGoNoGo
-  target: go
-  trialConditions:
-  - trialType: go
-    weight: 10
-    set:
-      target: go
-      auditoryStimulus.amplitude: 0
   rngSeed: null
-  trialStructure:
-    itiMinSeconds: 1.5
-    itiMaxSeconds: 2.0
-    lickQuietSeconds: 0
-    wheelQuietSeconds: 0
-    wheelQuietCm: 0
-    drinkSeconds: 1.5
-    responseDelaySeconds: 0.0
-    responseWindowSeconds: 1.5
-    stimulusSeconds: 1.5
-    stimulusToSpoutsInSeconds: 0.5
-  visualStimulus:
-    initialAzimuthsDeg:
-    - -60
-    - 60
-    elevationDeg: 15
-    gaussianWindowSigmaDeg: 20
-    orientationDeg: 0
-    spatialFrequencyCpd: 0.066666667
-    temporalFrequencyHz: 0
-  auditoryStimulus:
-    amplitude: 1
-    initialAzimuthsDeg:
-    - -60
-    - 60
-  response:
-    thresholdLicks: 1
-    degreesPerLick: 0
-  backgroundNoise:
-    enabled: true
-    levelDbfs: -60.1
-  penalty:
-    timeoutSeconds: 4.0
-    sound:
-      enabled: true
-      levelDbfs: -44.6
-  reward:
-    rewardSizeUl: 3
-    largeRewardMultiplier: 1
-    largeRewardProbability: 0.0
-  repeats:
-    maxRepeats: 5
-    repeatOn: never
-  optogenetics:
-    enabled: false
-    zapitConditionsPath: ''
-    laserPowerMw: null
-    laserOnProbability: 0.5
-    laserDurationSeconds: 2.5
-    laserToStimulusSeconds: 0.5
-    noLaserOnRepeats: true
-    trialsBeforeLaser: 20
-  autoRewardProbability: 1.0
-  bothSpoutsProbability: 0.0
-  contrasts:
-  - 1.0
-  spoutMovements: false
   curriculum:
     id: 0
     code: S00A
@@ -73,3 +8,63 @@ taskParameters:
     path: A
     label: Habituation
     sha256: handover
+  trialConditions:
+  - trialType: go
+    weight: 10
+    set:
+      target: go
+      auditoryStimulus.levelDbfs: mute
+  trialStructure:
+    wheelQuietSeconds: 0
+    wheelQuietCm: 0
+    lickQuietSeconds: 0
+    responseWindowSeconds: 1.5
+    itiMinSeconds: 1.5
+    itiMaxSeconds: 2.0
+    outcomeToSpoutsOutSeconds: 1.5
+    responseDelaySeconds: 0.0
+    visualStimulusSeconds: 1.5
+    stimulusToSpoutsInSeconds: 0.5
+  visualStimulus:
+    contrasts:
+    - 1.0
+    initialAzimuthsDeg:
+    - -60
+    - 60
+    elevationDeg: 15
+    sigmaDeg: 20
+    orientationDeg: 0
+    spatialFrequencyCpd: 0.066666667
+    temporalFrequencyHz: 0
+  auditoryStimulus:
+    levelDbfs: -40
+    elevationDeg: 15
+    initialAzimuthsDeg:
+    - -60
+    - 60
+  reward:
+    sizeUl: 3
+    largeMultiplier: 2
+    largeProbability: 0.0
+  autoRewardProbability: 1.0
+  penalty:
+    timeoutSeconds: 4.0
+    sound:
+      levelDbfs: -45
+  optogenetics:
+    enabled: false
+    zapitConditionsPath: ''
+    laserPowerMw: null
+    laserOnProbability: 0.5
+    laserToStimulusSeconds: 0.5
+    trialsBeforeLaser: 20
+    laserDurationSeconds: 2.5
+  taskType: discriminationGoNoGo
+  response:
+    thresholdLicks: 1
+    azimuthShiftPerLickDeg: 0
+  repeats:
+    maxRepeats: 0
+    repeatOn: never
+  singleSpoutProbability: 0.0
+  spoutsStayIn: true

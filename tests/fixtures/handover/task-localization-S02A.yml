@@ -1,13 +1,19 @@
 # Written by app-rig-control's tests/handover.py: the task file a launch writes at Go, rngSeed left null.
 taskParameters:
-  taskType: localization
-  target: visualSide
+  rngSeed: null
+  curriculum:
+    id: 2
+    code: S02A
+    version: zxj8
+    path: A
+    label: Auditory Added
+    sha256: handover
   trialConditions:
   - trialType: auditory
     weight: 10
     set:
       target: auditorySide
-      contrasts:
+      visualStimulus.contrasts:
       - 0
   - trialType: audiovisualCoherent
     weight: 10
@@ -22,69 +28,58 @@ taskParameters:
       auditoryStimulus.initialAzimuthsDeg:
       - -60
       - 60
-  rngSeed: null
   trialStructure:
-    itiMinSeconds: 3.4
-    itiMaxSeconds: 4.4
-    lickQuietSeconds: 0
     wheelQuietSeconds: 0
     wheelQuietCm: 0
-    drinkSeconds: 2.0
-    responseDelaySeconds: 0.0
+    lickQuietSeconds: 0
     responseWindowSeconds: 1.5
-    stimulusSeconds: 1.5
+    itiMinSeconds: 3.4
+    itiMaxSeconds: 4.4
+    outcomeToSpoutsOutSeconds: 2.0
+    responseDelaySeconds: 0.0
+    visualStimulusSeconds: 1.5
     stimulusToSpoutsInSeconds: 0.5
   visualStimulus:
+    contrasts:
+    - 0.25
+    - 0.5
+    - 1.0
     initialAzimuthsDeg:
     - -60
     - 60
     elevationDeg: 15
-    gaussianWindowSigmaDeg: 20
+    sigmaDeg: 20
     orientationDeg: 0
     spatialFrequencyCpd: 0.066666667
     temporalFrequencyHz: 0
   auditoryStimulus:
-    amplitude: 1
+    levelDbfs: -40
+    elevationDeg: 15
     initialAzimuthsDeg:
     - -60
     - 60
-  response:
-    thresholdLicks: 1
-    degreesPerLick: 0
-  backgroundNoise:
-    enabled: true
-    levelDbfs: -60.1
+  reward:
+    sizeUl: 3
+    largeMultiplier: 2
+    largeProbability: 0.0
+  autoRewardProbability: 0.0
   penalty:
     timeoutSeconds: 4.0
     sound:
-      enabled: true
-      levelDbfs: -44.6
-  reward:
-    rewardSizeUl: 3
-    largeRewardMultiplier: 1
-    largeRewardProbability: 0.0
-  repeats:
-    maxRepeats: 5
-    repeatOn: notCorrect
+      levelDbfs: -45
   optogenetics:
     enabled: false
     zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
     laserPowerMw: 3.0
     laserOnProbability: 0.5
-    laserDurationSeconds: 2.5
     laserToStimulusSeconds: 0.5
-    noLaserOnRepeats: true
     trialsBeforeLaser: 20
-  autoRewardProbability: 0.0
-  bothSpoutsProbability: 1.0
-  contrasts:
-  - 0.25
-  - 0.5
-  - 1.0
-  curriculum:
-    id: 2
-    code: S02A
-    version: zxj8
-    path: A
-    label: Auditory Added
-    sha256: handover
+    laserDurationSeconds: 2.5
+  taskType: localization
+  response:
+    thresholdLicks: 1
+    azimuthShiftPerLickDeg: 0
+  repeats:
+    maxRepeats: 5
+    repeatOn: notCorrect
+  singleSpoutProbability: 0.0

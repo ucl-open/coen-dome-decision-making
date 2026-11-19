@@ -39,7 +39,7 @@
         <Commands />
       </Expression>
       <Expression xsi:type="ExternalizedMapping">
-        <Property Name="TaskPath" Description="The task file: rig-control's copy of the one chosen at launch, read at Start for the background noise and again at Go with the form's edits; from the editor, config\task-localization.yml." />
+        <Property Name="TaskPath" Description="The task file: rig-control's copy of the one chosen at launch, read at Go with the form's edits; from the editor, config\task-localization.yml." />
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Control:LaunchSettings.bonsai">
         <SubjectId />
@@ -47,7 +47,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskFile</Name>
-        <Description>Reads the task file (TaskPath) at Start into LaunchTaskConfig, as rig-control wrote it at launch, for the background noise, which plays from Ready; and at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, each read by ReadTask, which keeps a trial condition's set values as numbers and bools. BackgroundNoise stops the workflow at Go if backgroundNoise was changed after launch, as the noise already plays at the launch's level. At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once and publishes the trials' rules (TrialRules) for TaskLogic.</Description>
+        <Description>Reads the task file (TaskPath) at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, read by ReadTask, which keeps a trial condition's set values as numbers and bools. At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once and publishes the trials' rules (TrialRules) for TaskLogic.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Core:TaskFileText.bonsai" />
@@ -56,18 +56,6 @@
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TaskConfig</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TaskPath</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="core:ReadTextFile" />
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="ext:ReadTask" />
-            </Expression>
-            <Expression xsi:type="rx:AsyncSubject">
-              <Name>LaunchTaskConfig</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TaskText</Name>
@@ -80,7 +68,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>CheckTaskAtGo</Name>
-              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the task file's curriculum present and well formed, each trial condition built (its set and pairs over the task's values, every combination), rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, the x-rules, a go/no-go task with no go trials, both spouts in go/no-go, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. A problem stops the workflow here, naming each, before the first trial.</Description>
+              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the task file's curriculum present and well formed, each trial condition built (its set and pairs over the task's values, every combination), rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, the x-rules, a go/no-go task with no go trials, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. A problem stops the workflow here, naming each, before the first trial.</Description>
               <Combinator xsi:type="ext:CheckTaskAtGo" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
@@ -105,16 +93,13 @@
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
             <Edge From="1" To="2" Label="Source1" />
-            <Edge From="3" To="4" Label="Source1" />
-            <Edge From="4" To="5" Label="Source1" />
+            <Edge From="3" To="5" Label="Source1" />
+            <Edge From="4" To="5" Label="Source2" />
             <Edge From="5" To="6" Label="Source1" />
-            <Edge From="7" To="9" Label="Source1" />
-            <Edge From="8" To="9" Label="Source2" />
+            <Edge From="6" To="7" Label="Source1" />
+            <Edge From="8" To="9" Label="Source1" />
             <Edge From="9" To="10" Label="Source1" />
             <Edge From="10" To="11" Label="Source1" />
-            <Edge From="12" To="13" Label="Source1" />
-            <Edge From="13" To="14" Label="Source1" />
-            <Edge From="14" To="15" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -243,7 +228,7 @@
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
                       <Property Name="Contrast" Selector="visualContrast" />
-                      <Property Name="LocationY" Selector="gratingElevationDeg" />
+                      <Property Name="LocationY" Selector="VisualStimulus.ElevationDeg" />
                       <Property Name="Phase" Selector="visualPhaseRad" />
                     </PropertyMappings>
                   </Expression>
@@ -252,9 +237,9 @@
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
-                      <Property Name="TemporalFrequency" Selector="gratingTemporalFrequencyHz" />
-                      <Property Name="SpatialFrequency" Selector="gratingSpatialFrequencyCpd" />
-                      <Property Name="Angle" Selector="gratingOrientationDeg" />
+                      <Property Name="TemporalFrequency" Selector="VisualStimulus.TemporalFrequencyHz" />
+                      <Property Name="SpatialFrequency" Selector="VisualStimulus.SpatialFrequencyCpd" />
+                      <Property Name="Angle" Selector="VisualStimulus.OrientationDeg" />
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
@@ -270,8 +255,8 @@
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
                     <scr:Name>Aperture</scr:Name>
-                    <scr:Description>The Gaussian window's sigma relative to the grating's 100 degree extent, each trial's (its combination's visualStimulus.gaussianWindowSigmaDeg).</scr:Description>
-                    <scr:Expression>gratingSigmaDeg * 2 / 100.0</scr:Expression>
+                    <scr:Description>The Gaussian window's sigma relative to the grating's 100 degree extent, each trial's (its combination's visualStimulus.sigmaDeg).</scr:Description>
+                    <scr:Expression>VisualStimulus.SigmaDeg * 2 / 100.0</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -402,7 +387,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryAmplitude (1 the waveform as stored), TaskLogic's penalty sound at penalty.sound.levelDbfs, checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the largest amplitude any condition can draw (TrialRules.Loudest into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryLevelDbfs (the set measured as one, one gain), TaskLogic's penalty sound at each penalised trial's penalty.sound.levelDbfs, laid out at Go at the loudest any condition can draw; the background noise at the lab's -60 dBFS, sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the highest level any condition can draw (TrialRules.Loudest into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -445,14 +430,14 @@
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>AuditoryTrial?</Name>
-              <Description>A trial at auditoryStimulus.amplitude 0 plays no sound.</Description>
+              <Description>A trial at auditoryStimulus.levelDbfs mute (auditoryLevelDbfs NaN) plays no sound.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>auditoryAmplitude &gt; 0</scr:Expression>
+                    <scr:Expression>!double.IsNaN(auditoryLevelDbfs)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>
@@ -470,7 +455,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>PlayAuditoryStimulus</Name>
-              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location; at "all" every speaker's channel, each its own copy), scaled by its auditoryAmplitude, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
+              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location; at "all" every speaker's channel, each its own copy), at its auditoryLevelDbfs, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
               <Combinator xsi:type="ext:SelectAuditoryStimulus" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
@@ -495,7 +480,7 @@
         </Workflow>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:BackgroundNoise.bonsai">
-        <Description>The background noise, the lab's one file, rig.yml's speakerArray.backgroundNoise (60 s of white noise, 32-bit float), unequalised on every speaker at the launched task file's backgroundNoise.levelDbfs from Ready; Go stops if the task file changed backgroundNoise after launch.</Description>
+        <Description>The background noise, the lab's one file, rig.yml's speakerArray.backgroundNoise (60 s of white noise, 32-bit float), unequalised on every speaker at the lab's -60 dBFS (OpenRigs.Audio SoundLevel.BackgroundDbfs) from Ready.</Description>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTask.bonsai" />
       <Expression xsi:type="GroupWorkflow">
@@ -521,7 +506,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Status</Name>
-        <Description>The current trial's facts as metrics, named as WorkflowData_Trials's columns: the shared trialNumber, trialType, rewardOfferedUl and laserCondition (OpenRigs.Control ReportTrialMetrics), then the task's own target, visualAzimuthDeg and auditoryAzimuthDeg (the curriculumStage, code-version, is TaskFile's); rig-control computes counts, water and performance from the files.</Description>
+        <Description>The current trial's facts as metrics, named as WorkflowData_Trials's columns: the shared trialNumber, trialType, rewardOfferedUl and laserCondition (OpenRigs.Control ReportTrialMetrics), then the task's own target, visualInitialAzimuthDeg and auditoryInitialAzimuthDeg (the curriculumStage, code-version, is TaskFile's); rig-control computes counts, water and performance from the files.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -541,19 +526,19 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>visualAzimuthDeg</Selector>
+              <Selector>visualInitialAzimuthDeg</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="orcl:ReportMetric">
-                <orcl:Name>visualAzimuthDeg</orcl:Name>
+                <orcl:Name>visualInitialAzimuthDeg</orcl:Name>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
-              <Selector>auditoryAzimuthDeg</Selector>
+              <Selector>auditoryInitialAzimuthDeg</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="orcl:ReportMetric">
-                <orcl:Name>auditoryAzimuthDeg</orcl:Name>
+                <orcl:Name>auditoryInitialAzimuthDeg</orcl:Name>
               </Combinator>
             </Expression>
           </Nodes>
@@ -581,7 +566,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (stimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and Drink (drinkSeconds into the next interval, with spout movements: the spouts out); Outcome: the trial's row (TrialRow), the reward (RewardRequests) and the penalty sound. Every spout move is SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and Drink cues', the outcome's. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (visualStimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and SpoutsOut (outcomeToSpoutsOutSeconds into the next interval: the spouts out unless the coming trial's stay in); Outcome: the trial's row (TrialRow), the reward (RewardRequests) and the penalty sound. Every spout move is SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -624,7 +609,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>RunTrials</Name>
-              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last outcome plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window responseDelaySeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved degreesPerLick a lick; Left at thresholdLicks, Right at -thresholdLicks, else NoResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once the longest ramp-down has played. Inputs: the rules, the clock, the wheel, the left and right lick states, Zapit's replies.</Description>
+              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last outcome plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window responseDelaySeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved azimuthShiftPerLickDeg a lick; left at thresholdLicks, right at -thresholdLicks, else noResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once the longest ramp-down has played. Inputs: the rules, the clock, the wheel, the left and right lick states, Zapit's replies.</Description>
               <Combinator xsi:type="ext:RunTrials" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
@@ -720,7 +705,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>SpoutCommands</Name>
-              <Description>Every spout move, from the trial events (tested C#): with spout movements, the spouts out at trial 1's interval start and at each Drink cue; at each SpoutsIn cue both in on a both-spouts trial, else the target's alone; at the outcome, with spout movements, the rewarded spout alone, else both out. A task without spout movements (habituation) keeps them in.</Description>
+              <Description>Every spout move, from the trial events (tested C#): the spouts out at trial 1's interval start and at each SpoutsOut cue, unless the coming trial's spouts stay in (spoutsStayIn); at each SpoutsIn cue the target's alone on a single-spout trial (singleSpoutOffered), else both in; at the outcome, unless the trial's spouts stay in, the rewarded spout alone, else both out.</Description>
               <Combinator xsi:type="ext:SpoutCommands" />
             </Expression>
             <Expression xsi:type="MulticastSubject">

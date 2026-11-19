@@ -1,13 +1,30 @@
 {
   "$defs": {
     "AuditoryStimulus": {
-      "description": "The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at\nvisualStimulus.elevationDeg), or on every rig.yml speaker where the pick is \"all\".",
+      "description": "The sound: a waveform of the set (src/sounds) at levelDbfs, on rig.yml's speaker nearest the picked azimuth at\nelevationDeg, or on every rig.yml speaker where the pick is \"all\".",
       "properties": {
-        "amplitude": {
-          "default": 1.0,
-          "description": "Scale of the waveform's samples as stored: 0 no sound, 1 the WAV as stored (-47.2 dBFS RMS, production av-dome's loudness), above 1 louder. Go refuses the largest amplitude any condition can draw if a waveform would peak at -1 dBFS or more after equalisation on any speaker; dB SPL is unknown until the speakers' SPL calibration",
-          "minimum": 0,
-          "title": "Amplitude",
+        "levelDbfs": {
+          "default": -40.0,
+          "description": "The stimulus sound (the waveform set as one, OpenRigs.Audio SoundLevel measuring the set)'s level in dBFS RMS: the RMS of the sound over its samples outside silent stretches (runs of exactly-zero samples at least 1 ms long), as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3); mute: no sound. The lab's default -40. The workflow stops at Go if any peak at the loudest level a trial can draw would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix",
+          "oneOf": [
+            {
+              "maximum": -1.0,
+              "minimum": -120.0,
+              "type": "number"
+            },
+            {
+              "const": "mute",
+              "type": "string"
+            }
+          ],
+          "title": "LevelDbfs"
+        },
+        "elevationDeg": {
+          "default": 15.0,
+          "description": "Elevation the sound plays at, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker",
+          "maximum": 90,
+          "minimum": -90,
+          "title": "ElevationDeg",
           "type": "number"
         },
         "initialAzimuthsDeg": {
@@ -15,7 +32,7 @@
             -60.0,
             60.0
           ],
-          "description": "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. \"all\" plays it on every rig.yml speaker at once (logged auditoryAzimuthDeg NaN with an amplitude above 0). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and \"all\" are refused. Unused where the amplitude is 0",
+          "description": "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on rig.yml's speaker nearest it. \"all\" plays it on every rig.yml speaker at once (logged auditoryInitialAzimuthDeg NaN with a level). With target auditorySide the picked azimuth's sign is the trial's side, so 0 and \"all\" are refused. Unused where the level is mute",
           "items": {
             "oneOf": [
               {
@@ -33,27 +50,6 @@
         }
       },
       "title": "AuditoryStimulus",
-      "type": "object"
-    },
-    "BackgroundNoise": {
-      "description": "The background noise, one level for the experiment: looped on every speaker unequalised, faded in over 2 s once\nthe task file is read at Go (OpenRigs.Audio SpeakerMixer).",
-      "properties": {
-        "enabled": {
-          "default": true,
-          "description": "Whether the background noise plays",
-          "title": "Enabled",
-          "type": "boolean"
-        },
-        "levelDbfs": {
-          "default": -50.0,
-          "description": "The background noise's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -50. The workflow stops as the sound's buffer is built (at Go for a sound built once, at its trial for one built each trial) if any peak would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix",
-          "maximum": -1.0,
-          "minimum": -120.0,
-          "title": "LevelDbfs",
-          "type": "number"
-        }
-      },
-      "title": "BackgroundNoise",
       "type": "object"
     },
     "Curriculum": {
@@ -105,8 +101,8 @@
       "title": "Curriculum",
       "type": "object"
     },
-    "OptogeneticsSettings": {
-      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a timed stimulus here, where coen-dome-navigation's laserMaxSeconds is a cap.",
+    "Optogenetics": {
+      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a timed stimulus here, per trial (its combination's). A repeated trial never has the laser on.",
       "if": {
         "additionalProperties": true,
         "properties": {
@@ -169,12 +165,6 @@
           "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
           "type": "number"
-        },
-        "noLaserOnRepeats": {
-          "default": true,
-          "description": "Whether repeat trials never have the laser on",
-          "title": "NoLaserOnRepeats",
-          "type": "boolean"
         }
       },
       "required": [
@@ -196,11 +186,11 @@
           "laserPowerMw"
         ]
       },
-      "title": "OptogeneticsSettings",
+      "title": "Optogenetics",
       "type": "object"
     },
     "Penalty": {
-      "description": "What a wrong or missed trial costs: a timeout, and the penalty sound with it (the trial log's penaltySoundOn and\npenaltyTimeoutSeconds). Each task says which trials are penalised; timeoutSeconds has no lab default: each task file gives it.",
+      "description": "What a wrong or missed trial costs: a timeout (the trial log's penaltyTimeoutSeconds), and the penalty sound with it\nunless its level is mute. Each task says which trials are penalised; timeoutSeconds has no lab default: each task file gives it.",
       "properties": {
         "timeoutSeconds": {
           "description": "Timeout after a penalised trial, in seconds; the next interval starts after it",
@@ -211,7 +201,6 @@
         "sound": {
           "$ref": "#/$defs/PenaltySound",
           "default": {
-            "enabled": true,
             "levelDbfs": -30.0
           },
           "description": "The penalty sound, with every timeout",
@@ -225,28 +214,30 @@
       "type": "object"
     },
     "PenaltySound": {
-      "description": "The lab's penalty sound (OpenRigs.Audio PenaltySoundBuffer, the same in every task), on rig.yml's speakerArray.penaltySoundChannel alone, equalised for that speaker.",
+      "description": "The lab's penalty sound (OpenRigs.Audio PlayPenaltySound, the same in every task), on rig.yml's speakerArray.penaltySoundChannel alone,\nequalised for that speaker, at each penalised trial's levelDbfs.",
       "properties": {
-        "enabled": {
-          "default": true,
-          "description": "Whether the penalty sound plays with every timeout",
-          "title": "Enabled",
-          "type": "boolean"
-        },
         "levelDbfs": {
           "default": -30.0,
-          "description": "The penalty sound's level in dBFS RMS: the RMS of the sound over its whole length as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3). The lab's default -30. The workflow stops as the sound's buffer is built (at Go for a sound built once, at its trial for one built each trial) if any peak would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix",
-          "maximum": -1.0,
-          "minimum": -120.0,
-          "title": "LevelDbfs",
-          "type": "number"
+          "description": "The penalty sound's level in dBFS RMS: the RMS of the sound over its samples outside silent stretches (runs of exactly-zero samples at least 1 ms long), as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3); mute: no sound. The lab's default -30. The workflow stops at Go if any peak at the loudest level a trial can draw would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix",
+          "oneOf": [
+            {
+              "maximum": -1.0,
+              "minimum": -120.0,
+              "type": "number"
+            },
+            {
+              "const": "mute",
+              "type": "string"
+            }
+          ],
+          "title": "LevelDbfs"
         }
       },
       "title": "PenaltySound",
       "type": "object"
     },
     "RepeatOn": {
-      "description": "When a trial is repeated: never, noResponse (after NoResponse) or notCorrect (after Incorrect or NoResponse).",
+      "description": "When a trial is repeated: never, noResponse (after noResponse) or notCorrect (after incorrect or noResponse).",
       "enum": [
         "never",
         "noResponse",
@@ -255,12 +246,12 @@
       "title": "RepeatOn",
       "type": "string"
     },
-    "RepeatSettings": {
+    "Repeats": {
       "description": "Trial repetition policy, condition fields both: a trial is repeated after the outcome repeatOn names, at most maxRepeats times in a row.",
       "properties": {
         "maxRepeats": {
-          "default": 5,
-          "description": "Maximum number of consecutive repeats of the same trial; 0 never repeats (repeatOn never, x-rules)",
+          "default": 0,
+          "description": "Maximum number of consecutive repeats of the same trial; 0 exactly when repeatOn is never (x-rules)",
           "minimum": 0,
           "title": "MaxRepeats",
           "type": "integer"
@@ -268,14 +259,14 @@
         "repeatOn": {
           "$ref": "#/$defs/RepeatOn",
           "default": "never",
-          "description": "never; noResponse: after NoResponse; notCorrect: after Incorrect or NoResponse. A probe (target random or noReward) never repeats (x-rules)"
+          "description": "never (maxRepeats 0); noResponse: after noResponse; notCorrect: after incorrect or noResponse. A probe (target random or noReward) repeats on noResponse or never (x-rules)"
         }
       },
-      "title": "RepeatSettings",
+      "title": "Repeats",
       "type": "object"
     },
-    "ResponseSettings": {
-      "description": "Lick-accumulation response rule; thresholdLicks 1 with degreesPerLick 0 is classic first-lick 2AFC.",
+    "Response": {
+      "description": "Lick-accumulation response rule; thresholdLicks 1 with azimuthShiftPerLickDeg 0 is classic first-lick 2AFC.",
       "properties": {
         "thresholdLicks": {
           "default": 1,
@@ -284,50 +275,50 @@
           "title": "ThresholdLicks",
           "type": "integer"
         },
-        "degreesPerLick": {
+        "azimuthShiftPerLickDeg": {
           "default": 0.0,
-          "description": "Degrees the grating azimuth moves per net lick difference; 0 keeps the stimulus fixed",
-          "title": "DegreesPerLick",
+          "description": "Degrees the grating's azimuth moves per net lick; 0 keeps the stimulus fixed",
+          "title": "AzimuthShiftPerLickDeg",
           "type": "number"
         }
       },
-      "title": "ResponseSettings",
+      "title": "Response",
       "type": "object"
     },
-    "RewardSettings": {
-      "description": "Reward delivery: the reward size (the lab's RewardSize block) and the large-reward trials.",
+    "Reward": {
+      "description": "Reward delivery: the reward size and the large-reward trials (the lab's reward block).",
       "properties": {
-        "rewardSizeUl": {
+        "sizeUl": {
           "description": "Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for",
           "exclusiveMinimum": 0,
           "maximum": 20,
-          "title": "RewardSizeUl",
+          "title": "SizeUl",
           "type": "number"
         },
-        "largeRewardMultiplier": {
-          "default": 1.0,
-          "description": "Reward size multiplier applied on large-reward trials",
-          "minimum": 0,
-          "title": "LargeRewardMultiplier",
+        "largeMultiplier": {
+          "default": 2.0,
+          "description": "Reward size multiplier on large-reward trials, above 1",
+          "exclusiveMinimum": 1,
+          "title": "LargeMultiplier",
           "type": "number"
         },
-        "largeRewardProbability": {
+        "largeProbability": {
           "default": 0.0,
-          "description": "Probability that a trial is a large-reward trial",
+          "description": "Probability that a trial is a large-reward trial; 0: none (the only off)",
           "maximum": 1,
           "minimum": 0,
-          "title": "LargeRewardProbability",
+          "title": "LargeProbability",
           "type": "number"
         }
       },
       "required": [
-        "rewardSizeUl"
+        "sizeUl"
       ],
-      "title": "RewardSettings",
+      "title": "Reward",
       "type": "object"
     },
     "Target": {
-      "description": "What a trial rewards: localization visualSide, auditorySide or random; discriminationGoNoGo go, noGo or noReward;\ndiscriminationLeftRight left, right or random (x-rules). Logged as the target column: Left or Right for a side, Go, NoGo,\nNoReward, Random.",
+      "description": "What a trial rewards: localization visualSide, auditorySide or random; discriminationGoNoGo go, noGo or noReward;\ndiscriminationLeftRight left, right or random (x-rules). Logged as the target column in the same spelling, a side as\nleft or right.",
       "enum": [
         "visualSide",
         "auditorySide",
@@ -353,11 +344,11 @@
     },
     "TrialCondition": {
       "additionalProperties": false,
-      "description": "One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:\ncontrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.",
+      "description": "One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:\nvisualStimulus.contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.",
       "properties": {
         "trialType": {
           "$ref": "#/$defs/TrialType",
-          "description": "The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing"
+          "description": "The condition's name, logged as each trial's trialType: derived from its contrasts, sound level, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing"
         },
         "weight": {
           "description": "Relative draw weight: each new trial picks a condition with these as relative chances",
@@ -392,11 +383,11 @@
       "type": "object"
     },
     "TrialStructure": {
-      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus, drinkSeconds included,\nso itiMinSeconds is at least drinkSeconds; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can\nonly lengthen it. A lick first counts responseDelaySeconds after stimulus onset, where the\nresponse window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
+      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus,\noutcomeToSpoutsOutSeconds included, so itiMinSeconds is at least outcomeToSpoutsOutSeconds; the quiet waits (the lab's\nLickQuietWait and WheelQuietWait blocks) can only lengthen it. A lick first counts responseDelaySeconds after stimulus\nonset, where the response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
       "properties": {
         "wheelQuietSeconds": {
           "default": 0.0,
-          "description": "Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (with wheelQuietCm 0); at most 10 s",
+          "description": "Quiet wait: a trial's start needs this long with the wheel still, in seconds, counted from the interval's start: the wheel's distance (forward and back added) over the last wheelQuietSeconds must stay within wheelQuietCm; 0: off (the only off); at most 10 s",
           "maximum": 10,
           "minimum": 0,
           "title": "WheelQuietSeconds",
@@ -404,7 +395,7 @@
         },
         "wheelQuietCm": {
           "default": 0.0,
-          "description": "The most the wheel may move, forward and back added, within the last wheelQuietSeconds before the trial's start, in cm; 0: off (with wheelQuietSeconds 0); at most 20 cm",
+          "description": "The most the wheel may move, forward and back added, within the last wheelQuietSeconds before the trial's start, in cm; 0: no movement at all; at most 20 cm",
           "maximum": 20,
           "minimum": 0,
           "title": "WheelQuietCm",
@@ -444,11 +435,11 @@
           "title": "ItiMaxSeconds",
           "type": "number"
         },
-        "drinkSeconds": {
+        "outcomeToSpoutsOutSeconds": {
           "default": 2.0,
-          "description": "From the outcome (after any timeout) to drawing the spouts back, in seconds: time to drink a reward, inside the interval",
+          "description": "From the outcome (after any timeout) to drawing the spouts out (the SpoutsOut cue), in seconds: time to drink a reward, inside the interval",
           "minimum": 0,
-          "title": "DrinkSeconds",
+          "title": "OutcomeToSpoutsOutSeconds",
           "type": "number"
         },
         "responseDelaySeconds": {
@@ -458,16 +449,16 @@
           "title": "ResponseDelaySeconds",
           "type": "number"
         },
-        "stimulusSeconds": {
+        "visualStimulusSeconds": {
           "default": 1.5,
           "description": "How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus",
           "exclusiveMinimum": 0,
-          "title": "StimulusSeconds",
+          "title": "VisualStimulusSeconds",
           "type": "number"
         },
         "stimulusToSpoutsInSeconds": {
           "default": 0.5,
-          "description": "From stimulus onset to moving the response spouts in, in seconds",
+          "description": "From stimulus onset to moving the response spouts in (the SpoutsIn cue), in seconds",
           "minimum": 0,
           "title": "StimulusToSpoutsInSeconds",
           "type": "number"
@@ -527,14 +518,6 @@
     "UclOpenCoenDomeDecisionMakingTaskParameters": {
       "description": "Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations.",
       "properties": {
-        "autoRewardProbability": {
-          "default": 0.0,
-          "description": "Probability that a trial is an auto-reward trial (the lab's AutoReward block): its miss is rewarded at the target spout, and is still a NoResponse for repeats; 0: never, 1: every trial",
-          "maximum": 1,
-          "minimum": 0,
-          "title": "AutoRewardProbability",
-          "type": "number"
-        },
         "rngSeed": {
           "default": null,
           "description": "Seed of the random number generator for these task parameters",
@@ -544,16 +527,21 @@
             "null"
           ]
         },
-        "taskType": {
-          "$ref": "#/$defs/TaskType",
-          "description": "localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial (Go), withhold on a noGo trial (NoGo); a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'"
-        },
-        "target": {
-          "$ref": "#/$defs/Target",
-          "description": "What a trial rewards: visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty"
+        "curriculum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Curriculum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Mouse Curriculum stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go",
+          "title": "Curriculum"
         },
         "trialConditions": {
-          "description": "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a curriculum stage's conditions replace it; the trialCondition column is its 0-based index",
+          "description": "The trial mix: each new trial picks one condition at random with the weights as relative chances, independently of every other trial (repeats copy the trial they repeat), then draws as the task's values with the condition's set over them. One whole value: a curriculum stage's conditions replace it; the trialConditionId column is its 0-based index",
           "items": {
             "$ref": "#/$defs/TrialCondition"
           },
@@ -568,96 +556,83 @@
         },
         "visualStimulus": {
           "$ref": "#/$defs/VisualStimulus",
-          "description": "Grating stimulus parameters"
+          "description": "The grating"
         },
         "auditoryStimulus": {
           "$ref": "#/$defs/AuditoryStimulus",
-          "description": "Auditory stimulus parameters"
+          "description": "The sound"
         },
-        "response": {
-          "$ref": "#/$defs/ResponseSettings",
-          "description": "Lick-accumulation response rule",
-          "title": "Response"
+        "reward": {
+          "$ref": "#/$defs/Reward",
+          "description": "Reward delivery"
         },
-        "backgroundNoise": {
-          "$ref": "#/$defs/BackgroundNoise",
-          "default": {
-            "enabled": true,
-            "levelDbfs": -50.0
-          },
-          "description": "The lab's background white noise (rig.yml's speakerArray.backgroundNoise) on every speaker, from Ready at the level of the task file as launched (open_rigs.core.task BackgroundNoise)"
+        "autoRewardProbability": {
+          "default": 0.0,
+          "description": "Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is still a noResponse for repeats; 0: never, 1: every trial",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "AutoRewardProbability",
+          "type": "number"
         },
         "penalty": {
           "$ref": "#/$defs/Penalty",
-          "description": "The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a NoGo trial (a Go miss and a no-reward probe have neither), open_rigs.core.task Penalty"
-        },
-        "reward": {
-          "$ref": "#/$defs/RewardSettings",
-          "description": "Reward delivery parameters",
-          "title": "Reward"
-        },
-        "repeats": {
-          "$ref": "#/$defs/RepeatSettings",
-          "description": "Trial repetition policy",
-          "title": "Repeats"
+          "description": "The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a noGo trial (a go miss and a no-reward probe have neither), open_rigs.core.task Penalty"
         },
         "optogenetics": {
-          "$ref": "#/$defs/OptogeneticsSettings",
-          "description": "Zapit optogenetic stimulation parameters",
-          "title": "Optogenetics"
+          "$ref": "#/$defs/Optogenetics",
+          "description": "Zapit optogenetic stimulation"
         },
-        "bothSpoutsProbability": {
-          "default": 0.0,
-          "description": "Probability that both spouts are presented rather than only the correct one",
-          "maximum": 1,
-          "minimum": 0,
-          "title": "BothSpoutsProbability",
-          "type": "number"
+        "taskType": {
+          "$ref": "#/$defs/TaskType",
+          "description": "localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'"
         },
-        "contrasts": {
-          "default": [
-            1.0
-          ],
-          "description": "Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey screen)",
-          "items": {
-            "type": "number"
-          },
-          "minItems": 1,
-          "title": "Contrasts",
-          "type": "array"
-        },
-        "spoutMovements": {
-          "default": true,
-          "description": "Whether the spouts move during trials; false keeps them in (habituation): no withdrawal and no single-spout move for a reward",
-          "title": "SpoutMovements",
-          "type": "boolean"
-        },
-        "curriculum": {
+        "target": {
           "anyOf": [
             {
-              "$ref": "#/$defs/Curriculum"
+              "$ref": "#/$defs/Target"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "The Mouse Curriculum stage these values are, the only record of the stage, filled by app-rig-control at launch; empty or malformed stops the workflow at Go",
-          "title": "Curriculum"
+          "description": "What a trial rewards, set by every trial condition and never by the task: visualSide or auditorySide, the side of the picked grating or sound azimuth; left or right; go (lick) or noGo (withhold); random, a random-reward probe; noReward, a probe with no reward on offer and no penalty",
+          "title": "Target"
+        },
+        "response": {
+          "$ref": "#/$defs/Response",
+          "description": "Lick-accumulation response rule"
+        },
+        "repeats": {
+          "$ref": "#/$defs/Repeats",
+          "description": "Trial repetition policy"
+        },
+        "singleSpoutProbability": {
+          "default": 0.0,
+          "description": "Probability that only the target's spout comes in, as a guide, on a scored trial of localization or discriminationLeftRight whose spouts move (spoutsStayIn false); else both come in. discriminationGoNoGo always uses the left spout alone, and a random-reward probe both (logged as singleSpoutOffered)",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "SingleSpoutProbability",
+          "type": "number"
+        },
+        "spoutsStayIn": {
+          "default": false,
+          "description": "Whether the used spouts stay in on this trial (habituation): no withdrawal and no single-spout move; at each interval's start the coming trial's value decides whether the spouts go out",
+          "title": "SpoutsStayIn",
+          "type": "boolean"
         }
       },
       "required": [
-        "taskType",
-        "target",
         "trialConditions",
         "trialStructure",
         "visualStimulus",
         "auditoryStimulus",
-        "response",
-        "penalty",
         "reward",
-        "repeats",
-        "optogenetics"
+        "penalty",
+        "optogenetics",
+        "taskType",
+        "response",
+        "repeats"
       ],
       "title": "UclOpenCoenDomeDecisionMakingTaskParameters",
       "type": "object",
@@ -711,22 +686,19 @@
         {
           "if": {
             "properties": {
-              "target": {
-                "const": "random"
+              "repeats.repeatOn": {
+                "const": "never"
               }
             },
             "required": [
-              "target"
+              "repeats.repeatOn"
             ]
           },
-          "message": "target random needs bothSpoutsProbability 1 and repeats.repeatOn never",
+          "message": "repeats.repeatOn never needs repeats.maxRepeats 0",
           "then": {
             "properties": {
-              "bothSpoutsProbability": {
-                "const": 1
-              },
-              "repeats.repeatOn": {
-                "const": "never"
+              "repeats.maxRepeats": {
+                "const": 0
               }
             }
           }
@@ -735,18 +707,23 @@
           "if": {
             "properties": {
               "target": {
-                "const": "noReward"
+                "enum": [
+                  "random",
+                  "noReward"
+                ]
               }
             },
             "required": [
               "target"
             ]
           },
-          "message": "target noReward needs repeats.repeatOn never",
+          "message": "a probe (target random or noReward) needs repeats.repeatOn never or noResponse, not notCorrect",
           "then": {
             "properties": {
               "repeats.repeatOn": {
-                "const": "never"
+                "not": {
+                  "const": "notCorrect"
+                }
               }
             }
           }
@@ -756,10 +733,14 @@
             "properties": {
               "taskType": {
                 "const": "localization"
+              },
+              "target": {
+                "type": "string"
               }
             },
             "required": [
-              "taskType"
+              "taskType",
+              "target"
             ]
           },
           "message": "taskType localization needs target one of visualSide, auditorySide, random",
@@ -780,10 +761,14 @@
             "properties": {
               "taskType": {
                 "const": "discriminationGoNoGo"
+              },
+              "target": {
+                "type": "string"
               }
             },
             "required": [
-              "taskType"
+              "taskType",
+              "target"
             ]
           },
           "message": "taskType discriminationGoNoGo needs target one of go, noGo, noReward",
@@ -804,10 +789,14 @@
             "properties": {
               "taskType": {
                 "const": "discriminationLeftRight"
+              },
+              "target": {
+                "type": "string"
               }
             },
             "required": [
-              "taskType"
+              "taskType",
+              "target"
             ]
           },
           "message": "taskType discriminationLeftRight needs target one of left, right, random",
@@ -826,7 +815,7 @@
         {
           "if": {
             "properties": {
-              "contrasts": {
+              "visualStimulus.contrasts": {
                 "items": {
                   "const": 0
                 }
@@ -838,11 +827,11 @@
               }
             },
             "required": [
-              "contrasts",
+              "visualStimulus.contrasts",
               "target"
             ]
           },
-          "message": "contrasts 0 shows no grating, so its azimuths are unread unless target visualSide",
+          "message": "visualStimulus.contrasts 0 shows no grating, so its azimuths are unread unless target visualSide",
           "unused": [
             "visualStimulus.initialAzimuthsDeg"
           ]
@@ -850,8 +839,8 @@
         {
           "if": {
             "properties": {
-              "auditoryStimulus.amplitude": {
-                "const": 0
+              "auditoryStimulus.levelDbfs": {
+                "const": "mute"
               },
               "target": {
                 "not": {
@@ -860,11 +849,11 @@
               }
             },
             "required": [
-              "auditoryStimulus.amplitude",
+              "auditoryStimulus.levelDbfs",
               "target"
             ]
           },
-          "message": "auditoryStimulus.amplitude 0 plays no sound, so its azimuths are unread unless target auditorySide",
+          "message": "auditoryStimulus.levelDbfs mute plays no sound, so its azimuths are unread unless target auditorySide",
           "unused": [
             "auditoryStimulus.initialAzimuthsDeg"
           ]
@@ -901,13 +890,9 @@
         "rngSeed",
         "curriculum",
         "trialConditions",
-        "taskType",
-        "backgroundNoise",
-        "spoutMovements",
-        "penalty.sound.levelDbfs",
         "optogenetics.enabled",
         "optogenetics.zapitConditionsPath",
-        "optogenetics.laserDurationSeconds"
+        "taskType"
       ],
       "x-trial-types": [
         {
@@ -973,14 +958,14 @@
         {
           "if": {
             "properties": {
-              "contrasts": {
+              "visualStimulus.contrasts": {
                 "contains": {
                   "exclusiveMinimum": 0
                 }
               },
-              "auditoryStimulus.amplitude": {
+              "auditoryStimulus.levelDbfs": {
                 "contains": {
-                  "exclusiveMinimum": 0
+                  "type": "number"
                 }
               },
               "auditoryStimulus.initialAzimuthsDeg": {
@@ -995,8 +980,8 @@
               }
             },
             "required": [
-              "contrasts",
-              "auditoryStimulus.amplitude",
+              "visualStimulus.contrasts",
+              "auditoryStimulus.levelDbfs",
               "auditoryStimulus.initialAzimuthsDeg"
             ]
           },
@@ -1009,14 +994,14 @@
         {
           "if": {
             "properties": {
-              "contrasts": {
+              "visualStimulus.contrasts": {
                 "contains": {
                   "exclusiveMinimum": 0
                 }
               },
-              "auditoryStimulus.amplitude": {
+              "auditoryStimulus.levelDbfs": {
                 "contains": {
-                  "exclusiveMinimum": 0
+                  "type": "number"
                 }
               },
               "auditoryStimulus.initialAzimuthsDeg": {
@@ -1031,8 +1016,8 @@
               }
             },
             "required": [
-              "contrasts",
-              "auditoryStimulus.amplitude",
+              "visualStimulus.contrasts",
+              "auditoryStimulus.levelDbfs",
               "auditoryStimulus.initialAzimuthsDeg"
             ]
           },
@@ -1041,14 +1026,14 @@
         {
           "if": {
             "properties": {
-              "contrasts": {
+              "visualStimulus.contrasts": {
                 "contains": {
                   "exclusiveMinimum": 0
                 }
               }
             },
             "required": [
-              "contrasts"
+              "visualStimulus.contrasts"
             ]
           },
           "trialType": "visual"
@@ -1056,9 +1041,9 @@
         {
           "if": {
             "properties": {
-              "auditoryStimulus.amplitude": {
+              "auditoryStimulus.levelDbfs": {
                 "contains": {
-                  "exclusiveMinimum": 0
+                  "type": "number"
                 }
               },
               "auditoryStimulus.initialAzimuthsDeg": {
@@ -1073,7 +1058,7 @@
               }
             },
             "required": [
-              "auditoryStimulus.amplitude",
+              "auditoryStimulus.levelDbfs",
               "auditoryStimulus.initialAzimuthsDeg"
             ]
           },
@@ -1085,8 +1070,20 @@
       ]
     },
     "VisualStimulus": {
-      "description": "Grating stimulus parameters and the grating's positions; the contrasts are taskParameters' own.",
+      "description": "The grating: its contrasts and initial azimuths (one of each drawn per trial) and its shape.",
       "properties": {
+        "contrasts": {
+          "default": [
+            1.0
+          ],
+          "description": "Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey screen)",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Contrasts",
+          "type": "array"
+        },
         "initialAzimuthsDeg": {
           "default": [
             -60.0,
@@ -1102,16 +1099,16 @@
         },
         "elevationDeg": {
           "default": 15.0,
-          "description": "Elevation of the grating and of the sound's position, in degrees",
+          "description": "Elevation of the grating, in degrees",
           "maximum": 90,
           "minimum": -90,
           "title": "ElevationDeg",
           "type": "number"
         },
-        "gaussianWindowSigmaDeg": {
+        "sigmaDeg": {
           "default": 20.0,
-          "description": "Sigma of the Gaussian aperture window, in degrees",
-          "title": "GaussianWindowSigmaDeg",
+          "description": "Sigma of the grating's Gaussian window, in degrees",
+          "title": "SigmaDeg",
           "type": "number"
         },
         "orientationDeg": {

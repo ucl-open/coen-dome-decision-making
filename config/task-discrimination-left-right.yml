@@ -2,86 +2,81 @@
 # Task parameters for the coen-dome-decision-making two-spout modality discrimination (the stages and timing Gerion's
 # go/no-go mice got, task-discrimination-go-no-go.yml). The answer is the modality, not the side: here the left spout for
 # the grating, the right spout for the sound. A trial showing both modalities (audiovisualCoherent, audiovisualConflict)
-# or neither (neutral) has no right answer: a random-reward probe (target random, outcome Probe), both spouts in, a choice
-# at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss, never repeated. Each
+# or neither (neutral) has no right answer: a random-reward probe (target random, outcome probe), both spouts in, a choice
+# at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss. Each
 # condition says what its trials show and reward: its set over the task's values (any field but x-session-fields), its pairs picking
 # listed values together; its trialType names it. A stage's conditions replace them whole. Visual-only and
-# neutral trials are silent (amplitude 0).
+# neutral trials are silent (auditoryStimulus.levelDbfs mute).
 # The training stages are the share's curriculum (K:\config\curricula\coen-dome-decision-making\<this file's stem>.conditions.yml):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills curriculum.
 # The task as read at Go is written to the experiment folder as Settings\Settings_Task_<DateTime>.json.
 taskParameters:
-  taskType: discriminationLeftRight
-  target: left             # what a trial rewards, where a condition sets none (x-rules: left, right or random here)
+  rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
+  curriculum:              # app-rig-control fills it at launch (id, code, version, path, label, sha256 of the stage run); empty here: Go refuses it
   trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (any field but x-session-fields)
     - trialType: left
       weight: 10
-      set: { target: left, auditoryStimulus.amplitude: 0 }
+      set: { target: left, auditoryStimulus.levelDbfs: mute }
     - trialType: right
       weight: 10
-      set: { target: right, contrasts: [0] }
+      set: { target: right, visualStimulus.contrasts: [0] }
     - trialType: audiovisualCoherent
       weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
-      set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60], bothSpoutsProbability: 1, repeats.repeatOn: never }
+      set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
     - trialType: audiovisualConflict
       weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
-      set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60], bothSpoutsProbability: 1, repeats.repeatOn: never }
+      set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60] }
     - trialType: neutral
       weight: 1
-      set: { target: random, contrasts: [0], auditoryStimulus.amplitude: 0, bothSpoutsProbability: 1, repeats.repeatOn: never }
-  rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
+      set: { target: random, visualStimulus.contrasts: [0], auditoryStimulus.levelDbfs: mute }
   trialStructure:
-    itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, drinkSeconds included: what Gerion's
+    itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, outcomeToSpoutsOutSeconds included: what Gerion's
     itiMaxSeconds: 2.0            # s  mice got (1.5 s drink + max(ITI - 2, 0), ITI 1.5-2.5). Stage 0: set both to 1.5 on the form
     lickQuietSeconds: 0           # s with both spouts released before the trial start, from the interval's start (a held contact holds it); 0 off
-    wheelQuietSeconds: 0          # s with the wheel still before the trial start; 0 off (with wheelQuietCm 0)
-    wheelQuietCm: 0               # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds
-    drinkSeconds: 1.5             # s, from the outcome to drawing the spouts back; incorrect or miss: timeoutSeconds first
+    wheelQuietSeconds: 0          # s with the wheel still before the trial start; 0 off
+    wheelQuietCm: 0               # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds; 0 no movement
+    outcomeToSpoutsOutSeconds: 1.5   # s, from the outcome to drawing the spouts out (time to drink); penalised: timeoutSeconds first
     responseDelaySeconds: 0.0     # s, from stimulus onset to the response window; licks before it do not count
-    responseWindowSeconds: 1.5    # s, the response window: NoResponse at its end
-    stimulusSeconds: 1.5          # s, the grating; at most responseDelaySeconds + responseWindowSeconds
+    responseWindowSeconds: 1.5    # s, the response window: noResponse at its end
+    visualStimulusSeconds: 1.5    # s, the grating; at most responseDelaySeconds + responseWindowSeconds
     stimulusToSpoutsInSeconds: 0.5   # s, from stimulus onset to spouts in
   visualStimulus:
+    contrasts: [1.0]               # grating contrasts, one drawn per trial; 0 no grating
     initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
-    elevationDeg: 15          # deg, the grating's and the sound position's elevation
-    gaussianWindowSigmaDeg: 20   # deg
+    elevationDeg: 15          # deg
+    sigmaDeg: 20              # deg, the Gaussian window's sigma
     orientationDeg: 0         # deg
     spatialFrequencyCpd: 0.066666667   # cycles/deg
     temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
-    amplitude: 1           # scale of the waveform as stored (-47.2 dBFS RMS, the loudness mice have always had); 0 no sound
+    levelDbfs: -40         # dBFS RMS while sounding, the waveform set as one (3.22 dB louder than as stored, -43.22); mute: no sound
+    elevationDeg: 15       # deg, with the azimuth drawn, picks rig.yml's nearest speaker
     initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
-  response:
-    thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
-    degreesPerLick: 0      # deg the grating moves per net lick; 0 = stimulus fixed
-  backgroundNoise:         # white noise on every speaker, unequalised, faded in at Ready at the level launched
-    enabled: true
-    levelDbfs: -60.1       # dBFS RMS: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
+  reward:
+    sizeUl: 3              # ul, planned from the valve's calibration
+    largeMultiplier: 2     # above 1
+    largeProbability: 0.0  # 0: no large rewards
+  autoRewardProbability: 1.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
   penalty:
     timeoutSeconds: 4.0   # s, after an incorrect choice, a miss (not an auto-rewarded one) or a probe's choice on the coin's tails
     sound:               # the penalty sound, with every timeout
-      enabled: true
-      levelDbfs: -44.6   # dBFS RMS: the level mice have always had (the lab's defaults: lib-open-rigs' OpenRigs.Audio SoundLevel)
-  reward:
-    rewardSizeUl: 3               # ul, planned from the valve's calibration
-    largeRewardMultiplier: 1
-    largeRewardProbability: 0.0
-  repeats:
-    maxRepeats: 5          # repeats in a row at most
-    repeatOn: never        # never, noResponse or notCorrect; a probe (target random) never repeats
+      levelDbfs: -45     # dBFS RMS; mute: no sound
   optogenetics:
     enabled: false
     zapitConditionsPath: ""
     laserPowerMw: null             # mW on laser-on trials, every condition; required with optogenetics on
     laserOnProbability: 0.5
-    laserDurationSeconds: 2.5      # s; with optogenetics on at most responseDelaySeconds + itiMinSeconds - 0.7 (0.8 here), so ticking optogenetics.enabled is refused until this is shortened
     laserToStimulusSeconds: 0.5    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
-    noLaserOnRepeats: true
     trialsBeforeLaser: 20
-  autoRewardProbability: 1.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
-  bothSpoutsProbability: 1.0           # chance both spouts move in rather than the correct one alone
-  contrasts: [1.0]                     # grating contrasts, one drawn per trial; 0 no grating
-  spoutMovements: false                # false keeps the spouts in (habituation): no withdrawal, no single-spout move
-  curriculum:                    # app-rig-control fills it at launch (id, code, version, path, label, sha256 of the stage run); empty here: Go refuses it
+    laserDurationSeconds: 2.5      # s; with optogenetics on at most responseDelaySeconds + itiMinSeconds - 0.7 (0.8 here), so ticking optogenetics.enabled is refused until this is shortened
+  taskType: discriminationLeftRight
+  response:
+    thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
+    azimuthShiftPerLickDeg: 0   # deg the grating moves per net lick; 0 = stimulus fixed
+  repeats:
+    maxRepeats: 0          # repeats in a row at most; 0 exactly when repeatOn is never
+    repeatOn: never        # never, noResponse or notCorrect; a probe (target random or noReward) never or noResponse
+  singleSpoutProbability: 0.0   # chance only the target's spout comes in, on a scored trial with the spouts moving
+  spoutsStayIn: true                # true keeps the used spouts in (habituation): no withdrawal, no single-spout move

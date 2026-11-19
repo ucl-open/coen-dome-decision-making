@@ -1,18 +1,24 @@
 # Written by app-rig-control's tests/handover.py: the task file a launch writes at Go, rngSeed left null.
 taskParameters:
-  taskType: discriminationLeftRight
-  target: left
+  rngSeed: null
+  curriculum:
+    id: 3
+    code: S03A
+    version: z3e3
+    path: A
+    label: Conflict Added
+    sha256: handover
   trialConditions:
   - trialType: left
     weight: 10
     set:
       target: left
-      auditoryStimulus.amplitude: 0
+      auditoryStimulus.levelDbfs: mute
   - trialType: right
     weight: 10
     set:
       target: right
-      contrasts:
+      visualStimulus.contrasts:
       - 0
   - trialType: audiovisualCoherent
     weight: 5
@@ -27,8 +33,6 @@ taskParameters:
       auditoryStimulus.initialAzimuthsDeg:
       - -60
       - 60
-      bothSpoutsProbability: 1
-      repeats.repeatOn: never
   - trialType: audiovisualConflict
     weight: 5
     pairs:
@@ -42,80 +46,65 @@ taskParameters:
       auditoryStimulus.initialAzimuthsDeg:
       - 60
       - -60
-      bothSpoutsProbability: 1
-      repeats.repeatOn: never
   - trialType: neutral
     weight: 1
     set:
       target: random
-      contrasts:
+      visualStimulus.contrasts:
       - 0
-      auditoryStimulus.amplitude: 0
-      bothSpoutsProbability: 1
-      repeats.repeatOn: never
-  rngSeed: null
+      auditoryStimulus.levelDbfs: mute
   trialStructure:
-    itiMinSeconds: 1.5
-    itiMaxSeconds: 2.0
-    lickQuietSeconds: 0
     wheelQuietSeconds: 0
     wheelQuietCm: 0
-    drinkSeconds: 1.5
-    responseDelaySeconds: 0.0
+    lickQuietSeconds: 0
     responseWindowSeconds: 1.5
-    stimulusSeconds: 1.5
+    itiMinSeconds: 1.5
+    itiMaxSeconds: 2.0
+    outcomeToSpoutsOutSeconds: 1.5
+    responseDelaySeconds: 0.0
+    visualStimulusSeconds: 1.5
     stimulusToSpoutsInSeconds: 0.5
   visualStimulus:
+    contrasts:
+    - 0.5
+    - 1.0
     initialAzimuthsDeg:
     - -60
     - 60
     elevationDeg: 15
-    gaussianWindowSigmaDeg: 20
+    sigmaDeg: 20
     orientationDeg: 0
     spatialFrequencyCpd: 0.066666667
     temporalFrequencyHz: 0
   auditoryStimulus:
-    amplitude: 1
+    levelDbfs: -40
+    elevationDeg: 15
     initialAzimuthsDeg:
     - -60
     - 60
-  response:
-    thresholdLicks: 1
-    degreesPerLick: 0
-  backgroundNoise:
-    enabled: true
-    levelDbfs: -60.1
+  reward:
+    sizeUl: 3
+    largeMultiplier: 2
+    largeProbability: 0.0
+  autoRewardProbability: 0.0
   penalty:
     timeoutSeconds: 4.0
     sound:
-      enabled: true
-      levelDbfs: -44.6
-  reward:
-    rewardSizeUl: 3
-    largeRewardMultiplier: 1
-    largeRewardProbability: 0.0
-  repeats:
-    maxRepeats: 5
-    repeatOn: never
+      levelDbfs: -45
   optogenetics:
     enabled: false
     zapitConditionsPath: ''
     laserPowerMw: null
     laserOnProbability: 0.5
-    laserDurationSeconds: 2.5
     laserToStimulusSeconds: 0.5
-    noLaserOnRepeats: true
     trialsBeforeLaser: 20
-  autoRewardProbability: 0.0
-  bothSpoutsProbability: 1.0
-  contrasts:
-  - 0.5
-  - 1.0
-  spoutMovements: true
-  curriculum:
-    id: 3
-    code: S03A
-    version: z3e3
-    path: A
-    label: Conflict Added
-    sha256: handover
+    laserDurationSeconds: 2.5
+  taskType: discriminationLeftRight
+  response:
+    thresholdLicks: 1
+    azimuthShiftPerLickDeg: 0
+  repeats:
+    maxRepeats: 0
+    repeatOn: never
+  singleSpoutProbability: 0.0
+  spoutsStayIn: false

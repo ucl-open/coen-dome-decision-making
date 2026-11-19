@@ -199,7 +199,7 @@ def test_the_metrics_are_the_view_s():
     members = shared.findtext("{clr-namespace:OpenRigs.Control;assembly=OpenRigs.Control}Members").split(",")
     assert members == ["trialNumber", "trialType", "rewardOfferedUl", "laserCondition"] and not names & set(members)
     names |= set(members)
-    assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition", "curriculumStage"}
+    assert names == {"trialNumber", "target", "trialType", "visualInitialAzimuthDeg", "auditoryInitialAzimuthDeg", "rewardOfferedUl", "laserCondition", "curriculumStage"}
 
 
 # The lab's rules for every workflow (open_rigs.rigs.workflow_lint, one copy in lib-open-rigs), the shared ones as

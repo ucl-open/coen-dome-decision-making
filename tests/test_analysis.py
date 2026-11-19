@@ -69,7 +69,7 @@ def test_conditions_edges_signed_azimuths_no_set_empty_list_and_zero_weights(tmp
     write([{"trialType": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": [-75, 60]}}, {"trialType": "visual", "weight": 0}, {"trialType": "auditory", "weight": 2, "set": None}])
     read = lf.trial_conditions(s)
     assert read[0]["set"] == {"visualStimulus.initialAzimuthsDeg": [-75, 60]} and read[1]["set"] == {} and read[2]["set"] == {}
-    assert [c["trialType"] for c in read] == ["visual", "visual", "auditory"]   # the list's order is the trialCondition index
+    assert [c["trialType"] for c in read] == ["visual", "visual", "auditory"]   # the list's order is the trialConditionId index
     assert lf.trial_weights(s) == {"visual": 1, "auditory": 2}
     write([{"trialType": "go", "weight": 2, "pairs": [], "set": {"target": "go"}}, {"trialType": "noGo", "weight": 1}])
     assert [(c["trialType"], c["set"]) for c in lf.trial_conditions(s)] == [("go", {"target": "go"}), ("noGo", {})]
@@ -79,7 +79,7 @@ def test_conditions_edges_signed_azimuths_no_set_empty_list_and_zero_weights(tmp
 
 
 def test_new_draw_accuracy_counts_choices_on_new_draws_only():
-    df = pd.DataFrame({"outcome": ["Correct", "Incorrect", "Correct", "NoResponse", "Probe"], "repeatCount": [0, 0, 1, 0, 0]})
+    df = pd.DataFrame({"outcome": ["correct", "incorrect", "correct", "noResponse", "probe"], "repeatCount": [0, 0, 1, 0, 0]})
     assert lf.new_draw_accuracy(df) == (0.5, 2)
 
 
