@@ -67,7 +67,7 @@ rewardOfferedUl:
   note: The task file's reward.sizeUl times reward.largeMultiplier on a large-reward trial; 0 on a discriminationGoNoGo noGo or noReward trial, which offers none; a random trial's offer whether its coin came up heads or tails, and every trial's on a miss.
 rewarded:
   type: bool
-  description: 'True when the valve planned the trial''s reward (rewardOfferedUl; its RewardDelivered row in WorkflowData_Events, at outcomeTime); false on an outcome that earned it when the stop came first. Which outcomes are rewarded is the task''s (its note).'
+  description: 'True when the board answered the write that opened the valve for the trial''s reward (rewardOfferedUl; its RewardDelivered row in WorkflowData_Events, a few ms after outcomeTime); false on an outcome that earned it when the board had not answered by the next outcome. A stop before the board answered leaves the trial with no row. Which outcomes are rewarded is the task''s (its note).'
   note: A correct choice (but a withheld noGo, correct and unrewarded), an auto-reward trial's miss (autoReward, choice noResponse, outcome auto), and a choice on a random trial whose coin came up heads, rewarded at the spout chosen.
 penaltyTimeoutSeconds:
   type: double
