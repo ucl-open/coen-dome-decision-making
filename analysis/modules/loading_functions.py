@@ -1,61 +1,30 @@
 """Load coen-dome-decision-making sessions and score them from WorkflowData_Trials (schemas/trial-columns.yml).
 
-Nothing here runs on import. A session is `<root>/sub-<mouse>/ses-<id>_<DateTime>`, as the lab's ingest puts them
-on jacuzzi (Live-Data); its columns come from the session's own manifest.json (open_rigs.trial_log)."""
-
-import json
-from pathlib import Path
+Nothing here runs on import. Finding and loading sessions, and their stage and conditions, are lib-open-rigs'
+open_rigs.sessions (a session is `<root>/sub-<mouse>/ses-<id>_<DateTime>`, as the lab's ingest puts them on jacuzzi,
+Live-Data; its columns from the session's own manifest.json); this module scores them."""
 
 import pandas as pd
-from open_rigs import trial_log
+from open_rigs import sessions
+from open_rigs.sessions import curriculum_stage, trial_conditions, trial_weights  # noqa: F401 (this module's API)
 
 REPO = "coen-dome-decision-making"   # the repository whose sessions count, by name alone (any owner, fork or branch)
 SCORED = ("Correct", "Incorrect")   # outcome Probe has no right answer and NoResponse is no choice: neither is counted
 
 
-def _manifest(session):
-    try:
-        return json.loads((session / "manifest.json").read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        return {}
-
-
-def _settings(session, kind):
-    """The session's Settings_<kind>_*.json (the first), or {} when it has none."""
-    files = sorted((Path(session) / "Settings").glob(f"Settings_{kind}_*.json"))
-    return json.loads(files[0].read_text(encoding="utf-8-sig")) if files else {}
-
-
 def is_this_workflow(session):
     """True for this workflow's sessions (Live-Data holds every workflow's): the manifest's source.repo is REPO."""
-    repo = ((_manifest(session).get("source") or {}).get("repo") or "").rstrip("/").rsplit("/", 1)[-1].lower().removesuffix(".git")
-    return repo == REPO
+    return sessions.is_workflow(session, REPO)
 
 
 def find_sessions(root, subjects=None):
     """The session folders of this workflow under root, by `sub-` folder (all mice when subjects is None)."""
-    root = Path(root)
-    found = []
-    for mouse in sorted(root.glob("sub-*")):
-        if subjects is not None and mouse.name[4:] not in subjects:
-            continue
-        found += [s for s in sorted(mouse.glob("ses-*")) if s.is_dir() and is_this_workflow(s)]
-    return found
+    return sessions.find_sessions(root, REPO, subjects)
 
 
 def load_sessions(root, subjects=None):
     """Every trial of this workflow's sessions as one DataFrame: the typed columns plus subject, session and session_path."""
-    frames = []
-    for session in find_sessions(root, subjects):
-        rows = trial_log.read(session)
-        if not rows:
-            continue
-        frame = pd.DataFrame(rows)
-        frame["subject"] = session.parent.name[4:]
-        frame["session"] = session.name
-        frame["session_path"] = str(session)
-        frames.append(frame)
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    return sessions.load_sessions(root, REPO, subjects)
 
 
 def scored(df):
@@ -101,37 +70,3 @@ def session_summary(df):
             "probePenalisedRate": float(probes["penalised"].astype(bool).mean()) if len(probes) else float("nan"),
         })
     return pd.DataFrame(rows)
-
-
-def _task(session):
-    """The session's Settings_Task_*.json taskParameters, or None when it has no task file."""
-    task = _settings(session, "Task")
-    return task["taskParameters"] if task else None
-
-
-def curriculum_stage(session):
-    """The Mouse Curriculum stage a session ran ({id, code, version, path, label, sha256}), its Settings_Task_*.json's
-    `curriculum`: None when the task file has none or there is no task file."""
-    task = _task(session)
-    return task.get("curriculum") if task else None
-
-
-def trial_conditions(session):
-    """The trialConditions a session ran with, from its Settings_Task_*.json: the list the trialCondition column
-    indexes, each {trialType, weight, pairs, set} (a missing set as {}). None without a task file."""
-    task = _task(session)
-    if task is None:
-        return None
-    return [{**c, "set": c.get("set") or {}} for c in task["trialConditions"]]
-
-
-def trial_weights(session):
-    """The weight of each trial type a session ran with, its conditions' weights added by trialType (the trialType
-    column). None without a task file."""
-    conditions = trial_conditions(session)
-    if conditions is None:
-        return None
-    weights = {}
-    for c in conditions:
-        weights[c["trialType"]] = weights.get(c["trialType"], 0) + c["weight"]
-    return weights

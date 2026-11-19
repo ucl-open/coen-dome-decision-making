@@ -24,16 +24,7 @@ public class HandoverTests
     // Each golden file's name and text, rngSeed set to 1 (app-rig-control leaves it null for the workflow to draw).
     static List<KeyValuePair<string, string>> Goldens()
     {
-        var folder = Environment.GetEnvironmentVariable("HANDOVER_DIR");
-        if (string.IsNullOrEmpty(folder)) folder = Path.Combine(Fixture.Repo(), "tests", "fixtures", "handover");
-        var files = Directory.GetFiles(folder, "*.yml").OrderBy(f => f, StringComparer.Ordinal).ToList();
-        Assert.IsTrue(files.Count > 0, "no golden task files in " + folder);
-        return files.Select(f =>
-        {
-            var text = File.ReadAllText(f);
-            Assert.AreEqual(1, text.Split(new[] { "rngSeed: null" }, StringSplitOptions.None).Length - 1, f + ": rngSeed: null once");
-            return new KeyValuePair<string, string>(Path.GetFileName(f), text.Replace("rngSeed: null", "rngSeed: 1"));
-        }).ToList();
+        return GoldenTaskFiles.Read(Path.Combine(Fixture.Repo(), "tests", "fixtures", "handover"));
     }
 
     // The file's conditions as written, read apart from the draw's own reader: (trialType, weight, pairs).
@@ -112,18 +103,8 @@ public class HandoverTests
                 CheckTrial(golden.Key, built, t.trialType, t.trialCondition, t.trialCombinationId, t.visualContrast, t.visualAzimuthDeg, t.auditoryAmplitude, t.auditoryAzimuthDeg, t.target);
                 counts[t.trialCombinationId] = (counts.ContainsKey(t.trialCombinationId) ? counts[t.trialCombinationId] : 0) + 1;
             }
-            double total = built.Sum(c => c.Weight);
-            for (int i = 0; i < built.Count; i++)
-            {
-                for (int k = 0; k < built[i].Combinations.Count; k++)
-                {
-                    // Each Settings_Combinations row at its condition's weight over the sum of weights over its number of combinations.
-                    var p = built[i].Weight / total / built[i].Combinations.Count;
-                    var key = built[i].Combinations[k].Id;
-                    var share = (counts.ContainsKey(key) ? counts[key] : 0) / (double)Draws;
-                    Assert.IsTrue(Math.Abs(share - p) <= 4.5 * Math.Sqrt(p * (1 - p) / Draws), string.Format("{0} {1}: share {2}, expected {3}", golden.Key, built[i].Where + " " + built[i].Combinations[k].Picks, share, p));
-                }
-            }
+            // Each Settings_Combinations row at its condition's weight over the sum of weights over its number of combinations.
+            Assert.AreEqual("", string.Join("\n", GoldenTaskFiles.ShareProblems(golden.Key, built, counts, Draws)));
         }
     }
 
