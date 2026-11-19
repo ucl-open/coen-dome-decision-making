@@ -117,12 +117,12 @@ public class AuditoryStimulusSet
     public Mat Buffer(int index, int channel, double levelDbfs)
     {
         if (!(levelDbfs <= loudestDbfs)) throw new InvalidOperationException("Trial asks for auditory level " + levelDbfs + " dBFS, not at or below the " + loudestDbfs + " the set was checked for at Go (LevelAuditoryStimulusSet).");
-        var amplitude = Gain(levelDbfs);
+        var gain = Gain(levelDbfs);
         var channels = channel == SoundAzimuths.AllSpeakersChannel ? Speakers.SpeakerChannels : new[] { channel };
-        var buffer = Speakers.Layout(Stimulus(index, channels[0]), new[] { channels[0] }, amplitude, false, true);
+        var buffer = Speakers.Layout(Stimulus(index, channels[0]), new[] { channels[0] }, gain, false, true);
         foreach (var other in channels.Skip(1))
         {
-            using (var row = buffer.GetRow(other)) CV.ConvertScale(Stimulus(index, other), row, amplitude, 0);
+            using (var row = buffer.GetRow(other)) CV.ConvertScale(Stimulus(index, other), row, gain, 0);
         }
         return buffer;
     }

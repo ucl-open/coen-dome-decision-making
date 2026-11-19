@@ -12,8 +12,8 @@ ANALYSIS = Path(__file__).parents[1] / "analysis"
 sys.path.insert(0, str(ANALYSIS))
 from modules import loading_functions as lf  # noqa: E402
 
-CONDITIONS = [{"trialType": "visual", "weight": 3, "pairs": [], "set": {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}},
-              {"trialType": "visual", "weight": 1, "pairs": [], "set": {"reward.rewardSizeUl": 2.5}},
+CONDITIONS = [{"trialType": "visual", "weight": 3, "pairs": [], "set": {"visualStimulus.contrasts": [0.5, 1], "reward.sizeUl": [2, 3]}},
+              {"trialType": "visual", "weight": 1, "pairs": [], "set": {"reward.sizeUl": 2.5}},
               {"trialType": "auditory", "weight": 0, "pairs": [], "set": {}}]
 
 
@@ -61,7 +61,7 @@ def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
     # Settings_Task's set values are YAML text (TrialDrawTests.TheConditionsSetRoundTrips), read back typed.
     s = session(tmp_path, "ses-001_a", "coen-dome-decision-making")
     read = lf.trial_conditions(s)
-    assert read[0]["set"] == {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]} and read[1]["set"] == {"reward.rewardSizeUl": 2.5}
+    assert read[0]["set"] == {"visualStimulus.contrasts": [0.5, 1], "reward.sizeUl": [2, 3]} and read[1]["set"] == {"reward.sizeUl": 2.5}
     assert lf.trial_weights(s) == {"visual": 4, "auditory": 0}
     empty = tmp_path / "sub-GN1" / "ses-002_b"
     (empty / "Settings").mkdir(parents=True)

@@ -109,8 +109,8 @@ def test_spouts_staying_in_is_condition_level():
 
 
 def test_no_text_says_a_probe_s_side_is_drawn_at_random():
-    # A two-modality or neutral trial is a probe (target NoReward or Random, a coin on a Random trial's choice),
-    # never a trial whose side is drawn at random; and a Random probe's tails is penalised.
+    # A two-modality or neutral trial is a probe (target noReward or random, a coin on a random trial's choice),
+    # never a trial whose side is drawn at random; and a random probe's tails is penalised.
     stale = ("drawn at random, left or right", "side drawn at random", "a probe never does", "`rewardSizeUl` 0 where", "`rewardSizeUl` above 0", "gain stays 20")
     for path in [SCHEMA, CONFIG.parent / "BACKLOG.md", CONFIG.parent / "README.md", *TASK_FILES]:
         text = path.read_text(encoding="utf-8")
@@ -200,7 +200,7 @@ def test_a_lead_outside_them_is_refused(lead, words):
 
 
 def test_a_laser_that_would_delay_the_next_arm_is_refused():
-    # TrialDraw.LongestLaserSeconds' rule: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s margin = 0.8 s.
+    # TrialDraw.MaxLaserSeconds' rule: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s margin = 0.8 s.
     on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
     _with(opto={**on, "laserDurationSeconds": 0.8})
     with pytest.raises(ValidationError, match="laser_duration_seconds"):
@@ -382,7 +382,7 @@ V, S = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg
     ({"visualStimulus.contrasts": [0], "auditoryStimulus.levelDbfs": "mute"}, [], "neutral"), ({"target": "random", "visualStimulus.contrasts": [0], S: [0]}, [], "neutral"),
 ])
 def test_every_trial_type_is_derived_by_x_trial_types(set_, pairs, trial_type):
-    # The localization task's contrast 3 and amplitude 1 at [-60, 60] under each set; the condition itself is not checked.
+    # The localization task's contrast 3 and level -40 dBFS at [-60, 60] under each set; the condition itself is not checked.
     task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"])
     assert task.derive_trial_type(TrialCondition(weight=1, set=set_, pairs=pairs)) == trial_type
 

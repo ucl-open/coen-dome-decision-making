@@ -193,7 +193,7 @@ static class Fixture
             var trial = draw.Next(last);
             trials.Add(trial);
             var said = outcome == null ? TrialOutcomes.Correct : outcome(trial);
-            var probe = trial.target == Target.Random || trial.target == Target.NoReward;
+            var probe = trial.target == TargetWords.Random || trial.target == TargetWords.NoReward;
             last = new TrialRow { outcome = probe ? TrialOutcomes.Probe : said, choice = said == TrialOutcomes.NoResponse ? Choice.NoResponse : Choice.Left };
         }
         return trials;
@@ -218,9 +218,9 @@ public class TrialDrawTests
         {
             Assert.IsTrue(!t.SpoutsStayIn && t.auditoryLevelDbfs == -40, t.trialType);
             if (t.trialType == "visual" || t.trialType == "audiovisualCoherent")
-                Assert.AreEqual(t.visualInitialAzimuthDeg > 0 ? Choice.Right : Choice.Left, t.target, t.trialType);
+                Assert.AreEqual(t.visualInitialAzimuthDeg > 0 ? TargetWords.Right : TargetWords.Left, t.target, t.trialType);
             if (t.trialType == "auditory" || t.trialType == "audiovisualCoherent")
-                Assert.AreEqual(t.auditoryInitialAzimuthDeg > 0 ? Choice.Right : Choice.Left, t.target, t.trialType);
+                Assert.AreEqual(t.auditoryInitialAzimuthDeg > 0 ? TargetWords.Right : TargetWords.Left, t.target, t.trialType);
             if (t.trialType == "audiovisualConflict")
                 Assert.AreEqual(t.visualInitialAzimuthDeg > 0, t.auditoryInitialAzimuthDeg < 0);
             if (t.trialType == "visual" || t.trialType == "neutral")
@@ -237,7 +237,7 @@ public class TrialDrawTests
         var task = Fixture.Task("task-localization.yml", 4);
         Fixture.Only(task, "audiovisualConflict");
         var trials = Fixture.Draw(task, 600);
-        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualInitialAzimuthDeg > 0) == (t.auditoryInitialAzimuthDeg < 0) && t.target == Target.Random));
+        Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualInitialAzimuthDeg > 0) == (t.auditoryInitialAzimuthDeg < 0) && t.target == TargetWords.Random));
         Assert.AreEqual(0.5, trials.Count(t => t.probeHeads) / 600.0, 0.07);
     }
 
@@ -260,8 +260,8 @@ public class TrialDrawTests
     {
         foreach (var t in Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), 500))
         {
-            if (t.trialType == "left") Assert.IsTrue(double.IsNaN(t.auditoryLevelDbfs) && t.visualContrast > 0 && t.target == Choice.Left);
-            if (t.trialType == "right") Assert.IsTrue(t.auditoryLevelDbfs > -120 && t.visualContrast == 0 && t.target == Choice.Right);
+            if (t.trialType == "left") Assert.IsTrue(double.IsNaN(t.auditoryLevelDbfs) && t.visualContrast > 0 && t.target == TargetWords.Left);
+            if (t.trialType == "right") Assert.IsTrue(t.auditoryLevelDbfs > -120 && t.visualContrast == 0 && t.target == TargetWords.Right);
             if (t.trialType == "neutral") Assert.IsTrue(double.IsNaN(t.auditoryLevelDbfs) && double.IsNaN(t.auditoryInitialAzimuthDeg) && t.speakerChannel == -1);
         }
     }
@@ -269,12 +269,12 @@ public class TrialDrawTests
     [TestMethod]
     public void DiscriminationHabituationAutoRewardsAtTheLeftSpoutWithTheSpoutsIn()
     {
-        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 50).All(t => t.autoReward && t.target == Choice.Left && t.SpoutsStayIn && t.trialType == "left"));
+        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 50).All(t => t.autoReward && t.target == TargetWords.Left && t.SpoutsStayIn && t.trialType == "left"));
         var task = Fixture.Task("task-discrimination-left-right.yml", 2);
         task.AutoRewardProbability = 1;
         var stage2 = Fixture.Draw(task, 300);
-        Assert.IsTrue(stage2.Where(t => t.target != Target.Random).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
-        Assert.IsTrue(stage2.Where(t => t.target == Target.Random).All(t => !t.autoReward), "a probe never is");
+        Assert.IsTrue(stage2.Where(t => t.target != TargetWords.Random).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
+        Assert.IsTrue(stage2.Where(t => t.target == TargetWords.Random).All(t => !t.autoReward), "a probe never is");
     }
 
     [TestMethod]
@@ -284,10 +284,10 @@ public class TrialDrawTests
         task.AutoRewardProbability = 1;
         foreach (var t in Fixture.Draw(task, 600))
         {
-            var expected = t.trialType == "go" ? Target.Go : t.trialType == "noGo" ? Target.NoGo : Target.NoReward;
+            var expected = t.trialType == "go" ? TargetWords.Go : t.trialType == "noGo" ? TargetWords.NoGo : TargetWords.NoReward;
             Assert.AreEqual(expected, t.target, t.trialType);
-            Assert.AreEqual(expected == Target.Go, t.autoReward, "auto-reward only on Go");
-            Assert.AreEqual(expected == Target.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
+            Assert.AreEqual(expected == TargetWords.Go, t.autoReward, "auto-reward only on Go");
+            Assert.AreEqual(expected == TargetWords.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
             Assert.IsFalse(!t.singleSpoutOffered);
             Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutCommands.SpoutsIn(t));
         }
@@ -302,7 +302,7 @@ public class TrialDrawTests
         task.TrialConditions[0].Set = new Dictionary<object, object> { { "target", "go" }, { "visualStimulus.contrasts", Fixture.List(0.0) } };
         task.TrialConditions[1].Set = new Dictionary<object, object> { { "target", "noGo" }, { "auditoryStimulus.levelDbfs", "mute" } };
         var trials = Fixture.Draw(task, 400);
-        Assert.IsTrue(trials.All(t => t.trialType == "go" ? t.target == Target.Go && t.auditoryLevelDbfs > -120 && t.visualContrast == 0 : t.target == Target.NoGo && double.IsNaN(t.auditoryLevelDbfs) && t.visualContrast > 0));
+        Assert.IsTrue(trials.All(t => t.trialType == "go" ? t.target == TargetWords.Go && t.auditoryLevelDbfs > -120 && t.visualContrast == 0 : t.target == TargetWords.NoGo && double.IsNaN(t.auditoryLevelDbfs) && t.visualContrast > 0));
         Assert.AreEqual(0.5, trials.Count(t => t.trialType == "go") / 400.0, 0.08, "go 10, noGo 10");
     }
 
@@ -317,10 +317,10 @@ public class TrialDrawTests
             var task = Fixture.Task(file, 4);
             task.SingleSpoutProbability = 0.3;
             var trials = Fixture.Draw(task, 3000);
-            var scored = trials.Where(t => t.target != Target.Random).ToList();
+            var scored = trials.Where(t => t.target != TargetWords.Random).ToList();
             Assert.AreEqual(0.3, scored.Count(t => t.singleSpoutOffered) / (double)scored.Count, 0.03, file);
-            Assert.IsTrue(trials.Where(t => t.target == Target.Random).All(t => !t.singleSpoutOffered), file + ": a probe has both");
-            Assert.IsTrue(scored.Where(t => t.singleSpoutOffered).All(t => SpoutCommands.SpoutsIn(t) == (t.target == Choice.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly)), file);
+            Assert.IsTrue(trials.Where(t => t.target == TargetWords.Random).All(t => !t.singleSpoutOffered), file + ": a probe has both");
+            Assert.IsTrue(scored.Where(t => t.singleSpoutOffered).All(t => SpoutCommands.SpoutsIn(t) == (t.target == TargetWords.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly)), file);
             task.SingleSpoutProbability = 1;
             task.SpoutsStayIn = true;
             Assert.IsTrue(Fixture.Draw(task, 300).All(t => !t.singleSpoutOffered && SpoutCommands.SpoutsIn(t) == LickSpoutCommand.SpoutsIn), file + ": spouts stay in, both used");
@@ -577,12 +577,12 @@ public class TrialDrawTests
     [TestMethod]
     public void TheDiscriminationsDrawByRole()
     {
-        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 50).All(t => t.trialType == "left" && t.target == Choice.Left), "left-right stage 0: left only");
-        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-go-no-go.yml", 1), 50).All(t => t.trialType == "go" && t.target == Target.Go), "go/no-go stage 1: go only");
+        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 50).All(t => t.trialType == "left" && t.target == TargetWords.Left), "left-right stage 0: left only");
+        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-go-no-go.yml", 1), 50).All(t => t.trialType == "go" && t.target == TargetWords.Go), "go/no-go stage 1: go only");
         var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 2);
         Fixture.Weight(goNoGo, "audiovisualCoherent", 0);
         var stage2 = Fixture.Draw(goNoGo, 400);
-        Assert.IsTrue(stage2.All(t => t.trialType == "go" ? t.target == Target.Go && t.visualContrast > 0 && double.IsNaN(t.auditoryLevelDbfs) : t.trialType == "noGo" && t.target == Target.NoGo && t.auditoryLevelDbfs > -120));
+        Assert.IsTrue(stage2.All(t => t.trialType == "go" ? t.target == TargetWords.Go && t.visualContrast > 0 && double.IsNaN(t.auditoryLevelDbfs) : t.trialType == "noGo" && t.target == TargetWords.NoGo && t.auditoryLevelDbfs > -120));
         Assert.AreEqual(0.5, stage2.Count(t => t.trialType == "go") / 400.0, 0.08, "go 10, noGo 10");
         var built = Fixture.Check(Fixture.Task("task-discrimination-left-right.yml", 2), Fixture.Speakers());
         CollectionAssert.AreEqual(new[] { "left", "right", "audiovisualCoherent", "audiovisualConflict", "neutral" }, built.Select(c => c.TrialType).ToArray());
@@ -599,7 +599,7 @@ public class TrialDrawTests
         Assert.IsTrue(Fixture.Draw(task, 50).All(t => t.trialType == "neutral"));
         var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 3);
         Fixture.Only(goNoGo, "go");
-        Assert.IsTrue(Fixture.Draw(goNoGo, 50).All(t => t.trialType == "go" && t.target == Target.Go));
+        Assert.IsTrue(Fixture.Draw(goNoGo, 50).All(t => t.trialType == "go" && t.target == TargetWords.Go));
     }
 
     [TestMethod]
@@ -609,7 +609,7 @@ public class TrialDrawTests
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
-        Assert.AreEqual(0.8, TrialDraw.LongestLaserSeconds(task), 1e-9);
+        Assert.AreEqual(0.8, TrialDraw.MaxLaserSeconds(task), 1e-9);
         StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "laserDurationSeconds (2.5 s) must be at most 0.8 s");
         task.Optogenetics.LaserDurationSeconds = 0.8;
         Assert.AreEqual("accepted", Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())));
@@ -793,8 +793,8 @@ public class TrialConditionTests
         }
         // Several listed: one picked per trial, both sides drawn.
         var mixed = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.initialAzimuthsDeg", Fixture.List(-60.0, 60.0))), 200);
-        Assert.AreEqual(0.5, mixed.Count(t => t.target == Choice.Right) / 200.0, 0.1);
-        Assert.IsTrue(mixed.All(t => (t.visualInitialAzimuthDeg > 0) == (t.target == Choice.Right)));
+        Assert.AreEqual(0.5, mixed.Count(t => t.target == TargetWords.Right) / 200.0, 0.1);
+        Assert.IsTrue(mixed.All(t => (t.visualInitialAzimuthDeg > 0) == (t.target == TargetWords.Right)));
     }
 
     [TestMethod]
@@ -817,7 +817,7 @@ public class TrialConditionTests
         var both = Fixture.List(-60.0, 60.0);
         var paired = Fixture.Draw(With(Fixture.Paired(Fixture.Condition(1, "target", "random",
             "visualStimulus.initialAzimuthsDeg", both, "auditoryStimulus.initialAzimuthsDeg", Fixture.List(60.0, -60.0)))), 200);
-        Assert.IsTrue(paired.All(t => (t.visualInitialAzimuthDeg > 0) == (t.auditoryInitialAzimuthDeg < 0) && t.target == Target.Random && !t.singleSpoutOffered));
+        Assert.IsTrue(paired.All(t => (t.visualInitialAzimuthDeg > 0) == (t.auditoryInitialAzimuthDeg < 0) && t.target == TargetWords.Random && !t.singleSpoutOffered));
         Assert.AreEqual(0.5, paired.Count(t => t.visualInitialAzimuthDeg > 0) / 200.0, 0.1);
         var unpaired = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.initialAzimuthsDeg", both, "auditoryStimulus.initialAzimuthsDeg", both)), 400);
         Assert.AreEqual(0.5, unpaired.Count(t => (t.visualInitialAzimuthDeg > 0) == (t.auditoryInitialAzimuthDeg > 0)) / 400.0, 0.08, "independent");
@@ -868,7 +868,7 @@ public class TrialConditionTests
     [TestMethod]
     public void TheWeightsAreHonouredAndEachTrialLogsItsCondition()
     {
-        // Two visual conditions 3:1 with their own contrasts, and auditory 4, over a seeded run: each trial's trialCondition
+        // Two visual conditions 3:1 with their own contrasts, and auditory 4, over a seeded run: each trial's trialConditionId
         // is its condition's index and its values that condition's.
         var task = With(
             Fixture.Condition(3, "visualStimulus.contrasts", Fixture.List(0.25)),
@@ -920,7 +920,7 @@ public class TrialConditionTests
     public void AllPlaysTheSoundOnEverySpeaker()
     {
         // "all" plays on every speaker (speakerChannel AllSpeakersChannel), logged at azimuth and elevation NaN with its
-        // amplitude above 0, which a silent trial's 0 tells apart; paired with the grating's azimuths it keeps their pick.
+        // auditoryLevelDbfs above -120, which a silent trial's NaN tells apart; paired with the grating's azimuths it keeps their pick.
         var all = Fixture.Condition(1, "visualStimulus.initialAzimuthsDeg", Fixture.List(-60.0, 60.0), "auditoryStimulus.initialAzimuthsDeg", Fixture.List("all", 60.0));
         all.Pairs = new List<List<string>> { new List<string> { "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg" } };
         var trials = Fixture.Draw(With(all), 200);

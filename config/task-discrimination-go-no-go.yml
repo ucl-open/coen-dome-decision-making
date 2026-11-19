@@ -1,10 +1,10 @@
 # yaml-language-server: $schema=../src/DataSchemas/ucl_open_coen_dome_decision_making_task.json
 # Task parameters for the coen-dome-decision-making go/no-go modality discrimination (Gerion's, from
 # ActiveExperiemntsWithDiscrimination; his mice ran one spout). One spout, the left: lick on a go trial,
-# withhold on a noGo trial. Go and a lick: correct, rewarded. Go and none: noResponse,
-# no penalty. NoGo and a lick: incorrect, the penalty. NoGo and none: correct, unrewarded. A trial showing both
+# withhold on a noGo trial. A go trial and a lick: correct, rewarded. A go trial and none: noResponse,
+# no penalty. A noGo trial and a lick: incorrect, the penalty. A noGo trial and none: correct, unrewarded. A trial showing both
 # modalities (audiovisualCoherent, audiovisualConflict) or neither (neutral) is a probe (target noReward), never rewarded or
-# penalised (Song et al. 2017). Here the grating is Go and the sound NoGo; an auditory-Go mouse gets its own
+# penalised (Song et al. 2017). Here the grating is go and the sound noGo; an auditory-Go mouse gets its own
 # task file. Each condition says what its trials show and reward: its set over the task's values (any field but x-session-fields), its
 # pairs picking listed values together; its trialType is derived from them (x-trial-types). A stage's conditions replace them whole.
 # Conditions with no go weight are refused at Go. Visual-only and neutral trials are silent (auditoryStimulus.levelDbfs mute).

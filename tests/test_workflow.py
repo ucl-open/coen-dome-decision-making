@@ -117,7 +117,7 @@ def test_each_trial_event_reaches_its_hardware():
 
 
 def test_every_spout_move_is_spout_commands_over_the_trial_events():
-    # One path (tested C#): trial 1's spouts out, the SpoutsIn and Drink cues and the outcome, none read from TaskConfig.
+    # One path (tested C#): trial 1's spouts out, the SpoutsIn cue and the outcome, none read from TaskConfig.
     nodes, edges = _scope(_named("TaskLogic"))
     senders = [i for i, n in enumerate(nodes) if n.get(XSI) == "MulticastSubject" and n.findtext(W + "Name") == "LickSpoutStage.Commands"]
     assert len(senders) == 1 and TEXT.count("LickSpoutStage.Commands") == 1
@@ -219,7 +219,7 @@ def test_the_speakers_and_the_mixer_are_the_shared_block_s():
 
 
 def test_every_sound_plays_at_the_task_file_s_level():
-    # The stimulus set is checked at Go for the loudest amplitude any condition can draw (TrialRules.Loudest).
+    # The stimulus set is checked at Go for the loudest level any condition can draw (TrialRules.Loudest).
     assert lint.sound_level_problems(WORKFLOW) == []
     nodes, edges = _scope(_named("Audio"))
     level = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:LevelAuditoryStimulusSet")

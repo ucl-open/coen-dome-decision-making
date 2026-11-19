@@ -127,8 +127,8 @@ public class HandoverTests
             ? SoundAzimuths.NearestSpeaker(Fixture.Speakers(), soundAzimuth, c.AuditoryStimulus.ElevationDeg).Value.Position.Azimuth : double.NaN;
         Assert.AreEqual(heard, auditoryAzimuth, where);
         var named = EnumNames.Name(c.Target.Value);
-        var expected = c.Target == UclOpenCoenDomeDecisionMakingTask.Target.VisualSide ? (c.VisualStimulus.InitialAzimuthsDeg[0] > 0 ? Choice.Right : Choice.Left)
-            : c.Target == UclOpenCoenDomeDecisionMakingTask.Target.AuditorySide ? (soundAzimuth > 0 ? Choice.Right : Choice.Left)
+        var expected = c.Target == UclOpenCoenDomeDecisionMakingTask.Target.VisualSide ? (c.VisualStimulus.InitialAzimuthsDeg[0] > 0 ? TargetWords.Right : TargetWords.Left)
+            : c.Target == UclOpenCoenDomeDecisionMakingTask.Target.AuditorySide ? (soundAzimuth > 0 ? TargetWords.Right : TargetWords.Left)
             : named;
         Assert.AreEqual(expected, target, where);
     }
@@ -174,14 +174,14 @@ public class HandoverTests
             {
                 CheckTrial(golden.Key, built, r.trialType, r.trialConditionId, r.trialCombinationId, r.visualContrast, r.visualInitialAzimuthDeg, r.auditoryLevelDbfs, r.auditoryInitialAzimuthDeg, r.target);
                 Assert.AreEqual(trials[r.trialNumber].trialCombinationId, r.trialCombinationId, golden.Key);
-                if (r.target == Target.NoGo && r.choice == Choice.Go)
+                if (r.target == TargetWords.NoGo && r.choice == Choice.Go)
                 {
                     noGoLicked++;
-                    Assert.IsTrue(!r.rewarded && r.outcome == TrialOutcomes.Incorrect, golden.Key + ": a lick on a NoGo trial is rewarded");
+                    Assert.IsTrue(!r.rewarded && r.outcome == TrialOutcomes.Incorrect, golden.Key + ": a lick on a noGo trial is rewarded");
                 }
             }
         }
-        Assert.IsTrue(noGoLicked > 0, "no golden file ran a lick on a NoGo trial");
+        Assert.IsTrue(noGoLicked > 0, "no golden file ran a lick on a noGo trial");
     }
 
     [TestMethod]

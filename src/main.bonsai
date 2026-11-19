@@ -150,7 +150,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ShowGrating</Name>
-              <Description>Draws a trial's grating from StimulusTrial until GratingOff: contrast, elevation and phase the trial's, the rest the task's, the azimuth the trial's, then GratingAzimuthDeg's as the licks move it (so its first frame is never the last trial's), flickering at the stimulus set's pulse rate, with the photodiode square black on its on frames and white on its off frames.</Description>
+              <Description>Draws a trial's grating from StimulusTrial until GratingOff: contrast, elevation and phase the trial's, the rest its combination's, the azimuth the trial's, then GratingAzimuthDeg's as the licks move it (so its first frame is never the last trial's), flickering at the stimulus set's pulse rate, with the photodiode square black on its on frames and white on its off frames.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">

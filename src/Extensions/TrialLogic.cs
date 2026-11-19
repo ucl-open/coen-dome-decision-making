@@ -25,7 +25,7 @@ public class Trial : ConditionedTrial, ILaserDurationTrial
 {
     double ILaserDurationTrial.LaserDurationSeconds { get { return values.Optogenetics.LaserDurationSeconds; } }
 
-    public string target;              // left or right; in discriminationGoNoGo go or noGo; on a trial with no right answer noReward or random (Target)
+    public string target;              // left or right; in discriminationGoNoGo go or noGo; on a trial with no right answer noReward or random (TargetWords)
     public bool singleSpoutOffered;    // only the target's spout came in (TrialDraw: go/no-go, or a scored trial with the spouts moving and the draw)
     public int repeatCount;            // 0 for a new draw
     public double visualInitialAzimuthDeg;  // NaN with no grating (visualContrast 0), as the sound's when none plays
@@ -69,11 +69,13 @@ public class CheckTaskAtGo
     }
 }
 
-/// <summary>The target column's answers other than a side, in the task file's spelling: discriminationGoNoGo's go and noGo,
-/// and on a trial with no right answer (a probe, outcome probe) noReward (never rewarded or penalised) or random (a choice
-/// rewarded or penalised on a coin).</summary>
-public static class Target
+/// <summary>Every word the target column holds, in the task file's spelling: the sides left and right, discriminationGoNoGo's go
+/// and noGo, and on a trial with no right answer (a probe, outcome probe) noReward (never rewarded or penalised) or random
+/// (a choice rewarded or penalised on a coin).</summary>
+public static class TargetWords
 {
+    public const string Left = "left";
+    public const string Right = "right";
     public const string Go = "go";
     public const string NoGo = "noGo";
     public const string NoReward = "noReward";
@@ -170,7 +172,7 @@ public class TrialDraw
     }
 
     /// <summary>The timing rules between a trial and the next, each drawn from any weighted combination (task.py
-    /// _between_trials): every drinkSeconds and stimulusSeconds within every itiMinSeconds, and with optogenetics
+    /// _between_trials): every outcomeToSpoutsOutSeconds and visualStimulusSeconds within every itiMinSeconds, and with optogenetics
     /// every laserDurationSeconds within the shortest trigger to the next trigger less the ramp-down and Zapit's reply margin.</summary>
     static void BetweenTrials(List<string> problems, List<UclOpenCoenDomeDecisionMakingTaskParameters> tasks)
     {
@@ -181,10 +183,10 @@ public class TrialDraw
         if (spoutsOut > iti + 1e-9) problems.Add(string.Format("trialStructure.outcomeToSpoutsOutSeconds {0} s exceeds trialStructure.itiMinSeconds {1} s of a combination that may come next", spoutsOut, iti));
         if (stimulus > iti + 1e-9) problems.Add(string.Format("trialStructure.visualStimulusSeconds {0} s exceeds trialStructure.itiMinSeconds {1} s of a combination that may come next", stimulus, iti));
         if (!tasks[0].Optogenetics.Enabled) return;
-        var longest = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.ResponseDelaySeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
+        var maxSeconds = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.ResponseDelaySeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
             - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
         var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
-        if (duration > longest + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin", duration, longest));
+        if (duration > maxSeconds + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin", duration, maxSeconds));
     }
 
     // Bonsai reads the task file without pydantic, so what the draw needs is checked again here; x-rules are Python's alone
@@ -278,10 +280,10 @@ public class TrialDraw
         {
             problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (responseDelaySeconds + responseWindowSeconds, {1} s)", lead, structure.ResponseDelaySeconds + structure.ResponseWindowSeconds));
         }
-        var longest = LongestLaserSeconds(task);
-        if (opto.Enabled && opto.LaserDurationSeconds > longest + 1e-9)
+        var maxSeconds = MaxLaserSeconds(task);
+        if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (responseDelaySeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, longest, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
+            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (responseDelaySeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, maxSeconds, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
         }
         // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var reward = task.Reward;
@@ -292,11 +294,11 @@ public class TrialDraw
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
-    /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least responseDelaySeconds
+    /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least responseDelaySeconds
     /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, the longest ramp-down a
     /// conditions file may have (Zapit refuses the next StartStimulus until it has played) and Zapit's reply margin must fit
     /// before the next trigger.</summary>
-    public static double LongestLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
+    public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
         var s = task.TrialStructure;
         return s.ResponseDelaySeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
@@ -402,26 +404,26 @@ public class TrialDraw
         // condition sets it, checked at Go).
         switch (p.Target.Value)
         {
-            case ConditionTarget.VisualSide: trial.target = azimuth > 0 ? Choice.Right : Choice.Left; break;
-            case ConditionTarget.AuditorySide: trial.target = soundAzimuth > 0 ? Choice.Right : Choice.Left; break;
-            case ConditionTarget.Left: trial.target = Choice.Left; break;
-            case ConditionTarget.Right: trial.target = Choice.Right; break;
-            case ConditionTarget.Go: trial.target = Target.Go; break;
-            case ConditionTarget.NoGo: trial.target = Target.NoGo; break;
-            case ConditionTarget.NoReward: trial.target = Target.NoReward; break;
-            default: trial.target = Target.Random; break;
+            case ConditionTarget.VisualSide: trial.target = azimuth > 0 ? TargetWords.Right : TargetWords.Left; break;
+            case ConditionTarget.AuditorySide: trial.target = soundAzimuth > 0 ? TargetWords.Right : TargetWords.Left; break;
+            case ConditionTarget.Left: trial.target = TargetWords.Left; break;
+            case ConditionTarget.Right: trial.target = TargetWords.Right; break;
+            case ConditionTarget.Go: trial.target = TargetWords.Go; break;
+            case ConditionTarget.NoGo: trial.target = TargetWords.NoGo; break;
+            case ConditionTarget.NoReward: trial.target = TargetWords.NoReward; break;
+            default: trial.target = TargetWords.Random; break;
         }
         if (task.TaskType == TaskType.DiscriminationGoNoGo)
         {
             // One spout, the left. Lick on go, withhold on noGo; a noReward trial is a probe, never rewarded or penalised
             // (Song et al. 2017).
-            if (trial.target != Target.Go)
+            if (trial.target != TargetWords.Go)
             {
-                trial.autoReward = false;   // auto-reward only on a Go trial
-                trial.rewardOfferedUl = 0;  // no reward on offer: a withheld NoGo is Correct, unrewarded
+                trial.autoReward = false;   // auto-reward only on a go trial
+                trial.rewardOfferedUl = 0;  // no reward on offer: a withheld noGo is correct, unrewarded
             }
         }
-        if (trial.target == Target.Random)
+        if (trial.target == TargetWords.Random)
         {
             // No right answer: a random-reward probe. Both spouts move in, and a coin drawn
             // now, from the seeded stream, decides a choice at either: heads rewarded at that spout, tails penalised as an
@@ -430,7 +432,7 @@ public class TrialDraw
             trial.probeHeads = random.NextDouble() < 0.5;
         }
         // Only the target's spout comes in: always in go/no-go (the left), else on a scored trial whose spouts move, by the draw.
-        trial.singleSpoutOffered = task.TaskType == TaskType.DiscriminationGoNoGo || (trial.target != Target.Random && !p.SpoutsStayIn && singleDrawn);
+        trial.singleSpoutOffered = task.TaskType == TaskType.DiscriminationGoNoGo || (trial.target != TargetWords.Random && !p.SpoutsStayIn && singleDrawn);
 
         var optogenetics = task.Optogenetics;
         if (optogenetics.Enabled)
@@ -447,13 +449,13 @@ public class TrialDraw
     /// <summary>The loudest stimulus sound the conditions can draw: the highest auditoryStimulus.levelDbfs of any combination
     /// of a condition with a weight above 0 (NaN when all are mute), and where it is, for the stimulus set's peak check at Go
     /// (LevelAuditoryStimulusSet).</summary>
-    public LoudestSound Loudest()
+    public LoudestSound MaxStimulusLevel()
     {
         return LoudestSound.Of(conditions, t => t.AuditoryStimulus.LevelDbfs);
     }
 
     /// <summary>The loudest penalty sound the conditions can draw (penalty.sound.levelDbfs), for PlayPenaltySound's buffer at Go.</summary>
-    public LoudestSound LoudestPenalty()
+    public LoudestSound MaxPenaltyLevel()
     {
         return LoudestSound.Of(conditions, t => t.Penalty.Sound.LevelDbfs);
     }
@@ -497,7 +499,7 @@ public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
     public static TrialOutcome Of(TrialRow row, Trial trial)
     {
         // The valve's instance as rig.yml's wiring names it; go is answered at the left spout.
-        var instance = (trial.target == Target.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
+        var instance = (trial.target == TargetWords.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
         var o = new TrialOutcome(row, instance, SoundLevels.Parse(trial.values.Penalty.Sound.LevelDbfs));
         o.SpoutsStayIn = trial.SpoutsStayIn;
         o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
@@ -553,12 +555,12 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     /// <summary>The stage as code-version (S03A-k7f2) from the task file's curriculum, which the check has found well formed.</summary>
     public string CurriculumStage { get { return task.Curriculum.Code + "-" + task.Curriculum.Version; } }
 
-    /// <summary>The loudest sound the task's conditions can draw (TrialDraw.Loudest), for the stimulus set's peak check.</summary>
-    public LoudestSound Loudest { get { return draw.Loudest(); } }
+    /// <summary>The loudest sound the task's conditions can draw (TrialDraw.MaxStimulusLevel), for the stimulus set's peak check.</summary>
+    public LoudestSound Loudest { get { return draw.MaxStimulusLevel(); } }
 
     /// <summary>The loudest penalty level the conditions can draw (NaN when all are mute): lib-open-rigs' PlayPenaltySound
     /// lays out its buffer at it at Go and plays each penalised trial's level from it.</summary>
-    public double LoudestPenaltyLevelDbfs { get { return draw.LoudestPenalty().LevelDbfs; } }
+    public double LoudestPenaltyLevelDbfs { get { return draw.MaxPenaltyLevel().LevelDbfs; } }
 
     /// <summary>Settings_Combinations' text (OpenRigs.Trials TrialConditions.CombinationsJson): every combination built at Go, each a row the trial
     /// log's trialCombinationId names; logged by OpenRigs.Logging ConditionedTaskLogs in the Logging group.</summary>
@@ -702,6 +704,6 @@ public class SpoutCommands
     public static LickSpoutCommand SpoutsIn(Trial trial)
     {
         if (!trial.singleSpoutOffered) return LickSpoutCommand.SpoutsIn;
-        return trial.target == Choice.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly;   // go-no-go: the left
+        return trial.target == TargetWords.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly;   // go-no-go: the left
     }
 }

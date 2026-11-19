@@ -73,7 +73,7 @@ penaltyTimeoutSeconds:
   type: double
   unit: s
   description: 'The timeout after this trial: the task''s penalty.timeoutSeconds when the trial was penalised, else 0. The next interval starts after it (itiStartTime).'
-  note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a NoGo trial (a Go miss is unpenalised); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
+  note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
 penalised:
   type: bool
   description: 'True when the trial was penalised: the task''s penalty timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.sound.levelDbfs (none when mute) followed its outcome. Which outcomes are penalised is the task''s (its note).'

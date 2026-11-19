@@ -35,8 +35,8 @@ def scored(df):
 
 def new_draw_accuracy(df):
     """(fraction correct, number of scored trials) for one session's trials: every new draw with a choice, one spout or
-    two. Not lib-open-rigs' performance (summarise-experiment, app-rig-control), which counts the both-spout and go/no-go
-    trials, repeats included."""
+    two. Not lib-open-rigs' performance (summarise-experiment, app-rig-control), which counts the trials with both spouts offered (singleSpoutOffered false)
+    and the go/no-go trials, repeats included."""
     s = scored(df)
     return (float((s["outcome"] == "correct").mean()) if len(s) else float("nan")), len(s)
 

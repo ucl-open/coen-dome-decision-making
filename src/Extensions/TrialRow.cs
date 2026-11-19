@@ -46,10 +46,10 @@ public class TrialRow
     {
         switch (trial.target)
         {
-            case Target.NoReward:
-            case Target.Random: return TrialOutcomes.Probe;
-            case Target.Go: return choice == Choice.Go ? TrialOutcomes.Correct : TrialOutcomes.NoResponse;
-            case Target.NoGo: return choice == Choice.Go ? TrialOutcomes.Incorrect : TrialOutcomes.Correct;
+            case TargetWords.NoReward:
+            case TargetWords.Random: return TrialOutcomes.Probe;
+            case TargetWords.Go: return choice == Choice.Go ? TrialOutcomes.Correct : TrialOutcomes.NoResponse;
+            case TargetWords.NoGo: return choice == Choice.Go ? TrialOutcomes.Incorrect : TrialOutcomes.Correct;
             default: return choice == Choice.NoResponse ? TrialOutcomes.NoResponse : choice == trial.target ? TrialOutcomes.Correct : TrialOutcomes.Incorrect;
         }
     }
@@ -60,7 +60,7 @@ public class TrialRow
     public static bool Penalised(string outcome, string choice, Trial trial)
     {
         if (choice == Choice.NoResponse) return MissPenalised(trial);
-        if (trial.target == Target.Random) return !trial.probeHeads;
+        if (trial.target == TargetWords.Random) return !trial.probeHeads;
         return outcome == TrialOutcomes.Incorrect;
     }
 
@@ -68,15 +68,15 @@ public class TrialRow
     // random trial whose coin came up heads.
     public static bool Rewarded(string outcome, string choice, Trial trial)
     {
-        if (trial.target == Target.Random) return choice != Choice.NoResponse && trial.probeHeads;
-        return (outcome == TrialOutcomes.Correct && trial.target != Target.NoGo) || (trial.autoReward && choice == Choice.NoResponse);
+        if (trial.target == TargetWords.Random) return choice != Choice.NoResponse && trial.probeHeads;
+        return (outcome == TrialOutcomes.Correct && trial.target != TargetWords.NoGo) || (trial.autoReward && choice == Choice.NoResponse);
     }
 
     // A miss's penalty, on every trial that can be penalised: none when auto-rewarded or on a go trial; never on
     // discriminationGoNoGo's other trials (a withheld noGo is correct, a probe pays nothing and costs nothing).
     static bool MissPenalised(Trial trial)
     {
-        if (trial.target == Target.Go || trial.target == Target.NoGo || trial.target == Target.NoReward) return false;
+        if (trial.target == TargetWords.Go || trial.target == TargetWords.NoGo || trial.target == TargetWords.NoReward) return false;
         return !trial.autoReward;
     }
 
