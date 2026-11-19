@@ -1847,13 +1847,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is still a noResponse for repeats; 0: never, 1: every trial
+        /// Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is never repeated (neither noResponse nor notCorrect); 0: never, 1: every trial
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("autoRewardProbability")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="autoRewardProbability")]
         [System.ComponentModel.DescriptionAttribute("Probability that a trial is an auto-reward trial (logged as autoReward): its miss" +
-            " is rewarded at the target spout, and is still a noResponse for repeats; 0: neve" +
-            "r, 1: every trial")]
+            " is rewarded at the target spout, and is never repeated (neither noResponse nor " +
+            "notCorrect); 0: never, 1: every trial")]
         public double AutoRewardProbability
         {
             get

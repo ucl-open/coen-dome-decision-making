@@ -288,7 +288,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         default=0.0,
         ge=0,
         le=1,
-        description="Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is still a noResponse for repeats; 0: never, 1: every trial",
+        description="Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is never repeated (neither noResponse nor notCorrect); 0: never, 1: every trial",
     )
     penalty: Penalty = Field(
         description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a noGo trial (a go miss and a no-reward probe have neither), open_rigs.core.task Penalty"

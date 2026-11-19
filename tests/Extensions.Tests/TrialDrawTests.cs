@@ -444,8 +444,19 @@ public class TrialDrawTests
         task.Repeats.RepeatOn = RepeatOn.NoResponse;
         Assert.IsTrue(Fixture.Draw(task, 100, t => TrialOutcomes.Incorrect).All(t => t.repeatCount == 0));
         Assert.IsTrue(Fixture.Draw(task, 100, t => Choice.NoResponse).Any(t => t.repeatCount > 0));
-        // An auto trial (an auto-rewarded miss, noResponse before outcome auto) repeats as a miss.
-        Assert.IsTrue(Fixture.Draw(task, 100, t => TrialOutcomes.Auto).Any(t => t.repeatCount > 0));
+    }
+
+    [TestMethod]
+    public void AnAutoTrialNeverRepeats()
+    {
+        // An auto trial (auto-reward, no choice) is neither a noResponse nor a notCorrect: the next trial is a fresh draw.
+        var task = Fixture.Task("task-localization.yml", 4);
+        task.RngSeed = 7;
+        foreach (var on in new[] { RepeatOn.NoResponse, RepeatOn.NotCorrect })
+        {
+            task.Repeats.RepeatOn = on;
+            Assert.IsTrue(Fixture.Draw(task, 100, t => TrialOutcomes.Auto).All(t => t.repeatCount == 0), on.ToString());
+        }
     }
 
     [TestMethod]
