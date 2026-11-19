@@ -92,11 +92,8 @@ def test_task_logic_runs_the_trial_loop():
     assert [nodes[into[f"Source{k}"]].findtext(W + "Name") for k in range(2, 7)] == [
         "Timestamp", "WheelDistanceCm", "LickStateLeft", "LickStateRight", "ZapitReplies"]
     assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == run] == ["TrialEvents"]
-    # The one nested graph runs once, at Go: Zapit's commands in an optogenetics experiment.
-    per_element = [n.findtext(W + "Name") for n in _named("TaskLogic").iter(W + "Expression") if n.get(XSI) in lint.PER_ELEMENT]
-    assert per_element == ["Zapit"]
-    zapit = next(i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "Zapit")
-    assert {nodes[i].findtext(W + "Name") for i in _upstream(edges, zapit)} == {"Optogenetics?", "TrialRules"}
+    # No nested graph: Zapit's commands are OpenRigs.Trials ZapitTrials', given the rules.
+    assert not [n for n in _named("TaskLogic").iter(W + "Expression") if n.get(XSI) in lint.PER_ELEMENT]
 
 
 def test_the_task_is_checked_once_at_go_into_the_rules():
@@ -115,9 +112,10 @@ def test_each_trial_event_reaches_its_hardware():
     assert _reached("Update") == {"GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"GratingOff"}
     assert _reached("Outcome") == {"TrialRow", "RewardRequests", "PlayPenaltySound.bonsai"}
-    assert _reached("Trigger") == {"SetZapitTriggerLine.bonsai Set=true"}
-    assert _reached("TriggerOff") == {"SetZapitTriggerLine.bonsai Set=false"}
-    assert _reached("Arm", group="Zapit") == _reached("Trigger", group="Zapit") == {"ArmZapit", "ZapitCommands"}
+    # Arm, Trigger and TriggerOff are ZapitTrials': no pick of them here.
+    nodes, _ = _scope(_named("TaskLogic"))
+    kinds = {n.find(W + "Combinator").findtext(TRL + "Kind") for n in nodes if _kind(n) == PICK}
+    assert not kinds & {"Arm", "Trigger", "TriggerOff", "LaserCap"}
 
 
 def test_every_spout_move_is_spout_commands_over_the_trial_events():
@@ -132,17 +130,15 @@ def test_every_spout_move_is_spout_commands_over_the_trial_events():
     assert "SpoutMovements" not in TEXT and "SpoutsInCommand" not in TEXT
 
 
-def test_zapit_s_start_stimulus_goes_at_arm_or_at_the_trigger():
-    # ZapitTrialCommand sends at Arm (Source1) on a hardware-triggered rig, else at the trigger (Source2); it reads
-    # HardwareTriggered and DurationSeconds as it starts, so it starts at Go, after TaskConfig.
-    nodes, edges = _scope(_named("Zapit"))
-    (arm,) = [i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "ArmZapit"]
-    for label, kind in (("Source1", "Arm"), ("Source2", "Trigger")):
-        (into,) = [a for a, b, lab in edges if b == arm and lab == label]
-        assert any(_kind(nodes[i]) == PICK and nodes[i].find(W + "Combinator").findtext(TRL + "Kind") == kind for i in _upstream(edges, into))
-    mapped = " ".join(ET.tostring(nodes[a], encoding="unicode") for a, b, _ in edges if b == arm and nodes[a].get(XSI) == "PropertyMapping")
-    assert 'Name="HardwareTriggered" Selector="Zapit.HardwareTriggered"' in mapped
-    assert 'Name="DurationSeconds" Selector="TaskParameters.Optogenetics.LaserDurationSeconds"' in mapped
+def test_zapit_s_trials_are_the_shared_include_given_the_rules():
+    # OpenRigs.Trials ZapitTrials, once, given TrialRules: its StartStimulus at Arm on a hardware-triggered rig, else at the
+    # trigger, timed by the rules' Laser (rig.yml's zapit.hardwareTriggered and the task's laserDurationSeconds, fixed at Go).
+    assert TEXT.count('Path="OpenRigs.Trials:ZapitTrials.bonsai"') == 1
+    nodes, edges = _scope(_named("TaskLogic"))
+    (zapit,) = [i for i, n in enumerate(nodes) if n.get("Path") == "OpenRigs.Trials:ZapitTrials.bonsai"]
+    assert [(nodes[a].get(XSI), nodes[a].findtext(W + "Name"), label) for a, b, label in edges if b == zapit] == [
+        ("SubscribeSubject", "TrialRules", "Source1")]
+    assert "ZapitTrialCommand" not in TEXT and "SetZapitTriggerLine" not in TEXT and "HardwareTriggered" not in TEXT
 
 
 def test_each_grating_starts_at_its_own_trial_s_azimuth():
@@ -211,12 +207,6 @@ def test_the_metrics_are_the_view_s():
     assert members == ["trialNumber", "trialType", "rewardOfferedUl", "laserCondition"] and not names & set(members)
     names |= set(members)
     assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition", "curriculumStage"}
-
-
-def test_zapit_s_hardware_triggering_is_rig_yml_s():
-    # lib-open-rigs' ZapitTrialCommand, its HardwareTriggered mapped from rig.yml's zapit.hardwareTriggered, never typed in.
-    assert TEXT.count('"trl:ZapitTrialCommand"') == 1 and "ext:ZapitTrialCommand" not in TEXT
-    assert '<Property Name="HardwareTriggered" Selector="Zapit.HardwareTriggered" />' in TEXT and "HardwareTriggered>true<" not in TEXT
 
 
 # The lab's rules for every workflow (open_rigs.rigs.workflow_lint, one copy in lib-open-rigs).
