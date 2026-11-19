@@ -5,6 +5,7 @@ from pathlib import Path
 import pydantic
 import pytest
 import yaml
+from open_rigs.rigs import conditioned_task as ct
 from open_rigs.rigs.conditions import MAX_COMBINATIONS, flatten, unused_paths
 from pydantic import ValidationError
 
@@ -17,8 +18,7 @@ from ucl_open_coen_dome_decision_making.task import (
     TaskType,
     TrialCondition,
     TRIAL_TYPES,
-    derive_trial_type,
-    session_field,
+    LIST_FIELDS,
     UclOpenCoenDomeDecisionMakingTaskLogic,
     Curriculum,
     UclOpenCoenDomeDecisionMakingTaskParameters,
@@ -274,9 +274,8 @@ def test_the_constants_are_the_c_sharp_s():
     assert "    MAX_REWARD_UL,\n" in task_py and "RewardSize" in task_py
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task LickQuietWait and
     # WheelQuietWait in task.py, OpenRigs.Core QuietWait.LickProblems and WheelProblems at Go).
-    # MAX_COMBINATIONS is the task's own, the same number as TrialDraw.MaxCombinations; MAX_WEIGHT_SUM is the int.MaxValue
-    # TrialDraw.CheckTask refuses a weight sum above.
-    assert re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) == ["MAX_WEIGHT_SUM"]
+    # MAX_COMBINATIONS and MAX_WEIGHT_SUM (the int.MaxValue the draw refuses a weight sum above) are open_rigs.rigs'.
+    assert re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) == []
     assert MAX_WEIGHT_SUM == 2**31 - 1 and "Sum(c => (long)c.Weight) > int.MaxValue" in logic
     assert "TaskSchema.MaxCombinations" in logic and "QuietWait.LickProblems" in logic and "QuietWait.WheelProblems" in logic
     assert "ZapitConditions.MaximumRampDownSeconds" in logic
@@ -341,7 +340,7 @@ def test_each_committed_condition_s_trial_type_is_derived_and_logged():
         task = _task(path.name)
         for condition in task.trial_conditions:
             assert condition.trial_type.value in columns["trialType"]["values"]
-            assert derive_trial_type(task, condition) == condition.trial_type.value, (path.name, condition.trial_type)
+            assert task.derive_trial_type(condition) == condition.trial_type.value, (path.name, condition.trial_type)
 
 
 @pytest.mark.parametrize("task_type, name", [
@@ -385,7 +384,7 @@ V, S = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg
 def test_every_trial_type_is_derived_by_x_trial_types(set_, pairs, trial_type):
     # The localization task's contrast 3 and amplitude 1 at [-60, 60] under each set; the condition itself is not checked.
     task = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"])
-    assert derive_trial_type(task, TrialCondition(trialType="neutral", weight=1, set=set_, pairs=pairs)) == trial_type
+    assert task.derive_trial_type(TrialCondition(trialType="neutral", weight=1, set=set_, pairs=pairs)) == trial_type
 
 
 def test_a_go_no_go_probe_must_not_repeat():
@@ -400,7 +399,7 @@ def test_all_plays_on_every_speaker_and_pairs():
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
     task = _conditions({"trialType": "audiovisualCoherent", "weight": 1, "pairs": [[visual, sound]], "set": {visual: [-60, 60], sound: ["all", 60]}},
                        {"trialType": "neutral", "weight": 1, "set": {"contrasts": [0], sound: ["all"], "target": "random", "bothSpoutsProbability": 1}})
-    assert derive_trial_type(task, task.trial_conditions[1]) == "neutral"
+    assert task.derive_trial_type(task.trial_conditions[1]) == "neutral"
     items = json.loads(SCHEMA.read_text())["$defs"]["AuditoryStimulus"]["properties"]["initialAzimuthsDeg"]["items"]
     assert items == {"oneOf": [{"type": "number"}, {"const": "all", "type": "string"}]}   # oneOf: Bonsai.Sgen's List<object>
 
@@ -411,11 +410,9 @@ def test_an_amplitude_above_1_is_the_peak_check_s_to_refuse():
 
 
 def test_pairs_zip_their_lists_and_the_rest_combine():
-    from ucl_open_coen_dome_decision_making.task import condition_combinations
-
     base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
-    combos = condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]])
+    combos = ct.condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]], LIST_FIELDS)
     # The first cell's pick changes fastest (TrialDraw.BuildConditions' order, Settings_Combinations' rows).
     assert combos == [
         {visual: [-60], sound: [60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
@@ -425,7 +422,7 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
     ]
     # Unpaired, every list field (the set's or the task's) is one entry per combination, a list in a scalar cell one value,
     # by path, the first changing fastest.
-    combos = condition_combinations(base, {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]})
+    combos = ct.condition_combinations(base, {"contrasts": [0.5, 1], "reward.rewardSizeUl": [2, 3]}, [], LIST_FIELDS)
     assert len(combos) == 16 and combos[:3] == [
         {sound: [-60], "contrasts": [0.5], "reward.rewardSizeUl": 2, visual: [-60]},
         {sound: [60], "contrasts": [0.5], "reward.rewardSizeUl": 2, visual: [-60]},
@@ -544,15 +541,15 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_session_fields():
     entries = [*RULES, *TRIAL_TYPES, *REQUIRED]
     named = {path for entry in entries for part in ("if", "then", "some") for path in entry.get(part, {}).get("properties", {})}
     named |= {path for entry in entries for path in [*entry.get("unused", []), *entry.get("mirrored", [])]}
-    assert named <= leaves and {session_field(path) for path in named} == {None, "taskType"}
-    assert {session_field(leaf) for leaf in leaves} - {None} == set(SESSION_FIELDS)
+    assert named <= leaves and {ct.session_field(path, SESSION_FIELDS) for path in named} == {None, "taskType"}
+    assert {ct.session_field(leaf, SESSION_FIELDS) for leaf in leaves} - {None} == set(SESSION_FIELDS)
     assert "trialWeights" not in parameters["properties"]
 
 
 def test_a_condition_may_set_any_field_but_a_session_field():
     _conditions({"trialType": "visual", "weight": 1, "set": {"trialStructure.itiMinSeconds": 4, "visualStimulus.orientationDeg": [0, 90], "penalty.timeoutSeconds": 2}})
     for path in ["rngSeed", "taskType", "curriculum.code", "backgroundNoise.levelDbfs", "optogenetics.enabled"]:
-        field = session_field(path)
+        field = ct.session_field(path, SESSION_FIELDS)
         with pytest.raises(ValidationError, match=rf"sets or pairs {re.escape(path)}, a session field \(x-session-fields: {re.escape(field)} "):
             _conditions({"trialType": "visual", "weight": 1, "set": {path: 1}})
     with pytest.raises(ValidationError, match="sets or pairs visualStimulus.colour, which is not a task field"):
@@ -642,6 +639,4 @@ def test_side_target_keeps_its_azimuth_read():
 
 def test_the_committed_task_schema_cs_is_the_schema_s():
     # TrialDraw reads x-session-fields, x-max-combinations and the list fields from TaskSchema, generated with the schema.
-    from ucl_open_coen_dome_decision_making.regenerate import task_schema_cs
-
-    assert (CONFIG.parent / "src" / "Extensions" / "TaskSchema.Generated.cs").read_text(encoding="utf-8") == task_schema_cs()
+    assert (CONFIG.parent / "src" / "Extensions" / "TaskSchema.Generated.cs").read_text(encoding="utf-8") == ct.task_schema_cs(SESSION_FIELDS, LIST_FIELDS)

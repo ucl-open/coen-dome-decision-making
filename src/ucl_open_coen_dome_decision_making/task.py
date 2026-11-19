@@ -1,8 +1,5 @@
-import copy
-import json
-import math
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 # Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt.
 from open_rigs.core.base import Bool, Double, String
@@ -15,15 +12,15 @@ from open_rigs.core.task import (
     Optogenetics,
     Penalty,
     ResponseWindow,
-    RewardSize,
     Task,
     TaskBlock,
     TaskParameters,
     WheelQuietWait,
 )
 from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
-from open_rigs.rigs import conditions
-from pydantic import ConfigDict, Field, ValidationError, ValidationInfo, WithJsonSchema, field_validator, model_validator
+from open_rigs.rigs import conditioned_task as ct
+from open_rigs.rigs.conditioned_task import ABOVE_0, ALL_SPEAKERS, MAX_WEIGHT_SUM, SIDELESS, SoundAzimuth, if_
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from ucl_open_coen_dome_decision_making import __semver__
 
@@ -85,12 +82,7 @@ class VisualStimulus(TaskBlock):
         return value
 
 
-ALL_SPEAKERS = "all"  # an auditoryStimulus.initialAzimuthsDeg item: every rig.yml speaker plays (TrialDraw.AllSpeakers)
-# A sound azimuth or "all". oneOf, not pydantic's anyOf: Bonsai.Sgen makes an empty class of an anyOf item, object of a oneOf.
-SoundAzimuth = Annotated[Double | Literal["all"], WithJsonSchema({"oneOf": [{"type": "number"}, {"const": ALL_SPEAKERS, "type": "string"}]})]
-
-
-class AuditoryStimulus(TaskBlock):
+class AuditoryStimulus(ct.AuditoryStimulus):
     """The sound: a waveform of the set (src/sounds) at amplitude, on rig.yml's speaker nearest the picked azimuth (at
     visualStimulus.elevationDeg), or on every rig.yml speaker where the pick is "all"."""
 
@@ -113,21 +105,9 @@ class AuditoryStimulus(TaskBlock):
         ),
     )
 
-    @field_validator("initial_azimuths_deg")
-    @classmethod
-    def _in_range(cls, value: list) -> list:
-        # TrialDraw.CheckTask's same rule, with each azimuth's nearest speaker on its side.
-        for azimuth in value:
-            if azimuth != ALL_SPEAKERS and not -180 <= azimuth <= 180:
-                raise ValueError(f"initial_azimuths_deg value {azimuth} is outside [-180, 180]")
-        return value
 
-
-class RewardSettings(RewardSize):
+class RewardSettings(ct.Reward):
     """Reward delivery: the reward size (the lab's RewardSize block) and the large-reward trials."""
-
-    large_reward_multiplier: Double = Field(default=1.0, ge=0, description="Reward size multiplier applied on large-reward trials")
-    large_reward_probability: Double = Field(default=0.0, ge=0, le=1, description="Probability that a trial is a large-reward trial")
 
 
 class ResponseSettings(TaskBlock):
@@ -182,8 +162,6 @@ class TrialType(StrEnum):
     RIGHT = "right"
 
 
-MAX_WEIGHT_SUM = 2147483647  # the most trial_conditions' weights may add to: the draw sums them as an int (TrialLogic.cs int.MaxValue)
-
 # The session fields (the schema's x-session-fields; TrialDraw.SessionFields, a test holds both): what cannot change per
 # trial, so a condition may not set it (the path or any path under it). A condition may set every other field: the draw
 # reads it per trial from the trial's combination. A condition's blank takes the stage's, then the task's value.
@@ -209,61 +187,48 @@ TARGETS = {
 }
 
 
-def _props(schemas: dict) -> dict:
-    return {"properties": schemas}
-
-
-def _if(schemas: dict) -> dict:
-    """An if over these paths, required: JSON Schema passes a missing path's properties vacuously."""
-    return {"properties": schemas, "required": list(schemas)}
-
-
-SIDELESS = [0, ALL_SPEAKERS]  # sound azimuths with no side
 RULES = (
-    {"if": _if({"repeats.maxRepeats": {"const": 0}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
+    {"if": if_({"repeats.maxRepeats": {"const": 0}}), "then": ct.props({"repeats.repeatOn": {"const": "never"}}),
      "message": "repeats.maxRepeats 0 needs repeats.repeatOn never"},
-    {"if": _if({"target": {"const": "random"}}), "then": _props({"bothSpoutsProbability": {"const": 1}, "repeats.repeatOn": {"const": "never"}}),
+    {"if": if_({"target": {"const": "random"}}), "then": ct.props({"bothSpoutsProbability": {"const": 1}, "repeats.repeatOn": {"const": "never"}}),
      "message": "target random needs bothSpoutsProbability 1 and repeats.repeatOn never"},
-    {"if": _if({"target": {"const": "noReward"}}), "then": _props({"repeats.repeatOn": {"const": "never"}}),
+    {"if": if_({"target": {"const": "noReward"}}), "then": ct.props({"repeats.repeatOn": {"const": "never"}}),
      "message": "target noReward needs repeats.repeatOn never"},
-    *({"if": _if({"taskType": {"const": task_type.value}}), "then": _props({"target": {"enum": list(targets)}}),
+    *({"if": if_({"taskType": {"const": task_type.value}}), "then": ct.props({"target": {"enum": list(targets)}}),
        "message": f"taskType {task_type.value} needs target one of {', '.join(targets)}"} for task_type, targets in TARGETS.items()),
-    {"if": _if({"contrasts": {"items": {"const": 0}}, "target": {"not": {"const": "visualSide"}}}), "unused": ["visualStimulus.initialAzimuthsDeg"],
+    {"if": if_({"contrasts": {"items": {"const": 0}}, "target": {"not": {"const": "visualSide"}}}), "unused": ["visualStimulus.initialAzimuthsDeg"],
      "message": "contrasts 0 shows no grating, so its azimuths are unread unless target visualSide"},
-    {"if": _if({"auditoryStimulus.amplitude": {"const": 0}, "target": {"not": {"const": "auditorySide"}}}), "unused": ["auditoryStimulus.initialAzimuthsDeg"],
+    {"if": if_({"auditoryStimulus.amplitude": {"const": 0}, "target": {"not": {"const": "auditorySide"}}}), "unused": ["auditoryStimulus.initialAzimuthsDeg"],
      "message": "auditoryStimulus.amplitude 0 plays no sound, so its azimuths are unread unless target auditorySide"},
     # The picked sound azimuth's sign is the side: 0 and "all" have none.
-    {"if": _if({"target": {"const": "auditorySide"}}), "then": _props({"auditoryStimulus.initialAzimuthsDeg": {"items": {"not": {"enum": SIDELESS}}}}),
+    {"if": if_({"target": {"const": "auditorySide"}}), "then": ct.props({"auditoryStimulus.initialAzimuthsDeg": {"items": {"not": {"enum": SIDELESS}}}}),
      "message": "target auditorySide needs auditory azimuths without 0 or all"},
 )
 # How a condition is named (the schema's x-trial-types; derive_trial_type): first match wins, on the condition's values
 # each as a list. A role target names it; else by what it shows, the grating (a contrast above 0) and the sound as a cue
 # (an amplitude above 0 at an azimuth off centre: 0 and "all" give no side): both, audiovisualConflict when the azimuths
 # are paired mirrored, else audiovisualCoherent; one alone; or neutral.
-_ABOVE_0 = {"contains": {"exclusiveMinimum": 0}}
-_CUE = {"auditoryStimulus.amplitude": _ABOVE_0, "auditoryStimulus.initialAzimuthsDeg": {"contains": {"not": {"enum": SIDELESS}}}}
+_CUE = {"auditoryStimulus.amplitude": ABOVE_0, "auditoryStimulus.initialAzimuthsDeg": {"contains": {"not": {"enum": SIDELESS}}}}
 TRIAL_TYPES = (
-    *({"trialType": role, "if": _if({"target": {"items": {"const": role}}})} for role in ("go", "noGo", "left", "right")),
-    {"trialType": "audiovisualConflict", "if": _if({"contrasts": _ABOVE_0, **_CUE}),
+    *({"trialType": role, "if": if_({"target": {"items": {"const": role}}})} for role in ("go", "noGo", "left", "right")),
+    {"trialType": "audiovisualConflict", "if": if_({"contrasts": ABOVE_0, **_CUE}),
      "mirrored": ["visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"]},
-    {"trialType": "audiovisualCoherent", "if": _if({"contrasts": _ABOVE_0, **_CUE})},
-    {"trialType": "visual", "if": _if({"contrasts": _ABOVE_0})},
-    {"trialType": "auditory", "if": _if(_CUE)},
+    {"trialType": "audiovisualCoherent", "if": if_({"contrasts": ABOVE_0, **_CUE})},
+    {"trialType": "visual", "if": if_({"contrasts": ABOVE_0})},
+    {"trialType": "auditory", "if": if_(_CUE)},
     {"trialType": "neutral"},
 )
 # What some weighted condition must draw (the schema's x-required-conditions; open_rigs.rigs.conditions.required_problems).
 REQUIRED = (
-    {"if": _if({"taskType": {"const": TaskType.DISCRIMINATION_GO_NO_GO.value}}), "some": _if({"target": {"const": "go"}}),
+    {"if": if_({"taskType": {"const": TaskType.DISCRIMINATION_GO_NO_GO.value}}), "some": if_({"target": {"const": "go"}}),
      "message": "taskType discriminationGoNoGo needs a condition with a weight above 0 that draws target go, or the task has no Go trials"},
 )
 
 
-class TrialCondition(TaskBlock):
+class TrialCondition(ct.TrialCondition[TrialType]):
     """One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
     the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:
     contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial."""
-
-    model_config = ConfigDict(extra="forbid")
 
     trial_type: TrialType = Field(
         description="The condition's name, logged as each trial's trialType: derived from its contrasts, amplitude, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing"
@@ -278,74 +243,6 @@ class TrialCondition(TaskBlock):
         ),
     )
     set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path, any field but x-session-fields'; the rest are the task's")
-
-
-def _put(data: dict, dotted, value: Any) -> None:
-    *parents, key = dotted.split(".")
-    for part in parents:
-        data = data[part]
-    if key not in data:
-        raise KeyError(dotted)
-    data[key] = value
-
-
-def _get(data: dict, dotted) -> Any:
-    for part in dotted.split("."):
-        data = data[part]
-    return data
-
-
-def _options(base: dict, values: dict[str, Any], path) -> list:
-    # A cell's picks: a list field's entries, each a one-entry list; a scalar field's list, else its one value (a whole
-    # list, x-whole, is one value).
-    value = values[path] if path in values else _get(base, path)
-    if path in LIST_FIELDS:
-        return [[entry] for entry in value] if isinstance(value, list) else [value]
-    return value if isinstance(value, list) and not isinstance(_get(base, path), list) else [value]
-
-
-def condition_combinations(base: dict, values: dict[str, Any], pairs: list[list[str]] = ()) -> list[dict[str, Any]]:
-    """Every combination of a condition: each pairs group's lists zipped (equal lengths), then by path each other list cell
-    of its set and every list field (LIST_FIELDS, the set's or the task's list) one pick, all combined as a product, the
-    first cell's pick changing fastest (TrialDraw.BuildConditions' order: Settings_Combinations' rows, conditions in turn).
-    A list field's entry is a one-entry list, so the draw's chances are those of picking each list's entry per trial.
-
-    The C# draw is the rule the rig runs; this copy stays only for the task model's validation and for the test that holds
-    the C#'s Settings_Combinations equal to it (tests/test_combinations.py)."""
-    return _product(_cells(base, values, pairs))
-
-
-def _cells(base: dict, values: dict[str, Any], pairs) -> list[tuple[tuple[str, ...], list[tuple]]]:
-    # A condition's cells (each pairs group, then each other path), each with its picks; none empty.
-    cells: list[tuple[tuple[str, ...], list[tuple]]] = []
-    paired = [path for group in pairs for path in group]
-    for group in pairs:
-        lists = [_options(base, values, path) for path in group]
-        if len({len(options) for options in lists}) > 1:
-            raise ValueError(f"pairs {group} have lists of lengths {', '.join(str(len(options)) for options in lists)}; paired lists must be equally long")
-        cells.append((tuple(group), list(zip(*lists))))
-    cells += [((path,), [(option,) for option in _options(base, values, path)]) for path in sorted({*values, *LIST_FIELDS} - {*paired})]
-    for paths, options in cells:
-        if not options:
-            raise ValueError(f"{', '.join(paths)} is an empty list")
-    return cells
-
-
-def _product(cells) -> list[dict[str, Any]]:
-    combos: list[dict[str, Any]] = [{}]
-    for paths, options in cells:
-        combos = [{**combo, **dict(zip(paths, option))} for option in options for combo in combos]
-    return combos
-
-
-def session_field(path) -> str | None:
-    """The session field a dotted path is or lies under (SESSION_FIELDS), else None."""
-    return next((field for field in SESSION_FIELDS if path == field or path.startswith(field + ".")), None)
-
-
-def derive_trial_type(task: "UclOpenCoenDomeDecisionMakingTaskParameters", condition: TrialCondition) -> str:
-    """A condition's trialType from its settings (its set over the task's), by TRIAL_TYPES (x-trial-types)."""
-    return conditions.derive_trial_type(TRIAL_TYPES, task.model_dump(by_alias=True, mode="json"), condition.set, condition.pairs)
 
 
 class RepeatSettings(TaskBlock):
@@ -369,24 +266,20 @@ class OptogeneticsSettings(Optogenetics):
     no_laser_on_repeats: Bool = Field(default=True, description="Whether repeat trials never have the laser on")
 
 
-class Curriculum(TaskBlock):
+class Curriculum(ct.Curriculum):
     """The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at
     launch from the share's curriculum file (K:\config\curricula\<repo>\<task file stem>.conditions.yml), its stage's values written over the task
     file's; empty in the repo's task files. Bonsai only records it."""
 
-    id: int = Field(ge=0, description="The stage's id in the curriculum, fixed and hidden: never shown to the experimenter")
-    code: String = Field(pattern=r"^S\d{2}[A-Z]$", description="The stage's code in the curriculum, S then two digits then a capital letter (S03A)")
-    version: String = Field(pattern=r"^[abcdefghjkmnpqrstuvwxyz23456789]{4}$", description="The stage's version, 4 characters from abcdefghjkmnpqrstuvwxyz23456789 (k7f2)")
-    path: String = Field(pattern=r"^[A-Z]$", description="The stage's path in the curriculum, one capital letter (A)")
-    label: String = Field(description="The stage's name in the curriculum")
-    sha256: String = Field(description="SHA-256 of the curriculum file's text the stage was read from")
 
-
-class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
+class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward, ct.ConditionedTask):
     """Task parameters for the coen-dome-decision-making audiovisual tasks: localization and two modality discriminations."""
 
-    model_config = ConfigDict(json_schema_extra={"x-session-fields": list(SESSION_FIELDS), "x-rules": list(RULES), "x-trial-types": list(TRIAL_TYPES),
-                                                  "x-required-conditions": list(REQUIRED), "x-max-combinations": conditions.MAX_COMBINATIONS})
+    model_config = ConfigDict(json_schema_extra=ct.schema_extra(SESSION_FIELDS, RULES, TRIAL_TYPES, REQUIRED))
+    SESSION_FIELDS = SESSION_FIELDS
+    RULES = RULES
+    TRIAL_TYPES = TRIAL_TYPES
+    REQUIRED = REQUIRED
 
     task_type: TaskType = Field(
         description=(
@@ -470,73 +363,6 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         return self
 
     @model_validator(mode="after")
-    def _weights_and_rules(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # TrialDraw.CheckTask's same rules: x-rules on the task's own values (each combination's in _conditions_run), the
-        # weights' sum.
-        problems = conditions.rule_problems(RULES, self.model_dump(by_alias=True, mode="json"))
-        if problems:
-            raise ValueError("; ".join(f"{problem} (x-rules)" for problem in problems))
-        if not sum(condition.weight for condition in self.trial_conditions) > 0:
-            raise ValueError("trial_conditions needs a condition with a weight above 0")
-        if sum(condition.weight for condition in self.trial_conditions) > MAX_WEIGHT_SUM:
-            raise ValueError(f"trial_conditions' weights add to more than {MAX_WEIGHT_SUM}, the most the draw can sum")
-        return self
-
-    @model_validator(mode="after")
-    def _conditions_run(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
-        # TrialDraw's same build: each condition's set and pairs over the task's values, every combination (at most
-        # MAX_COMBINATIONS), each a task that must validate; then x-required-conditions and the timing rules between a
-        # trial and the next, on the weighted combinations.
-        if (info.context or {}).get("condition"):
-            return self
-        base = self.model_dump(by_alias=True, mode="json")
-        leaves = conditions.flatten(base)
-        drawn, built = [], {}   # built: each distinct set and pairs' combinations, checked once
-        for i, condition in enumerate(self.trial_conditions):
-            where = f"trial_conditions[{i}] ({condition.trial_type.value})"
-            paired = [path for group in condition.pairs for path in group]
-            for path in [*condition.set, *paired]:
-                if field := session_field(path):
-                    raise ValueError(f"{where} sets or pairs {path}, a session field (x-session-fields: {field} {SESSION_FIELDS[field]})")
-                if path not in leaves:
-                    raise ValueError(f"{where} sets or pairs {path}, which is not a task field")
-                if path.startswith("optogenetics.") and not self.optogenetics.enabled:
-                    raise ValueError(f"{where} sets {path} with optogenetics off")
-            if len(set(paired)) < len(paired) or any(len(group) < 2 for group in condition.pairs):
-                raise ValueError(f"{where}: each pairs group needs two paths or more, each path in one group")
-            key = json.dumps([condition.set, condition.pairs], sort_keys=True)
-            if key not in built:
-                built[key] = self._combinations(base, condition, where)
-            drawn += built[key] * (condition.weight > 0)
-        if problems := conditions.required_problems(list(REQUIRED), base, drawn):
-            raise ValueError("; ".join(f"{problem} (x-required-conditions)" for problem in problems))
-        _between_trials(drawn)
-        return self
-
-    def _combinations(self, base: dict, condition: TrialCondition, where) -> list[dict]:
-        """A condition's combinations as tasks' values (by alias, as JSON), each checked as a task."""
-        try:
-            cells = _cells(base, condition.set, condition.pairs)
-        except ValueError as e:
-            raise ValueError(f"{where}: {e}") from None
-        # Counted before any is built, as TrialDraw.BuildConditions does, so an oversized condition is refused at once.
-        count = math.prod(len(options) for _, options in cells)
-        if count > conditions.MAX_COMBINATIONS:
-            raise ValueError(f"{where} expands into {count} combinations, more than {conditions.MAX_COMBINATIONS} (x-max-combinations)")
-        tasks = []
-        for combo in _product(cells):
-            data = copy.deepcopy(base)
-            for path, value in combo.items():
-                _put(data, path, value)
-            data["trialConditions"] = [{"trialType": condition.trial_type.value, "weight": 1}]
-            try:
-                type(self).model_validate(data, context={"condition": True})
-            except ValidationError as e:
-                raise ValueError(f"{where} with {combo}: {e}") from None
-            tasks.append(data)
-        return tasks
-
-    @model_validator(mode="after")
     def _one_spout_in_go_no_go(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.CheckTask's same rule: go/no-go uses the left spout alone.
         if self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
@@ -559,8 +385,13 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, AutoReward):
         return self
 
 
+    @classmethod
+    def between_trials(cls, tasks: list[dict]) -> None:
+        _between_trials(tasks)
+
+
 # The list fields one entry of which each trial draws (open_rigs.rigs.conditions.pick_lists).
-LIST_FIELDS = conditions.pick_lists(UclOpenCoenDomeDecisionMakingTaskParameters.model_json_schema(by_alias=True))
+LIST_FIELDS = UclOpenCoenDomeDecisionMakingTaskParameters.list_fields()
 
 
 def _between_trials(tasks: list[dict]) -> None:
