@@ -24,7 +24,7 @@ The trial is one state machine on the Harp clock, lib-open-rigs' `TrialLoop` (th
 
 | Path | What |
 |---|---|
-| `src\main.bonsai` | The workflow, top level in data-flow order: ReadLabRig, Initialization (ExperimentControl, LaunchSettings), TaskFile, Declarations, ExperimentLogs, Hardware, Display, Audio, BackgroundNoise, ConnectForTask, Logging, Status, Rewards, RewardValve-Left, RewardValve-Right, TaskLogic, ExperimentRecords, LiveView; launch properties SubjectId, SessionId, TaskPath, DisplayDevice, ConfigRoot and LaunchId |
+| `src\main.bonsai` | The workflow, top level in data-flow order: ReadLabRig, ExperimentControl, LaunchSettings, TaskFile, Declarations, ExperimentLogs, DomeHardware, Display, Audio, BackgroundNoise, ConnectForTask, Logging, Status, Rewards, RewardValve-Left, RewardValve-Right, TaskLogic, ExperimentRecords, LiveView; launch properties SubjectId, SessionId, TaskPath, DisplayDevice, ConfigRoot and LaunchId |
 | `src\Extensions` | The task in tested C# (`tests\Extensions.Tests`): each trial's draw, timing and response rule, run by lib-open-rigs' `TrialLoop` (`TrialLogic.cs`), its row (`TrialRow.cs`) and the auditory stimuli (`AuditoryStimulusSet.cs`); its README lists each file's classes |
 | `config\task-localization.yml`, `config\task-discrimination-go-no-go.yml`, `config\task-discrimination-left-right.yml` | The task files rig-control copies at launch (read at Start for the background noise) and again at Go with the form's edits |
 | `schemas\trial-columns.yml` | What each `WorkflowData_Trials` column means |
