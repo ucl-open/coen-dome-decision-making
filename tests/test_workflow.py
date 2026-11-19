@@ -4,10 +4,8 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import open_rigs.rigs
-import yaml
+from open_rigs.rigs import workflow_checks
 from open_rigs.rigs import workflow_lint as lint
-from open_rigs.rigs.lab_rig import LabRig
 
 
 ROOT = Path(__file__).parents[1]
@@ -165,11 +163,6 @@ def test_the_shared_blocks_replace_the_local_copies():
     assert not list((ROOT / "src" / "Extensions").glob("*.bonsai"))
 
 
-def test_every_config_root_is_the_lab_s():
-    # check-workflow holds every node that reads rig.yml to one root (3 nodes: ReadLabRig, ExperimentRecords, LiveView); this holds that root to the lab's.
-    assert set(re.findall(r"<(?:\w+:)?ConfigRoot>([^<]*)</", TEXT)) == {r"C:\Coen-Lab-Local\RigConfigs"}
-
-
 def test_the_launch_properties():
     # No MissingCalibration: a reward valve without a calibration always stops the workflow.
     top = list(MAIN.find(W + "Workflow").find(W + "Nodes"))
@@ -209,28 +202,15 @@ def test_the_metrics_are_the_view_s():
     assert names == {"trialNumber", "target", "trialType", "visualAzimuthDeg", "auditoryAzimuthDeg", "rewardOfferedUl", "laserCondition", "curriculumStage"}
 
 
-# The lab's rules for every workflow (open_rigs.rigs.workflow_lint, one copy in lib-open-rigs).
+# The lab's rules for every workflow (open_rigs.rigs.workflow_lint, one copy in lib-open-rigs), the shared ones as
+# workflow_checks' tests; test_the_hardware_is_the_lab_s_pieces below replaces the shared one, adding DomeHardware's devices.
 WORKFLOW = lint.Workflow(ROOT)
-
-
-def test_no_fixed_width_pulse_reaches_a_reward_valve():
-    # Every reward is its RewardValve piece's calibrated pulse; checked against the lab's rig template's valve lines.
-    rig = LabRig.model_validate(yaml.safe_load((Path(open_rigs.rigs.__file__).parent / "rig-template.yml").read_text(encoding="utf-8").replace("CHANGE-ME", "X")))
-    assert rig.reward_valve_lines() and lint.fixed_width_pulses_on_reward_valves(WORKFLOW, rig.reward_valve_lines()) == []
+globals().update(workflow_checks.tests(ROOT))
 
 
 def test_every_harp_delay_runs_on_the_timestamp_clock():
     _, off = lint.harp_delays_off_the_clock(WORKFLOW)
     assert off == []
-
-
-def test_no_event_sender_completes_events():
-    senders, finite = lint.finite_event_senders(WORKFLOW)
-    assert senders == 0 and finite == []  # LogRngSeed sends RngSeed, LogControlEvents Control and Rewards RewardDelivered
-
-
-def test_no_trial_graph_closes_a_shared_subject():
-    assert lint.subjects_closed_by_a_nested_multicast(WORKFLOW) == []
 
 
 def test_the_speakers_and_the_mixer_are_the_shared_block_s():
@@ -277,54 +257,8 @@ def test_the_hardware_is_the_lab_s_pieces():
         ("Camera-Face", "camera"), ("Camera-Pupil", "camera"), ("Camera-Body", "camera")]
 
 
-def test_zapit_is_the_shared_include_given_the_conditions_file():
-    assert lint.zapit_include_problems(WORKFLOW) == []
-
-
 def test_no_device_is_opened_by_hand():
     assert lint.hand_opened_devices(WORKFLOW) == []
-
-
-def test_the_live_view_is_last_and_fed_by_nothing():
-    assert lint.live_view_problems(WORKFLOW) == []
-
-
-def test_the_penalty_sound_is_the_lab_s_at_the_task_s_level():
-    assert lint.penalty_sound_problems(WORKFLOW) == []
-
-
-def test_the_readme_lists_every_open_rigs_block():
-    assert lint.readme_missing_blocks(WORKFLOW) == []
-
-
-def test_every_command_is_declared_once_by_the_task_or_its_piece():
-    # The pieces declare their own (LickSpoutStage's spout commands and SpoutStepSize, each RewardValve's
-    # <Name>.Reward): a task's copy stops ControlServer at Start.
-    assert lint.undeclared_commands(WORKFLOW) == [] and lint.declared_twice(WORKFLOW) == []
-
-
-def test_spout_step_size_is_the_lick_spout_stage_s():
-    assert lint.spout_step_size_problems(WORKFLOW) == []
-
-
-def test_the_experiment_records_are_the_shared_include():
-    assert lint.experiment_records_problems(WORKFLOW) == []
-
-
-def test_the_launch_settings_are_the_shared_include():
-    assert lint.launch_settings_problems(WORKFLOW) == []
-
-
-def test_the_layout_is_tracked():
-    assert lint.layout_problems(WORKFLOW) == []
-
-
-def test_the_experiment_logs_are_the_lab_s():
-    assert lint.experiment_log_problems(WORKFLOW) == []
-
-
-def test_every_file_the_workflow_writes_is_in_the_manifest_s_expected_files():
-    assert lint.expected_files_problems(WORKFLOW) == []
 
 
 def test_no_wall_clock_wait_inside_task_logic():
@@ -345,10 +279,6 @@ def test_the_rng_seed_is_logged_at_trial_1s_start():
     assert [nodes[i].find(W + "Combinator").findtext(TRL + "Kind") for i in picks] == ["Start"]
 
 
-def test_the_task_logs_are_the_shared_include():
-    assert lint.task_logs_problems(WORKFLOW) == []
-
-
 def test_each_trial_s_sound_carries_its_sync_copy():
     # SelectAuditoryStimulus gives the mixer's buffer at the task's level, sync copy and all (OpenRigs.Audio SpeakerSet.Layout),
     # straight to the mixer's StimulusSounds; each sounding trial paired with the levelled set by WithLatestFrom, no per-trial graph.
@@ -361,14 +291,3 @@ def test_each_trial_s_sound_carries_its_sync_copy():
     assert into == {"Source1": "AuditoryTrial?", "Source2": "StimulusSoundBuffers"}
     assert not [n for n in _named("Audio").iter(W + "Expression") if n.get(XSI) in lint.PER_ELEMENT]
     assert "Broadcast" not in TEXT and "ChannelActivation" not in TEXT and "PinkNoiseSync" not in TEXT
-
-
-def test_the_extensions_readme_names_every_public_class():
-    # The README had fallen behind the code (classes left out, the lick inputs misdescribed).
-    import re
-
-    folder = Path(__file__).parents[1] / "src" / "Extensions"
-    readme = (folder / "README.md").read_text(encoding="utf-8-sig")
-    code = "".join(f.read_text(encoding="utf-8-sig") for f in folder.glob("*.cs") if not f.name.endswith(".Generated.cs"))
-    classes = set(re.findall(r"^public (?:static )?class (\w+)", code, re.M))
-    assert sorted(c for c in classes if f"`{c}`" not in readme) == []
