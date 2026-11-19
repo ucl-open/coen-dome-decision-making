@@ -32,14 +32,14 @@ taskParameters:
       - -60
       - 60
   trialStructure:
-    wheelQuietSeconds: 0
-    wheelQuietCm: 0
-    lickQuietSeconds: 0
-    responseWindowSeconds: 1.5
     itiMinSeconds: 3.4
     itiMaxSeconds: 4.4
+    lickQuietSeconds: 0
+    wheelQuietSeconds: 0
+    wheelQuietCm: 0
     outcomeToSpoutsOutSeconds: 2.0
     responseDelaySeconds: 0.0
+    responseWindowSeconds: 1.5
     visualStimulusSeconds: 1.5
     stimulusToSpoutsInSeconds: 0.5
   visualStimulus:
@@ -86,3 +86,4 @@ taskParameters:
     maxRepeats: 5
     repeatOn: notCorrect
   singleSpoutProbability: 0.0
+  spoutsStayIn: false

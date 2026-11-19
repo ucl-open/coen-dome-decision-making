@@ -49,14 +49,14 @@ taskParameters:
       - 0
       auditoryStimulus.levelDbfs: mute
   trialStructure:
-    wheelQuietSeconds: 0
-    wheelQuietCm: 0
-    lickQuietSeconds: 0
-    responseWindowSeconds: 1.5
     itiMinSeconds: 1.5
     itiMaxSeconds: 2.0
+    lickQuietSeconds: 0
+    wheelQuietSeconds: 0
+    wheelQuietCm: 0
     outcomeToSpoutsOutSeconds: 1.5
     responseDelaySeconds: 0.0
+    responseWindowSeconds: 1.5
     visualStimulusSeconds: 1.5
     stimulusToSpoutsInSeconds: 0.5
   visualStimulus:
