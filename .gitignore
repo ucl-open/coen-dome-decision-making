@@ -10,6 +10,7 @@ obj
 *.exe.settings
 *.wav
 *.layout
+# The workflow's editor layout, which .bonsai\Setup.ps1 copies to the machine's (camera preview, exposure and gain).
 !config/main.layout
 *.editor
 .bonsai/**
@@ -88,4 +89,5 @@ ipython_config.py
 #   For a library or package, you might want to ignore these files since the code is
 #   intended to run in multiple environments; otherwise, check them in:
 # .python-version
+# The 100 auditory stimuli the workflow plays, committed (tests check them).
 !src/sounds/*.wav
