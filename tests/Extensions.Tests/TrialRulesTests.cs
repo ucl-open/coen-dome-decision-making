@@ -6,6 +6,7 @@ using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using UclOpenCoenDomeDecisionMakingTask;
 using Event = OpenRigs.Trials.TrialEvent<global::Trial, global::DecisionUpdate, global::TrialOutcome>;
@@ -230,7 +231,7 @@ public class ResponseRuleTests
             var kinds = file.Contains("left-right") ? new[] { "audiovisualCoherent", "audiovisualConflict", "neutral" } : new[] { "audiovisualConflict", "neutral" };
             CollectionAssert.AreEquivalent(kinds, probes.Select(t => t.trialType).Distinct().ToArray(), file);
             Assert.IsTrue(all.Where(t => t.target != Target.Random).All(t => !kinds.Contains(t.trialType)), file);
-            Assert.IsTrue(probes.All(t => t.bothSpoutsOffered && !t.autoReward && SpoutsInCommand.Command(t) == LickSpoutCommand.SpoutsIn), file);
+            Assert.IsTrue(probes.All(t => t.bothSpoutsOffered && !t.autoReward && SpoutCommands.SpoutsIn(t) == LickSpoutCommand.SpoutsIn), file);
             int rewarded = 0, penalised = 0;
             for (int i = 0; i < probes.Count; i++)
             {
@@ -359,6 +360,54 @@ public class CueTests
         Assert.IsTrue(run.Outcomes.Count >= 2);
         Assert.IsFalse(run.Of(TrialEventKind.Cue).Any(e => e.Cue == TrialRules.DrinkCue));
         Assert.IsTrue(run.Outcomes.All(o => !o.SpoutMovements));
+    }
+}
+
+/// <summary>SpoutCommands: every spout move from the trial events, as LickSpoutStage.Commands takes them.</summary>
+[TestClass]
+public class SpoutCommandsTests
+{
+    static IList<LickSpoutCommand> Commands(Harness run)
+    {
+        return new SpoutCommands().Process(run.Events.ToObservable()).ToList().Wait();
+    }
+
+    [TestMethod]
+    public void WithSpoutMovementsTrial1StartsOutAndEachOutcomeAndDrinkMoveThem()
+    {
+        // Trial 1's interval from 10 s: the spouts out; SpoutsIn at 12.5 s; a correct lick at 12.7 s leaves the
+        // rewarded spout alone in; the Drink, 1.5 s into the next interval, draws it out. Trial 2's interval start moves nothing.
+        var run = new Harness(Rules.Make());
+        run.RunTo(12.05);
+        var right = run.Spout(true);
+        run.At(12.7, h => h.Lick(right)).RunTo(16);
+        var commands = Commands(run);
+        Assert.IsTrue(run.Of(TrialEventKind.Iti).Count >= 2);
+        CollectionAssert.AreEqual(new[] { LickSpoutCommand.SpoutsOut, SpoutCommands.SpoutsIn(run.First),
+            right == 0 ? LickSpoutCommand.LeftOnly : LickSpoutCommand.RightOnly, LickSpoutCommand.SpoutsOut }, commands.Take(4).ToArray());
+        var drinks = run.Of(TrialEventKind.Cue).Count(e => e.Cue == TrialRules.DrinkCue);
+        Assert.AreEqual(1 + drinks, commands.Count(c => c == LickSpoutCommand.SpoutsOut));
+        CollectionAssert.AreEqual(commands.ToArray(), Commands(run).ToArray(), "each subscription starts at its own trial 1");
+    }
+
+    [TestMethod]
+    public void WithoutSpoutMovementsOnlyTheSpoutsInCueMovesThem()
+    {
+        // Habituation (stage 0): both spouts every trial, sent in at each SpoutsIn cue and never drawn out.
+        var run = new Harness(Rules.Make(stage: 0)).RunTo(25);
+        var spoutsIn = run.Of(TrialEventKind.Cue).Where(e => e.Cue == TrialRules.SpoutsInCue).ToList();
+        Assert.IsTrue(spoutsIn.Count >= 2);
+        CollectionAssert.AreEqual(spoutsIn.Select(e => SpoutCommands.SpoutsIn(e.Trial)).ToArray(), Commands(run).ToArray());
+        Assert.IsTrue(spoutsIn.All(e => SpoutCommands.SpoutsIn(e.Trial) == LickSpoutCommand.SpoutsIn));
+    }
+
+    [TestMethod]
+    public void GoNoGoSendsTheLeftSpoutInEveryTrial()
+    {
+        var run = new Harness(Rules.Make(file: "task-discrimination-go-no-go.yml")).RunTo(25);
+        var spoutsIn = run.Of(TrialEventKind.Cue).Where(e => e.Cue == TrialRules.SpoutsInCue).ToList();
+        Assert.IsTrue(spoutsIn.Count >= 2 && spoutsIn.All(e => SpoutCommands.SpoutsIn(e.Trial) == LickSpoutCommand.LeftOnly));
+        Assert.IsFalse(Commands(run).Any(c => c == LickSpoutCommand.SpoutsIn || c == LickSpoutCommand.RightOnly));
     }
 }
 
@@ -632,9 +681,9 @@ public class ConsequenceTests
     [TestMethod]
     public void TheSpoutsComeInAsTheTrialSays()
     {
-        Assert.AreEqual(LickSpoutCommand.SpoutsIn, SpoutsInCommand.Command(new Trial { bothSpoutsOffered = true, target = "Left" }));
-        Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutsInCommand.Command(new Trial { bothSpoutsOffered = false, target = "Left" }));
-        Assert.AreEqual(LickSpoutCommand.RightOnly, SpoutsInCommand.Command(new Trial { bothSpoutsOffered = false, target = "Right" }));
+        Assert.AreEqual(LickSpoutCommand.SpoutsIn, SpoutCommands.SpoutsIn(new Trial { bothSpoutsOffered = true, target = "Left" }));
+        Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutCommands.SpoutsIn(new Trial { bothSpoutsOffered = false, target = "Left" }));
+        Assert.AreEqual(LickSpoutCommand.RightOnly, SpoutCommands.SpoutsIn(new Trial { bothSpoutsOffered = false, target = "Right" }));
     }
 }
 

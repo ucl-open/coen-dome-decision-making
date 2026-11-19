@@ -193,7 +193,7 @@ SESSION_FIELDS = {
     "trialConditions": "the mix the conditions are",
     "taskType": "the task the file and its curriculum train; x-required-conditions keys on it",
     "backgroundNoise": "plays without a break from Ready, before the first trial",
-    "spoutMovements": "the spouts' place before trial 1 is set once at Go (main.bonsai SpoutMovements?)",
+    "spoutMovements": "the spouts' place before trial 1 is set once, at trial 1's interval start (SpoutCommands)",
     "penalty.sound.levelDbfs": "the penalty sound's buffer is laid out once at Go (OpenRigs.Audio PlayPenaltySound)",
     "optogenetics.enabled": "Zapit is connected and its conditions file loaded at Go",
     "optogenetics.zapitConditionsPath": "the conditions file loaded in Zapit and counted at Go",

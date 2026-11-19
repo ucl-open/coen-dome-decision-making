@@ -686,7 +686,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and the seed; Arm and Trigger: Zapit's StartStimulus (Zapit) and the ZapitTrigger line raised, cleared at TriggerOff; Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (stimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and Drink (drinkSeconds into the next interval, with spout movements: the spouts out); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the spouts and the penalty sound. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and the seed; Arm and Trigger: Zapit's StartStimulus (Zapit) and the ZapitTrigger line raised, cleared at TriggerOff; Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (stimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and Drink (drinkSeconds into the next interval, with spout movements: the spouts out); Outcome: the trial's row (TrialRow), the reward (RewardRequests) and the penalty sound. Every spout move is SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and Drink cues', the outcome's. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -927,41 +927,6 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="trl:PickTrialEvents">
-                <trl:Kind>Cue</trl:Kind>
-                <trl:Cue>SpoutsIn</trl:Cue>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>Trial</Selector>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="ext:SpoutsInCommand" />
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage.Commands</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TrialEvents</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="trl:PickTrialEvents">
-                <trl:Kind>Cue</trl:Kind>
-                <trl:Cue>Drink</trl:Cue>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:ToLickSpoutCommand">
-                <dev:Command>SpoutsOut</dev:Command>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage.Commands</Name>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TrialEvents</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="trl:PickTrialEvents">
                 <trl:Kind>Outcome</trl:Kind>
               </Combinator>
             </Expression>
@@ -999,30 +964,6 @@
               <Name>RewardRequests</Name>
             </Expression>
             <Expression xsi:type="rx:Condition">
-              <Name>SpoutMovementsAtOutcome?</Name>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="WorkflowInput">
-                    <Name>Source1</Name>
-                  </Expression>
-                  <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>SpoutMovements</scr:Expression>
-                  </Expression>
-                  <Expression xsi:type="WorkflowOutput" />
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                </Edges>
-              </Workflow>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>SpoutCommand</Selector>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>LickSpoutStage.Commands</Name>
-            </Expression>
-            <Expression xsi:type="rx:Condition">
               <Name>PenaltySoundOn?</Name>
               <Workflow>
                 <Nodes>
@@ -1042,42 +983,12 @@
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:PlayPenaltySound.bonsai" />
             <Expression xsi:type="SubscribeSubject">
-              <Name>PathPrefix</Name>
+              <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Take">
-                <rx:Count>1</rx:Count>
-              </Combinator>
-            </Expression>
-            <Expression xsi:type="SubscribeSubject">
-              <Name>TaskConfig</Name>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="rx:Zip" />
-            </Expression>
-            <Expression xsi:type="rx:Condition">
-              <Name>SpoutMovements?</Name>
-              <Description>Trial 1 starts with the spouts out, as every later trial does after the last one's drink; a task without spout movements (habituation) keeps them in.</Description>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="WorkflowInput">
-                    <Name>Source1</Name>
-                  </Expression>
-                  <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>Item2.TaskParameters.SpoutMovements</scr:Expression>
-                  </Expression>
-                  <Expression xsi:type="WorkflowOutput" />
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                </Edges>
-              </Workflow>
-            </Expression>
-            <Expression xsi:type="Combinator">
-              <Combinator xsi:type="dev:ToLickSpoutCommand">
-                <dev:Command>SpoutsOut</dev:Command>
-              </Combinator>
+              <Name>SpoutCommands</Name>
+              <Description>Every spout move, from the trial events (tested C#): with spout movements, the spouts out at trial 1's interval start and at each Drink cue; at each SpoutsIn cue both in on a both-spouts trial, else the target's alone; at the outcome, with spout movements, the rewarded spout alone, else both out. A task without spout movements (habituation) keeps them in.</Description>
+              <Combinator xsi:type="ext:SpoutCommands" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
               <Name>LickSpoutStage.Commands</Name>
@@ -1122,27 +1033,13 @@
             <Edge From="43" To="44" Label="Source1" />
             <Edge From="44" To="45" Label="Source1" />
             <Edge From="45" To="46" Label="Source1" />
+            <Edge From="44" To="47" Label="Source1" />
             <Edge From="47" To="48" Label="Source1" />
             <Edge From="48" To="49" Label="Source1" />
-            <Edge From="49" To="50" Label="Source1" />
-            <Edge From="51" To="52" Label="Source1" />
+            <Edge From="44" To="50" Label="Source1" />
+            <Edge From="50" To="51" Label="Source1" />
             <Edge From="52" To="53" Label="Source1" />
             <Edge From="53" To="54" Label="Source1" />
-            <Edge From="54" To="55" Label="Source1" />
-            <Edge From="53" To="56" Label="Source1" />
-            <Edge From="56" To="57" Label="Source1" />
-            <Edge From="57" To="58" Label="Source1" />
-            <Edge From="53" To="59" Label="Source1" />
-            <Edge From="59" To="60" Label="Source1" />
-            <Edge From="60" To="61" Label="Source1" />
-            <Edge From="53" To="62" Label="Source1" />
-            <Edge From="62" To="63" Label="Source1" />
-            <Edge From="64" To="65" Label="Source1" />
-            <Edge From="65" To="67" Label="Source1" />
-            <Edge From="66" To="67" Label="Source2" />
-            <Edge From="67" To="68" Label="Source1" />
-            <Edge From="68" To="69" Label="Source1" />
-            <Edge From="69" To="70" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

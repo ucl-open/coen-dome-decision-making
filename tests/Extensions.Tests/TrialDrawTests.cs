@@ -262,7 +262,7 @@ public class TrialDrawTests
             Assert.AreEqual(expected == Target.Go, t.autoReward, "auto-reward only on Go");
             Assert.AreEqual(expected == Target.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
             Assert.IsFalse(t.bothSpoutsOffered);
-            Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutsInCommand.Command(t));
+            Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutCommands.SpoutsIn(t));
         }
     }
 

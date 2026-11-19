@@ -114,13 +114,22 @@ def test_each_trial_event_reaches_its_hardware():
     assert _reached("Stimulus") == {"VisualStimulus", "AuditoryStimulus"}
     assert _reached("Update") == {"GratingAzimuthDeg"}
     assert _reached("Cue", "GratingOff") == {"VisualStimulusOff"}
-    assert _reached("Cue", "SpoutsIn") == _reached("Cue", "Drink") == {"LickSpoutStage.Commands"}
-    # The cue's command is SpoutsInCommand, apart from the cue and lib's LickSpoutCommand.SpoutsIn.
-    assert TEXT.count('"ext:SpoutsInCommand"') == 1 and '"ext:SpoutsIn"' not in TEXT
-    assert _reached("Outcome") == {"TrialRow", "RewardRequests", "LickSpoutStage.Commands", "PlayPenaltySound.bonsai"}
+    assert _reached("Outcome") == {"TrialRow", "RewardRequests", "PlayPenaltySound.bonsai"}
     assert _reached("Trigger") == {"SetZapitTriggerLine.bonsai Set=true"}
     assert _reached("TriggerOff") == {"SetZapitTriggerLine.bonsai Set=false"}
     assert _reached("Arm", group="Zapit") == _reached("Trigger", group="Zapit") == {"ArmZapit", "ZapitCommands"}
+
+
+def test_every_spout_move_is_spout_commands_over_the_trial_events():
+    # One path (tested C#): trial 1's spouts out, the SpoutsIn and Drink cues and the outcome, none read from TaskConfig.
+    nodes, edges = _scope(_named("TaskLogic"))
+    senders = [i for i, n in enumerate(nodes) if n.get(XSI) == "MulticastSubject" and n.findtext(W + "Name") == "LickSpoutStage.Commands"]
+    assert len(senders) == 1 and TEXT.count("LickSpoutStage.Commands") == 1
+    (command,) = [a for a, b, _ in edges if b == senders[0]]
+    assert _kind(nodes[command]) == "ext:SpoutCommands"
+    assert [nodes[a].findtext(W + "Name") for a, b, _ in edges if b == command] == ["TrialEvents"]
+    assert "TaskConfig" not in {n.findtext(W + "Name") for n in nodes if n.get(XSI) == "SubscribeSubject"}
+    assert "SpoutMovements" not in TEXT and "SpoutsInCommand" not in TEXT
 
 
 def test_zapit_s_start_stimulus_goes_at_arm_or_at_the_trigger():

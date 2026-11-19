@@ -994,16 +994,45 @@ public class RunTrials
 }
 
 [Combinator]
-[Description("Where the spouts move at the SpoutsIn cue: both in on a both-spouts trial, else the target's alone.")]
+[Description("Every spout move, from the trial events: with spout movements, the spouts out at trial 1's interval start and at each Drink cue; at each SpoutsIn cue both in on a both-spouts trial, else the target's alone; at the outcome, with spout movements, the outcome's (the rewarded spout alone, else both out).")]
 [WorkflowElementCategory(ElementCategory.Transform)]
-public class SpoutsInCommand
+public class SpoutCommands
 {
-    public IObservable<LickSpoutCommand> Process(IObservable<Trial> source)
+    public IObservable<LickSpoutCommand> Process(IObservable<TrialEvent<Trial, DecisionUpdate, TrialOutcome>> source)
     {
-        return source.Select(Command);
+        return Observable.Defer(() =>
+        {
+            var firstIti = true;
+            return source.SelectMany(e =>
+            {
+                var command = Command(e, firstIti);
+                if (e.Kind == TrialEventKind.Iti) firstIti = false;
+                return command.HasValue ? new[] { command.Value } : new LickSpoutCommand[0];
+            });
+        });
     }
 
-    public static LickSpoutCommand Command(Trial trial)
+    /// <summary>The spout move an event makes, if any; firstIti on trial 1's interval start, where the spouts go out
+    /// (every later trial's go out at the last one's Drink cue).</summary>
+    public static LickSpoutCommand? Command(TrialEvent<Trial, DecisionUpdate, TrialOutcome> e, bool firstIti)
+    {
+        switch (e.Kind)
+        {
+            case TrialEventKind.Iti:
+                return firstIti && e.Trial.spoutMovements ? LickSpoutCommand.SpoutsOut : (LickSpoutCommand?)null;
+            case TrialEventKind.Cue:
+                if (e.Cue == TrialRules.SpoutsInCue) return SpoutsIn(e.Trial);
+                if (e.Cue == TrialRules.DrinkCue) return LickSpoutCommand.SpoutsOut;
+                return null;
+            case TrialEventKind.Outcome:
+                return e.Outcome.SpoutMovements ? e.Outcome.SpoutCommand : (LickSpoutCommand?)null;
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>Where the spouts move at the SpoutsIn cue: both in on a both-spouts trial, else the target's alone.</summary>
+    public static LickSpoutCommand SpoutsIn(Trial trial)
     {
         if (trial.bothSpoutsOffered) return LickSpoutCommand.SpoutsIn;
         return trial.target == Choice.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly;   // go-no-go: the left
