@@ -9,14 +9,12 @@ taskParameters:
     label: Auditory Added
     sha256: handover
   trialConditions:
-  - trialType: auditory
-    weight: 10
+  - weight: 10
     set:
       target: auditorySide
       visualStimulus.contrasts:
       - 0
-  - trialType: audiovisualCoherent
-    weight: 10
+  - weight: 10
     pairs:
     - - visualStimulus.initialAzimuthsDeg
       - auditoryStimulus.initialAzimuthsDeg

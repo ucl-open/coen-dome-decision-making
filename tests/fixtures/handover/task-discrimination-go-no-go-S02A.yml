@@ -9,19 +9,16 @@ taskParameters:
     label: NoGo Added
     sha256: handover
   trialConditions:
-  - trialType: go
-    weight: 10
+  - weight: 10
     set:
       target: go
       auditoryStimulus.levelDbfs: mute
-  - trialType: noGo
-    weight: 10
+  - weight: 10
     set:
       target: noGo
       visualStimulus.contrasts:
       - 0
-  - trialType: audiovisualCoherent
-    weight: 10
+  - weight: 10
     pairs:
     - - visualStimulus.initialAzimuthsDeg
       - auditoryStimulus.initialAzimuthsDeg

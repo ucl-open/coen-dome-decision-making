@@ -9,8 +9,7 @@ taskParameters:
     label: Habituation
     sha256: handover
   trialConditions:
-  - trialType: left
-    weight: 10
+  - weight: 10
     set:
       target: left
       auditoryStimulus.levelDbfs: mute

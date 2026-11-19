@@ -9,20 +9,17 @@ taskParameters:
     label: Conflict Added
     sha256: handover
   trialConditions:
-  - trialType: visual
-    weight: 10
+  - weight: 10
     set:
       target: visualSide
       auditoryStimulus.initialAzimuthsDeg:
       - 0
-  - trialType: auditory
-    weight: 10
+  - weight: 10
     set:
       target: auditorySide
       visualStimulus.contrasts:
       - 0
-  - trialType: audiovisualCoherent
-    weight: 5
+  - weight: 5
     pairs:
     - - visualStimulus.initialAzimuthsDeg
       - auditoryStimulus.initialAzimuthsDeg
@@ -34,8 +31,7 @@ taskParameters:
       auditoryStimulus.initialAzimuthsDeg:
       - -60
       - 60
-  - trialType: audiovisualConflict
-    weight: 5
+  - weight: 5
     pairs:
     - - visualStimulus.initialAzimuthsDeg
       - auditoryStimulus.initialAzimuthsDeg
@@ -49,8 +45,7 @@ taskParameters:
       - -60
       repeats.repeatOn: never
       repeats.maxRepeats: 0
-  - trialType: neutral
-    weight: 1
+  - weight: 1
     set:
       target: random
       visualStimulus.contrasts:

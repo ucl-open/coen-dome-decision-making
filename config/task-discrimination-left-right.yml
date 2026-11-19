@@ -5,7 +5,7 @@
 # or neither (neutral) has no right answer: a random-reward probe (target random, outcome probe), both spouts in, a choice
 # at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored miss. Each
 # condition says what its trials show and reward: its set over the task's values (any field but x-session-fields), its pairs picking
-# listed values together; its trialType names it. A stage's conditions replace them whole. Visual-only and
+# listed values together; its trialType is derived from them (x-trial-types). A stage's conditions replace them whole. Visual-only and
 # neutral trials are silent (auditoryStimulus.levelDbfs mute).
 # The training stages are the share's curriculum (K:\config\curricula\coen-dome-decision-making\<this file's stem>.conditions.yml):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills curriculum.
@@ -14,22 +14,17 @@ taskParameters:
   rngSeed: null            # null = the workflow draws one at Go; each seed used is a RngSeed event in WorkflowData_Events
   curriculum:              # app-rig-control fills it at launch (id, code, version, path, label, sha256 of the stage run); empty here: Go refuses it
   trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (any field but x-session-fields)
-    - trialType: left
-      weight: 10
+    - weight: 10
       set: { target: left, auditoryStimulus.levelDbfs: mute }
-    - trialType: right
-      weight: 10
+    - weight: 10
       set: { target: right, visualStimulus.contrasts: [0] }
-    - trialType: audiovisualCoherent
-      weight: 5
+    - weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
       set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
-    - trialType: audiovisualConflict
-      weight: 5
+    - weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
       set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60] }
-    - trialType: neutral
-      weight: 1
+    - weight: 1
       set: { target: random, visualStimulus.contrasts: [0], auditoryStimulus.levelDbfs: mute }
   trialStructure:
     itiMinSeconds: 1.5            # s, from the outcome (after any timeout) to the next stimulus, outcomeToSpoutsOutSeconds included: what Gerion's

@@ -27,8 +27,8 @@ public class HandoverTests
         return GoldenTaskFiles.Read(Path.Combine(Fixture.Repo(), "tests", "fixtures", "handover"));
     }
 
-    // The file's conditions as written, read apart from the draw's own reader: (trialType, weight, pairs).
-    static List<Tuple<string, int, YamlSequenceNode>> Written(string text, out YamlMappingNode parameters)
+    // The file's conditions as written, read apart from the draw's own reader: (weight, pairs).
+    static List<Tuple<int, YamlSequenceNode>> Written(string text, out YamlMappingNode parameters)
     {
         var stream = new YamlStream();
         stream.Load(new StringReader(text));
@@ -38,8 +38,7 @@ public class HandoverTests
         {
             YamlNode pairs;
             c.Children.TryGetValue(new YamlScalarNode("pairs"), out pairs);
-            return Tuple.Create(((YamlScalarNode)c.Children[new YamlScalarNode("trialType")]).Value,
-                int.Parse(((YamlScalarNode)c.Children[new YamlScalarNode("weight")]).Value), pairs as YamlSequenceNode);
+            return Tuple.Create(int.Parse(((YamlScalarNode)c.Children[new YamlScalarNode("weight")]).Value), pairs as YamlSequenceNode);
         }).ToList();
     }
 
@@ -58,13 +57,12 @@ public class HandoverTests
             YamlMappingNode parameters;
             var written = Written(golden.Value, out parameters);
             var built = Built(golden.Key, golden.Value);
-            CollectionAssert.AreEqual(written.Select(w => w.Item1).ToList(), built.Select(c => c.TrialType).ToList(), golden.Key);
-            CollectionAssert.AreEqual(written.Select(w => w.Item2).ToList(), built.Select(c => c.Weight).ToList(), golden.Key);
+            CollectionAssert.AreEqual(written.Select(w => w.Item1).ToList(), built.Select(c => c.Weight).ToList(), golden.Key);
             for (int i = 0; i < built.Count; i++)
             {
                 // A pairs group of the grating's and the sound's azimuths: each combination picks both at one index of the
                 // condition's two lists.
-                var pairs = written[i].Item3;
+                var pairs = written[i].Item2;
                 if (pairs == null) continue;
                 var set = (YamlMappingNode)((YamlMappingNode)((YamlSequenceNode)parameters.Children[new YamlScalarNode("trialConditions")]).Children[i]).Children[new YamlScalarNode("set")];
                 foreach (YamlSequenceNode group in pairs)
@@ -108,7 +106,7 @@ public class HandoverTests
         }
     }
 
-    // One trial against its combination (the file's values as BuildConditions picked them): its trialType the file's, the
+    // One trial against its combination (the file's values as BuildConditions picked them): its trialType its condition's, the
     // grating (NaN azimuth at contrast 0), the sound at its level on the speaker nearest its azimuth (NaN mute or at all), the target
     // as the combination names it (a side target from the side picked).
     static void CheckTrial(string file, List<TrialConditionDraw> built, string trialType, int condition, int combinationId, double contrast,

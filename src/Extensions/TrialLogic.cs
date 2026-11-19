@@ -94,7 +94,7 @@ public static class Choice
 public class TrialDraw
 {
     /// <summary>What the draw reads from the task schema (TaskSchema.Generated.cs).</summary>
-    public static readonly ConditionsSchema Schema = new ConditionsSchema(TaskSchema.SessionFields, TaskSchema.ListFields, TaskSchema.MaxCombinations);
+    public static readonly ConditionsSchema Schema = new ConditionsSchema(TaskSchema.SessionFields, TaskSchema.ListFields, TaskSchema.MaxCombinations, TaskSchema.TrialTypes);
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly List<TrialConditionDraw> conditions;

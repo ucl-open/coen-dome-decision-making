@@ -9,8 +9,7 @@ taskParameters:
     label: Habituation
     sha256: handover
   trialConditions:
-  - trialType: audiovisualCoherent
-    weight: 10
+  - weight: 10
     pairs:
     - - visualStimulus.initialAzimuthsDeg
       - auditoryStimulus.initialAzimuthsDeg

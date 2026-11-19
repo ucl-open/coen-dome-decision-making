@@ -29,7 +29,7 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral, go, noGo, left, right]
-  description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryLevelDbfs, the azimuths, target). By default it is derived from the condition's settings - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none) - but a curriculum may choose another.
+  description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryLevelDbfs, the azimuths, target). It is derived at Go from the condition's settings (the task schema's x-trial-types), never stored - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none).
 outcome:
   type: string
   values: [correct, incorrect, noResponse, probe]
@@ -91,7 +91,7 @@ laserTriggerTime:
   description: 'Harp time the workflow raised the Zapit trigger line (the laser, or at 0 mW the galvos and masking light alone): the first tick of the 1 ms Harp clock at or after laserToStimulusSeconds before the stimulus was due. NaN without optogenetics and on a trial that ended before its trigger, so a laser-off trial (a time, laserPowerMw 0) and one answered first (NaN) differ.'
 trialConditionId:
   type: int
-  description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its trialType, weight, pairs and condition-level values (set). A repeat keeps the condition of the trial it repeats.
+  description: The 0-based index of the trial's condition in trialConditions of the task file as run (Settings_Task), which gives its weight, pairs and condition-level values (set), from which its trialType is derived at Go. A repeat keeps the condition of the trial it repeats.
 trialCombinationId:
   type: int
   description: 'The trial''s row in the experiment''s Settings_Combinations (0-based, session-wide): the combination it was drawn from, one pick of every list (pairs zipped), whose values that differ between combinations or from Settings_Task are the row''s values; the row''s trialConditionId and trialType are this trial''s. A repeat keeps the combination of the trial it repeats.'

@@ -9,8 +9,7 @@ taskParameters:
     label: Go Only
     sha256: handover
   trialConditions:
-  - trialType: go
-    weight: 10
+  - weight: 10
     set:
       target: go
       auditoryStimulus.levelDbfs: mute

@@ -344,12 +344,8 @@
     },
     "TrialCondition": {
       "additionalProperties": false,
-      "description": "One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and\nthe lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:\nvisualStimulus.contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.",
+      "description": "One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it\npairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar\nfield's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial\nazimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.",
       "properties": {
-        "trialType": {
-          "$ref": "#/$defs/TrialType",
-          "description": "The condition's name, logged as each trial's trialType: derived from its contrasts, sound level, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing"
-        },
         "weight": {
           "description": "Relative draw weight: each new trial picks a condition with these as relative chances",
           "maximum": 1000000,
@@ -376,7 +372,6 @@
         }
       },
       "required": [
-        "trialType",
         "weight"
       ],
       "title": "TrialCondition",
@@ -470,22 +465,6 @@
       ],
       "title": "TrialStructure",
       "type": "object"
-    },
-    "TrialType": {
-      "description": "A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_trial_type).",
-      "enum": [
-        "visual",
-        "auditory",
-        "audiovisualCoherent",
-        "audiovisualConflict",
-        "neutral",
-        "go",
-        "noGo",
-        "left",
-        "right"
-      ],
-      "title": "TrialType",
-      "type": "string"
     },
     "UclOpenCoenDomeDecisionMakingTaskLogic": {
       "description": "Task logic definition for the coen-dome-decision-making experiment.",

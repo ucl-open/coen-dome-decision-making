@@ -1218,20 +1218,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
-    ///the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:
-    ///visualStimulus.contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.
+    /// One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it
+    ///pairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar
+    ///field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial
+    ///azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
-    the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:
-    visualStimulus.contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.")]
+    [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it
+    pairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar
+    field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial
+    azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialCondition
     {
-    
-        private TrialType _trialType;
     
         private int _weight;
     
@@ -1246,30 +1246,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected TrialCondition(TrialCondition other)
         {
-            _trialType = other._trialType;
             _weight = other._weight;
             _pairs = other._pairs;
             _set = other._set;
-        }
-    
-        /// <summary>
-        /// The condition's name, logged as each trial's trialType: derived from its contrasts, sound level, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("trialType", Required=Newtonsoft.Json.Required.Always)]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialType")]
-        [System.ComponentModel.DescriptionAttribute("The condition\'s name, logged as each trial\'s trialType: derived from its contrast" +
-            "s, sound level, pairing and target (x-trial-types, derive_trial_type) unless cho" +
-            "sen; it names rows and analysis groups and drives nothing")]
-        public TrialType TrialType
-        {
-            get
-            {
-                return _trialType;
-            }
-            set
-            {
-                _trialType = value;
-            }
         }
     
         /// <summary>
@@ -1342,7 +1321,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("TrialType = " + _trialType + ", ");
             stringBuilder.Append("Weight = " + _weight + ", ");
             stringBuilder.Append("Pairs = " + _pairs + ", ");
             stringBuilder.Append("Set = " + _set);
@@ -1653,52 +1631,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("}");
             return stringBuilder.ToString();
         }
-    }
-
-
-    /// <summary>
-    /// A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_trial_type).
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
-    public enum TrialType
-    {
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="visual")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="visual")]
-        Visual = 0,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="auditory")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="auditory")]
-        Auditory = 1,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualCoherent")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualCoherent")]
-        AudiovisualCoherent = 2,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="audiovisualConflict")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="audiovisualConflict")]
-        AudiovisualConflict = 3,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="neutral")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="neutral")]
-        Neutral = 4,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="go")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="go")]
-        Go = 5,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="noGo")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="noGo")]
-        NoGo = 6,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="left")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="left")]
-        Left = 7,
-    
-        [System.Runtime.Serialization.EnumMemberAttribute(Value="right")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="right")]
-        Right = 8,
     }
 
 

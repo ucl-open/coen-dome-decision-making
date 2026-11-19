@@ -154,20 +154,6 @@ class RepeatOn(StrEnum):
     NOT_CORRECT = "notCorrect"
 
 
-class TrialType(StrEnum):
-    """A condition's name, logged as trialType: it names rows and analysis groups and drives nothing (derive_trial_type)."""
-
-    VISUAL = "visual"
-    AUDITORY = "auditory"
-    AUDIOVISUAL_COHERENT = "audiovisualCoherent"
-    AUDIOVISUAL_CONFLICT = "audiovisualConflict"
-    NEUTRAL = "neutral"
-    GO = "go"
-    NO_GO = "noGo"
-    LEFT = "left"
-    RIGHT = "right"
-
-
 # The session fields (the schema's x-session-fields; TrialDraw.SessionFields, a test holds both): only what cannot change
 # per trial, so a condition may not set it (the path or any path under it). A condition may set every other field: the
 # draw reads it per trial from the trial's combination, logged through trialCombinationId and Settings_Combinations.
@@ -226,14 +212,12 @@ REQUIRED = (
 )
 
 
-class TrialCondition(ct.TrialCondition[TrialType]):
-    """One kind of trial in the mix: its trialType, its relative weight, its condition-level values (set) by dotted path and
-    the lists it pairs. A list in a scalar field's cell is one value picked per trial; a list field's list (LIST_FIELDS:
-    visualStimulus.contrasts, the initial azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial."""
+class TrialCondition(ct.TrialCondition):
+    """One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it
+    pairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar
+    field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial
+    azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial."""
 
-    trial_type: TrialType = Field(
-        description="The condition's name, logged as each trial's trialType: derived from its contrasts, sound level, pairing and target (x-trial-types, derive_trial_type) unless chosen; it names rows and analysis groups and drives nothing"
-    )
     weight: int = Field(ge=0, le=1_000_000, description="Relative draw weight: each new trial picks a condition with these as relative chances")
     pairs: list[list[String]] = Field(
         default_factory=list,
@@ -356,7 +340,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
             raise ValueError("target is each trial condition's (its set's target), not the task's")
         for i, condition in enumerate(self.trial_conditions):
             if "target" not in condition.set:
-                raise ValueError(f"trial_conditions[{i}] ({condition.trial_type.value}) needs a target in its set")
+                raise ValueError(f"trial_conditions[{i}] ({self.derive_trial_type(condition)}) needs a target in its set")
         return self
 
     @model_validator(mode="after")

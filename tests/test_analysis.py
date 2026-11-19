@@ -21,9 +21,18 @@ def session(root: Path, name: str, repo: str, task: dict | None = None) -> Path:
     s = root / "sub-GN1" / name
     (s / "Settings").mkdir(parents=True)
     (s / "manifest.json").write_text(json.dumps({"source": {"repo": repo}}), encoding="utf-8")
-    task = task or {"taskType": "localization", "trialConditions": CONDITIONS}
-    (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(json.dumps({"taskParameters": task}), encoding="utf-8")
+    settings(s, task or {"taskType": "localization", "trialConditions": CONDITIONS})
     return s
+
+
+def settings(s: Path, task: dict) -> None:
+    # Settings_Task as run, each condition's trialType (given here beside it) only in its Settings_Combinations rows (P9).
+    conditions = task.get("trialConditions", [])
+    rows = [{"trialCombinationId": i, "trialConditionId": i, "trialType": c["trialType"]} for i, c in enumerate(conditions)]
+    if "trialConditions" in task:
+        task = {**task, "trialConditions": [{k: v for k, v in c.items() if k != "trialType"} for c in conditions]}
+    (s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json").write_text(json.dumps({"taskParameters": task}), encoding="utf-8")
+    (s / "Settings" / "Settings_Combinations_2026-11-16T10-00-00.json").write_text(json.dumps({"rows": rows}), encoding="utf-8")
 
 
 def test_this_repo_s_sessions_count_and_av_dome_s_and_lookalikes_do_not(tmp_path):
@@ -61,10 +70,9 @@ def test_trial_conditions_and_weights_read_a_trial_conditions_session(tmp_path):
 
 def test_conditions_edges_signed_azimuths_no_set_empty_list_and_zero_weights(tmp_path):
     s = session(tmp_path, "ses-001_a", "coen-dome-decision-making")
-    task_file = s / "Settings" / "Settings_Task_2026-11-16T10-00-00.json"
 
     def write(conditions):
-        task_file.write_text(json.dumps({"taskParameters": {"taskType": "localization", "trialConditions": conditions}}), encoding="utf-8")
+        settings(s, {"taskType": "localization", "trialConditions": conditions})
 
     write([{"trialType": "visual", "weight": 1, "set": {"visualStimulus.initialAzimuthsDeg": [-75, 60]}}, {"trialType": "visual", "weight": 0}, {"trialType": "auditory", "weight": 2, "set": None}])
     read = lf.trial_conditions(s)

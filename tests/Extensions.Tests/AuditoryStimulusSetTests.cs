@@ -101,7 +101,7 @@ public class AuditoryStimulusSetTests
     public void EqualisingIsTheFiltersCentredConvolution()
     {
         var set = Load(Speakers());
-        var x = waves[7].Select(s => (s + 32768.0) * (2.0 / 65535.0) - 1.0).ToArray();
+        var x = waves[7].Select(s => s / 32768.0).ToArray();
         var got = Samples(set.Stimulus(7, 2));
         for (int n = 0; n < x.Length; n++)
         {
@@ -146,9 +146,8 @@ public class AuditoryStimulusSetTests
     public void TheSetsOneGainPutsItsFilesAtLevelDbfs()
     {
         // The set's level as stored is the power mean of its waveforms' levels (SoundLevel's rule); a trial's levelDbfs is one
-        // gain on every stored sample, so the set as played sits at it. The repo's own 100 files measure -47.20 dBFS: OpenRigs.Audio
-        // Wave.Read maps a 16-bit 0 to 1.5e-5, not 0, so SoundLevel never sees their silent gaps (-43.22 left out, the plan's
-        // figure); pinned here so a lib fix shows.
+        // gain on every stored sample, so the set as played sits at it. The repo's own 100 files measure -43.22 dBFS, their
+        // silent gaps left out (OpenRigs.Audio Wave.Read reads a 16-bit 0 as exactly 0), so levelDbfs -40 is 3.22 dB louder.
         var set = Load(Speakers());
         var level = set.LevelDbfs;
         var gain = set.Gain(-40);
@@ -159,7 +158,7 @@ public class AuditoryStimulusSetTests
         Assert.AreEqual(0, set.Gain(double.NaN), "mute");
         var repo = Path.Combine(Fixture.Repo(), "src", "sounds");
         var files = Enumerable.Range(0, AuditoryStimulusSet.WaveformCount).Select(i => OpenRigs.Audio.Wave.Read(Path.Combine(repo, "filtered_pink_pulse_train_" + i + ".wav"), 48000)).ToList();
-        Assert.AreEqual(-47.20, AuditoryStimulusSet.SetLevelDbfs(files, 48000), 0.005, "the repo's set as stored, gaps counted (see above)");
+        Assert.AreEqual(-43.22, AuditoryStimulusSet.SetLevelDbfs(files, 48000), 0.005, "the repo's set as stored, silent gaps left out");
     }
 
     [TestMethod]

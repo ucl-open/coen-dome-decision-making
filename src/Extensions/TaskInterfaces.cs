@@ -1,6 +1,5 @@
 using OpenRigs.Core;
 using OpenRigs.Trials;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -15,7 +14,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// <summary>One of the task's trialConditions, built by OpenRigs.Trials TrialConditions.</summary>
     partial class TrialCondition : ITrialCondition
     {
-        Enum ITrialCondition.TrialType { get { return TrialType; } }
     }
 
     /// <summary>The task's parameters, whose trials are drawn from its trialConditions.</summary>
