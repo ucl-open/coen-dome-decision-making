@@ -370,7 +370,7 @@
                     <Combinator xsi:type="rx:IgnoreElements" />
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>AuditoryStimulusSet</Name>
+                    <Name>StimulusWaveforms</Name>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -433,7 +433,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryAmplitude (1 the waveform as stored), TaskLogic's penalty sound at penalty.sound.levelDbfs, checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet), then at Go for the largest amplitude any condition can draw (TrialRules.Loudest into LevelAuditoryStimulusSet, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryAmplitude (1 the waveform as stored), TaskLogic's penalty sound at penalty.sound.levelDbfs, checked when the task file is read at Go; the background noise at the launch's task file's level, checked at Start and sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the largest amplitude any condition can draw (TrialRules.Loudest into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -451,10 +451,10 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
-              <Name>AuditoryStimulusSet</Name>
+              <Name>StimulusWaveforms</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
-              <Name>AuditoryStimulusSet</Name>
+              <Name>StimulusWaveforms</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialRules</Name>
@@ -469,7 +469,7 @@
               <Combinator xsi:type="ext:LevelAuditoryStimulusSet" />
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
-              <Name>LevelledAuditoryStimulusSet</Name>
+              <Name>StimulusSoundBuffers</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>AuditoryStimulus</Name>
@@ -513,7 +513,7 @@
                     <Combinator xsi:type="rx:Zip" />
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>LevelledAuditoryStimulusSet</Name>
+                    <Name>StimulusSoundBuffers</Name>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>AuditoryTrial</Name>
