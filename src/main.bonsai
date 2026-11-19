@@ -493,51 +493,19 @@
                 </Edges>
               </Workflow>
             </Expression>
-            <Expression xsi:type="rx:SelectMany">
+            <Expression xsi:type="SubscribeSubject">
+              <Name>StimulusSoundBuffers</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Combinator xsi:type="rx:WithLatestFrom" />
+            </Expression>
+            <Expression xsi:type="Combinator">
               <Name>PlayAuditoryStimulus</Name>
               <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location; at "all" every speaker's channel, each its own copy), scaled by its auditoryAmplitude, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="WorkflowInput">
-                    <Name>Source1</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Take">
-                      <rx:Count>1</rx:Count>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="rx:AsyncSubject">
-                    <Name>AuditoryTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:Zip" />
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>StimulusSoundBuffers</Name>
-                  </Expression>
-                  <Expression xsi:type="SubscribeSubject">
-                    <Name>AuditoryTrial</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="ext:SelectAuditoryStimulus" />
-                  </Expression>
-                  <Expression xsi:type="MulticastSubject">
-                    <Name>StimulusSounds</Name>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
-                    <Combinator xsi:type="rx:IgnoreElements" />
-                  </Expression>
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                  <Edge From="4" To="3" Label="Source1" />
-                  <Edge From="5" To="3" Label="Source2" />
-                  <Edge From="3" To="6" Label="Source1" />
-                  <Edge From="2" To="8" Label="Source1" />
-                  <Edge From="6" To="7" Label="Source1" />
-                </Edges>
-              </Workflow>
+              <Combinator xsi:type="ext:SelectAuditoryStimulus" />
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>StimulusSounds</Name>
             </Expression>
           </Nodes>
           <Edges>
@@ -550,7 +518,10 @@
             <Edge From="7" To="8" Label="Source1" />
             <Edge From="8" To="9" Label="Source1" />
             <Edge From="10" To="11" Label="Source1" />
-            <Edge From="11" To="12" Label="Source1" />
+            <Edge From="11" To="13" Label="Source1" />
+            <Edge From="12" To="13" Label="Source2" />
+            <Edge From="13" To="14" Label="Source1" />
+            <Edge From="14" To="15" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

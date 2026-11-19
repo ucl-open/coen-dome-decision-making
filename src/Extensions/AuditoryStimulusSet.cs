@@ -182,12 +182,12 @@ public class LevelAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditorySoundFileIndex, equalised for its speaker, on that speaker's channel (a trial at \"all\": every speaker's, each its own copy), scaled by its auditoryAmplitude, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the set at its level (LevelAuditoryStimulusSet) and the trial.")]
+[Description("The mixer's buffer for a trial's sound: the stimulus set's waveform at the trial's auditorySoundFileIndex, equalised for its speaker, on that speaker's channel (a trial at \"all\": every speaker's, each its own copy), scaled by its auditoryAmplitude, with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the trial and the set at its level (LevelAuditoryStimulusSet), as WithLatestFrom pairs them.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {
-    public IObservable<Mat> Process(IObservable<Tuple<AuditoryStimulusSet, Trial>> source)
+    public IObservable<Mat> Process(IObservable<Tuple<Trial, AuditoryStimulusSet>> source)
     {
-        return source.Select(input => input.Item1.Buffer(input.Item2.auditorySoundFileIndex, input.Item2.speakerChannel, input.Item2.auditoryAmplitude));
+        return source.Select(input => input.Item2.Buffer(input.Item1.auditorySoundFileIndex, input.Item1.speakerChannel, input.Item1.auditoryAmplitude));
     }
 }
