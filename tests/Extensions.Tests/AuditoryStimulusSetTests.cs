@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Audio;
+using OpenRigs.Trials;
 using System;
 using System.Globalization;
 using System.IO;
@@ -165,7 +166,7 @@ public class AuditoryStimulusSetTests
             }
         }
         // At "all" every speaker's channel plays its own equalised copy at the amplitude: the per-speaker check above covers it.
-        var everywhere = checkedSet.Buffer(7, Trial.AllSpeakersChannel, 0.1);
+        var everywhere = checkedSet.Buffer(7, SoundAzimuths.AllSpeakersChannel, 0.1);
         foreach (var channel in set.Speakers.SpeakerChannels)
         {
             var own = Samples(set.Stimulus(7, channel));

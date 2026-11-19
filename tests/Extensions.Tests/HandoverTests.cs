@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenRigs.Core;
 using OpenRigs.Devices;
 using OpenRigs.Trials;
 using System;
@@ -7,6 +8,7 @@ using System.IO;
 using System.Linq;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
+using TrialConditionDraw = OpenRigs.Trials.TrialConditionDraw<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
 using Event = OpenRigs.Trials.TrialEvent<global::Trial, global::DecisionUpdate, global::TrialOutcome>;
 
 /// <summary>The task files app-rig-control writes at launch (tests\fixtures\handover, golden files its tests\test_handover.py
@@ -141,11 +143,11 @@ public class HandoverTests
         Assert.AreEqual(picked, contrast, where);
         Assert.AreEqual(picked > 0 ? c.VisualStimulus.InitialAzimuthsDeg[0] : double.NaN, visualAzimuth, where);
         Assert.AreEqual(c.AuditoryStimulus.Amplitude, amplitude, where);
-        var soundAzimuth = TrialDraw.SoundAzimuth(c.AuditoryStimulus.InitialAzimuthsDeg[0]).Value;
+        var soundAzimuth = SoundAzimuths.Parse(c.AuditoryStimulus.InitialAzimuthsDeg[0]).Value;
         var heard = amplitude > 0 && !double.IsNaN(soundAzimuth)
-            ? TrialDraw.NearestSpeaker(Fixture.Speakers(), soundAzimuth, c.VisualStimulus.ElevationDeg).Value.Position.Azimuth : double.NaN;
+            ? SoundAzimuths.NearestSpeaker(Fixture.Speakers(), soundAzimuth, c.VisualStimulus.ElevationDeg).Value.Position.Azimuth : double.NaN;
         Assert.AreEqual(heard, auditoryAzimuth, where);
-        var named = TrialDraw.Name(c.Target);
+        var named = EnumNames.Name(c.Target);
         var expected = c.Target == UclOpenCoenDomeDecisionMakingTask.Target.VisualSide ? (c.VisualStimulus.InitialAzimuthsDeg[0] > 0 ? Choice.Right : Choice.Left)
             : c.Target == UclOpenCoenDomeDecisionMakingTask.Target.AuditorySide ? (soundAzimuth > 0 ? Choice.Right : Choice.Left)
             : char.ToUpperInvariant(named[0]) + named.Substring(1);
@@ -227,7 +229,7 @@ public class HandoverTests
             var rules = new TrialRules(golden.Value, Fixture.Speakers(), true, path => 2);
             var json = rules.CombinationsJson;
             var draw = new TrialDraw(golden.Value, Fixture.Speakers(), path => 2);
-            var own = TrialDraw.Flatten(draw.Task);
+            var own = TaskYaml.Flatten(draw.Task, TaskSchema.ListFields);
             var rows = (Newtonsoft.Json.Linq.JArray)Newtonsoft.Json.Linq.JObject.Parse(json)["rows"];
             var combinations = draw.Conditions.SelectMany((c, i) => c.Combinations.Select(m => Tuple.Create(i, c, m))).ToList();
             Assert.AreEqual(combinations.Count, rows.Count, golden.Key);
@@ -245,8 +247,9 @@ public class HandoverTests
                     Assert.IsTrue(allowed.Any(a => p.Name == a || p.Name.StartsWith(a + ".")), where + ": " + p.Name + " is no set, pairs or list-field path");
                 var rebuilt = new Dictionary<string, Newtonsoft.Json.Linq.JToken>(own);
                 foreach (var p in values.Properties()) rebuilt[p.Name] = p.Value;
-                var expected = TrialDraw.Flatten(combinations[n].Item3.Task);
-                CollectionAssert.AreEquivalent(expected.Keys.ToList(), rebuilt.Keys.ToList(), where);
+                // A combination is built from the task without its conditions (session fields, never in a row): compared without them.
+                var expected = TaskYaml.Flatten(combinations[n].Item3.Task, TaskSchema.ListFields).Where(e => TaskYaml.SessionField(TaskSchema.SessionFields, e.Key) == null).ToDictionary(e => e.Key, e => e.Value);
+                CollectionAssert.AreEquivalent(expected.Keys.ToList(), rebuilt.Keys.Where(k => TaskYaml.SessionField(TaskSchema.SessionFields, k) == null).ToList(), where);
                 foreach (var path in expected.Keys) Assert.IsTrue(Newtonsoft.Json.Linq.JToken.DeepEquals(expected[path], rebuilt[path]), where + ": " + path);
             }
             var file = Path.Combine(folder, Path.ChangeExtension(golden.Key, ".json"));

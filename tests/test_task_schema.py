@@ -276,7 +276,7 @@ def test_the_constants_are_the_c_sharp_s():
     # WheelQuietWait in task.py, OpenRigs.Core QuietWait.LickProblems and WheelProblems at Go).
     # MAX_COMBINATIONS and MAX_WEIGHT_SUM (the int.MaxValue the draw refuses a weight sum above) are open_rigs.rigs'.
     assert re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) == []
-    assert MAX_WEIGHT_SUM == 2**31 - 1 and "Sum(c => (long)c.Weight) > int.MaxValue" in logic
+    assert MAX_WEIGHT_SUM == 2**31 - 1 and "TrialConditions.Build(" in logic   # lib's build refuses a sum above int.MaxValue
     assert "TaskSchema.MaxCombinations" in logic and "QuietWait.LickProblems" in logic and "QuietWait.WheelProblems" in logic
     assert "ZapitConditions.MaximumRampDownSeconds" in logic
 
@@ -413,7 +413,7 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
     base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
     combos = ct.condition_combinations(base, {sound: [60, -60], "contrasts": [0.5, 1], "auditoryStimulus.amplitude": [0.5, 1]}, [[visual, sound], ["contrasts", "auditoryStimulus.amplitude"]], LIST_FIELDS)
-    # The first cell's pick changes fastest (TrialDraw.BuildConditions' order, Settings_Combinations' rows).
+    # The first cell's pick changes fastest (OpenRigs.Trials TrialConditions.Build' order, Settings_Combinations' rows).
     assert combos == [
         {visual: [-60], sound: [60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
         {visual: [60], sound: [-60], "contrasts": [0.5], "auditoryStimulus.amplitude": 0.5},
@@ -592,7 +592,7 @@ def test_a_condition_may_expand_into_at_most_the_cap():
 
 
 def test_an_oversized_condition_is_refused_before_its_combinations_are_built():
-    # Counted first, as TrialDraw.BuildConditions does: 2 x 1000^3 combinations would take hours and all memory to build.
+    # Counted first, as OpenRigs.Trials TrialConditions.Build does: 2 x 1000^3 combinations would take hours and all memory to build.
     many = [i / 1000 for i in range(1000)]
     cells = {"contrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.rewardSizeUl": [1 + x for x in many], "autoRewardProbability": many, "bothSpoutsProbability": [1 - x for x in many]}
     with pytest.raises(ValidationError, match="expands into 2000000000 combinations"):

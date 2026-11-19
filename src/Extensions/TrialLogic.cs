@@ -14,6 +14,7 @@ using System.Reactive.Linq;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
 using ConditionTarget = UclOpenCoenDomeDecisionMakingTask.Target;
+using TrialConditionDraw = OpenRigs.Trials.TrialConditionDraw<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
 
 /// <summary>One trial as drawn: its fields are named as the trial log's columns where they are one.</summary>
 public class Trial : IZapitTrial
@@ -43,7 +44,7 @@ public class Trial : IZapitTrial
     public double visualContrast;      // 0: grey screen
     public double visualPhaseRad;
     public double auditoryAmplitude;   // the waveform's scale as stored; 0 when silent (no sound plays)
-    public int speakerChannel;         // the mixer channel of rig.yml's speaker nearest the drawn location; -1 when silent, AllSpeakersChannel at "all"
+    public int speakerChannel;         // the mixer channel of rig.yml's speaker nearest the drawn location; -1 when silent, SoundAzimuths.AllSpeakersChannel at "all"
     public double auditoryAzimuthDeg;     // that speaker's azimuth; NaN when silent or at "all" (auditoryAmplitude tells them apart)
     public double auditoryElevationDeg;
     public int auditorySoundFileIndex;
@@ -56,9 +57,6 @@ public class Trial : IZapitTrial
     public int rngSeed;                // the experiment's seed (TrialDraw.Seed), logged once as an RngSeed event
     internal UclOpenCoenDomeDecisionMakingTaskParameters values;  // its combination's values, which the rules read per trial
 
-    /// <summary>speakerChannel on a trial whose sound plays on every rig.yml speaker (auditoryStimulus.initialAzimuthsDeg "all").</summary>
-    public const int AllSpeakersChannel = -2;
-
     public Trial Clone()
     {
         return (Trial)MemberwiseClone();
@@ -66,13 +64,13 @@ public class Trial : IZapitTrial
 }
 
 [Combinator]
-[Description("Reads the task file's text into the task (TrialDraw.Read): as DeserializeFromYaml, but a trial condition's set values keep their YAML types (numbers, bools), so Settings_Task logs them as such.")]
+[Description("Reads the task file's text into the task (OpenRigs.Core TaskYaml.Read): as DeserializeFromYaml, but a trial condition's set values keep their YAML types (numbers, bools), so Settings_Task logs them as such.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class ReadTask
 {
     public IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Process(IObservable<string> source)
     {
-        return source.Select(TrialDraw.Read);
+        return source.Select(TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>);
     }
 }
 
@@ -108,58 +106,11 @@ public static class Choice
     public const string NoResponse = "NoResponse";
 }
 
-/// <summary>One of the task's trialConditions as built at Go (TrialDraw.BuildConditions).</summary>
-public class TrialConditionDraw
-{
-    /// <summary>The condition's trialType, its trials'.</summary>
-    public string TrialType;
-    /// <summary>Its relative draw weight.</summary>
-    public int Weight;
-    /// <summary>Where it is, for a message: trialConditions[index] (trialType).</summary>
-    public string Where;
-    /// <summary>The task with its set over it, one per combination of its list cells, picked uniformly per trial.</summary>
-    public List<TrialConditionCombination> Combinations;
-}
-
-/// <summary>One combination of a condition's list cells: the task with the condition's set over it.</summary>
-public class TrialConditionCombination
-{
-    /// <summary>The task as this combination's trials draw it.</summary>
-    public UclOpenCoenDomeDecisionMakingTaskParameters Task;
-    /// <summary>The picks that make it, for a message ("" with no list cell).</summary>
-    public string Picks;
-    /// <summary>Its 0-based row in Settings_Combinations: build order across the session, conditions in turn (the trialCombinationId column).</summary>
-    public int Id;
-}
-
-/// <summary>The largest amplitude a task's conditions can draw, and where (a condition and its picks).</summary>
-public class LoudestSound
-{
-    /// <summary>The amplitude: 1 the waveform as stored.</summary>
-    public double Amplitude;
-    /// <summary>The condition that draws it, for a message.</summary>
-    public string Where;
-}
-
 /// <summary>The draw's state and rules, apart from Bonsai so a test can run them.</summary>
 public class TrialDraw
 {
-    /// <summary>The auditoryStimulus.initialAzimuthsDeg item that plays the sound on every rig.yml speaker (task.py ALL_SPEAKERS).</summary>
-    public const string AllSpeakers = "all";
-
-    /// <summary>An auditoryStimulus.initialAzimuthsDeg item as read (a number, or AllSpeakers): its azimuth in degrees, NaN
-    /// for AllSpeakers, null for anything else.</summary>
-    public static double? SoundAzimuth(object item)
-    {
-        if (item as string == AllSpeakers) return double.NaN;
-        double azimuth;
-        if ((item is string || item is IConvertible) && !(item is bool) && double.TryParse(Convert.ToString(item, System.Globalization.CultureInfo.InvariantCulture),
-            System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out azimuth) && !double.IsNaN(azimuth)) return azimuth;
-        return null;
-    }
-
-    /// <summary>The most a condition's weight may be (task.py's TrialCondition.weight le), so the weights' sum stays an int.</summary>
-    public const int MaxWeight = 1000000;
+    /// <summary>What the draw reads from the task schema (TaskSchema.Generated.cs).</summary>
+    public static readonly ConditionsSchema Schema = new ConditionsSchema(TaskSchema.SessionFields, TaskSchema.ListFields, TaskSchema.MaxCombinations);
 
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly List<TrialConditionDraw> conditions;
@@ -197,33 +148,17 @@ public class TrialDraw
         random = new Random(Seed);
     }
 
-    /// <summary>What is wrong with a curriculum (null when present and well formed: an id of 0 or more, a code like S03A, a
-    /// 4-character version, a path of one capital letter, a label and a sha256), else the reason.</summary>
-    public static string CurriculumProblem(Curriculum curriculum)
-    {
-        if (curriculum == null) return "is empty";
-        var bad = new List<string>();
-        if (curriculum.Id < 0) bad.Add("id " + curriculum.Id + " is below 0");
-        if (curriculum.Code == null || !System.Text.RegularExpressions.Regex.IsMatch(curriculum.Code, @"^S\d{2}[A-Z]$")) bad.Add("code '" + curriculum.Code + "' is not like S03A");
-        if (curriculum.Version == null || !System.Text.RegularExpressions.Regex.IsMatch(curriculum.Version, "^[abcdefghjkmnpqrstuvwxyz23456789]{4}$")) bad.Add("version '" + curriculum.Version + "' is not 4 characters of abcdefghjkmnpqrstuvwxyz23456789");
-        if (curriculum.Path == null || !System.Text.RegularExpressions.Regex.IsMatch(curriculum.Path, "^[A-Z]$")) bad.Add("path '" + curriculum.Path + "' is not one capital letter");
-        if (string.IsNullOrEmpty(curriculum.Label)) bad.Add("label is empty");
-        if (string.IsNullOrEmpty(curriculum.Sha256)) bad.Add("sha256 is empty");
-        return bad.Count == 0 ? null : "is malformed (" + string.Join("; ", bad) + ")";
-    }
-
-    /// <summary>The task the text holds and its conditions as drawn (BuildConditions); throws unless the task file's curriculum (the
+    /// <summary>The task the text holds and its conditions as drawn (OpenRigs.Trials TrialConditions.Build); throws unless the task file's curriculum (the
     /// only record of the stage, which app-rig-control fills at launch) is present and well formed and the task and every condition can be run on
     /// these speakers, naming every problem.</summary>
     public static List<TrialConditionDraw> CheckTask(string taskText, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
-        task = Read(taskText).TaskParameters;
-        var curriculum = task.Curriculum;
-        var curriculumProblem = CurriculumProblem(curriculum);
+        task = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(taskText).TaskParameters;
+        var curriculumProblem = CurriculumCheck.Problem(task.Curriculum);
         if (curriculumProblem != null) throw new InvalidOperationException("The task file's curriculum " + curriculumProblem + ": launch it from app-rig-control, which writes the stage's values and fills it.");
         var problems = new List<string>();
         Check(problems, task, speakers);
-        var built = problems.Count == 0 ? BuildConditions(taskText, task, problems) : null;
+        var built = problems.Count == 0 ? TrialConditions.Build(taskText, task, t => TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(t).TaskParameters, Schema, problems) : null;
         if (built != null)
         {
             BetweenTrials(problems, built.Where(c => c.Weight > 0).SelectMany(c => c.Combinations).Select(m => m.Task).ToList());
@@ -241,218 +176,6 @@ public class TrialDraw
         }
         if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems.Distinct()) + ".");
         return built;
-    }
-
-    /// <summary>The task file's text read as Bonsai's DeserializeFromYaml reads it, except that a trial condition's set (typed
-    /// object) keeps its YAML types, numbers and bools, where DeserializeFromYaml reads them as text; so Settings_Task logs them so.</summary>
-    public static UclOpenCoenDomeDecisionMakingTaskLogic Read(string text)
-    {
-        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
-            .WithTypeConverter(new YamlDotNet.Serialization.Converters.DateTimeOffsetConverter())
-            .WithAttemptingUnquotedStringTypeDeserialization()
-            .Build();
-        return deserializer.Deserialize<UclOpenCoenDomeDecisionMakingTaskLogic>(new YamlDotNet.Core.MergingParser(new YamlDotNet.Core.Parser(new StringReader(text))));
-    }
-
-    /// <summary>Each trial condition as drawn: its set and pairs written over a copy of the task file's text at their dotted
-    /// paths and read back, once for every combination (task.py condition_combinations): each pairs group's lists (the set's,
-    /// else the task's) zipped, equally long; then by path each other list cell of its set and every list field
-    /// (TaskSchema.ListFields) one pick (a scalar field's list one value, a list field's entry a one-entry list); all combined
-    /// as a product, the first cell's pick changing fastest (each combination's Id its row, across the session), at most
-    /// TaskSchema.MaxCombinations. A session field (TaskSchema.SessionFields) is refused. Adds a problem for each condition
-    /// that cannot be built, and returns null then.</summary>
-    public static List<TrialConditionDraw> BuildConditions(string taskText, UclOpenCoenDomeDecisionMakingTaskParameters task, List<string> problems)
-    {
-        var nodes = Parameters(Load(taskText)).Children;
-        YamlNode sequence;
-        var conditionNodes = nodes.TryGetValue(new YamlScalarNode("trialConditions"), out sequence) && sequence is YamlSequenceNode
-            ? ((YamlSequenceNode)sequence).Children : new List<YamlNode>();
-        var typed = task.TrialConditions ?? new List<TrialCondition>();
-        if (typed.Count == 0) problems.Add("trialConditions needs a condition");
-        if (typed.Sum(c => (long)c.Weight) > int.MaxValue)
-        {
-            problems.Add(string.Format("trialConditions' weights add to more than {0}, the most the draw can sum", int.MaxValue));
-            return null;
-        }
-        var built = new List<TrialConditionDraw>();
-        int id = 0;   // each combination's row in Settings_Combinations
-        for (int i = 0; i < typed.Count; i++)
-        {
-            var c = typed[i];
-            var trialType = Name(c.TrialType);
-            var where = string.Format("trialConditions[{0}] ({1})", i, trialType);
-            var before = problems.Count;
-            if (c.Weight < 0) problems.Add(where + ": its weight is below 0");
-            if (c.Weight > MaxWeight) problems.Add(string.Format("{0}: its weight is above {1}", where, MaxWeight));
-            var conditionNode = (YamlMappingNode)conditionNodes[i];
-            // The typed read fills a missing weight with 0 and merges a << key, which the node tree below does not: refuse both.
-            if (!conditionNode.Children.ContainsKey(new YamlScalarNode("weight"))) problems.Add(where + ": it has no weight");
-            // Each cell: its paths (a pairs group's, or one set path) and its picks, one node per path.
-            var cells = new List<KeyValuePair<string[], List<YamlNode[]>>>();
-            var values = new Dictionary<string, YamlNode>();
-            YamlNode set;
-            var hasSet = conditionNode.Children.TryGetValue(new YamlScalarNode("set"), out set);
-            if (conditionNode.Children.ContainsKey(new YamlScalarNode("<<")) || (set is YamlMappingNode && ((YamlMappingNode)set).Children.ContainsKey(new YamlScalarNode("<<"))))
-                problems.Add(where + ": a YAML merge key (<<) is not read by the draw; write the condition out in full");
-            if (hasSet && !(set is YamlMappingNode)) problems.Add(where + ": its set is not a map");
-            else if (hasSet)
-            {
-                foreach (var cell in ((YamlMappingNode)set).Children)
-                {
-                    if (!(cell.Key is YamlScalarNode)) { problems.Add(where + ": a set key is not a dotted path"); continue; }
-                    values[((YamlScalarNode)cell.Key).Value] = cell.Value;
-                }
-            }
-            var pairs = c.Pairs ?? new List<List<string>>();
-            var paired = pairs.SelectMany(g => g ?? new List<string>()).ToList();
-            foreach (var path in values.Keys.Concat(paired))
-            {
-                var session = TaskSchema.SessionFields.FirstOrDefault(f => path == f || path.StartsWith(f + ".") || f.StartsWith(path + "."));
-                if (session != null) problems.Add(string.Format("{0} sets or pairs {1}, a session field (x-session-fields: {2})", where, path, session));
-                else if (path.StartsWith("optogenetics.") && !task.Optogenetics.Enabled) problems.Add(string.Format("{0} sets {1} with optogenetics off", where, path));
-            }
-            if (paired.Distinct().Count() < paired.Count || pairs.Any(g => g == null || g.Count < 2)) problems.Add(where + ": each pairs group needs two paths or more, each path in one group");
-            if (problems.Count > before) continue;
-            var unknown = values.Keys.Concat(paired).FirstOrDefault(path => !Known(nodes, path));
-            if (unknown != null) { problems.Add(string.Format("{0} sets or pairs {1}, which is not a task field", where, unknown)); continue; }
-            foreach (var group in pairs)
-            {
-                var lists = group.Select(path => Options(nodes, values, path)).ToList();
-                if (lists.Select(l => l.Count).Distinct().Count() > 1)
-                {
-                    problems.Add(string.Format("{0}: pairs [{1}] have lists of lengths {2}; paired lists must be equally long", where, string.Join(", ", group), string.Join(", ", lists.Select(l => l.Count))));
-                    continue;
-                }
-                cells.Add(new KeyValuePair<string[], List<YamlNode[]>>(group.ToArray(), Enumerable.Range(0, lists[0].Count).Select(k => lists.Select(l => l[k]).ToArray()).ToList()));
-            }
-            foreach (var path in values.Keys.Concat(TaskSchema.ListFields).Distinct().Where(p => !paired.Contains(p)).OrderBy(p => p, StringComparer.Ordinal))
-            {
-                cells.Add(new KeyValuePair<string[], List<YamlNode[]>>(new[] { path }, Options(nodes, values, path).Select(o => new[] { o }).ToList()));
-            }
-            foreach (var cell in cells.Where(cell => cell.Value.Count == 0)) problems.Add(string.Format("{0}: {1} is an empty list", where, string.Join(", ", cell.Key)));
-            var count = cells.Aggregate(1L, (n, cell) => n * cell.Value.Count);
-            if (count > TaskSchema.MaxCombinations) problems.Add(string.Format("{0} expands into {1} combinations, more than {2} (x-max-combinations)", where, count, TaskSchema.MaxCombinations));
-            if (problems.Count > before) continue;
-            var draw = new TrialConditionDraw { TrialType = trialType, Weight = c.Weight, Where = where, Combinations = new List<TrialConditionCombination>() };
-            for (int n = 0; n < count; n++)
-            {
-                var stream = Load(taskText);
-                var parameters = Parameters(stream).Children;
-                var named = new List<string>();
-                int rest = n;
-                foreach (var cell in cells)
-                {
-                    var picked = cell.Value[rest % cell.Value.Count];
-                    rest /= cell.Value.Count;
-                    for (int k = 0; k < cell.Key.Length; k++)
-                    {
-                        Put(parameters, cell.Key[k], picked[k]);
-                        if (cell.Value.Count > 1) named.Add(cell.Key[k] + " " + picked[k]);
-                    }
-                }
-                var writer = new StringWriter();
-                stream.Save(writer, false);
-                try
-                {
-                    draw.Combinations.Add(new TrialConditionCombination { Task = Read(writer.ToString()).TaskParameters, Picks = string.Join(", ", named), Id = id++ });
-                }
-                catch (YamlDotNet.Core.YamlException e)
-                {
-                    problems.Add(string.Format("{0}: {1}", where, e.InnerException != null ? e.InnerException.Message : e.Message));
-                    break;
-                }
-            }
-            built.Add(draw);
-        }
-        if (problems.Count == 0 && built.Sum(c => (long)c.Weight) <= 0) problems.Add("trialConditions needs a condition with a weight above 0");
-        return problems.Count == 0 ? built : null;
-    }
-
-    /// <summary>Settings_Combinations: one row per combination of every condition, in build order (its Id, the trial log's
-    /// trialCombinationId), with its trialCondition, trialType, conditionWeight and values. Each task is serialised as
-    /// SerializeToJson serialises Settings_Task and flattened to dotted paths, a one-entry list unwrapped only at a list
-    /// field (TaskSchema.ListFields; an x-whole list stays a list); a path is in values when it differs between rows or from
-    /// the task's own, so a set every condition shares is kept. NaN is written as JSON NaN.</summary>
-    public static string CombinationsJson(UclOpenCoenDomeDecisionMakingTaskParameters task, IList<TrialConditionDraw> conditions)
-    {
-        var own = Flatten(task);
-        var all = conditions.SelectMany(c => c.Combinations.Select(m => Flatten(m.Task))).ToList();
-        var kept = all.SelectMany(r => r.Keys).Distinct().Where(path => all.Any(r => !Same(r, own, path) || !Same(r, all[0], path)))
-            .OrderBy(p => p, StringComparer.Ordinal).ToList();
-        var rows = new Newtonsoft.Json.Linq.JArray();
-        int n = 0;
-        for (int i = 0; i < conditions.Count; i++)
-        {
-            foreach (var combination in conditions[i].Combinations)
-            {
-                var values = new Newtonsoft.Json.Linq.JObject();
-                foreach (var path in kept) values[path] = all[n][path];
-                rows.Add(new Newtonsoft.Json.Linq.JObject(
-                    new Newtonsoft.Json.Linq.JProperty("trialCombinationId", combination.Id),
-                    new Newtonsoft.Json.Linq.JProperty("trialCondition", i),
-                    new Newtonsoft.Json.Linq.JProperty("trialType", conditions[i].TrialType),
-                    new Newtonsoft.Json.Linq.JProperty("conditionWeight", conditions[i].Weight),
-                    new Newtonsoft.Json.Linq.JProperty("values", values)));
-                n++;
-            }
-        }
-        var text = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
-        var writer = new Newtonsoft.Json.JsonTextWriter(text) { Formatting = Newtonsoft.Json.Formatting.Indented, FloatFormatHandling = Newtonsoft.Json.FloatFormatHandling.Symbol };
-        new Newtonsoft.Json.Linq.JObject(new Newtonsoft.Json.Linq.JProperty("rows", rows)).WriteTo(writer);
-        writer.Flush();
-        return text.ToString();
-    }
-
-    /// <summary>A task as dotted paths to its leaves (Settings_Combinations' normalisation): serialised as SerializeToJson
-    /// does, a one-entry list unwrapped only at a list field.</summary>
-    public static Dictionary<string, Newtonsoft.Json.Linq.JToken> Flatten(UclOpenCoenDomeDecisionMakingTaskParameters task)
-    {
-        var leaves = new Dictionary<string, Newtonsoft.Json.Linq.JToken>();
-        Flatten(Newtonsoft.Json.Linq.JToken.FromObject(task), "", leaves);
-        return leaves;
-    }
-
-    static void Flatten(Newtonsoft.Json.Linq.JToken token, string path, Dictionary<string, Newtonsoft.Json.Linq.JToken> leaves)
-    {
-        var map = token as Newtonsoft.Json.Linq.JObject;
-        if (map != null)
-        {
-            foreach (var property in map.Properties()) Flatten(property.Value, path.Length == 0 ? property.Name : path + "." + property.Name, leaves);
-            return;
-        }
-        var list = token as Newtonsoft.Json.Linq.JArray;
-        leaves[path] = list != null && list.Count == 1 && TaskSchema.ListFields.Contains(path) ? list[0] : token;
-    }
-
-    static bool Same(Dictionary<string, Newtonsoft.Json.Linq.JToken> a, Dictionary<string, Newtonsoft.Json.Linq.JToken> b, string path)
-    {
-        Newtonsoft.Json.Linq.JToken x, y;
-        return a.TryGetValue(path, out x) == b.TryGetValue(path, out y) && Newtonsoft.Json.Linq.JToken.DeepEquals(x, y);
-    }
-
-    // A cell's picks (task.py _options): a list field's entries, each a one-entry list; a scalar field's list, else its one
-    // value (a whole list, x-whole, is one value). The value is the set's, else the task's.
-    static List<YamlNode> Options(IDictionary<YamlNode, YamlNode> nodes, Dictionary<string, YamlNode> values, string path)
-    {
-        YamlNode value;
-        var own = At(nodes, path);
-        if (!values.TryGetValue(path, out value)) value = own;
-        var list = value as YamlSequenceNode;
-        if (list == null || own is YamlSequenceNode && !TaskSchema.ListFields.Contains(path)) return new List<YamlNode> { value };
-        return TaskSchema.ListFields.Contains(path) ? list.Children.Select(entry => (YamlNode)new YamlSequenceNode(entry)).ToList() : list.Children.ToList();
-    }
-
-    // Whether a dotted path's parents are maps in the task file (its leaf may be left out, a default).
-    static bool Known(IDictionary<YamlNode, YamlNode> nodes, string path)
-    {
-        var parts = path.Split('.');
-        for (int i = 0; i < parts.Length - 1; i++)
-        {
-            YamlNode node;
-            if (!nodes.TryGetValue(new YamlScalarNode(parts[i]), out node) || !(node is YamlMappingNode)) return false;
-            nodes = ((YamlMappingNode)node).Children;
-        }
-        return true;
     }
 
     /// <summary>The timing rules between a trial and the next, each drawn from any weighted combination (task.py
@@ -473,42 +196,6 @@ public class TrialDraw
         if (opto.LaserDurationSeconds > longest + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin", opto.LaserDurationSeconds, longest));
     }
 
-    /// <summary>An enum value as the task file writes it (its EnumMember name: visualSide, discriminationGoNoGo).</summary>
-    public static string Name(Enum value)
-    {
-        var field = value.GetType().GetField(value.ToString());
-        var member = field == null ? null : (System.Runtime.Serialization.EnumMemberAttribute)Attribute.GetCustomAttribute(field, typeof(System.Runtime.Serialization.EnumMemberAttribute));
-        return member != null ? member.Value : value.ToString();
-    }
-
-    static YamlStream Load(string text)
-    {
-        var stream = new YamlStream();
-        stream.Load(new StringReader(text));
-        return stream;
-    }
-
-    static YamlMappingNode Parameters(YamlStream stream)
-    {
-        return (YamlMappingNode)((YamlMappingNode)stream.Documents[0].RootNode).Children[new YamlScalarNode("taskParameters")];
-    }
-
-    // The node at a dotted path under taskParameters; a key the file leaves out is read as null, a scalar.
-    static YamlNode At(IDictionary<YamlNode, YamlNode> nodes, string path)
-    {
-        var parts = path.Split('.');
-        for (int i = 0; i < parts.Length - 1; i++) nodes = ((YamlMappingNode)nodes[new YamlScalarNode(parts[i])]).Children;
-        YamlNode node;
-        return nodes.TryGetValue(new YamlScalarNode(parts[parts.Length - 1]), out node) ? node : new YamlScalarNode();
-    }
-
-    static void Put(IDictionary<YamlNode, YamlNode> nodes, string path, YamlNode value)
-    {
-        var parts = path.Split('.');
-        for (int i = 0; i < parts.Length - 1; i++) nodes = ((YamlMappingNode)nodes[new YamlScalarNode(parts[i])]).Children;
-        nodes[new YamlScalarNode(parts[parts.Length - 1])] = value;
-    }
-
     // Bonsai reads the task file without pydantic, so what the draw needs is checked again here; x-rules are Python's alone
     // (task.py in check-workflow, app-rig-control at launch).
     static void Check(List<string> problems, UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
@@ -522,9 +209,8 @@ public class TrialDraw
         if (task.TaskType == TaskType.DiscriminationGoNoGo && task.BothSpoutsProbability != 0) problems.Add("bothSpoutsProbability must be 0 in discriminationGoNoGo: only the left spout moves in");
         // The SpoutsIn cue's LeftOnly or RightOnly draws the other spout back, which a task without spout movements never returns.
         if (task.TaskType != TaskType.DiscriminationGoNoGo && !task.SpoutMovements && task.BothSpoutsProbability != 1) problems.Add("bothSpoutsProbability must be 1 with spoutMovements false: a one-spout trial draws the other spout back");
-        if (task.Contrasts == null || task.Contrasts.Count == 0 || task.Contrasts.Any(c => !(c >= 0) || double.IsInfinity(c))) problems.Add("contrasts must each be a finite number, 0 or more, at least one");
         var amplitude = task.AuditoryStimulus.Amplitude;
-        if (!(amplitude >= 0) || double.IsInfinity(amplitude)) problems.Add("auditoryStimulus.amplitude must be a finite number, 0 or more");
+        problems.AddRange(TaskBlocks.StimulusProblems(task.Contrasts, amplitude));
         // The positions (task.py's same rules): each grating azimuth signed and never 0 (its sign is the side); each sound
         // azimuth's nearest speaker on its side (0: any).
         var visual = task.VisualStimulus;
@@ -541,8 +227,8 @@ public class TrialDraw
         if (sounds == null || sounds.Count == 0) problems.Add("auditoryStimulus.initialAzimuthsDeg needs an azimuth");
         foreach (var item in sounds ?? new List<object>())
         {
-            var read = SoundAzimuth(item);
-            if (read == null) { problems.Add(string.Format("auditoryStimulus.initialAzimuthsDeg value {0} is neither a number nor {1}", item, AllSpeakers)); continue; }
+            var read = SoundAzimuths.Parse(item);
+            if (read == null) { problems.Add(string.Format("auditoryStimulus.initialAzimuthsDeg value {0} is neither a number nor {1}", item, SoundAzimuths.AllSpeakers)); continue; }
             var azimuth = read.Value;
             if (double.IsNaN(azimuth))
             {
@@ -551,7 +237,7 @@ public class TrialDraw
             else if (!(azimuth >= -180 && azimuth <= 180)) problems.Add(string.Format("auditoryStimulus.initialAzimuthsDeg value {0} is outside [-180, 180]", azimuth));
             else if (azimuth != 0 && elevationOk && amplitude > 0)
             {
-                var speaker = NearestSpeaker(speakers, azimuth, elevation);
+                var speaker = SoundAzimuths.NearestSpeaker(speakers, azimuth, elevation);
                 if (azimuth > 0 ? speaker.Value.Position.Azimuth <= 0 : speaker.Value.Position.Azimuth >= 0)
                 {
                     problems.Add(string.Format("rig.yml's speaker nearest azimuth {0} (elevation {1}) is '{2}', not on the {3}", azimuth, elevation, speaker.Key, azimuth > 0 ? "right" : "left"));
@@ -602,14 +288,11 @@ public class TrialDraw
         }
         // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var reward = task.Reward;
-        if (reward.LargeRewardProbability > 0 && reward.LargeRewardMultiplier > 1 && reward.RewardSizeUl * reward.LargeRewardMultiplier > LoadRewardLine.DefaultMaxRewardUl + 1e-9)
-        {
-            problems.Add(string.Format("reward.rewardSizeUl ({0} ul) x reward.largeRewardMultiplier ({1}) is {2} ul, more than {3} ul, the most one reward may ask for", reward.RewardSizeUl, reward.LargeRewardMultiplier, reward.RewardSizeUl * reward.LargeRewardMultiplier, LoadRewardLine.DefaultMaxRewardUl));
-        }
+        problems.AddRange(TaskBlocks.LargeRewardProblems(reward.RewardSizeUl, reward.LargeRewardMultiplier, reward.LargeRewardProbability, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
         // The condition fields' bounds (a condition's cell is not checked by pydantic before Go).
-        if (!(reward.RewardSizeUl > 0 && reward.RewardSizeUl <= LoadRewardLine.DefaultMaxRewardUl)) problems.Add(string.Format("reward.rewardSizeUl must be above 0 and at most {0} ul", LoadRewardLine.DefaultMaxRewardUl));
+        problems.AddRange(TaskBlocks.RewardSizeProblems(reward.RewardSizeUl, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
         if (!(task.BothSpoutsProbability >= 0 && task.BothSpoutsProbability <= 1)) problems.Add("bothSpoutsProbability must be in [0, 1]");
-        if (!(opto.LaserOnProbability >= 0 && opto.LaserOnProbability <= 1)) problems.Add("optogenetics.laserOnProbability must be in [0, 1]");
+        problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
     /// <summary>The longest laserDurationSeconds (task.py's same rule): from a trigger to the next is at least responseDelaySeconds
@@ -620,23 +303,6 @@ public class TrialDraw
     {
         var s = task.TrialStructure;
         return s.ResponseDelaySeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
-    }
-
-    /// <summary>The speaker in rig.yml at the smallest angle from the location.</summary>
-    public static KeyValuePair<string, Speaker> NearestSpeaker(EqualisedSpeakerArray speakers, double azimuth, double elevation)
-    {
-        if (speakers == null || speakers.Speakers == null || speakers.Speakers.Count == 0)
-        {
-            throw new InvalidOperationException("rig.yml has no speakerArray.speakers to play the auditory stimuli on.");
-        }
-        return speakers.Speakers.OrderBy(s => Angle(azimuth, elevation, s.Value.Position.Azimuth, s.Value.Position.Elevation)).First();
-    }
-
-    static double Angle(double az1, double el1, double az2, double el2)
-    {
-        const double rad = Math.PI / 180;
-        var cos = Math.Sin(el1 * rad) * Math.Sin(el2 * rad) + Math.Cos(el1 * rad) * Math.Cos(el2 * rad) * Math.Cos((az1 - az2) * rad);
-        return Math.Acos(Math.Max(-1, Math.Min(1, cos)));
     }
 
     /// <summary>The next trial, after the last one's outcome (Correct, Incorrect or NoResponse; null before the first).</summary>
@@ -719,17 +385,17 @@ public class TrialDraw
         // The sound: at its amplitude (0: none) on the speaker nearest an initial azimuth, at the grating's elevation, or on
         // every speaker at "all" (logged at azimuth and elevation NaN, its amplitude above 0).
         var sound = p.AuditoryStimulus;
-        double soundAzimuth = SoundAzimuth(sound.InitialAzimuthsDeg[0]).Value;   // checked at Go
+        double soundAzimuth = SoundAzimuths.Parse(sound.InitialAzimuthsDeg[0]).Value;   // checked at Go
         trial.auditoryAmplitude = sound.Amplitude;
         if (sound.Amplitude > 0 && double.IsNaN(soundAzimuth))
         {
-            trial.speakerChannel = Trial.AllSpeakersChannel;
+            trial.speakerChannel = SoundAzimuths.AllSpeakersChannel;
             trial.auditoryAzimuthDeg = double.NaN;
             trial.auditoryElevationDeg = double.NaN;
         }
         else if (sound.Amplitude > 0)
         {
-            var speaker = NearestSpeaker(speakers, soundAzimuth, visual.ElevationDeg).Value;
+            var speaker = SoundAzimuths.NearestSpeaker(speakers, soundAzimuth, visual.ElevationDeg).Value;
             trial.speakerChannel = speaker.Channel;
             trial.auditoryAzimuthDeg = speaker.Position.Azimuth;
             trial.auditoryElevationDeg = speaker.Position.Elevation;
@@ -789,20 +455,8 @@ public class TrialDraw
     /// weight above 0, and where it is, for the stimulus set's peak check at Go (LevelAuditoryStimulusSet).</summary>
     public LoudestSound Loudest()
     {
-        var loudest = new LoudestSound { Amplitude = 0, Where = "no condition" };
-        foreach (var condition in conditions.Where(c => c.Weight > 0))
-        {
-            foreach (var combination in condition.Combinations)
-            {
-                if (combination.Task.AuditoryStimulus.Amplitude > loudest.Amplitude)
-                {
-                    loudest = new LoudestSound { Amplitude = combination.Task.AuditoryStimulus.Amplitude, Where = condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) };
-                }
-            }
-        }
-        return loudest;
+        return LoudestSound.Of(conditions, t => t.AuditoryStimulus.Amplitude);
     }
-
 
     int WeightedCondition()
     {
@@ -899,9 +553,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     /// <summary>The loudest sound the task's conditions can draw (TrialDraw.Loudest), for the stimulus set's peak check.</summary>
     public LoudestSound Loudest { get { return draw.Loudest(); } }
 
-    /// <summary>Settings_Combinations' text (TrialDraw.CombinationsJson): every combination built at Go, each a row the trial
+    /// <summary>Settings_Combinations' text (OpenRigs.Trials TrialConditions.CombinationsJson): every combination built at Go, each a row the trial
     /// log's trialCombinationId names; logged through LogDataSchema in the Logging group.</summary>
-    public string CombinationsJson { get { return TrialDraw.CombinationsJson(draw.Task, draw.Conditions); } }
+    public string CombinationsJson { get { return TrialConditions.CombinationsJson(draw.Task, draw.Conditions, TrialDraw.Schema); } }
 
     public Trial Draw(TrialOutcome previous)
     {

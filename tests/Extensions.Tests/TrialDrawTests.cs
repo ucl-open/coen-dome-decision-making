@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using OpenRigs.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,6 +11,7 @@ using OpenRigs.Trials;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
+using TrialConditionDraw = OpenRigs.Trials.TrialConditionDraw<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
 
 static class Fixture
 {
@@ -81,14 +83,14 @@ static class Fixture
     static List<TrialCondition> Conditions(List<TrialCondition> conditions, string weights)
     {
         var byLabel = new DeserializerBuilder().Build().Deserialize<Dictionary<string, int>>(weights);
-        foreach (var c in conditions) c.Weight = byLabel[TrialDraw.Name(c.TrialType)];
+        foreach (var c in conditions) c.Weight = byLabel[EnumNames.Name(c.TrialType)];
         return conditions;
     }
 
     /// <summary>The trialType of that name.</summary>
     public static TrialType TrialType(string name)
     {
-        return Enum.GetValues(typeof(TrialType)).Cast<TrialType>().Single(l => TrialDraw.Name(l) == name);
+        return Enum.GetValues(typeof(TrialType)).Cast<TrialType>().Single(l => EnumNames.Name(l) == name);
     }
 
     /// <summary>A condition of a label and weight with these condition-level values.</summary>
@@ -114,13 +116,13 @@ static class Fixture
 
     public static void Weight(UclOpenCoenDomeDecisionMakingTaskParameters task, string label, int weight)
     {
-        task.TrialConditions.Single(c => TrialDraw.Name(c.TrialType) == label).Weight = weight;
+        task.TrialConditions.Single(c => EnumNames.Name(c.TrialType) == label).Weight = weight;
     }
 
     // Every condition not of these labels weighted 0.
     public static void Only(UclOpenCoenDomeDecisionMakingTaskParameters task, params string[] labels)
     {
-        foreach (var c in task.TrialConditions.Where(c => !labels.Contains(TrialDraw.Name(c.TrialType)))) c.Weight = 0;
+        foreach (var c in task.TrialConditions.Where(c => !labels.Contains(EnumNames.Name(c.TrialType)))) c.Weight = 0;
     }
 
     /// <summary>The task file's text as rig-control writes it, from the task (the draw and the Go check read the text).</summary>
@@ -223,9 +225,9 @@ public class TrialDrawTests
             Assert.AreEqual(speaker.Position.Azimuth, t.auditoryAzimuthDeg);
             Assert.AreEqual(speaker.Position.Elevation, t.auditoryElevationDeg);
         }
-        var nearest = TrialDraw.NearestSpeaker(Fixture.Speakers(), -60, 15);
+        var nearest = SoundAzimuths.NearestSpeaker(Fixture.Speakers(), -60, 15);
         Assert.AreEqual("left", nearest.Key);
-        Assert.AreEqual("centre", TrialDraw.NearestSpeaker(Fixture.Speakers(), 30, 15).Key);
+        Assert.AreEqual("centre", SoundAzimuths.NearestSpeaker(Fixture.Speakers(), 30, 15).Key);
     }
 
     [TestMethod]
@@ -537,7 +539,7 @@ public class TrialDrawTests
         task.Reward.LargeRewardMultiplier = 3;
         task.Reward.RewardSizeUl = 8;
         var refusal = Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
-        StringAssert.Contains(refusal, "reward.rewardSizeUl (8 ul) x reward.largeRewardMultiplier (3) is 24 ul, more than 20 ul");
+        StringAssert.Contains(refusal, "reward.rewardSizeUl (8 ul) x largeRewardMultiplier (3) is 24 ul, more than 20 ul");
         task.Reward.RewardSizeUl = OpenRigs.Core.LoadRewardLine.DefaultMaxRewardUl / 3;
         Assert.AreEqual("accepted", Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())));
         task.Reward.RewardSizeUl = 8;
@@ -811,12 +813,12 @@ public class TrialConditionTests
         foreach (var t in trials)
         {
             Assert.IsTrue(t.auditoryAmplitude > 0);
-            if (t.visualAzimuthDeg < 0) Assert.IsTrue(t.speakerChannel == Trial.AllSpeakersChannel && double.IsNaN(t.auditoryAzimuthDeg) && double.IsNaN(t.auditoryElevationDeg));
+            if (t.visualAzimuthDeg < 0) Assert.IsTrue(t.speakerChannel == SoundAzimuths.AllSpeakersChannel && double.IsNaN(t.auditoryAzimuthDeg) && double.IsNaN(t.auditoryElevationDeg));
             else Assert.IsTrue(t.speakerChannel >= 0 && t.auditoryAzimuthDeg > 0, "the right speaker nearest 60");
         }
         Assert.IsTrue(trials.Any(t => t.visualAzimuthDeg < 0) && trials.Any(t => t.visualAzimuthDeg > 0));
         StringAssert.Contains(Refused(With(Fixture.Condition("visual", 1, "auditoryStimulus.initialAzimuthsDeg", Fixture.List("left")))), "value left is neither a number nor all");
-        Assert.AreEqual(-2, Trial.AllSpeakersChannel);
+        Assert.AreEqual(-2, SoundAzimuths.AllSpeakersChannel);
     }
 
     [TestMethod]
@@ -881,10 +883,10 @@ public class TrialConditionTests
         var text = File.ReadAllText(Path.Combine(Fixture.Repo(), "config", "task-localization.yml")).Replace(
             "      set: { target: visualSide, auditoryStimulus.initialAzimuthsDeg: [0] }",
             "      set: { contrasts: [0.5, 1], reward.rewardSizeUl: [2, 3], visualStimulus.initialAzimuthsDeg: [60] }");
-        var task = TrialDraw.Read(text).TaskParameters;
+        var task = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(text).TaskParameters;
         var set = (IDictionary<object, object>)task.TrialConditions[0].Set;
         CollectionAssert.AreEqual(new object[] { "contrasts", "reward.rewardSizeUl", "visualStimulus.initialAzimuthsDeg" }, set.Keys.ToArray());
-        var again = TrialDraw.Read(Fixture.Text(task)).TaskParameters;
+        var again = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(Fixture.Text(task)).TaskParameters;
         StringAssert.Contains(Newtonsoft.Json.JsonConvert.SerializeObject(again.TrialConditions[0]),
             "\"set\":{\"contrasts\":[0.5,1],\"reward.rewardSizeUl\":[2,3],\"visualStimulus.initialAzimuthsDeg\":[60]}");
         again.Curriculum = Fixture.Curriculum(4, "x");
@@ -917,8 +919,8 @@ public class TrialConditionTests
         var zero = With(Fixture.Condition("visual", 0), Fixture.Condition("auditory", 2), Fixture.Condition("neutral", 1));
         Assert.IsTrue(Fixture.Draw(zero, 300).All(t => t.trialCondition != 0));
         StringAssert.Contains(Refused(With(Fixture.Condition("visual", 0, "contrasts", Fixture.List(-1.0)), Fixture.Condition("auditory", 1))), "trialConditions[0] (visual)");
-        Assert.AreEqual("accepted", Refused(With(Fixture.Condition("visual", TrialDraw.MaxWeight), Fixture.Condition("auditory", TrialDraw.MaxWeight))));
-        Assert.IsTrue(Fixture.Draw(With(Fixture.Condition("visual", TrialDraw.MaxWeight), Fixture.Condition("auditory", TrialDraw.MaxWeight)), 40).Any(t => t.trialCondition == 1));
+        Assert.AreEqual("accepted", Refused(With(Fixture.Condition("visual", TrialConditions.MaxWeight), Fixture.Condition("auditory", TrialConditions.MaxWeight))));
+        Assert.IsTrue(Fixture.Draw(With(Fixture.Condition("visual", TrialConditions.MaxWeight), Fixture.Condition("auditory", TrialConditions.MaxWeight)), 40).Any(t => t.trialCondition == 1));
     }
 
     [TestMethod]
@@ -929,7 +931,7 @@ public class TrialConditionTests
         Assert.IsTrue(trials.All(t => t.trialType == (t.trialCondition % 2 == 0 ? "visual" : "auditory") && t.rewardOfferedUl == 1.0 + t.trialCondition % 3));
         Assert.AreEqual(120, trials.Select(t => t.trialCondition).Distinct().Count());
         // 2200 conditions of the cap's weight sum past int, which the draw cannot take.
-        var heavy = Enumerable.Range(0, 2200).Select(i => Fixture.Condition("visual", TrialDraw.MaxWeight)).ToArray();
+        var heavy = Enumerable.Range(0, 2200).Select(i => Fixture.Condition("visual", TrialConditions.MaxWeight)).ToArray();
         StringAssert.Contains(Refused(With(heavy)), "weights add to more than 2147483647");
     }
 }

@@ -1,6 +1,7 @@
 using Bonsai;
 using OpenCV.Net;
 using OpenRigs.Audio;
+using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -89,13 +90,13 @@ public class AuditoryStimulusSet
         return waveforms[index];
     }
 
-    /// <summary>The mixer's buffer for a trial: its waveform equalised for the speaker on its channel (Trial.AllSpeakersChannel:
+    /// <summary>The mixer's buffer for a trial: its waveform equalised for the speaker on its channel (SoundAzimuths.AllSpeakersChannel:
     /// on every speaker's channel, each its own equalised copy), scaled by its amplitude, with its sync copy. Each channel's
     /// row is one speaker's equalised copy, so AtLoudest's check of every speaker covers a sound on all of them.</summary>
     public Mat Buffer(int index, int channel, double amplitude)
     {
         if (!(amplitude <= largest)) throw new InvalidOperationException("Trial asks for auditory amplitude " + amplitude + ", above the " + largest + " the set was checked for at Go (LevelAuditoryStimulusSet).");
-        var channels = channel == Trial.AllSpeakersChannel ? Speakers.SpeakerChannels : new[] { channel };
+        var channels = channel == SoundAzimuths.AllSpeakersChannel ? Speakers.SpeakerChannels : new[] { channel };
         var buffer = Speakers.Layout(Stimulus(index, channels[0]), new[] { channels[0] }, amplitude, false, true);
         foreach (var other in channels.Skip(1))
         {
