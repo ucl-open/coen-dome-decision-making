@@ -714,55 +714,7 @@
             <Expression xsi:type="MemberSelector">
               <Selector>Outcome</Selector>
             </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>Row</Selector>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>TrialRow</Name>
-            </Expression>
-            <Expression xsi:type="rx:Condition">
-              <Name>Rewarded?</Name>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="WorkflowInput">
-                    <Name>Source1</Name>
-                  </Expression>
-                  <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>Rewarded</scr:Expression>
-                  </Expression>
-                  <Expression xsi:type="WorkflowOutput" />
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                </Edges>
-              </Workflow>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>Reward</Selector>
-            </Expression>
-            <Expression xsi:type="MulticastSubject">
-              <Name>RewardRequests</Name>
-            </Expression>
-            <Expression xsi:type="rx:Condition">
-              <Name>PenaltySoundOn?</Name>
-              <Workflow>
-                <Nodes>
-                  <Expression xsi:type="WorkflowInput">
-                    <Name>Source1</Name>
-                  </Expression>
-                  <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>PenaltySoundOn</scr:Expression>
-                  </Expression>
-                  <Expression xsi:type="WorkflowOutput" />
-                </Nodes>
-                <Edges>
-                  <Edge From="0" To="1" Label="Source1" />
-                  <Edge From="1" To="2" Label="Source1" />
-                </Edges>
-              </Workflow>
-            </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Audio:PlayPenaltySound.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Trials:TrialOutcomeEffects.bonsai" />
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialEvents</Name>
             </Expression>
@@ -809,14 +761,8 @@
             <Edge From="36" To="37" Label="Source1" />
             <Edge From="37" To="38" Label="Source1" />
             <Edge From="38" To="39" Label="Source1" />
-            <Edge From="39" To="40" Label="Source1" />
-            <Edge From="38" To="41" Label="Source1" />
+            <Edge From="40" To="41" Label="Source1" />
             <Edge From="41" To="42" Label="Source1" />
-            <Edge From="42" To="43" Label="Source1" />
-            <Edge From="38" To="44" Label="Source1" />
-            <Edge From="44" To="45" Label="Source1" />
-            <Edge From="46" To="47" Label="Source1" />
-            <Edge From="47" To="48" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
