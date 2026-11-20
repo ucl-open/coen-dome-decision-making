@@ -19,13 +19,13 @@ def test_the_committed_page_matches_the_task_files():
 OUTCOMES = json.loads((Path(__file__).parent / "fixtures" / "outcomes.json").read_text(encoding="utf-8"))
 
 
-@pytest.mark.parametrize("row", OUTCOMES["outcomes"], ids=lambda r: "-".join(str(r[k]) for k in ("taskType", "target", "choice", "autoReward", "heads", "penaliseProbes")))
+@pytest.mark.parametrize("row", OUTCOMES["outcomes"], ids=lambda r: "-".join(str(r[k]) for k in ("taskType", "target", "choice", "autoReward", "heads", "penaliseRandomProbes")))
 def test_outcomes_are_the_csharps(row):
     # tests/fixtures/outcomes.json is TrialRow.cs's rules, written by OutcomeTableTests.cs (which fails when the C# changes).
     choice = None if row["choice"] == "noResponse" else row["choice"]
     out = tt.outcome(row["taskType"], row["target"], choice, row["autoReward"])
     got = (out, tt.rewarded(row["target"], choice, row["autoReward"], row["heads"], out),
-           tt.penalised(row["target"], choice, row["autoReward"], row["heads"], out, row["penaliseProbes"]))
+           tt.penalised(row["target"], choice, row["autoReward"], row["heads"], out, row["penaliseRandomProbes"]))
     assert got == (row["outcome"], row["rewarded"], row["penalised"]), "trial_timeline.py's copy of TrialRow.cs's rules has drifted"
 
 
@@ -39,8 +39,8 @@ def test_auto_reward_targets_are_the_csharps(task_type):
 def test_a_conditions_own_timeout_shows_on_its_card(tmp_path):
     # A stage that sets a condition's own penalty timeout: that card's penalised row carries it, the others the task's.
     text = (tt.ROOT / "config" / "task-discrimination-go-no-go.yml").read_text(encoding="utf-8")
-    text = text.replace("set: { target: noGo, visualStimulus.contrasts: [0] }",
-                        "set: { target: noGo, visualStimulus.contrasts: [0], penalty.incorrect.timeoutSeconds: 7.0 }")
+    text = text.replace("set: { target: noGo, visualStimulus.initialContrasts: [0] }",
+                        "set: { target: noGo, visualStimulus.initialContrasts: [0], penalty.incorrect.timeoutSeconds: 7.0 }")
     path = tmp_path / "task-discrimination-go-no-go.yml"
     path.write_text(text, encoding="utf-8")
     nogo = next(c for c in tt.task_timeline(path)["conditions"] if c["target"] == "noGo")

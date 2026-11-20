@@ -20,11 +20,11 @@ public class OutcomeTableTests
 
     // The task file at its curriculum stage with every condition weighted (Fixture's "Probes Added", localization's "Conflict
     // Added"), auto-reward on every trial that can have it; random: the noReward probes made random-reward probes.
-    static UclOpenCoenDomeDecisionMakingTaskParameters Task(string file, bool random, bool penaliseProbes)
+    static UclOpenCoenDomeDecisionMakingTaskParameters Task(string file, bool random, bool penaliseRandomProbes)
     {
         var task = Fixture.Task(file, file == "task-localization.yml" ? 4 : 3);
         task.AutoRewardProbability = 1;
-        task.PenaliseProbes = penaliseProbes;
+        task.PenaliseRandomProbes = penaliseRandomProbes;
         if (random) Fixture.RandomProbes(task);
         return task;
     }
@@ -66,13 +66,13 @@ public class OutcomeTableTests
             possible.Add("  " + Json(taskType) + ": {" + string.Join(", ", seen.Select(e => Json(e.Key) + ": " + Json(e.Value))) + "}");
 
             // Every choice on every target (a side target as the draw resolves it, left or right), with and without auto-reward where the draw gives it, each coin side on a random
-            // probe, with and without penaliseProbes.
+            // probe, with and without penaliseRandomProbes.
             var goNoGo = taskType == "discriminationGoNoGo";
             var choices = goNoGo ? new[] { Choice.Go, Choice.NoResponse } : new[] { Choice.Left, Choice.Right, Choice.NoResponse };
             foreach (var target in seen.Keys)
-                foreach (var penaliseProbes in new[] { false, true })
+                foreach (var penaliseRandomProbes in new[] { false, true })
                 {
-                    var values = Task(file, target == TargetWords.Random, penaliseProbes);
+                    var values = Task(file, target == TargetWords.Random, penaliseRandomProbes);
                     foreach (var choice in choices)
                         foreach (var auto in seen[target] ? new[] { false, true } : new[] { false })
                             foreach (var heads in target == TargetWords.Random ? new bool?[] { true, false } : new bool?[] { null })
@@ -81,7 +81,7 @@ public class OutcomeTableTests
                                 var outcome = TrialRow.Outcome(choice, trial);
                                 lines.Add("  {" + string.Join(", ", new[] {
                                     "\"taskType\": " + Json(taskType), "\"target\": " + Json(target), "\"choice\": " + Json(choice),
-                                    "\"autoReward\": " + Json(auto), "\"heads\": " + Json(heads), "\"penaliseProbes\": " + Json(penaliseProbes),
+                                    "\"autoReward\": " + Json(auto), "\"heads\": " + Json(heads), "\"penaliseRandomProbes\": " + Json(penaliseRandomProbes),
                                     "\"outcome\": " + Json(outcome), "\"rewarded\": " + Json(TrialRow.Rewarded(outcome, choice, trial)),
                                     "\"penalised\": " + Json(TrialRow.Penalised(outcome, choice, trial)) }) + "}");
                             }

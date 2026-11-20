@@ -155,7 +155,7 @@ def _rows(t: dict) -> list[dict]:
                     continue
                 out = outcome(task_type, target, choice, auto)
                 paid = rewarded(target, choice, auto, heads, out)
-                cost = penalised(target, choice, auto, heads, out, t["penaliseProbes"])
+                cost = penalised(target, choice, auto, heads, out, t["penaliseRandomProbes"])
                 rows.append({
                     "label": label,
                     "detail": _detail(out, paid, cost, heads, share, task_type, target, choice),
@@ -187,11 +187,11 @@ def _sideless(a: Any) -> bool:
 
 
 def _shows(t: dict) -> dict:
-    visual = t["visualStimulus"]["contrasts"][0] > 0
-    auditory = t["auditoryStimulus"]["levelDbfs"] != MUTE
+    visual = t["visualStimulus"]["initialContrasts"][0] > 0
+    auditory = t["auditoryStimulus"]["initialLevelDbfs"] != MUTE
     return {"visual": visual, "auditory": auditory, "vAz": t["visualStimulus"]["initialAzimuthsDeg"][0] if visual else None,
             "aAz": t["auditoryStimulus"]["initialAzimuthsDeg"][0] if auditory else None,
-            "contrast": t["visualStimulus"]["contrasts"][0], "level": t["auditoryStimulus"]["levelDbfs"]}
+            "contrast": t["visualStimulus"]["initialContrasts"][0], "level": t["auditoryStimulus"]["initialLevelDbfs"]}
 
 
 # ---- a task file ----
@@ -328,7 +328,7 @@ def _notes(base: dict, conditions: list[dict]) -> list[str]:
         notes.append("A probe (target noReward) gets neither reward nor penalty, whatever the mouse does; its trial still ends at the first lick."
                      if all(c["target"] != "random" for c in conditions) else
                      "Probes: target noReward gets neither reward nor penalty; target random rewards a lick on a coin's heads"
-                     + (", tails penalised (penaliseProbes)." if base["penaliseProbes"] else ", tails unpenalised."))
+                     + (", tails penalised (penaliseRandomProbes)." if base["penaliseRandomProbes"] else ", tails unpenalised."))
     if timing["alwaysIn"]:
         notes.append("The spouts stay in throughout (spouts.alwaysIn true): no spout moves within or between trials.")
     else:
