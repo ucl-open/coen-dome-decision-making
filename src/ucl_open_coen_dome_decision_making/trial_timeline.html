@@ -28,6 +28,7 @@ h2 { font-size: 21px; font-weight: 600; }
 h3 { font-size: 17px; font-weight: 600; }
 p { margin: 0; max-width: 72ch; }
 .muted { color: var(--muted); }
+.notice { max-width: none; padding: 10px 14px; border: 1px solid var(--aud); border-left-width: 4px; border-radius: 6px; background: var(--surface); }
 code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
 header { display: grid; gap: 8px; }
 .eyebrow { font-family: var(--f-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
@@ -71,8 +72,9 @@ ul.notes { margin: 0; padding-left: 18px; display: grid; gap: 6px; max-width: 80
 <div class="wrap">
   <header>
     <div class="eyebrow">coen-dome-decision-making · generated from the task files</div>
-    <h1>Dome decision-making trial timeline</h1>
-    <p class="muted">Times are seconds from stimulus onset, from <span class="mono" id="srcfile"></span>, the task file's defaults. A curriculum stage can override any of them at launch. Regenerate with <code>uv run trial-timeline</code> after editing a task file; <code>uv run pytest</code> fails while this page is out of date.</p>
+    <h1>Dome decision-making trial timeline: task-file defaults</h1>
+    <p class="notice"><strong>Defaults only, not what a mouse runs.</strong> This page shows the repo's task files. On a rig, each mouse runs its curriculum stage (K:\config\curricula), whose settings and conditions replace these, so its timings, targets and probes can differ.</p>
+    <p class="muted">Times are seconds from stimulus onset, from <span class="mono" id="srcfile"></span>. Regenerate with <code>uv run trial-timeline</code> after editing a task file; <code>uv run pytest</code> fails while this page is out of date.</p>
   </header>
 
   <div class="controls">
