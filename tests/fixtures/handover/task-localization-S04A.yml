@@ -61,7 +61,7 @@ taskParameters:
     wheelQuietSeconds: 0
     wheelQuietCm: 0
     stimulusToResponseWindowSeconds: 0.5
-    responseWindowSeconds: 1.5
+    responseWindowSeconds: 2.0
   spouts:
     alwaysIn: false
     stimulusToSpoutsInSeconds: 0.5
@@ -112,6 +112,7 @@ taskParameters:
       flash:
         brightness: 0
         rateHz: 10
+  penaliseProbes: false
   optogenetics:
     enabled: false
     zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
