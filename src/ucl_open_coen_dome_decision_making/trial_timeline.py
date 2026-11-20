@@ -1,6 +1,6 @@
-"""The discrimination tasks' trial timeline page (docs/trial-timeline.html), generated from the task files.
+"""The tasks' trial timeline page (docs/trial-timeline.html), generated from the task files.
 
-`uv run trial-timeline` rewrites the page from config/task-discrimination-*.yml; `uv run trial-timeline --check` exits 1
+`uv run trial-timeline` rewrites the page from config/task-*.yml; `uv run trial-timeline --check` exits 1
 when the committed page no longer matches them (tests/test_trial_timeline.py runs the same check). Each task file is
 validated by the task model and each condition built into its combinations as the launch check builds them
 (open_rigs.rigs.conditioned_task), so a condition's own set (a timeout, an interval, a level) shows on its card. What each
@@ -23,7 +23,7 @@ from open_rigs.rigs import conditioned_task as ct
 from ucl_open_coen_dome_decision_making.task import UclOpenCoenDomeDecisionMakingTaskParameters as Parameters
 
 ROOT = Path(__file__).resolve().parents[2]
-TASK_GLOB = "task-discrimination-*.yml"
+TASK_GLOB = "task-*.yml"
 TEMPLATE = Path(__file__).with_name("trial_timeline.html")
 OUTPUT = ROOT / "docs" / "trial-timeline.html"
 DATA_MARK = "__TIMELINE_DATA__"
@@ -31,6 +31,8 @@ PULSE_SECONDS = 0.05  # each stimulus pulse, sound and grating (src/sounds' filt
 MUTE = "mute"
 
 TASK_LABELS = {
+    "localization": ("Localization (two spouts)", ("Two spouts. The answer is a side: the grating's (target visualSide) or the sound's "
+                                                   "(target auditorySide), drawn each trial. The spouts come in and go out each trial.")),
     "discriminationGoNoGo": ("Go / no-go (one spout)", "One spout, the left: lick on a go trial, withhold on a noGo trial. A miss is never penalised."),
     "discriminationLeftRight": ("Left / right (two spouts)", "Two spouts. The answer is the modality, not the side: each condition's target names the spout."),
 }
@@ -39,6 +41,7 @@ TRIAL_TYPE_NAMES = {
     "audiovisualConflict": "Audiovisual conflict", "neutral": "Neutral",
 }
 PROBES = ("noReward", "random")
+SIDE_TARGETS = {"visualSide": "grating", "auditorySide": "sound"}  # localization: the side of what the trial shows
 
 
 # ---- TrialRow.cs's rules (Outcome, Rewarded, Penalised, MissPenalised), choice None for a miss ----
@@ -119,6 +122,12 @@ def _penalty(t: dict, kind: str) -> dict:
     return {"kind": kind, "timeout": p["timeoutSeconds"], "sound": p["sound"]["levelDbfs"], "flash": p["flash"]["brightness"]}
 
 
+def _side(t: dict) -> str:
+    """A side target's spout on this combination (TrialDraw: the grating's or the sound's picked azimuth, right when positive)."""
+    azimuth = t["visualStimulus" if t["target"] == "visualSide" else "auditoryStimulus"]["initialAzimuthsDeg"][0]
+    return "right" if azimuth > 0 else "left"
+
+
 def _rows(t: dict) -> list[dict]:
     task_type, target = t["taskType"], t["target"]
     p_auto = t["autoRewardProbability"]
@@ -126,6 +135,11 @@ def _rows(t: dict) -> list[dict]:
         choices = [("go", "Lick")]
     elif target in PROBES:
         choices = [("left", "Lick either spout")]  # the two spouts earn the same on a probe
+    elif target in SIDE_TARGETS:
+        # Named by the side, not the spout, so a condition's left and right combinations share one card.
+        target = _side(t)
+        thing = SIDE_TARGETS[t["target"]]
+        choices = [(target, f"Lick the {thing}'s side"), ("right" if target == "left" else "left", "Lick the other side")]
     else:
         choices = [(target, f"Lick {target}"), ("right" if target == "left" else "left", f"Lick {'right' if target == 'left' else 'left'}")]
     if t["trialStructure"]["responseWindowSeconds"] is not None:
@@ -168,6 +182,10 @@ def _detail(out: str, paid: bool, cost: bool, heads: bool | None, share: float, 
     return text + (f" ({_pct(share)} of these trials)" if share < 1 else "")
 
 
+def _sideless(a: Any) -> bool:
+    return isinstance(a, str) or a == 0
+
+
 def _shows(t: dict) -> dict:
     visual = t["visualStimulus"]["contrasts"][0] > 0
     auditory = t["auditoryStimulus"]["levelDbfs"] != MUTE
@@ -194,6 +212,11 @@ def _describe(shows: list[dict], trial_type: str) -> str:
     def picks(key):
         return " or ".join(_az(a) for a in sorted({s[key] for s in shows}, key=lambda a: (isinstance(a, str), a if not isinstance(a, str) else 0)))
     visual, auditory = any(s["visual"] for s in shows), any(s["auditory"] for s in shows)
+    if auditory and all(_sideless(s["aAz"]) for s in shows if s["auditory"]):
+        # A sound with no side (0, the centre, or all speakers) is no cue: the trial is named by the grating alone.
+        where = "from the centre (0°)" if all(s["aAz"] == 0 for s in shows if s["auditory"]) else "from every speaker"
+        return (f"{_describe([{**s, 'auditory': False} for s in shows], trial_type).replace(', silent', '')}, sound {where} with no side"
+                if visual else f"sound {where} with no side, no grating")
     contrasts = sorted({s["contrast"] for s in shows if s["visual"]})
     grating = "grating" + (f" (contrast {' or '.join(_num(c) for c in contrasts)})" if contrasts != [1.0] else "")
     if visual and auditory:
@@ -234,6 +257,7 @@ def _condition(params: Parameters, base: dict, condition, total: int) -> dict:
         v["auditory"] = any(s["auditory"] for s in v["shows"])
         del v["combos"], v["shows"]
     target = tasks[0][1]["target"]
+    side_of = SIDE_TARGETS.get(target)
     shown = [_shows(d) for _, d in tasks]
     # A role trialType (go, noGo, left, right) names the answer; the card is named by what the trial shows.
     visual, auditory = any(s["visual"] for s in shown), any(s["auditory"] for s in shown)
@@ -244,6 +268,7 @@ def _condition(params: Parameters, base: dict, condition, total: int) -> dict:
         "trialType": trial_type,
         "target": target,
         "probe": target in PROBES,
+        "answer": f"the {side_of}'s side" if side_of else None,
         "weight": condition.weight,
         "share": condition.weight / total,
         "shows": _describe(shown, trial_type),
@@ -297,6 +322,8 @@ def _notes(base: dict, conditions: list[dict]) -> list[str]:
                      + (" The noResponse penalty only applies once a stage lowers that probability." if base["penalty"]["noResponse"] else ""))
     elif p > 0:
         notes.append(f"A target trial's miss is auto-rewarded on {_pct(p)} of trials (autoRewardProbability {_num(p)}).")
+    elif base["penalty"]["noResponse"] is not None:
+        notes.append("No trial is auto-rewarded (autoRewardProbability 0), so a scored miss is penalised (penalty.noResponse).")
     if any(c["probe"] for c in conditions):
         notes.append("A probe (target noReward) gets neither reward nor penalty, whatever the mouse does; its trial still ends at the first lick."
                      if all(c["target"] != "random" for c in conditions) else
@@ -304,6 +331,11 @@ def _notes(base: dict, conditions: list[dict]) -> list[str]:
                      + (", tails penalised (penaliseProbes)." if base["penaliseProbes"] else ", tails unpenalised."))
     if timing["alwaysIn"]:
         notes.append("The spouts stay in throughout (spouts.alwaysIn true): no spout moves within or between trials.")
+    else:
+        single = base["spouts"]["singleSpoutProbability"]
+        notes.append(f"The spouts come in {_num(timing['spoutsIn'])} s after stimulus onset and go out {_num(timing['consume'])} s into the ITI; "
+                     "a penalty draws both back at the outcome, a reward the other spout."
+                     + (f" On {_pct(single)} of scored trials only the target's spout comes in (singleSpoutProbability)." if single > 0 else ""))
     if timing["lickQuiet"] or timing["wheelQuiet"]:
         notes.append(f"Quiet waits are on (lick {_num(timing['lickQuiet'])} s, wheel {_num(timing['wheelQuiet'])} s): "
                      "a busy mouse delays the trial start, so the ITI can run longer than drawn.")

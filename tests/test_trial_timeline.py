@@ -12,7 +12,7 @@ from ucl_open_coen_dome_decision_making import trial_timeline as tt
 
 def test_the_committed_page_matches_the_task_files():
     assert tt.OUTPUT.exists() and tt.OUTPUT.read_text(encoding="utf-8") == tt.render(), (
-        "docs/trial-timeline.html is out of date with config/task-discrimination-*.yml: run `uv run trial-timeline`"
+        "docs/trial-timeline.html is out of date with config/task-*.yml: run `uv run trial-timeline`"
     )
 
 
@@ -45,3 +45,22 @@ def test_a_conditions_own_timeout_shows_on_its_card(tmp_path):
     path.write_text(text, encoding="utf-8")
     nogo = next(c for c in tt.task_timeline(path)["conditions"] if c["target"] == "noGo")
     assert [r["penalty"]["timeout"] for v in nogo["variants"] for r in v["rows"] if r["penalty"]] == [7.0]
+
+
+@pytest.mark.parametrize("row", OUTCOMES["sideTargets"], ids=lambda r: f"{r['target']}-{r['visualAzimuthDeg']}-{r['auditoryAzimuthDeg']}")
+def test_side_targets_resolve_as_the_csharps(row):
+    # Localization: a side target's spout is the grating's or the sound's picked azimuth's side, by TrialDraw's draws.
+    combination = {"target": row["target"], "visualStimulus": {"initialAzimuthsDeg": [row["visualAzimuthDeg"]]},
+                   "auditoryStimulus": {"initialAzimuthsDeg": [row["auditoryAzimuthDeg"]]}}
+    assert tt._side(combination) == row["resolved"]
+
+
+def test_localization_cards_name_the_side_and_penalise_a_miss():
+    task = tt.task_timeline(tt.ROOT / "config" / "task-localization.yml")
+    visual = next(c for c in task["conditions"] if c["trialType"] == "visual")
+    assert visual["answer"] == "the grating's side" and len(visual["variants"]) == 1, "a side target's left and right trials share one card"
+    rows = {r["label"]: r for r in visual["variants"][0]["rows"]}
+    assert rows["Lick the grating's side"]["kind"] == "reward"
+    assert rows["Lick the other side"]["penalty"]["kind"] == "incorrect"
+    assert rows["No lick"]["penalty"]["kind"] == "noResponse", "autoRewardProbability 0: a miss is penalised"
+    assert not task["base"]["alwaysIn"], "the spouts move in localization"
