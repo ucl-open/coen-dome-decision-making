@@ -78,7 +78,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "target": "auditorySide",
         "visualStimulus.initialAzimuthsDeg": -60.0,
         "visualStimulus.initialContrasts": 0.0
@@ -90,7 +90,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "target": "auditorySide",
         "visualStimulus.initialAzimuthsDeg": -60.0,
         "visualStimulus.initialContrasts": 0.0
@@ -102,7 +102,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "target": "auditorySide",
         "visualStimulus.initialAzimuthsDeg": 60.0,
         "visualStimulus.initialContrasts": 0.0
@@ -114,7 +114,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "target": "auditorySide",
         "visualStimulus.initialAzimuthsDeg": 60.0,
         "visualStimulus.initialContrasts": 0.0
@@ -126,7 +126,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": -60.0,
         "visualStimulus.initialContrasts": 0.25
@@ -138,7 +138,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": 60.0,
         "visualStimulus.initialContrasts": 0.25
@@ -150,7 +150,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": -60.0,
         "visualStimulus.initialContrasts": 0.5
@@ -162,7 +162,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": 60.0,
         "visualStimulus.initialContrasts": 0.5
@@ -174,7 +174,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": -60.0,
         "visualStimulus.initialContrasts": 1.0
@@ -186,7 +186,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": 60.0,
         "visualStimulus.initialContrasts": 1.0

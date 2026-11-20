@@ -90,7 +90,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
@@ -104,7 +104,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
@@ -118,7 +118,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
@@ -132,7 +132,7 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
@@ -146,7 +146,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
@@ -160,7 +160,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
@@ -174,7 +174,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
@@ -188,7 +188,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
@@ -202,7 +202,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
@@ -216,7 +216,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
@@ -230,7 +230,7 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
@@ -244,7 +244,7 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
@@ -258,7 +258,7 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
@@ -272,7 +272,7 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
@@ -286,7 +286,7 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
@@ -300,7 +300,7 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",

@@ -6,7 +6,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
@@ -17,7 +17,7 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "target": "visualSide",
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
