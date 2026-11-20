@@ -1,0 +1,66 @@
+"""docs/trial-timeline.html is what `uv run trial-timeline` makes from the task files now, and its outcome rules are the C#'s:
+tests/fixtures/outcomes.json, which OutcomeTableTests.cs writes from TrialRow.cs and TrialDraw (OUTCOMES_REGEN=1) and fails
+on whenever those rules change."""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from ucl_open_coen_dome_decision_making import trial_timeline as tt
+
+
+def test_the_committed_page_matches_the_task_files():
+    assert tt.OUTPUT.exists() and tt.OUTPUT.read_text(encoding="utf-8") == tt.render(), (
+        "docs/trial-timeline.html is out of date with config/task-*.yml: run `uv run trial-timeline`"
+    )
+
+
+OUTCOMES = json.loads((Path(__file__).parent / "fixtures" / "outcomes.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("row", OUTCOMES["outcomes"], ids=lambda r: "-".join(str(r[k]) for k in ("taskType", "target", "choice", "autoReward", "heads", "penaliseRandomProbes")))
+def test_outcomes_are_the_csharps(row):
+    # tests/fixtures/outcomes.json is TrialRow.cs's rules, written by OutcomeTableTests.cs (which fails when the C# changes).
+    choice = None if row["choice"] == "noResponse" else row["choice"]
+    out = tt.outcome(row["taskType"], row["target"], choice, row["autoReward"])
+    got = (out, tt.rewarded(row["target"], choice, row["autoReward"], row["heads"], out),
+           tt.penalised(row["target"], choice, row["autoReward"], row["heads"], out, row["penaliseRandomProbes"]))
+    assert got == (row["outcome"], row["rewarded"], row["penalised"]), "trial_timeline.py's copy of TrialRow.cs's rules has drifted"
+
+
+@pytest.mark.parametrize("task_type", sorted(OUTCOMES["autoRewardPossible"]))
+def test_auto_reward_targets_are_the_csharps(task_type):
+    # Which targets TrialDraw auto-rewards, by OutcomeTableTests.cs's draws.
+    for target, possible in OUTCOMES["autoRewardPossible"][task_type].items():
+        assert tt.auto_reward_possible(task_type, target) == possible, f"{task_type} {target}"
+
+
+def test_a_conditions_own_timeout_shows_on_its_card(tmp_path):
+    # A stage that sets a condition's own penalty timeout: that card's penalised row carries it, the others the task's.
+    text = (tt.ROOT / "config" / "task-discrimination-go-no-go.yml").read_text(encoding="utf-8")
+    text = text.replace("set: { target: noGo, visualStimulus.initialContrasts: [0] }",
+                        "set: { target: noGo, visualStimulus.initialContrasts: [0], penalty.incorrect.timeoutSeconds: 7.0 }")
+    path = tmp_path / "task-discrimination-go-no-go.yml"
+    path.write_text(text, encoding="utf-8")
+    nogo = next(c for c in tt.task_timeline(path)["conditions"] if c["target"] == "noGo")
+    assert [r["penalty"]["timeout"] for v in nogo["variants"] for r in v["rows"] if r["penalty"]] == [7.0]
+
+
+@pytest.mark.parametrize("row", OUTCOMES["sideTargets"], ids=lambda r: f"{r['target']}-{r['visualAzimuthDeg']}-{r['auditoryAzimuthDeg']}")
+def test_side_targets_resolve_as_the_csharps(row):
+    # Localization: a side target's spout is the grating's or the sound's picked azimuth's side, by TrialDraw's draws.
+    combination = {"target": row["target"], "visualStimulus": {"initialAzimuthsDeg": [row["visualAzimuthDeg"]]},
+                   "auditoryStimulus": {"initialAzimuthsDeg": [row["auditoryAzimuthDeg"]]}}
+    assert tt._side(combination) == row["resolved"]
+
+
+def test_localization_cards_name_the_side_and_penalise_a_miss():
+    task = tt.task_timeline(tt.ROOT / "config" / "task-localization.yml")
+    visual = next(c for c in task["conditions"] if c["trialType"] == "visual")
+    assert visual["answer"] == "the grating's side" and len(visual["variants"]) == 1, "a side target's left and right trials share one card"
+    rows = {r["label"]: r for r in visual["variants"][0]["rows"]}
+    assert rows["Lick the grating's side"]["kind"] == "reward"
+    assert rows["Lick the other side"]["penalty"]["kind"] == "incorrect"
+    assert rows["No lick"]["penalty"]["kind"] == "noResponse", "autoRewardProbability 0: a miss is penalised"
+    assert not task["base"]["alwaysIn"], "the spouts move in localization"
