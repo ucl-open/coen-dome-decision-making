@@ -37,8 +37,8 @@ outcome:
 itiStartTime:
   type: double
   unit: s
-  description: 'Harp time the inter-trial interval before this trial began: the last trial''s outcomeTime plus its penaltyTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started.'
-  note: Here the response window always runs in full, so the interval starts at the last trial's trialEndTime (its response window's end) plus its penaltyTimeoutSeconds, not at its outcomeTime; a lick never brings it forward.
+  description: 'Harp time the inter-trial interval before this trial began: the last trial''s trialEndTime (its outcomeTime in a log without trialEndTime) plus its penaltyTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started.'
+  note: Here the response window always runs in full, so trialEndTime is the response window's end; a lick never brings the interval forward.
 itiSeconds:
   type: double
   unit: s
