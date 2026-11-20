@@ -603,6 +603,10 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(task), "responseWindowSeconds must be given");
 
         task = Fixture.Task("task-localization.yml", 4);
+        task.TrialStructure.ResponseWindowAlwaysFull = false;
+        StringAssert.Contains(refusal(task), "trialStructure.responseWindowAlwaysFull must be true");
+
+        task = Fixture.Task("task-localization.yml", 4);
         speakers.Speakers.Remove("right");
         StringAssert.Contains(refusal(task), "is 'centre', not on the right");
 

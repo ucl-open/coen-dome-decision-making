@@ -6,7 +6,7 @@ using UclOpenCoenDomeDecisionMakingTask;
 // (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
 // means, lists it; the order is the file's. The row travels Timestamped at its outcome, which the
 // lab's CsvWriter writes first as harpTime. The columns up to autoReward are the lab's shared block (its core, stimulusOffTime included, with the
-// quietWait, optogenetics, conditions, stimulus and autoReward blocks), in coen-dome-navigation's order and words; this
+// quietWait, trialEnd, optogenetics, conditions, stimulus and autoReward blocks), in coen-dome-navigation's order and words; this
 // task's own follow. Words (outcome, target, choice) are in the task file's camelCase.
 public class TrialRow
 {
@@ -20,6 +20,7 @@ public class TrialRow
     public double stimulusOnsetTime;
     public double stimulusOffTime;
     public double outcomeTime;
+    public double trialEndTime;
     public double rewardOfferedUl;
     public bool rewarded;
     public double penaltyTimeoutSeconds;

@@ -10,6 +10,7 @@ from open_rigs.core.task import (
     LickQuietWait,
     Penalty,
     ResponseWindow,
+    ResponseWindowAlwaysFull,
     Reward as CoreReward,
     Spouts as LabSpouts,
     StimulusTiming,
@@ -33,21 +34,27 @@ from ucl_open_coen_dome_decision_making import __semver__
 STIMULUS_LEVEL_DBFS = -40.0
 
 
-class TrialStructure(Iti, ResponseWindow, LickQuietWait, WheelQuietWait):
-    """Timing of each trial, every wait on the Harp clock. A rewarded trial is its outcome, then the interval (the lab's
-    Iti block), the reward drunk inside it (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one
-    its outcome, its kind's timeout, then the interval; one neither rewarded nor penalised its outcome, then the interval
-    (the first trial's: from the experiment folder's creation). The interval runs to this trial's stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only
-    lengthen it. A lick first counts stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's
-    ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused."""
+class TrialStructure(Iti, ResponseWindow, ResponseWindowAlwaysFull, LickQuietWait, WheelQuietWait):
+    """Timing of each trial, every wait on the Harp clock. The response window always runs in full (the lab's
+    ResponseWindowAlwaysFull block, fixed true): a choice gives its outcome at once, but the trial ends at the window's end
+    (trialEndTime), so a trial lasts the same whatever the mouse does. A rewarded trial is its end, then the interval (the
+    lab's Iti block), the reward drunk from the outcome on (the spouts drawn out spouts.rewardConsumptionSeconds into the
+    interval); a penalised one its end, its kind's timeout, then the interval; one neither rewarded nor penalised its end,
+    then the interval (the first trial's: from the experiment folder's creation). The interval runs to this trial's
+    stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only lengthen it. A lick first counts
+    stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's ResponseWindow block)
+    starts; responseWindowSeconds must be given: no limit is refused."""
 
     stimulus_to_response_window_seconds: Double = Field(default=0.0, ge=0, description="From stimulus onset to the response window opening, in seconds; responseWindowSeconds runs from that opening, and licks before it are not counted")
-
-    @model_validator(mode="after")
-    def _ordered(self) -> "TrialStructure":
-        if self.response_window_seconds is None:
-            raise ValueError("response_window_seconds must be given: this task's response window always closes")
-        return self
+    response_window_always_full: Literal[True] = Field(
+        default=True,
+        frozen=True,
+        description=(
+            "Always true, fixed for this task: the response window always runs in full, so a trial lasts the same whatever the mouse "
+            "does. A choice gives the outcome (reward, spouts, penalty sound and flash) at once, but the trial ends at the window's "
+            "end (trialEndTime), rewarded or not; the next interval starts then, after a penalised trial's timeout"
+        ),
+    )
 
 
 class Spouts(LabSpouts):
@@ -140,7 +147,7 @@ class Reward(CoreReward):
 class Response(TaskBlock):
     """Lick-accumulation response rule; thresholdLicks 1 with azimuthShiftPerLickDeg 0 is classic first-lick 2AFC."""
 
-    threshold_licks: int = Field(default=1, ge=1, description="Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)")
+    threshold_licks: int = Field(default=1, ge=1, description="Net lick difference (left minus right, absolute) that makes the choice, its outcome at once (the response window still runs in full); in discriminationGoNoGo, licks at the left spout (the right is not counted)")
     azimuth_shift_per_lick_deg: Double = Field(default=0.0, description="Degrees the grating's azimuth moves per net lick; 0 keeps the stimulus fixed")
 
 

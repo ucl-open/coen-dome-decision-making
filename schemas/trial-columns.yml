@@ -12,8 +12,8 @@
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
 # unit (itiSeconds, rewardOfferedUl); never a stored latency.
 #
-# The first 27 columns, harpTime to autoReward, are the lab's shared block, its core with the quietWait, optogenetics,
-# conditions, stimulus and autoReward blocks,
+# The first 28 columns, harpTime to autoReward, are the lab's shared block, its core with the quietWait, trialEnd,
+# optogenetics, conditions, stimulus and autoReward blocks,
 # defined once in lib-open-rigs open_rigs.rigs.trials: coen-dome-decision-making and
 # coen-dome-navigation list them in this order with these types, units and descriptions, word for word
 # (tests/test_trial_columns.py holds both), so one analysis reads both tasks.
@@ -38,11 +38,12 @@ itiStartTime:
   type: double
   unit: s
   description: 'Harp time the inter-trial interval before this trial began: the last trial''s outcomeTime plus its penaltyTimeoutSeconds, exactly; on trial 1 the first Harp clock tick once the trials started.'
+  note: Here the response window always runs in full, so the interval starts at the last trial's trialEndTime (its response window's end) plus its penaltyTimeoutSeconds, not at its outcomeTime; a lick never brings it forward.
 itiSeconds:
   type: double
   unit: s
   description: 'The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial''s stimulus with a quiet mouse, the time to drink included. A task''s quiet waits add quietWaitSeconds, so the stimulus was due at itiStartTime + itiSeconds + quietWaitSeconds (stimulusOnsetTime).'
-  note: A rewarded trial's interval starts at its outcome, the spouts drawn out spouts.rewardConsumptionSeconds into it (the time to drink, inside the interval); a penalised one's after the timeout (penaltyTimeoutSeconds).
+  note: A rewarded trial's interval starts at its end (trialEndTime, the response window's end), the spouts drawn out spouts.rewardConsumptionSeconds into it (the time to drink, inside the interval); a penalised one's after the timeout (penaltyTimeoutSeconds).
 quietWaitSeconds:
   type: double
   unit: s
@@ -64,7 +65,12 @@ outcomeTime:
   type: double
   unit: s
   description: Harp time the workflow knew the outcome, the same time as harpTime, as its own column so that every moment of a trial is named; the reward, the penalty sound and the timeout are timed from it. On a lick it is the Harp clock's latest tick when the workflow saw the lick, a few ms after it; each lick's own Harp time is in the lick detectors' logs.
-  note: When the workflow saw the lick it counted as the choice, or the end of the response window on noResponse.
+  note: When the workflow saw the lick it counted as the choice, or the end of the response window on noResponse. The choice gives the outcome but does not end the trial (trialEndTime).
+trialEndTime:
+  type: double
+  unit: s
+  description: 'Harp time the trial ended and its timeout began: its outcomeTime; in a task whose response window always runs in full after a choice (responseWindowAlwaysFull; OpenRigs.Trials TrialTiming.ResponseWindowAlwaysFull), the response window''s end, rewarded or not (outcomeTime on a miss). The next interval starts at it plus penaltyTimeoutSeconds (itiStartTime). Known at the outcome, so logged in the row although it may come later.'
+  note: Always the response window's end here (trialStructure.responseWindowAlwaysFull, fixed true), stimulusToResponseWindowSeconds plus responseWindowSeconds after the stimulus was due, whether the mouse chose or not, so every trial lasts the same; on noResponse it is outcomeTime.
 rewardOfferedUl:
   type: double
   unit: ul

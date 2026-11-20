@@ -245,7 +245,8 @@ public class TrialDraw
     /// <summary>The shortest outcome to next interval a trial can have (OpenRigs.Trials StimulusTiming: the shortest penalty
     /// timeout among the outcomes that can occur, 0 where a reward or neither can come): 0 in every task here, as every trial
     /// can end rewarded or neither (a correct choice, a random probe's heads, a go/no-go miss or withheld noGo, a no-reward
-    /// probe), and a rewarded trial's interval starts at its outcome (task.py's same 0).</summary>
+    /// probe), and a rewarded trial's interval starts at its end (task.py's same 0). Its end is the response window's
+    /// (responseWindowAlwaysFull), never sooner than the outcome, so the checks built on it hold with room to spare.</summary>
     public const double MinOutcomeToItiSeconds = 0;
 
     // Each penalty kind's sound level: a number of dBFS RMS or mute (NaN), at most the peak limit.
@@ -344,6 +345,7 @@ public class TrialDraw
         finite("trialStructure.stimulusToResponseWindowSeconds", structure.StimulusToResponseWindowSeconds);
         if (structure.ResponseWindowSeconds == null) problems.Add("trialStructure.responseWindowSeconds must be given: this task's response window always closes");
         foreach (var p in TaskBlocks.ResponseWindowProblems(structure.ResponseWindowSeconds)) problems.Add("trialStructure." + p);
+        if (!structure.ResponseWindowAlwaysFull) problems.Add("trialStructure.responseWindowAlwaysFull must be true: this task's response window always runs in full");
         foreach (var p in TaskBlocks.AutoRewardProblems(task.AutoRewardProbability)) problems.Add(p);
         positive("stimulus.rateHz", task.Stimulus.RateHz);
         if (task.Stimulus.RateHz > 1 / AuditoryStimulusSet.PulseSeconds + 1e-9) problems.Add(string.Format("stimulus.rateHz {0} is above {1}: each pulse is {2} s, so they would overlap", task.Stimulus.RateHz, 1 / AuditoryStimulusSet.PulseSeconds, AuditoryStimulusSet.PulseSeconds));
@@ -596,7 +598,7 @@ public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
     /// (discriminationGoNoGo's: the left), a random trial's at the spout chosen, the other spout drawn back, the next interval
-    /// from the outcome (both out spouts.rewardConsumptionSeconds into it). Anything else draws both back, with the penalty sound, flash and timeout of its kind
+    /// from the trial's end, the response window's (both out spouts.rewardConsumptionSeconds into it). Anything else draws both back, with the penalty sound, flash and timeout of its kind
     /// if it was penalised (TrialRow.Cost: a miss's penalty.noResponse, else penalty.incorrect). A trial whose spouts are
     /// always in leaves them where they are (OpenRigs.Trials SpoutCommands).</summary>
     public static TrialOutcome At(string choice, Trial trial, TrialTimes times)
@@ -690,6 +692,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             Laser = trial.laserCondition > 0,                                    // every trial of an optogenetics experiment, laser on or off
             ResponseDelaySeconds = structure.StimulusToResponseWindowSeconds,
             ResponseWindowSeconds = structure.ResponseWindowSeconds.Value,     // never null: the Go check refuses it
+            ResponseWindowAlwaysFull = structure.ResponseWindowAlwaysFull,     // always true: a lick gives the outcome, the trial ends at the window's end
             // The stimulus off (the StimulusOff event: the grating hidden, the sound stopped) and the spouts' SpoutsIn and SpoutsOut cues.
             StimulusDurationSeconds = trial.Stimulus.DurationSeconds ?? double.NaN,
             ResponseToStimulusOffSeconds = trial.Stimulus.ResponseToStimulusOffSeconds,

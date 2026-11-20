@@ -1192,13 +1192,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Net lick difference (left minus right, absolute) that ends the response window with a choice; in discriminationGoNoGo, licks at the left spout (the right is not counted)
+        /// Net lick difference (left minus right, absolute) that makes the choice, its outcome at once (the response window still runs in full); in discriminationGoNoGo, licks at the left spout (the right is not counted)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("thresholdLicks")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="thresholdLicks")]
-        [System.ComponentModel.DescriptionAttribute("Net lick difference (left minus right, absolute) that ends the response window wi" +
-            "th a choice; in discriminationGoNoGo, licks at the left spout (the right is not " +
-            "counted)")]
+        [System.ComponentModel.DescriptionAttribute("Net lick difference (left minus right, absolute) that makes the choice, its outco" +
+            "me at once (the response window still runs in full); in discriminationGoNoGo, li" +
+            "cks at the left spout (the right is not counted)")]
         public int ThresholdLicks
         {
             get
@@ -1932,20 +1932,26 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Timing of each trial, every wait on the Harp clock. A rewarded trial is its outcome, then the interval (the lab's
-    ///Iti block), the reward drunk inside it (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one
-    ///its outcome, its kind's timeout, then the interval; one neither rewarded nor penalised its outcome, then the interval
-    ///(the first trial's: from the experiment folder's creation). The interval runs to this trial's stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only
-    ///lengthen it. A lick first counts stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's
-    ///ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.
+    /// Timing of each trial, every wait on the Harp clock. The response window always runs in full (the lab's
+    ///ResponseWindowAlwaysFull block, fixed true): a choice gives its outcome at once, but the trial ends at the window's end
+    ///(trialEndTime), so a trial lasts the same whatever the mouse does. A rewarded trial is its end, then the interval (the
+    ///lab's Iti block), the reward drunk from the outcome on (the spouts drawn out spouts.rewardConsumptionSeconds into the
+    ///interval); a penalised one its end, its kind's timeout, then the interval; one neither rewarded nor penalised its end,
+    ///then the interval (the first trial's: from the experiment folder's creation). The interval runs to this trial's
+    ///stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only lengthen it. A lick first counts
+    ///stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's ResponseWindow block)
+    ///starts; responseWindowSeconds must be given: no limit is refused.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"Timing of each trial, every wait on the Harp clock. A rewarded trial is its outcome, then the interval (the lab's
-    Iti block), the reward drunk inside it (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one
-    its outcome, its kind's timeout, then the interval; one neither rewarded nor penalised its outcome, then the interval
-    (the first trial's: from the experiment folder's creation). The interval runs to this trial's stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only
-    lengthen it. A lick first counts stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's
-    ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.")]
+    [System.ComponentModel.DescriptionAttribute(@"Timing of each trial, every wait on the Harp clock. The response window always runs in full (the lab's
+    ResponseWindowAlwaysFull block, fixed true): a choice gives its outcome at once, but the trial ends at the window's end
+    (trialEndTime), so a trial lasts the same whatever the mouse does. A rewarded trial is its end, then the interval (the
+    lab's Iti block), the reward drunk from the outcome on (the spouts drawn out spouts.rewardConsumptionSeconds into the
+    interval); a penalised one its end, its kind's timeout, then the interval; one neither rewarded nor penalised its end,
+    then the interval (the first trial's: from the experiment folder's creation). The interval runs to this trial's
+    stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only lengthen it. A lick first counts
+    stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's ResponseWindow block)
+    starts; responseWindowSeconds must be given: no limit is refused.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class TrialStructure
@@ -1956,6 +1962,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
         private double _wheelQuietCm;
     
         private double _lickQuietSeconds;
+    
+        private bool _responseWindowAlwaysFull;
     
         private double? _responseWindowSeconds;
     
@@ -1970,6 +1978,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _wheelQuietSeconds = 0D;
             _wheelQuietCm = 0D;
             _lickQuietSeconds = 0D;
+            _responseWindowAlwaysFull = true;
             _stimulusToResponseWindowSeconds = 0D;
         }
     
@@ -1978,6 +1987,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _wheelQuietSeconds = other._wheelQuietSeconds;
             _wheelQuietCm = other._wheelQuietCm;
             _lickQuietSeconds = other._lickQuietSeconds;
+            _responseWindowAlwaysFull = other._responseWindowAlwaysFull;
             _responseWindowSeconds = other._responseWindowSeconds;
             _itiMinSeconds = other._itiMinSeconds;
             _itiMaxSeconds = other._itiMaxSeconds;
@@ -2036,6 +2046,24 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _lickQuietSeconds = value;
+            }
+        }
+    
+        /// <summary>
+        /// Always true, fixed for this task: the response window always runs in full, so a trial lasts the same whatever the mouse does. A choice gives the outcome (reward, spouts, penalty sound and flash) at once, but the trial ends at the window's end (trialEndTime), rewarded or not; the next interval starts then, after a penalised trial's timeout
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("responseWindowAlwaysFull")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="responseWindowAlwaysFull")]
+        [System.ComponentModel.DescriptionAttribute(@"Always true, fixed for this task: the response window always runs in full, so a trial lasts the same whatever the mouse does. A choice gives the outcome (reward, spouts, penalty sound and flash) at once, but the trial ends at the window's end (trialEndTime), rewarded or not; the next interval starts then, after a penalised trial's timeout")]
+        public bool ResponseWindowAlwaysFull
+        {
+            get
+            {
+                return _responseWindowAlwaysFull;
+            }
+            set
+            {
+                _responseWindowAlwaysFull = value;
             }
         }
     
@@ -2130,6 +2158,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("WheelQuietSeconds = " + _wheelQuietSeconds + ", ");
             stringBuilder.Append("WheelQuietCm = " + _wheelQuietCm + ", ");
             stringBuilder.Append("LickQuietSeconds = " + _lickQuietSeconds + ", ");
+            stringBuilder.Append("ResponseWindowAlwaysFull = " + _responseWindowAlwaysFull + ", ");
             stringBuilder.Append("ResponseWindowSeconds = " + _responseWindowSeconds + ", ");
             stringBuilder.Append("ItiMinSeconds = " + _itiMinSeconds + ", ");
             stringBuilder.Append("ItiMaxSeconds = " + _itiMaxSeconds + ", ");

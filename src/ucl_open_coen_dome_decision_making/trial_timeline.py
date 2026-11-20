@@ -292,8 +292,8 @@ def _phases(t: dict, base: dict) -> list[list[str]]:
         rows.append(["Stimulus off after the response (a miss: the window's end), if sooner", f"{_num(timing['offAfterResponse'])} s",
                      "stimulus.responseToStimulusOffSeconds"])
     rows.append(["Grace period: licks do not count", f"{_num(timing['grace'])} s", "trialStructure.stimulusToResponseWindowSeconds"])
-    rows.append(["Response window: the first lick ends it (the outcome)" if base["response"]["thresholdLicks"] == 1 else
-                 f"Response window: {base['response']['thresholdLicks']} net licks end it (the outcome)",
+    rows.append(["Response window, always run in full: the first lick is the outcome" if base["response"]["thresholdLicks"] == 1 else
+                 f"Response window, always run in full: {base['response']['thresholdLicks']} net licks are the outcome",
                  "no limit" if timing["window"] is None else f"{_num(timing['window'])} s", "trialStructure.responseWindowSeconds"])
     for kind, name in (("incorrect", "an incorrect lick"), ("noResponse", "a penalised miss")):
         p = base["penalty"][kind]
@@ -301,7 +301,7 @@ def _phases(t: dict, base: dict) -> list[list[str]]:
             continue
         extras = [f"sound {'off' if p['sound']['levelDbfs'] == MUTE else _num(p['sound']['levelDbfs']).replace('-', '−') + ' dBFS'}",
                   "flash off" if p["flash"]["brightness"] == 0 else f"flash {_num(p['flash']['brightness'])} at {_num(p['flash']['rateHz'])} Hz"]
-        rows.append([f"Penalty timeout after {name}, from the outcome ({', '.join(extras)})", f"{_num(p['timeoutSeconds'])} s", f"penalty.{kind}.timeoutSeconds"])
+        rows.append([f"Penalty timeout after {name}, from the window's end ({', '.join(extras)})", f"{_num(p['timeoutSeconds'])} s", f"penalty.{kind}.timeoutSeconds"])
     rows.append(["ITI, to the next stimulus onset, drawn per trial", f"{_num(timing['itiMin'])}–{_num(timing['itiMax'])} s", "trialStructure.itiMin/MaxSeconds"])
     rows.append([f"Drinking time, inside the ITI after a reward ({_reward_text(base)})", f"{_num(timing['consume'])} s", "spouts.rewardConsumptionSeconds"])
     if timing["laser"]:
@@ -312,10 +312,11 @@ def _phases(t: dict, base: dict) -> list[list[str]]:
 
 def _notes(base: dict, conditions: list[dict]) -> list[str]:
     timing = _timing(base)
-    notes = []
+    notes = ["The response window always runs in full (trialStructure.responseWindowAlwaysFull, fixed true): a lick gives the outcome "
+             "(reward, or penalty sound and flash) at once, but the trial ends at the window's end, so it lasts the same whatever the mouse does."]
     if timing["offAfterResponse"] is None and timing["stim"] is not None:
         notes.append(f"The stimulus does not stop at the response (responseToStimulusOffSeconds null), so it always runs its full "
-                     f"{_num(timing['stim'])} s, even into the ITI after an early lick.")
+                     f"{_num(timing['stim'])} s, after an early lick too.")
     p = base["autoRewardProbability"]
     if p == 1:
         notes.append("Every target trial's miss is auto-rewarded (autoRewardProbability 1), so no scored miss is penalised."
@@ -325,7 +326,7 @@ def _notes(base: dict, conditions: list[dict]) -> list[str]:
     elif base["penalty"]["noResponse"] is not None:
         notes.append("No trial is auto-rewarded (autoRewardProbability 0), so a scored miss is penalised (penalty.noResponse).")
     if any(c["probe"] for c in conditions):
-        notes.append("A probe (target noReward) gets neither reward nor penalty, whatever the mouse does; its trial still ends at the first lick."
+        notes.append("A probe (target noReward) gets neither reward nor penalty, whatever the mouse does; its trial still runs to the window's end."
                      if all(c["target"] != "random" for c in conditions) else
                      "Probes: target noReward gets neither reward nor penalty; target random rewards a lick on a coin's heads"
                      + (", tails penalised (penaliseRandomProbes)." if base["penaliseRandomProbes"] else ", tails unpenalised."))
@@ -347,12 +348,10 @@ def _notes(base: dict, conditions: list[dict]) -> list[str]:
             t = v["timing"]
             for r in v["rows"]:
                 timeout = r["penalty"]["timeout"] if r["penalty"] else 0.0
-                first = t["grace"] if r["lick"] else t["winEnd"]
-                last = t["winEnd"] if t["winEnd"] is not None else t["grace"]
-                lo = min(lo, first + timeout + t["itiMin"])
-                hi = max(hi, last + timeout + t["itiMax"])
-    notes.append(f"Onset to next onset runs from {_num(round(lo, 3))} s (the earliest outcome, its timeout if any, the shortest ITI) "
-                 f"to {_num(round(hi, 3))} s (the latest outcome, the longest timeout, the longest ITI).")
+                lo = min(lo, t["winEnd"] + timeout + t["itiMin"])
+                hi = max(hi, t["winEnd"] + timeout + t["itiMax"])
+    notes.append(f"Onset to next onset runs from {_num(round(lo, 3))} s (the window's end, the shortest timeout, the shortest ITI) "
+                 f"to {_num(round(hi, 3))} s (the window's end, the longest timeout, the longest ITI), whenever the mouse licks.")
     return notes
 
 

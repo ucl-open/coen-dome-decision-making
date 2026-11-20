@@ -89,7 +89,7 @@ class Harness
 static class Rules
 {
     // Discrimination stage 4 with every interval exactly 2 s: trial 1's interval from 10 s, its start at 11.5 (the 0.5 s
-    // lead), the stimulus at 12 and its response window 12.5 to 14 (stimulusToResponseWindowSeconds 0.5, the spouts' arrival). Stage 4 takes the task's weights,
+    // lead), the stimulus at 12 and its response window 12.5 to 14.5 (stimulusToResponseWindowSeconds 0.5, the spouts' arrival), where every trial ends. Stage 4 takes the task's weights,
     // here scored trials alone in the two-spout tasks, so every trial has a side to answer (the probes' own test below).
     public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, bool hardwareTriggered = true, string file = "task-discrimination-left-right.yml", int stage = 4)
     {
@@ -194,7 +194,28 @@ public class ResponseRuleTests
         var row = run.Row();
         Assert.IsTrue(row.choice == Choice.NoResponse && row.outcome == TrialOutcomes.NoResponse && row.outcomeTime == 14.5);
         Assert.IsTrue(row.penalised && row.penaltyTimeoutSeconds == 4, "a miss: the sound and the timeout");
-        Assert.AreEqual(18.5, run.Of(TrialEventKind.Iti)[1].Seconds, 1e-9, "the next interval at the outcome plus the timeout");
+        Assert.AreEqual(18.5, run.Of(TrialEventKind.Iti)[1].Seconds, 1e-9, "the next interval at the trial's end (a miss: the outcome) plus the timeout");
+    }
+
+    [TestMethod]
+    public void ALickGivesTheOutcomeButTheTrialRunsToTheWindowsEnd()
+    {
+        // The task as shipped (responseWindowAlwaysFull true, the default the files leave out): the window 12.5 to 14.5 s.
+        // A lick at 12.6 s is the outcome; the trial ends at 14.5 s, rewarded or not, and the next interval starts then
+        // plus any timeout (penalty.incorrect 4 s), so a trial lasts the same whatever the mouse does.
+        Assert.IsTrue(Fixture.Task("task-discrimination-left-right.yml", 4).TrialStructure.ResponseWindowAlwaysFull);
+        foreach (var correct in new[] { true, false })
+        {
+            var run = new Harness(Rules.Make());
+            run.RunTo(12.05);
+            var spout = run.Spout(correct);
+            run.At(12.6, h => h.Lick(spout)).RunTo(26);
+            var first = run.Row();
+            Assert.AreEqual(12.6, first.outcomeTime, 1e-12, "the lick is the outcome");
+            Assert.AreEqual(14.5, first.trialEndTime, 1e-9, "the trial ends at the window's end");
+            Assert.AreEqual(correct ? 0 : 4, first.penaltyTimeoutSeconds);
+            Assert.AreEqual(first.trialEndTime + first.penaltyTimeoutSeconds, run.Row(1).itiStartTime, 1e-9, "the next interval at the trial's end plus its timeout");
+        }
     }
 
     [TestMethod]
@@ -204,15 +225,15 @@ public class ResponseRuleTests
         var run = new Harness(Rules.Make(t => t.Repeats.RepeatOn = RepeatOn.NotCorrect, file: "task-localization.yml"));
         run.RunTo(12.05);
         var wrong = run.Spout(false);
-        run.At(12.6, h => h.Lick(wrong)).RunTo(16.7);   // Incorrect at 12.6: the timeout, then trial 2's interval
-        run.RunTo(18.5);
+        run.At(12.6, h => h.Lick(wrong)).RunTo(18.6);   // Incorrect at 12.6: the window runs to 14.5, the timeout, then trial 2's interval
+        run.RunTo(20.5);
         var starts = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         Assert.AreEqual(2, starts.Count);
         Assert.AreEqual(TrialOutcomes.Incorrect, run.Row().outcome);
         Assert.IsTrue(starts[1].trialNumber == 2 && starts[1].repeatCount == 1 && starts[1].visualInitialAzimuthDeg.Equals(starts[0].visualInitialAzimuthDeg)
                       && starts[1].target == starts[0].target && starts[1].trialType == starts[0].trialType);
         var right = starts[1].target == TargetWords.Left ? 0 : 1;
-        run.At(19.2, h => h.Lick(right)).RunTo(23);   // rewarded: trial 3's 2 s interval from the outcome
+        run.At(21.2, h => h.Lick(right)).RunTo(25);   // rewarded: trial 3's 2 s interval from the window's end, 23.0 s
         Assert.AreEqual(TrialOutcomes.Correct, run.Row(1).outcome);
         Assert.AreEqual(0, run.Of(TrialEventKind.Start)[2].Trial.repeatCount, "after a correct answer, a new draw");
     }
@@ -365,11 +386,11 @@ public class CueTests
         var run = new Harness(Rules.Make());
         run.RunTo(12.05);
         var right = run.Spout(true);
-        run.At(12.5, h => h.Lick(right)).RunTo(16);
+        run.At(12.5, h => h.Lick(right)).RunTo(16.5);
         var cues = run.Of(TrialEventKind.Cue).Where(e => e.Trial.trialNumber == 1).ToDictionary(e => e.Cue, e => e.Seconds);
         Assert.AreEqual(12.5, cues[OpenRigs.Trials.Spouts.InCue], 1e-12, "the window opens as the spouts arrive, so no outcome can come before SpoutsIn: nothing to drop (the Go check refuses a window before the spouts)");
         Assert.AreEqual(13.5, run.Of(TrialEventKind.StimulusOff).Single(e => e.Trial.trialNumber == 1).Seconds, 0.0011, "after the outcome: the stimulus stays its durationSeconds");
-        Assert.AreEqual(14.0, cues[OpenRigs.Trials.Spouts.OutCue], 1e-9, "spouts.rewardConsumptionSeconds into the interval, which starts at the outcome");
+        Assert.AreEqual(16.0, cues[OpenRigs.Trials.Spouts.OutCue], 1e-9, "spouts.rewardConsumptionSeconds into the interval, which starts at the trial's end, the window's (14.5 s)");
         Assert.AreEqual(12.0, run.Of(TrialEventKind.Stimulus)[0].Seconds, 1e-12);
     }
 
@@ -421,12 +442,13 @@ public class CueTests
     [TestMethod]
     public void AfterATimeoutSpoutsOutComesRewardConsumptionSecondsIntoTheNextIti()
     {
-        // An incorrect lick at 12.6 s: penalty.incorrect.timeoutSeconds 4, so the next interval at 16.6 s, SpoutsOut 1.5 s into it.
+        // An incorrect lick at 12.6 s: the trial ends at the window's end (14.5 s), penalty.incorrect.timeoutSeconds 4, so the
+        // next interval at 18.5 s, SpoutsOut 1.5 s into it.
         var run = new Harness(Rules.Make());
         run.RunTo(12.05);
         var wrong = run.Spout(false);
-        run.At(12.6, h => h.Lick(wrong)).RunTo(19);
-        Assert.AreEqual(18.1, run.Of(TrialEventKind.Cue).Single(e => e.Cue == OpenRigs.Trials.Spouts.OutCue).Seconds, 1e-9);
+        run.At(12.6, h => h.Lick(wrong)).RunTo(21);
+        Assert.AreEqual(20.0, run.Of(TrialEventKind.Cue).Single(e => e.Cue == OpenRigs.Trials.Spouts.OutCue).Seconds, 1e-9);
     }
 
     [TestMethod]
@@ -640,8 +662,9 @@ public class LaserTests
     public void TheLaserRunsForItsDurationAndTheNextArmWaitsForTheRampDown()
     {
         // laserDurationSeconds 1.3 (the most this task allows at itiMinSeconds 2) so the outcome, from 12.5 s, still comes
-        // before the line falls; trial 2's interval starts at the outcome.
-        var rules = Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 1.3; });
+        // before the line falls; a 0.2 s window (the stimulus 0.5 s to fit it) ends the trial at 12.7 s, where trial 2's
+        // interval starts, before Zapit is free.
+        var rules = Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 1.3; t.TrialStructure.ResponseWindowSeconds = 0.2; t.Stimulus.DurationSeconds = 0.5; });
         Assert.IsTrue(rules.Laser.HardwareTriggered && rules.Laser.End == LaserEnd.AfterDuration);
         Assert.AreEqual(ZapitConditions.MaximumRampDownSeconds, rules.Laser.RampDownSeconds);
         var run = new Harness(rules);
@@ -655,7 +678,7 @@ public class LaserTests
         Assert.AreEqual(12.8, run.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9, "laserDurationSeconds after the trigger, outcome or not");
         var row = run.Row();
         Assert.IsTrue(row.laserCondition > 0 && row.laserPowerMw == 3 && row.laserTriggerTime == 11.5);
-        Assert.AreEqual(13.3, run.Of(TrialEventKind.Arm)[1].Seconds, 1e-9, "trial 2's interval began at 12.6; Zapit is free 0.5 s after the line fell");
+        Assert.AreEqual(13.3, run.Of(TrialEventKind.Arm)[1].Seconds, 1e-9, "trial 2's interval began at 12.7; Zapit is free 0.5 s after the line fell");
     }
 
     [TestMethod]

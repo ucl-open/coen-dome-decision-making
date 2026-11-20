@@ -261,8 +261,18 @@ def test_committed_task_files_read_back_unchanged(path):
 
 
 def test_the_response_window_always_closes():
-    with pytest.raises(ValidationError, match="response_window_seconds must be given"):
+    with pytest.raises(ValidationError, match="response_window_always_full needs a response_window_seconds"):
         _with(structure={"responseWindowSeconds": None})
+
+
+def test_the_response_window_always_runs_in_full():
+    # Fixed true: a task file may leave it out or say true, never false, and it cannot be changed once read.
+    with pytest.raises(ValidationError, match="responseWindowAlwaysFull"):
+        _with(structure={"responseWindowAlwaysFull": False})
+    task = _with(structure={"responseWindowAlwaysFull": True})
+    assert task.trial_structure.response_window_always_full is True
+    with pytest.raises(ValidationError, match="frozen"):
+        task.trial_structure.response_window_always_full = False
 
 
 def test_the_drink_and_the_spouts_lead_fit_the_interval():

@@ -185,7 +185,7 @@ var DATA = __TIMELINE_DATA__;
     rect(svg, t.grace, we, 98, 12, v("win"));
     if (t.grace > 0) dim(svg, 0, t.grace, 142, fmt(t.grace) + " s grace");
     dim(svg, t.grace, we, 128, t.window != null ? fmt(t.window) + " s response window" : "response window, no limit");
-    el("text", { x: x(we) + 8, y: 108, class: "small" }, svg, t.window != null ? "first lick, or miss at " + fmt(we) + " s = outcome" : "first lick = outcome");
+    el("text", { x: x(we) + 8, y: 108, class: "small" }, svg, t.window != null ? "first lick (or a miss at " + fmt(we) + " s) = outcome; every trial ends at " + fmt(we) + " s" : "first lick = outcome");
     if (!t.alwaysIn) {
       marker(svg, t.spoutsIn, lanes[3][1], v("fg"));
       el("text", { x: x(t.spoutsIn) + 8, y: lanes[3][1] + 4, class: "small" }, svg, "in at " + fmt(t.spoutsIn) + " s; out " + fmt(t.consume) + " s into the ITI, or at a penalty");
@@ -196,20 +196,22 @@ var DATA = __TIMELINE_DATA__;
       el("text", { x: x(-t.laser.lead + t.laser.dur) + 8, y: ly + 4, class: "small" }, svg, fmt(t.laser.dur) + " s on " + Math.round(t.laser.p * 100) + "% of trials (none if answered before it)");
     }
     el("path", { d: "M" + x(o) + " 112V" + (yN + 12), stroke: v("fg"), "stroke-width": 1, "stroke-dasharray": "3 3" }, svg);
-    el("text", { x: x(o) + 4, y: 156, class: "small" }, svg, "outcome (example: " + fmt(o) + " s)");
-    itiBar(svg, o, t, yR - 6, 12);
-    rect(svg, o, o + t.consume, yR - 6, 12, v("consume"));
+    el("text", { x: x(o) + 4, y: 156, class: "small" }, svg, "outcome (example: " + fmt(o) + " s); trial end " + fmt(we) + " s");
+    // The response window always runs in full: the outcome comes at the lick, the trial ends at the window's end (we).
+    el("path", { d: "M" + x(we) + " 112V" + (yN + 12), stroke: v("fg"), "stroke-width": 1, "stroke-dasharray": "1 3" }, svg);
+    itiBar(svg, we, t, yR - 6, 12);
+    rect(svg, o, we + t.consume, yR - 6, 12, v("consume"));
     marker(svg, o, yR, v("reward"), "drop");
-    dim(svg, o, o + t.consume, yR + 24, fmt(t.consume) + " s drink");
-    el("text", { x: x(o + t.itiMax) + 8, y: yR + 4, class: "small" }, svg, "ITI " + fmt(t.itiMin) + "–" + fmt(t.itiMax) + " s → next stimulus");
+    dim(svg, we, we + t.consume, yR + 24, fmt(t.consume) + " s into the ITI");
+    el("text", { x: x(we + t.itiMax) + 8, y: yR + 4, class: "small" }, svg, "ITI " + fmt(t.itiMin) + "–" + fmt(t.itiMax) + " s → next stimulus");
     var to = task.incorrectTimeout;
-    if (to > 0) rect(svg, o, o + to, yP - 6, 12, v("penalty"), { opacity: 0.8 });
-    itiBar(svg, o + to, t, yP - 6, 12);
+    if (to > 0) rect(svg, we, we + to, yP - 6, 12, v("penalty"), { opacity: 0.8 });
+    itiBar(svg, we + to, t, yP - 6, 12);
     marker(svg, o, yP, v("fg"), "x");
-    if (to > 0) dim(svg, o, o + to, yP + 24, fmt(to) + " s timeout");
-    el("text", { x: x(o + to + t.itiMax) + 8, y: yP + 4, class: "small" }, svg, "then ITI");
-    itiBar(svg, o, t, yN - 6, 12);
-    el("text", { x: x(o + t.itiMax) + 8, y: yN + 4, class: "small" }, svg, "ITI only");
+    if (to > 0) dim(svg, we, we + to, yP + 24, fmt(to) + " s timeout");
+    el("text", { x: x(we + to + t.itiMax) + 8, y: yP + 4, class: "small" }, svg, "then ITI");
+    itiBar(svg, we, t, yN - 6, 12);
+    el("text", { x: x(we + t.itiMax) + 8, y: yN + 4, class: "small" }, svg, "ITI only");
   }
 
   function drawVariant(variant) {
@@ -224,23 +226,24 @@ var DATA = __TIMELINE_DATA__;
       if (variant.visual) pulses(svg, t, off, y + 2, 4, v("vis"));
       if (variant.auditory) pulses(svg, t, off, y + 7, 4, v("aud"));
       rect(svg, 0, t.grace, bar, h, v("grace"), { opacity: 0.35 });
-      rect(svg, t.grace, out, bar, h, v("win"), { opacity: 0.3 });
-      el("rect", { x: x(t.grace), y: bar + 0.5, width: Math.max(0, x(out) - x(t.grace)), height: h - 1, fill: "none", stroke: v("win"), "stroke-width": 1, rx: 2 }, svg);
+      // The window always runs in full: the outcome at the lick (out), the trial's end at the window's end (we).
+      rect(svg, t.grace, we, bar, h, v("win"), { opacity: 0.3 });
+      el("rect", { x: x(t.grace), y: bar + 0.5, width: Math.max(0, x(we) - x(t.grace)), height: h - 1, fill: "none", stroke: v("win"), "stroke-width": 1, rx: 2 }, svg);
       if (r.lick) marker(svg, out, mid, v("fg"));
       if (!t.alwaysIn) {
         // The spouts: in from spoutsIn; a penalty draws both back at the outcome, else out consume s into the ITI.
-        var spoutOut = r.kind === "penalty" ? out : out + t.consume;
+        var spoutOut = r.kind === "penalty" ? out : we + t.consume;
         el("path", { d: "M" + x(t.spoutsIn) + " " + (bar + h + 4) + "H" + x(spoutOut), stroke: v("spout"), "stroke-width": 2.5 }, svg);
       }
-      var next = out;
+      var next = we;
       if (r.kind === "reward") {
-        itiBar(svg, out, t, bar, h); rect(svg, out, out + t.consume, bar, h, v("consume")); marker(svg, out, mid, v("reward"), "drop");
+        itiBar(svg, we, t, bar, h); rect(svg, out, we + t.consume, bar, h, v("consume")); marker(svg, out, mid, v("reward"), "drop");
       } else if (r.kind === "penalty") {
-        next = out + r.penalty.timeout;
-        if (r.penalty.timeout > 0) rect(svg, out, next, bar, h, v("penalty"), { opacity: 0.8 });
+        next = we + r.penalty.timeout;
+        if (r.penalty.timeout > 0) rect(svg, we, next, bar, h, v("penalty"), { opacity: 0.8 });
         itiBar(svg, next, t, bar, h); marker(svg, out, mid, v("fg"), "x");
       } else {
-        itiBar(svg, out, t, bar, h);
+        itiBar(svg, we, t, bar, h);
       }
       sideText(svg, next + t.itiMax, mid + 4, "next onset " + fmt(next + t.itiMin) + "–" + fmt(next + t.itiMax) + " s");
     });

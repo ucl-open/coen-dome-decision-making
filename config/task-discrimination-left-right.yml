@@ -27,13 +27,13 @@ taskParameters:
     - weight: 1
       set: { target: noReward, visualStimulus.initialContrasts: [0], auditoryStimulus.initialLevelDbfs: mute }
   trialStructure:
-    itiMinSeconds: 2.5            # s, to the next stimulus: a rewarded trial is its outcome, then this ITI (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one its outcome, the timeout, then the ITI; neither, the ITI
+    itiMinSeconds: 2.5            # s, to the next stimulus: a rewarded trial is its end (the response window's), then this ITI (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one its end, the timeout, then the ITI; neither, the ITI
     itiMaxSeconds: 3.5            # s
     lickQuietSeconds: 0           # s with both spouts released before the trial start, from the interval's start (a held contact holds it); 0 off
     wheelQuietSeconds: 0          # s with the wheel still before the trial start; 0 off
     wheelQuietCm: 0               # cm of wheel travel (forward and back added) allowed in the last wheelQuietSeconds; 0 no movement
     stimulusToResponseWindowSeconds: 0.5     # s, from stimulus onset to the response window, at least a positive spouts.stimulusToSpoutsInSeconds; licks before it do not count
-    responseWindowSeconds: 2.0    # s, the response window: noResponse at its end
+    responseWindowSeconds: 2.0    # s, the response window: noResponse at its end; it always runs in full, a choice giving the outcome but not ending the trial
   spouts:
     alwaysIn: true                     # true keeps the used spouts in (habituation): no withdrawal, no single-spout move
     stimulusToSpoutsInSeconds: 0.5     # s, signed: from stimulus onset to spouts in; negative, before it (the trial starts that much earlier)
@@ -64,14 +64,14 @@ taskParameters:
   autoRewardProbability: 1.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
   penalty:                 # what a penalised trial costs, by its kind (each its own values)
     incorrect:            # an incorrect choice, or a probe's choice on the coin's tails when penaliseRandomProbes
-      timeoutSeconds: 4.0   # s; a penalised trial is its outcome, this timeout, then the ITI
+      timeoutSeconds: 4.0   # s; a penalised trial is its end (the response window's), this timeout, then the ITI
       sound:
         levelDbfs: -35    # dBFS RMS; mute: no sound
       flash:                # the penalty flash on the projector, for the penalty sound's length
         brightness: 0       # 0 to 1 of the projector's full white; 0: no flash
         rateHz: 10          # Hz, at most 30
     noResponse:           # a penalised miss (not an auto-rewarded one; a probe's as a scored trial's when penaliseRandomProbes)
-      timeoutSeconds: 4.0   # s; a penalised trial is its outcome, this timeout, then the ITI
+      timeoutSeconds: 4.0   # s; a penalised trial is its end (the response window's), this timeout, then the ITI
       sound:
         levelDbfs: mute   # dBFS RMS; mute: no sound (Pip, 20 Nov 2026: no error tone on a miss by default)
       flash:                # the penalty flash on the projector, for the penalty sound's length
@@ -88,7 +88,7 @@ taskParameters:
     laserDurationSeconds: 2.5      # s; with optogenetics on at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down - 0.2 s reply margin (2.3 s at a 0.5 s ramp-down here), checked at Go: 2.5 is over it, so ticking optogenetics.enabled is refused until this is shortened
   taskType: discriminationLeftRight
   response:
-    thresholdLicks: 1      # net lick difference ending the response window; 1 = first lick
+    thresholdLicks: 1      # net lick difference giving the choice (the window still runs in full); 1 = first lick
     azimuthShiftPerLickDeg: 0   # deg the grating moves per net lick; 0 = stimulus fixed
   repeats:
     maxRepeats: 0          # repeats in a row at most; 0 exactly when repeatOn is never
