@@ -175,9 +175,9 @@ static class Fixture
     {
         var array = new EqualisedSpeakerArray();
         array.Speakers = new Dictionary<string, Speaker>();
-        array.Speakers.Add("left", Speaker(-90, 15, 0));
-        array.Speakers.Add("right", Speaker(90, 15, 1));
-        array.Speakers.Add("centre", Speaker(0, 15, 2));
+        array.Speakers.Add("left", Speaker(-90, 0, 0));
+        array.Speakers.Add("right", Speaker(90, 0, 1));
+        array.Speakers.Add("centre", Speaker(0, 0, 2));
         return array;
     }
 
@@ -262,9 +262,9 @@ public class TrialDrawTests
             Assert.AreEqual(speaker.Position.Azimuth, t.auditoryInitialAzimuthDeg);
             Assert.AreEqual(speaker.Position.Elevation, t.auditoryInitialElevationDeg);
         }
-        var nearest = SoundAzimuths.NearestSpeaker(Fixture.Speakers(), -60, 15);
+        var nearest = SoundAzimuths.NearestSpeaker(Fixture.Speakers(), -60, 0);
         Assert.AreEqual("left", nearest.Key);
-        Assert.AreEqual("centre", SoundAzimuths.NearestSpeaker(Fixture.Speakers(), 30, 15).Key);
+        Assert.AreEqual("centre", SoundAzimuths.NearestSpeaker(Fixture.Speakers(), 30, 0).Key);
     }
 
     [TestMethod]

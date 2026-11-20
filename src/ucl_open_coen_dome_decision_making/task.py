@@ -122,7 +122,7 @@ class AuditoryStimulus(ct.AuditoryStimulus):
     initial_level_dbfs: ct.SoundLevelDbfs = level_dbfs(STIMULUS_LEVEL_DBFS, "The stimulus sound (the waveform set as one, OpenRigs.Audio SoundLevel measuring the set)")
     initial_elevation_deg: Double = Field(default=15.0, ge=-90, le=90, description="Elevation the sound plays at as the trial starts, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker")
     initial_azimuths_deg: list[SoundAzimuth] = Field(
-        default=[-60.0, 60.0],
+        default=[-90.0, 90.0],
         min_length=1,
         description=(
             "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on "
@@ -248,8 +248,8 @@ class TrialCondition(ct.TrialCondition):
         default_factory=list,
         description=(
             "Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: "
-            "audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], "
-            "audiovisualConflict with [60, -60]. Unpaired lists are picked independently"
+            "audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-90, 90], "
+            "audiovisualConflict with [90, -90]. Unpaired lists are picked independently"
         ),
     )
     set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path, any field but x-session-fields'; the rest are the task's")

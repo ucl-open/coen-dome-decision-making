@@ -19,8 +19,8 @@ taskParameters:
       - -60
       - 60
       auditoryStimulus.initialAzimuthsDeg:
-      - -60
-      - 60
+      - -90
+      - 90
   trialStructure:
     itiMinSeconds: 2.5
     itiMaxSeconds: 3.5
@@ -53,8 +53,8 @@ taskParameters:
     initialLevelDbfs: -40
     initialElevationDeg: 15
     initialAzimuthsDeg:
-    - -60
-    - 60
+    - -90
+    - 90
   reward:
     sizeUl: 3
     largeMultiplier: 2

@@ -20,10 +20,10 @@ taskParameters:
       set: { target: right, visualStimulus.initialContrasts: [0] }
     - weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
-      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
+      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-90, 90] }
     - weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
-      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60] }
+      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [90, -90] }
     - weight: 1
       set: { target: noReward, visualStimulus.initialContrasts: [0], auditoryStimulus.initialLevelDbfs: mute }
   trialStructure:
@@ -54,7 +54,7 @@ taskParameters:
   auditoryStimulus:
     initialLevelDbfs: -40    # dBFS RMS while sounding, the waveform set as one (3.22 dB louder than as stored, -43.22); mute: no sound
     initialElevationDeg: 15  # deg, with the azimuth drawn, picks rig.yml's nearest speaker
-    initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
+    initialAzimuthsDeg: [-90, 90]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
   reward:
     sizeUl: 3              # ul, planned from the valve's calibration
     largeMultiplier: 2     # above 1

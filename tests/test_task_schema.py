@@ -47,6 +47,8 @@ def test_committed_task_files_start_with_the_laser_off(path):
 def test_committed_task_files_start_at_the_two_azimuths(path):
     visual = yaml.safe_load(path.read_text())["taskParameters"]["visualStimulus"]
     assert (visual["initialAzimuthsDeg"], visual["initialElevationDeg"]) == ([-60, 60], 15)
+    sound = yaml.safe_load(path.read_text())["taskParameters"]["auditoryStimulus"]   # the speakers' (Gerion, 20 Nov 2026)
+    assert (sound["initialAzimuthsDeg"], sound["initialElevationDeg"]) == ([-90, 90], 15)
 
 
 @pytest.mark.parametrize("values, words", [([0], "must not hold 0"), ([-60, 0], "must not hold 0"), ([-60, 200], "outside"), ([], "at least 1")])
@@ -513,9 +515,9 @@ def test_pairs_zip_their_lists_and_the_rest_combine():
     # by path, the first changing fastest.
     combos = ct.condition_combinations(base, {"visualStimulus.initialContrasts": [0.5, 1], "reward.sizeUl": [2, 3]}, [], LIST_FIELDS)
     assert len(combos) == 16 and combos[:3] == [
-        {sound: [-60], "reward.sizeUl": 2, "visualStimulus.initialContrasts": [0.5], visual: [-60]},
-        {sound: [60], "reward.sizeUl": 2, "visualStimulus.initialContrasts": [0.5], visual: [-60]},
-        {sound: [-60], "reward.sizeUl": 3, "visualStimulus.initialContrasts": [0.5], visual: [-60]}]
+        {sound: [-90], "reward.sizeUl": 2, "visualStimulus.initialContrasts": [0.5], visual: [-60]},
+        {sound: [90], "reward.sizeUl": 2, "visualStimulus.initialContrasts": [0.5], visual: [-60]},
+        {sound: [-90], "reward.sizeUl": 3, "visualStimulus.initialContrasts": [0.5], visual: [-60]}]
     with pytest.raises(ValidationError, match=r"pairs \['visualStimulus.initialAzimuthsDeg', 'auditoryStimulus.initialAzimuthsDeg'\] have lists of lengths 2, 3"):
         _conditions({"weight": 1, "pairs": [[visual, sound]], "set": {sound: [-60, 0, 60]}})
     for pairs in ([[visual]], [[visual, sound], [sound, "visualStimulus.initialContrasts"]]):

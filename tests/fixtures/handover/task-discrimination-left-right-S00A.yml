@@ -45,8 +45,8 @@ taskParameters:
     initialLevelDbfs: -40
     initialElevationDeg: 15
     initialAzimuthsDeg:
-    - -60
-    - 60
+    - -90
+    - 90
   reward:
     sizeUl: 3
     largeMultiplier: 2
