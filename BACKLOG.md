@@ -19,6 +19,7 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 - After a lick ends a trial the next interval starts 0 to 14 ms late (mean 3 ms; `itiStartTime` records the real start); trial 1's consequence comes 8 to 20 ms after its outcome (.NET's first-run compile). Fix only if it matters.
 - `analysis\analysis.ipynb` is untried on real sessions (validated on a synthetic CSV only, 16 Nov 2026): run it once on Live-Data and check the summary. Stage-by-stage trial weights are `trial_weights` only.
 - Migrating past sessions (production av-dome's) into the current format, in its own session, if ever wanted: jacuzzi-ingest writes the current shape (`trialConditions`, a `trialCondition` column); no reader here or in lib-open-rigs reads an older shape (clean break, 18 Nov 2026).
+- Gerion (20 Nov 2026): his tasks show the stimulus 0.5 s. Whether the task files' `stimulus.durationSeconds` should default to 0.5, decided with him.
 - Initial names (20 Nov 2026), committed, not pushed: goes live with lib-open-rigs 831cb72 (OpenRigs.Core coen-lab.39, Trials coen-lab.14), app-rig-control's views and the share's curricula and Data Dictionary migrated (old keys fail loudly once this is out).
 
 ## Decided
