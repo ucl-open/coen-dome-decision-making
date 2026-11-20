@@ -89,13 +89,14 @@ class Harness
 static class Rules
 {
     // Discrimination stage 4 with every interval exactly 2 s: trial 1's interval from 10 s, its start at 11.5 (the 0.5 s
-    // lead), the stimulus at 12 and, with no open loop, its response window 12 to 13.5. Stage 4 takes the task's weights,
+    // lead), the stimulus at 12 and its response window 12.5 to 14 (stimulusToResponseWindowSeconds 0.5, the spouts' arrival). Stage 4 takes the task's weights,
     // here scored trials alone in the two-spout tasks, so every trial has a side to answer (the probes' own test below).
     public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, bool hardwareTriggered = true, string file = "task-discrimination-left-right.yml", int stage = 4)
     {
         var task = Fixture.Task(file, stage);
         task.TrialStructure.ItiMinSeconds = 2;
         task.TrialStructure.ItiMaxSeconds = 2;
+        task.Optogenetics.LaserToStimulusSeconds = 0.5;   // the 0.5 s lead the times here assume (the files' is 0.1)
         if (task.TaskType != TaskType.DiscriminationGoNoGo)
         {
             Fixture.Weight(task, "audiovisualConflict", 0);
@@ -103,7 +104,7 @@ static class Rules
             if (task.TaskType == TaskType.DiscriminationLeftRight) Fixture.Weight(task, "audiovisualCoherent", 0);
         }
         if (edit != null) edit(task);
-        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), hardwareTriggered, path => 2);
+        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), hardwareTriggered, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
     }
 
     public static void Optogenetics(UclOpenCoenDomeDecisionMakingTaskParameters task)
@@ -117,11 +118,11 @@ static class Rules
 
     // A trial as drawn (localization stage 4's first, so the rules have its combination's values: penalty -45 dBFS) with
     // this target and offer, its spouts staying in or not, no coin, no auto-reward, both spouts.
-    public static Trial Made(string target, double rewardOfferedUl, bool spoutsStayIn = false)
+    public static Trial Made(string target, double rewardOfferedUl, bool alwaysIn = false)
     {
         var task = Fixture.Task("task-localization.yml", 4);
-        task.SpoutsStayIn = spoutsStayIn;
-        var trial = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => 2).Next(null);
+        task.Spouts.AlwaysIn = alwaysIn;
+        var trial = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)).Next(null);
         trial.target = target;
         trial.rewardOfferedUl = rewardOfferedUl;
         trial.autoReward = trial.probeHeads = trial.singleSpoutOffered = false;
@@ -145,35 +146,35 @@ public class ResponseRuleTests
     [TestMethod]
     public void TheChoiceIsTheSideWhoseNetLicksReachTheThreshold()
     {
-        // thresholdLicks 3: left, right, left, left leaves the count at 2; the fifth lick, a left, reaches 3 at 12.5 s.
+        // thresholdLicks 3: left, right, left, left leaves the count at 2; the fifth lick, a left, reaches 3 at 13.0 s.
         Action<UclOpenCoenDomeDecisionMakingTaskParameters> three = t => { t.Response.ThresholdLicks = 3; t.Response.AzimuthShiftPerLickDeg = 10; };
         var run = new Harness(Rules.Make(three));
-        foreach (var lick in new[] { Tuple.Create(12.1, 0), Tuple.Create(12.2, 1), Tuple.Create(12.3, 0), Tuple.Create(12.4, 0), Tuple.Create(12.5, 0) })
+        foreach (var lick in new[] { Tuple.Create(12.6, 0), Tuple.Create(12.7, 1), Tuple.Create(12.8, 0), Tuple.Create(12.9, 0), Tuple.Create(13.0, 0) })
         {
             var spout = lick.Item2;
             run.At(lick.Item1, h => h.Lick(spout));
         }
-        run.RunTo(13);
+        run.RunTo(13.5);
         var updates = run.Of(TrialEventKind.Update).Select(e => e.Update).ToList();
         CollectionAssert.AreEqual(new[] { 0, 1, 0, 1, 2, 3 }.Select(n => run.First.visualInitialAzimuthDeg + 10 * n).ToList(), updates.Select(u => u.GratingAzimuthDeg).ToList(), "the stimulus resets it; each lick in the window moves it azimuthShiftPerLickDeg");
         Assert.AreEqual(1, run.Outcomes.Count);
         Assert.AreEqual(Choice.Left, run.Row().choice);
-        Assert.AreEqual(12.5, run.Row().outcomeTime, 1e-12);
-        Assert.AreEqual(12.5, run.Outcomes[0].Row.Seconds, 1e-12, "the row is stamped with its outcome");
+        Assert.AreEqual(13.0, run.Row().outcomeTime, 1e-12);
+        Assert.AreEqual(13.0, run.Outcomes[0].Row.Seconds, 1e-12, "the row is stamped with its outcome");
 
         var right = new Harness(Rules.Make(three));
-        foreach (var t in new[] { 12.1, 12.2, 12.3 }) right.At(t, h => h.Lick(1));
-        right.RunTo(13);
+        foreach (var t in new[] { 12.6, 12.7, 12.8 }) right.At(t, h => h.Lick(1));
+        right.RunTo(13.5);
         Assert.AreEqual(Choice.Right, right.Row().choice);
-        Assert.AreEqual(12.3, right.Row().outcomeTime, 1e-12);
+        Assert.AreEqual(12.8, right.Row().outcomeTime, 1e-12);
         Assert.AreEqual(right.First.visualInitialAzimuthDeg - 30, right.Of(TrialEventKind.Update).Last().Update.GratingAzimuthDeg, 1e-9);
     }
 
     [TestMethod]
     public void ALickBeforeTheResponseWindowIsNotCounted()
     {
-        // responseDelaySeconds 0.5: the window opens at 12.5 s. Licks in the interval, the lead and the response delay count for nothing.
-        var run = new Harness(Rules.Make(t => t.TrialStructure.ResponseDelaySeconds = 0.5));
+        // stimulusToResponseWindowSeconds 0.5: the window opens at 12.5 s. Licks in the interval, the lead and the time before the window count for nothing.
+        var run = new Harness(Rules.Make(t => t.TrialStructure.StimulusToResponseWindowSeconds = 0.5));
         foreach (var t in new[] { 11.0, 11.7, 12.2, 12.499 }) run.At(t, h => h.Lick(0));
         run.At(12.5, h => h.Lick(1));
         run.RunTo(13);
@@ -186,7 +187,7 @@ public class ResponseRuleTests
     public void NoResponseAtTheWindowsEnd()
     {
         // thresholdLicks 2, one lick: the window (0.5 s open loop, then 1.5 s) ends with no choice at 14 s.
-        var run = new Harness(Rules.Make(t => { t.TrialStructure.ResponseDelaySeconds = 0.5; t.Response.ThresholdLicks = 2; }));
+        var run = new Harness(Rules.Make(t => { t.TrialStructure.StimulusToResponseWindowSeconds = 0.5; t.Response.ThresholdLicks = 2; }));
         run.At(13.0, h => h.Lick(0)).RunTo(13.999);
         Assert.AreEqual(0, run.Outcomes.Count);
         run.RunTo(18.5);
@@ -203,15 +204,15 @@ public class ResponseRuleTests
         var run = new Harness(Rules.Make(t => t.Repeats.RepeatOn = RepeatOn.NotCorrect, file: "task-localization.yml"));
         run.RunTo(12.05);
         var wrong = run.Spout(false);
-        run.At(12.1, h => h.Lick(wrong)).RunTo(16.2);   // Incorrect at 12.1: the timeout, then trial 2's interval
-        run.RunTo(18.0);
+        run.At(12.6, h => h.Lick(wrong)).RunTo(16.7);   // Incorrect at 12.6: the timeout, then trial 2's interval
+        run.RunTo(18.5);
         var starts = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         Assert.AreEqual(2, starts.Count);
         Assert.AreEqual(TrialOutcomes.Incorrect, run.Row().outcome);
         Assert.IsTrue(starts[1].trialNumber == 2 && starts[1].repeatCount == 1 && starts[1].visualInitialAzimuthDeg.Equals(starts[0].visualInitialAzimuthDeg)
                       && starts[1].target == starts[0].target && starts[1].trialType == starts[0].trialType);
         var right = starts[1].target == TargetWords.Left ? 0 : 1;
-        run.At(18.2, h => h.Lick(right)).RunTo(21);
+        run.At(19.2, h => h.Lick(right)).RunTo(23);   // rewarded: trial 3's 2 s interval from the outcome
         Assert.AreEqual(TrialOutcomes.Correct, run.Row(1).outcome);
         Assert.AreEqual(0, run.Of(TrialEventKind.Start)[2].Trial.repeatCount, "after a correct answer, a new draw");
     }
@@ -220,7 +221,7 @@ public class ResponseRuleTests
     public void TheLoopRunsTheDrawsTrialsInOrder()
     {
         // The same seed draws the same trials through the loop as TrialDraw alone, every trial a miss.
-        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), true, path => 2));
+        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), true, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)));
         run.RunTo(200);
         var looped = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), looped.Count, t => Choice.NoResponse);
@@ -245,7 +246,7 @@ public class ResponseRuleTests
             var kinds = file.Contains("left-right") ? new[] { "audiovisualCoherent", "audiovisualConflict", "neutral" } : new[] { "audiovisualConflict", "neutral" };
             CollectionAssert.AreEquivalent(kinds, probes.Select(t => t.trialType).Distinct().ToArray(), file);
             Assert.IsTrue(all.Where(t => t.target != TargetWords.Random).All(t => !kinds.Contains(t.trialType)), file);
-            Assert.IsTrue(probes.All(t => !t.singleSpoutOffered && !t.autoReward && SpoutCommands.SpoutsIn(t) == LickSpoutCommand.SpoutsIn), file);
+            Assert.IsTrue(probes.All(t => !t.singleSpoutOffered && !t.autoReward && t.SpoutsInCommand == LickSpoutCommand.SpoutsIn), file);
             int rewarded = 0, penalised = 0;
             for (int i = 0; i < probes.Count; i++)
             {
@@ -320,9 +321,9 @@ public class ResponseRuleTests
         var run = new Harness(Rules.Make(file: "task-discrimination-go-no-go.yml"));
         run.RunTo(12.05);
         var trial = run.Of(TrialEventKind.Start)[0].Trial;
-        run.At(12.2, h => h.Lick(1)).RunTo(12.3);
+        run.At(12.6, h => h.Lick(1)).RunTo(12.7);
         Assert.AreEqual(0, run.Outcomes.Count, "a right lick is not counted");
-        run.At(12.4, h => h.Lick(0)).RunTo(12.5);
+        run.At(12.8, h => h.Lick(0)).RunTo(12.9);
         Assert.AreEqual(Choice.Go, run.Row(0).choice);
         Assert.AreEqual(trial.target == TargetWords.Go ? TrialOutcomes.Correct : trial.target == TargetWords.NoGo ? TrialOutcomes.Incorrect : TrialOutcomes.Probe, run.Row(0).outcome);
     }
@@ -332,18 +333,51 @@ public class ResponseRuleTests
 public class CueTests
 {
     [TestMethod]
-    public void TheGratingOffComesFromTheStimulusSpoutsOutFromTheNextItiAndSpoutsInIsDroppedAtTheOutcome()
+    public void TheStimulusOffComesFromTheStimulusSpoutsInFromTheStimulusAndSpoutsOutFromTheNextIti()
     {
-        // visualStimulusSeconds 1.5, stimulusToSpoutsInSeconds 0.5, outcomeToSpoutsOutSeconds 1.5; a correct lick at 12.2 s, no timeout.
+        // stimulus.durationSeconds 1.5 (responseToStimulusOffSeconds null), spouts.stimulusToSpoutsInSeconds 0.5, spouts.rewardConsumptionSeconds 1.5; a correct lick at 12.5 s, as the spouts arrive, no timeout.
         var run = new Harness(Rules.Make());
         run.RunTo(12.05);
         var right = run.Spout(true);
-        run.At(12.2, h => h.Lick(right)).RunTo(16);
+        run.At(12.5, h => h.Lick(right)).RunTo(16);
         var cues = run.Of(TrialEventKind.Cue).Where(e => e.Trial.trialNumber == 1).ToDictionary(e => e.Cue, e => e.Seconds);
-        Assert.IsFalse(cues.ContainsKey(TrialRules.SpoutsInCue), "the outcome came at 12.2 s, before its 12.5 s: dropped, so the spouts are not sent in after the answer");
-        Assert.AreEqual(13.5, cues[TrialRules.GratingOffCue], 1e-12, "after the outcome: the grating stays its visualStimulusSeconds");
-        Assert.AreEqual(13.7, cues[TrialRules.SpoutsOutCue], 1e-9, "outcomeToSpoutsOutSeconds into the interval after the outcome");
+        Assert.AreEqual(12.5, cues[OpenRigs.Trials.Spouts.InCue], 1e-12, "the window opens as the spouts arrive, so no outcome can come before SpoutsIn: nothing to drop (the Go check refuses a window before the spouts)");
+        Assert.AreEqual(13.5, run.Of(TrialEventKind.StimulusOff).Single(e => e.Trial.trialNumber == 1).Seconds, 0.0011, "after the outcome: the stimulus stays its durationSeconds");
+        Assert.AreEqual(14.0, cues[OpenRigs.Trials.Spouts.OutCue], 1e-9, "spouts.rewardConsumptionSeconds into the interval, which starts at the outcome");
         Assert.AreEqual(12.0, run.Of(TrialEventKind.Stimulus)[0].Seconds, 1e-12);
+    }
+
+    [TestMethod]
+    public void TheStimulusGoesOffOnceAtTheEarlierOfItsDurationAndTheResponsePlusResponseToStimulusOffSeconds()
+    {
+        // The stimulus from 12.0 s; a correct lick at 12.6 s. The loop's one StimulusOff event a trial (the grating hidden and
+        // the sound stopped) comes at the row's stimulusOffTime (OpenRigs.Trials StimulusTiming).
+        Func<double?, double?, Tuple<int, double, double>> ended = (after, duration) =>
+        {
+            var run = new Harness(Rules.Make(t => { t.Stimulus.ResponseToStimulusOffSeconds = after; t.Stimulus.DurationSeconds = duration; }));
+            run.RunTo(12.05);
+            var right = run.Spout(true);
+            run.At(12.6, h => h.Lick(right)).RunTo(16);
+            var outcome = run.Of(TrialEventKind.Outcome).Single(e => e.Trial.trialNumber == 1);
+            Assert.AreEqual(12.6, outcome.Seconds, 0.002);
+            var row = outcome.Outcome.Row.Value;
+            var offs = run.Of(TrialEventKind.StimulusOff).Where(e => e.Trial.trialNumber == 1).ToList();
+            Assert.AreEqual(row.stimulusOffTime, offs[0].Seconds, 0.0011, "the event at the row's stimulusOffTime");
+            return Tuple.Create(offs.Count, row.stimulusOffTime - row.stimulusOnsetTime, row.outcomeTime - row.stimulusOnsetTime);
+        };
+        var early = ended(0, 1.5);
+        Assert.AreEqual(1, early.Item1, "once a trial");
+        Assert.AreEqual(early.Item3, early.Item2, 1e-12, "0: off at the outcome, before the stimulus's end at 13.5 s");
+        var late = ended(0.3, 1.5);
+        Assert.AreEqual(late.Item3 + 0.3, late.Item2, 1e-9, "0.3 s after the outcome");
+        var full = ended(null, 1.5);
+        Assert.AreEqual(1, full.Item1);
+        Assert.AreEqual(1.5, full.Item2, 1e-9, "null: the stimulus runs its durationSeconds");
+        var over = ended(0, 0.1);
+        Assert.AreEqual(1, over.Item1, "one off, at the duration, none at the outcome");
+        Assert.AreEqual(0.1, over.Item2, 1e-9, "off at its duration, before the outcome");
+        var uncapped = ended(0.5, null);
+        Assert.AreEqual(uncapped.Item3 + 0.5, uncapped.Item2, 1e-9, "no duration: off only after the response");
     }
 
     [TestMethod]
@@ -355,41 +389,42 @@ public class CueTests
         var right = run.Spout(true);
         run.At(12.7, h => h.Lick(right)).RunTo(16);
         var cues = run.Of(TrialEventKind.Cue).Where(e => e.Trial.trialNumber == 1).ToDictionary(e => e.Cue, e => e.Seconds);
-        Assert.AreEqual(12.5, cues[TrialRules.SpoutsInCue], 1e-12);
+        Assert.AreEqual(12.5, cues[OpenRigs.Trials.Spouts.InCue], 1e-12);
     }
 
     [TestMethod]
-    public void AfterATimeoutSpoutsOutComesOutcomeToSpoutsOutSecondsIntoTheNextIti()
+    public void AfterATimeoutSpoutsOutComesRewardConsumptionSecondsIntoTheNextIti()
     {
+        // An incorrect lick at 12.6 s: penalty.incorrect.timeoutSeconds 4, so the next interval at 16.6 s, SpoutsOut 1.5 s into it.
         var run = new Harness(Rules.Make());
         run.RunTo(12.05);
         var wrong = run.Spout(false);
-        run.At(12.2, h => h.Lick(wrong)).RunTo(18);
-        Assert.AreEqual(17.7, run.Of(TrialEventKind.Cue).Single(e => e.Cue == TrialRules.SpoutsOutCue).Seconds, 1e-9);
+        run.At(12.6, h => h.Lick(wrong)).RunTo(19);
+        Assert.AreEqual(18.1, run.Of(TrialEventKind.Cue).Single(e => e.Cue == OpenRigs.Trials.Spouts.OutCue).Seconds, 1e-9);
     }
 
     [TestMethod]
     public void AStayInStageStillHasItsSpoutsOutCueButItsOutcomesKeepTheSpoutsIn()
     {
-        // The cue is the loop's, every trial; whether the spouts go out is SpoutCommands' (the coming trial's spoutsStayIn).
+        // The cue is the loop's, every trial; whether the spouts go out is SpoutCommands' (the coming trial's spouts.alwaysIn).
         var run = new Harness(Rules.Make(stage: 0)).RunTo(25);
         Assert.IsTrue(run.Outcomes.Count >= 2);
-        Assert.IsTrue(run.Of(TrialEventKind.Cue).Any(e => e.Cue == TrialRules.SpoutsOutCue));
-        Assert.IsTrue(run.Outcomes.All(o => o.SpoutsStayIn));
+        Assert.IsTrue(run.Of(TrialEventKind.Cue).Any(e => e.Cue == OpenRigs.Trials.Spouts.OutCue));
+        Assert.IsTrue(run.Of(TrialEventKind.Outcome).All(e => e.Trial.SpoutsAlwaysIn));
     }
 
     [TestMethod]
     public void AtOutcomeToSpoutsOutZeroTheNextTrialIsDrawnBeforeTheSpoutsOutCue()
     {
         // SpoutsOut is due at the next interval's start; the loop draws that interval's trial first (its Iti event), so
-        // SpoutCommands' coming trial is the one whose spoutsStayIn decides, with a timeout or without.
+        // SpoutCommands' coming trial is the one whose spouts.alwaysIn decides, with a timeout or without.
         foreach (var correct in new[] { true, false })
         {
-            var run = new Harness(Rules.Make(t => t.TrialStructure.OutcomeToSpoutsOutSeconds = 0));
+            var run = new Harness(Rules.Make(t => t.Spouts.RewardConsumptionSeconds = 0));
             run.RunTo(12.05);
             var spout = run.Spout(correct);
-            run.At(12.2, h => h.Lick(spout)).RunTo(20);
-            var cue = run.Events.FindIndex(e => e.Kind == TrialEventKind.Cue && e.Cue == TrialRules.SpoutsOutCue && e.Trial.trialNumber == 1);
+            run.At(12.6, h => h.Lick(spout)).RunTo(20);
+            var cue = run.Events.FindIndex(e => e.Kind == TrialEventKind.Cue && e.Cue == OpenRigs.Trials.Spouts.OutCue && e.Trial.trialNumber == 1);
             var iti = run.Events.FindIndex(e => e.Kind == TrialEventKind.Iti && e.Trial.trialNumber == 2);
             Assert.IsTrue(iti >= 0 && cue > iti, correct ? "no timeout" : "after a timeout");
             Assert.AreEqual(run.Events[iti].Seconds, run.Events[cue].Seconds, 0.0011, "on the tick that starts the interval or the next");
@@ -397,7 +432,7 @@ public class CueTests
     }
 }
 
-/// <summary>SpoutCommands: every spout move from the trial events, as LickSpoutStage.Commands takes them.</summary>
+/// <summary>lib-open-rigs' SpoutCommands on this task's trials: every spout move from the trial events, as LickSpoutStage.Commands takes them.</summary>
 [TestClass]
 public class SpoutCommandsTests
 {
@@ -417,9 +452,9 @@ public class SpoutCommandsTests
         run.At(12.7, h => h.Lick(right)).RunTo(16);
         var commands = Commands(run);
         Assert.IsTrue(run.Of(TrialEventKind.Iti).Count >= 2);
-        CollectionAssert.AreEqual(new[] { LickSpoutCommand.SpoutsOut, SpoutCommands.SpoutsIn(run.First),
+        CollectionAssert.AreEqual(new[] { LickSpoutCommand.SpoutsOut, run.First.SpoutsInCommand,
             right == 0 ? LickSpoutCommand.LeftOnly : LickSpoutCommand.RightOnly, LickSpoutCommand.SpoutsOut }, commands.Take(4).ToArray());
-        var outs = run.Of(TrialEventKind.Cue).Count(e => e.Cue == TrialRules.SpoutsOutCue);
+        var outs = run.Of(TrialEventKind.Cue).Count(e => e.Cue == OpenRigs.Trials.Spouts.OutCue);
         Assert.AreEqual(1 + outs, commands.Count(c => c == LickSpoutCommand.SpoutsOut));
         CollectionAssert.AreEqual(commands.ToArray(), Commands(run).ToArray(), "each subscription starts at its own trial 1");
     }
@@ -429,10 +464,10 @@ public class SpoutCommandsTests
     {
         // Habituation (stage 0): both spouts every trial, sent in at each SpoutsIn cue and never drawn out.
         var run = new Harness(Rules.Make(stage: 0)).RunTo(25);
-        var spoutsIn = run.Of(TrialEventKind.Cue).Where(e => e.Cue == TrialRules.SpoutsInCue).ToList();
+        var spoutsIn = run.Of(TrialEventKind.Cue).Where(e => e.Cue == OpenRigs.Trials.Spouts.InCue).ToList();
         Assert.IsTrue(spoutsIn.Count >= 2);
-        CollectionAssert.AreEqual(spoutsIn.Select(e => SpoutCommands.SpoutsIn(e.Trial)).ToArray(), Commands(run).ToArray());
-        Assert.IsTrue(spoutsIn.All(e => SpoutCommands.SpoutsIn(e.Trial) == LickSpoutCommand.SpoutsIn));
+        CollectionAssert.AreEqual(spoutsIn.Select(e => e.Trial.SpoutsInCommand).ToArray(), Commands(run).ToArray());
+        Assert.IsTrue(spoutsIn.All(e => e.Trial.SpoutsInCommand == LickSpoutCommand.SpoutsIn));
     }
 
     [TestMethod]
@@ -441,40 +476,40 @@ public class SpoutCommandsTests
         // Left-right stage 4, the left condition moving and the right staying in (its set's spoutsStayIn), every trial a miss:
         // a stay-in trial's outcome moves nothing and its SpoutsIn sends both; each SpoutsOut cue draws the spouts out only
         // when the trial drawn at that interval's start moves.
-        var run = new Harness(Rules.Make(t => ((IDictionary<object, object>)t.TrialConditions[1].Set)["spoutsStayIn"] = true)).RunTo(150);
+        var run = new Harness(Rules.Make(t => ((IDictionary<object, object>)t.TrialConditions[1].Set)["spouts.alwaysIn"] = true)).RunTo(150);
         var moves = new List<Tuple<Event, LickSpoutCommand>>();
         Event current = null;
         var events = new Subject<Event>();
         new SpoutCommands().Process(events).Subscribe(c => moves.Add(Tuple.Create(current, c)));
         foreach (var e in run.Events) { current = e; events.OnNext(e); }
         var trials = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
-        Assert.IsTrue(trials.Count > 10 && trials.Any(t => t.SpoutsStayIn) && trials.Any(t => !t.SpoutsStayIn));
-        Assert.IsTrue(Enumerable.Range(1, trials.Count - 2).Any(i => trials[i].SpoutsStayIn && !trials[i - 1].SpoutsStayIn && !trials[i + 1].SpoutsStayIn), "a stay-in trial between moving ones");
+        Assert.IsTrue(trials.Count > 10 && trials.Any(t => t.SpoutsAlwaysIn) && trials.Any(t => !t.SpoutsAlwaysIn));
+        Assert.IsTrue(Enumerable.Range(1, trials.Count - 2).Any(i => trials[i].SpoutsAlwaysIn && !trials[i - 1].SpoutsAlwaysIn && !trials[i + 1].SpoutsAlwaysIn), "a stay-in trial between moving ones");
         foreach (var e in run.Of(TrialEventKind.Outcome))
         {
             var made = moves.Where(m => m.Item1 == e).Select(m => m.Item2).ToList();
-            CollectionAssert.AreEqual(e.Trial.SpoutsStayIn ? new LickSpoutCommand[0] : new[] { LickSpoutCommand.SpoutsOut }, made, "trial " + e.Trial.trialNumber);
+            CollectionAssert.AreEqual(e.Trial.SpoutsAlwaysIn ? new LickSpoutCommand[0] : new[] { LickSpoutCommand.SpoutsOut }, made, "trial " + e.Trial.trialNumber);
         }
-        foreach (var e in run.Of(TrialEventKind.Cue).Where(e => e.Cue == TrialRules.SpoutsInCue))
+        foreach (var e in run.Of(TrialEventKind.Cue).Where(e => e.Cue == OpenRigs.Trials.Spouts.InCue))
         {
-            CollectionAssert.AreEqual(new[] { e.Trial.SpoutsStayIn ? LickSpoutCommand.SpoutsIn : SpoutCommands.SpoutsIn(e.Trial) }, moves.Where(m => m.Item1 == e).Select(m => m.Item2).ToList());
+            CollectionAssert.AreEqual(new[] { e.Trial.SpoutsAlwaysIn ? LickSpoutCommand.SpoutsIn : e.Trial.SpoutsInCommand }, moves.Where(m => m.Item1 == e).Select(m => m.Item2).ToList());
         }
         Trial coming = null;
         foreach (var e in run.Events)
         {
             if (e.Kind == TrialEventKind.Iti) coming = e.Trial;
-            if (e.Kind == TrialEventKind.Cue && e.Cue == TrialRules.SpoutsOutCue)
-                Assert.AreEqual(!coming.SpoutsStayIn, moves.Any(m => m.Item1 == e && m.Item2 == LickSpoutCommand.SpoutsOut), "SpoutsOut before trial " + coming.trialNumber);
+            if (e.Kind == TrialEventKind.Cue && e.Cue == OpenRigs.Trials.Spouts.OutCue)
+                Assert.AreEqual(!coming.SpoutsAlwaysIn, moves.Any(m => m.Item1 == e && m.Item2 == LickSpoutCommand.SpoutsOut), "SpoutsOut before trial " + coming.trialNumber);
         }
-        Assert.AreEqual(trials[0].SpoutsStayIn ? 0 : 1, moves.Count(m => m.Item1.Kind == TrialEventKind.Iti), "trial 1's interval start alone, unless it stays in");
+        Assert.AreEqual(trials[0].SpoutsAlwaysIn ? 0 : 1, moves.Count(m => m.Item1.Kind == TrialEventKind.Iti), "trial 1's interval start alone, unless it stays in");
     }
 
     [TestMethod]
     public void GoNoGoSendsTheLeftSpoutInEveryTrial()
     {
         var run = new Harness(Rules.Make(file: "task-discrimination-go-no-go.yml")).RunTo(25);
-        var spoutsIn = run.Of(TrialEventKind.Cue).Where(e => e.Cue == TrialRules.SpoutsInCue).ToList();
-        Assert.IsTrue(spoutsIn.Count >= 2 && spoutsIn.All(e => SpoutCommands.SpoutsIn(e.Trial) == LickSpoutCommand.LeftOnly));
+        var spoutsIn = run.Of(TrialEventKind.Cue).Where(e => e.Cue == OpenRigs.Trials.Spouts.InCue).ToList();
+        Assert.IsTrue(spoutsIn.Count >= 2 && spoutsIn.All(e => e.Trial.SpoutsInCommand == LickSpoutCommand.LeftOnly));
         Assert.IsFalse(Commands(run).Any(c => c == LickSpoutCommand.SpoutsIn || c == LickSpoutCommand.RightOnly));
     }
 }
@@ -578,30 +613,32 @@ public class LaserTests
     [TestMethod]
     public void TheLaserRunsForItsDurationAndTheNextArmWaitsForTheRampDown()
     {
-        var rules = Rules.Make(Rules.Optogenetics);
+        // laserDurationSeconds 1.3 (the most this task allows at itiMinSeconds 2) so the outcome, from 12.5 s, still comes
+        // before the line falls; trial 2's interval starts at the outcome.
+        var rules = Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 1.3; });
         Assert.IsTrue(rules.Laser.HardwareTriggered && rules.Laser.End == LaserEnd.AfterDuration);
         Assert.AreEqual(ZapitConditions.MaximumRampDownSeconds, rules.Laser.RampDownSeconds);
         var run = new Harness(rules);
         Assert.AreEqual(10.0, run.Of(TrialEventKind.Arm)[0].Seconds, "armed as the interval starts");
-        Assert.AreEqual(0.8, LaserTiming.DurationOf(run.Of(TrialEventKind.Arm)[0].Trial), "each trial's own laserDurationSeconds");
+        Assert.AreEqual(1.3, LaserTiming.DurationOf(run.Of(TrialEventKind.Arm)[0].Trial), "each trial's own laserDurationSeconds");
         run.Loop.OnZapitReply(Rules.Armed(run.Of(TrialEventKind.Arm)[0].Trial));
         run.RunTo(12.05);
         Assert.AreEqual(11.5, run.Of(TrialEventKind.Trigger)[0].Seconds, 1e-12, "laserToStimulusSeconds before the stimulus");
         var right = run.Spout(true);
-        run.At(12.1, h => h.Lick(right)).RunTo(13);
-        Assert.AreEqual(12.3, run.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9, "laserDurationSeconds after the trigger, outcome or not");
+        run.At(12.6, h => h.Lick(right)).RunTo(13.5);
+        Assert.AreEqual(12.8, run.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9, "laserDurationSeconds after the trigger, outcome or not");
         var row = run.Row();
         Assert.IsTrue(row.laserCondition > 0 && row.laserPowerMw == 3 && row.laserTriggerTime == 11.5);
-        Assert.AreEqual(12.8, run.Of(TrialEventKind.Arm)[1].Seconds, 1e-9, "trial 2's interval began at 12.1; Zapit is free 0.5 s after the line fell");
+        Assert.AreEqual(13.3, run.Of(TrialEventKind.Arm)[1].Seconds, 1e-9, "trial 2's interval began at 12.6; Zapit is free 0.5 s after the line fell");
     }
 
     [TestMethod]
     public void ATrialAnsweredBeforeItsTriggerHasNoLaserAndItsRowSaysSo()
     {
-        // The trigger 0.5 s after the stimulus (12.5 s); a lick at 12.1 s answers first.
-        var run = new Harness(Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserToStimulusSeconds = -0.5; }, hardwareTriggered: false));
+        // The trigger 0.9 s after the stimulus (12.9 s); a lick at 12.6 s answers first.
+        var run = new Harness(Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserToStimulusSeconds = -0.9; }, hardwareTriggered: false));
         Assert.AreEqual(0, run.Of(TrialEventKind.Arm).Count, "without hardware triggering the StartStimulus goes at the trigger");
-        run.RunTo(12.05).At(12.1, h => h.Lick(0)).RunTo(13);
+        run.RunTo(12.05).At(12.6, h => h.Lick(0)).RunTo(13.5);
         Assert.AreEqual(0, run.Of(TrialEventKind.Trigger).Count);
         Assert.AreEqual(0, run.Row().laserPowerMw);
         Assert.IsTrue(double.IsNaN(run.Row().laserTriggerTime));
@@ -647,39 +684,40 @@ public class TrialRowTests
 {
     static TrialTimes Times(double now)
     {
-        return new TrialTimes { ItiStartTime = 50, ItiSeconds = 3, QuietWaitSeconds = 0.2, TrialStartTime = 8.5, StimulusOnsetTime = 9, LaserTriggerTime = double.NaN, Now = now };
+        return new TrialTimes { ItiStartTime = 50, ItiSeconds = 3, QuietWaitSeconds = 0.2, TrialStartTime = 8.5, StimulusOnsetTime = 9, StimulusOffTime = 10.5, LaserTriggerTime = double.NaN, Now = now };
     }
 
     [TestMethod]
     public void TheRowSaysWhatTheOutcomeCost()
     {
-        var trial = new Trial { target = TargetWords.Left, autoReward = false, itiSeconds = 3 };
-        var incorrect = TrialRow.Build(Choice.Right, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
+        var trial = new Trial { target = TargetWords.Left, autoReward = false, itiSeconds = 3, values = Fixture.Task("task-localization.yml", 4) };
+        var incorrect = TrialRow.Build(Choice.Right, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
         Assert.IsTrue(incorrect.outcome == TrialOutcomes.Incorrect && incorrect.penalised && incorrect.penaltyTimeoutSeconds == 4 && incorrect.outcomeTime == 10);
+        Assert.AreEqual(10.5, incorrect.stimulusOffTime, 1e-12, "the loop's StimulusOffTime (StimulusTiming), through SharedTrialColumns");
         Assert.IsTrue(incorrect.itiSeconds == 3 && incorrect.itiStartTime == 50 && incorrect.quietWaitSeconds == 0.2 && incorrect.trialStartTime == 8.5 && incorrect.stimulusOnsetTime == 9);
         // A miss: the outcome at the end of the response window, and the penalty sound with its timeout.
-        var miss = TrialRow.Build(Choice.NoResponse, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
+        var miss = TrialRow.Build(Choice.NoResponse, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
         Assert.IsTrue(miss.outcome == TrialOutcomes.NoResponse && miss.penalised && miss.penaltyTimeoutSeconds == 4 && !miss.rewarded);
         trial.autoReward = true;
-        var rewardedMiss = TrialRow.Build(Choice.NoResponse, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
+        var rewardedMiss = TrialRow.Build(Choice.NoResponse, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
         Assert.IsTrue(rewardedMiss.outcome == TrialOutcomes.Auto && rewardedMiss.autoReward && rewardedMiss.rewarded && rewardedMiss.penaltyTimeoutSeconds == 0 && !rewardedMiss.penalised, "an auto-rewarded miss: outcome auto, autoReward and rewarded");
-        var correct = TrialRow.Build(Choice.Left, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
-        Assert.AreEqual(TrialOutcomes.Incorrect, TrialRow.Build(Choice.Right, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 }).outcome, "a side chosen on an auto-reward trial keeps its outcome");
-        var goTrial = new Trial { target = TargetWords.Go, autoReward = true };
-        Assert.AreEqual(TrialOutcomes.Auto, TrialRow.Build(Choice.NoResponse, goTrial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 }).outcome, "go/no-go: an auto-rewarded go miss");
-        Assert.AreEqual(TrialOutcomes.Correct, TrialRow.Build(Choice.Go, goTrial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 }).outcome, "go/no-go: a licked auto-reward go trial");
+        var correct = TrialRow.Build(Choice.Left, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
+        Assert.AreEqual(TrialOutcomes.Incorrect, TrialRow.Build(Choice.Right, trial, Times(10), Penalties.Of(4, -35.0, 0, 10)).outcome, "a side chosen on an auto-reward trial keeps its outcome");
+        var goTrial = new Trial { target = TargetWords.Go, autoReward = true, values = trial.values };
+        Assert.AreEqual(TrialOutcomes.Auto, TrialRow.Build(Choice.NoResponse, goTrial, Times(10), Penalties.Of(4, -35.0, 0, 10)).outcome, "go/no-go: an auto-rewarded go miss");
+        Assert.AreEqual(TrialOutcomes.Correct, TrialRow.Build(Choice.Go, goTrial, Times(10), Penalties.Of(4, -35.0, 0, 10)).outcome, "go/no-go: a licked auto-reward go trial");
         Assert.IsTrue(correct.outcome == TrialOutcomes.Correct && !correct.penalised && correct.penaltyTimeoutSeconds == 0 && correct.rewarded);
     }
 
     [TestMethod]
     public void TheRowLogsTheConditionAndThePowerFired()
     {
-        var trial = new Trial { target = TargetWords.Left, laserCondition = 2, laserOn = true, laserPowerMw = 3 };
+        var trial = new Trial { target = TargetWords.Left, laserCondition = 2, laserOn = true, laserPowerMw = 3, values = Fixture.Task("task-localization.yml", 4) };
         var times = Times(10);
         times.LaserTriggerTime = 9.25;
-        var row = TrialRow.Build(Choice.Left, trial, times, new ResolvedPenalty { TimeoutSeconds = 4 });
+        var row = TrialRow.Build(Choice.Left, trial, times, Penalties.Of(4, -35.0, 0, 10));
         Assert.IsTrue(row.laserCondition == 2 && row.laserPowerMw == 3 && row.laserTriggerTime == 9.25);
-        var answered = TrialRow.Build(Choice.Left, trial, Times(10), new ResolvedPenalty { TimeoutSeconds = 4 });
+        var answered = TrialRow.Build(Choice.Left, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
         Assert.IsTrue(answered.laserCondition == 2 && answered.laserPowerMw == 0 && double.IsNaN(answered.laserTriggerTime), "answered before its trigger");
     }
 
@@ -710,7 +748,7 @@ public class ConsequenceTests
     {
         var c = Of(Choice.Right, false, true);
         Assert.IsTrue(c.Rewarded && c.Reward.Item1 == "right" && c.Reward.Item2 == 3 && c.SpoutCommand == LickSpoutCommand.RightOnly);
-        Assert.IsTrue(!c.SpoutsStayIn && !c.Penalised && c.PenaltyTimeoutSeconds == 0);
+        Assert.IsTrue(!c.Penalised && c.PenaltyTimeoutSeconds == 0);
     }
 
     [TestMethod]
@@ -721,7 +759,7 @@ public class ConsequenceTests
         var miss = Of(Choice.NoResponse, false, true);  // the sound comes with every timeout
         Assert.IsTrue(!miss.Rewarded && miss.Penalised && miss.PenaltyTimeoutSeconds == 4);
         var auto = Of(Choice.NoResponse, true, false);
-        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.PenaltyTimeoutSeconds == 0 && !auto.Penalised && auto.SpoutsStayIn);
+        Assert.IsTrue(auto.Rewarded && auto.Reward.Item1 == "right" && auto.PenaltyTimeoutSeconds == 0 && !auto.Penalised);
         Assert.IsTrue(!c.Row.Value.rewarded && c.Row.Value.penalised && c.Row.Value.rewardOfferedUl == 3, "an error: offered, penalised");
         Assert.IsTrue(!miss.Row.Value.rewarded && miss.Row.Value.penalised && miss.Row.Value.rewardOfferedUl == 3, "a miss keeps the offer");
         Assert.IsTrue(auto.Row.Value.rewarded && !auto.Row.Value.penalised);
@@ -754,9 +792,9 @@ public class ConsequenceTests
     [TestMethod]
     public void TheSpoutsComeInAsTheTrialSays()
     {
-        Assert.AreEqual(LickSpoutCommand.SpoutsIn, SpoutCommands.SpoutsIn(new Trial { singleSpoutOffered = false, target = TargetWords.Left }));
-        Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutCommands.SpoutsIn(new Trial { singleSpoutOffered = true, target = TargetWords.Left }));
-        Assert.AreEqual(LickSpoutCommand.RightOnly, SpoutCommands.SpoutsIn(new Trial { singleSpoutOffered = true, target = TargetWords.Right }));
+        Assert.AreEqual(LickSpoutCommand.SpoutsIn, (new Trial { singleSpoutOffered = false, target = TargetWords.Left }).SpoutsInCommand);
+        Assert.AreEqual(LickSpoutCommand.LeftOnly, (new Trial { singleSpoutOffered = true, target = TargetWords.Left }).SpoutsInCommand);
+        Assert.AreEqual(LickSpoutCommand.RightOnly, (new Trial { singleSpoutOffered = true, target = TargetWords.Right }).SpoutsInCommand);
     }
 }
 
@@ -774,8 +812,9 @@ public class CheckTaskAtGoTests
         Assert.IsNull(rules.Laser, "no optogenetics");
         Assert.AreEqual("S04A-k7f2", rules.CurriculumStage);
         var timing = rules.Timing(rules.Draw(null));
-        Assert.IsTrue(timing.LaserToStimulusSeconds == 0.5 && !timing.Laser && timing.ResponseDelaySeconds == 0 && timing.ResponseWindowSeconds == 1.5);
-        CollectionAssert.AreEqual(new[] { TrialRules.GratingOffCue, TrialRules.SpoutsInCue, TrialRules.SpoutsOutCue }, timing.Cues.Select(c => c.Name).ToList());
+        Assert.IsTrue(timing.LaserToStimulusSeconds == 0.1 && !timing.Laser && timing.ResponseDelaySeconds == 0.5 && timing.ResponseWindowSeconds == 1.5);
+        CollectionAssert.AreEqual(new[] { OpenRigs.Trials.Spouts.InCue, OpenRigs.Trials.Spouts.OutCue }, timing.Cues.Select(c => c.Name).ToList());
+        Assert.IsTrue(timing.StimulusDurationSeconds == 1.5 && timing.ResponseToStimulusOffSeconds == null, "stimulus.durationSeconds and responseToStimulusOffSeconds");
     }
 
     [TestMethod]

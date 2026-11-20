@@ -22,16 +22,22 @@ taskParameters:
       - -60
       - 60
   trialStructure:
-    itiMinSeconds: 3.4
-    itiMaxSeconds: 4.4
+    itiMinSeconds: 2.5
+    itiMaxSeconds: 3.5
     lickQuietSeconds: 0
     wheelQuietSeconds: 0
     wheelQuietCm: 0
-    outcomeToSpoutsOutSeconds: 2.0
-    responseDelaySeconds: 0.0
+    stimulusToResponseWindowSeconds: 0.5
     responseWindowSeconds: 1.5
-    visualStimulusSeconds: 1.5
+  spouts:
+    alwaysIn: false
     stimulusToSpoutsInSeconds: 0.5
+    rewardConsumptionSeconds: 1.5
+    singleSpoutProbability: 0.0
+  stimulus:
+    durationSeconds: 1.5
+    rateHz: 8
+    responseToStimulusOffSeconds: null
   visualStimulus:
     contrasts:
     - 3.0
@@ -53,17 +59,30 @@ taskParameters:
     sizeUl: 3
     largeMultiplier: 2
     largeProbability: 0.0
+    tone:
+      levelDbfs: mute
   autoRewardProbability: 0.0
   penalty:
-    timeoutSeconds: 4.0
-    sound:
-      levelDbfs: -45
+    incorrect:
+      timeoutSeconds: 4.0
+      sound:
+        levelDbfs: -35
+      flash:
+        brightness: 0
+        rateHz: 10
+    noResponse:
+      timeoutSeconds: 4.0
+      sound:
+        levelDbfs: mute
+      flash:
+        brightness: 0
+        rateHz: 10
   optogenetics:
     enabled: false
     zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
     laserPowerMw: 3.0
     laserOnProbability: 0.5
-    laserToStimulusSeconds: 0.5
+    laserToStimulusSeconds: 0.1
     trialsBeforeLaser: 20
     laserDurationSeconds: 2.5
   taskType: localization
@@ -73,5 +92,3 @@ taskParameters:
   repeats:
     maxRepeats: 5
     repeatOn: notCorrect
-  singleSpoutProbability: 0.0
-  spoutsStayIn: false

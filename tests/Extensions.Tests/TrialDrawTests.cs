@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
+using OpenRigs.Devices.Zapit;
 using OpenRigs.Trials;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
@@ -64,7 +65,7 @@ static class Fixture
         var s = Stages[file][stage];
         if (s.Weights != null) task.TrialConditions = Conditions(task, s.Weights);
         task.AutoRewardProbability = s.Auto;
-        task.SingleSpoutProbability = s.Single;
+        task.Spouts.SingleSpoutProbability = s.Single;
         task.VisualStimulus.Contrasts = s.Contrasts.ToList();
         if (s.Repeats)
         {
@@ -77,7 +78,7 @@ static class Fixture
                 set["repeats.maxRepeats"] = 0;
             }
         }
-        task.SpoutsStayIn = s.StayIn;
+        task.Spouts.AlwaysIn = s.StayIn;
         task.Curriculum = Curriculum(stage, s.Label);
         task.RngSeed = 1;
         return task;
@@ -185,7 +186,7 @@ static class Fixture
     // its choice noResponse after a noResponse, else a lick at the left.
     public static List<Trial> Draw(UclOpenCoenDomeDecisionMakingTaskParameters task, int count, Func<Trial, string> outcome = null)
     {
-        var draw = new TrialDraw(Text(task), Speakers(), path => 2);
+        var draw = new TrialDraw(Text(task), Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         var trials = new List<Trial>();
         TrialRow last = null;
         for (int i = 0; i < count; i++)
@@ -216,7 +217,7 @@ public class TrialDrawTests
         var trials = Fixture.Draw(Fixture.Task("task-localization.yml", 4), 500);
         foreach (var t in trials)
         {
-            Assert.IsTrue(!t.SpoutsStayIn && t.auditoryLevelDbfs == -40, t.trialType);
+            Assert.IsTrue(!t.SpoutsAlwaysIn && t.auditoryLevelDbfs == -40, t.trialType);
             if (t.trialType == "visual" || t.trialType == "audiovisualCoherent")
                 Assert.AreEqual(t.visualInitialAzimuthDeg > 0 ? TargetWords.Right : TargetWords.Left, t.target, t.trialType);
             if (t.trialType == "auditory" || t.trialType == "audiovisualCoherent")
@@ -269,7 +270,7 @@ public class TrialDrawTests
     [TestMethod]
     public void DiscriminationHabituationAutoRewardsAtTheLeftSpoutWithTheSpoutsIn()
     {
-        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 50).All(t => t.autoReward && t.target == TargetWords.Left && t.SpoutsStayIn && t.trialType == "left"));
+        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 50).All(t => t.autoReward && t.target == TargetWords.Left && t.SpoutsAlwaysIn && t.trialType == "left"));
         var task = Fixture.Task("task-discrimination-left-right.yml", 2);
         task.AutoRewardProbability = 1;
         var stage2 = Fixture.Draw(task, 300);
@@ -289,7 +290,7 @@ public class TrialDrawTests
             Assert.AreEqual(expected == TargetWords.Go, t.autoReward, "auto-reward only on Go");
             Assert.AreEqual(expected == TargetWords.Go, t.rewardOfferedUl > 0, "a reward on offer only on Go");
             Assert.IsFalse(!t.singleSpoutOffered);
-            Assert.AreEqual(LickSpoutCommand.LeftOnly, SpoutCommands.SpoutsIn(t));
+            Assert.AreEqual(LickSpoutCommand.LeftOnly, t.SpoutsInCommand);
         }
     }
 
@@ -307,36 +308,36 @@ public class TrialDrawTests
     }
 
     [TestMethod]
-    public void SingleSpoutOfferedFollowsTheTaskTypeTheTargetAndSpoutsStayIn()
+    public void SingleSpoutOfferedFollowsTheTaskTypeTheTargetAndSpoutsAlwaysIn()
     {
         // go/no-go: always (the left alone); localization and left-right: a scored trial with its spouts moving, at
         // singleSpoutProbability (A28: 1 - the old bothSpoutsProbability); never a random-reward probe or a stay-in trial.
-        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-go-no-go.yml", 4), 300).All(t => t.singleSpoutOffered && SpoutCommands.SpoutsIn(t) == LickSpoutCommand.LeftOnly));
+        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-go-no-go.yml", 4), 300).All(t => t.singleSpoutOffered && t.SpoutsInCommand == LickSpoutCommand.LeftOnly));
         foreach (var file in new[] { "task-localization.yml", "task-discrimination-left-right.yml" })
         {
             var task = Fixture.Task(file, 4);
-            task.SingleSpoutProbability = 0.3;
+            task.Spouts.SingleSpoutProbability = 0.3;
             var trials = Fixture.Draw(task, 3000);
             var scored = trials.Where(t => t.target != TargetWords.Random).ToList();
             Assert.AreEqual(0.3, scored.Count(t => t.singleSpoutOffered) / (double)scored.Count, 0.03, file);
             Assert.IsTrue(trials.Where(t => t.target == TargetWords.Random).All(t => !t.singleSpoutOffered), file + ": a probe has both");
-            Assert.IsTrue(scored.Where(t => t.singleSpoutOffered).All(t => SpoutCommands.SpoutsIn(t) == (t.target == TargetWords.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly)), file);
-            task.SingleSpoutProbability = 1;
-            task.SpoutsStayIn = true;
-            Assert.IsTrue(Fixture.Draw(task, 300).All(t => !t.singleSpoutOffered && SpoutCommands.SpoutsIn(t) == LickSpoutCommand.SpoutsIn), file + ": spouts stay in, both used");
+            Assert.IsTrue(scored.Where(t => t.singleSpoutOffered).All(t => t.SpoutsInCommand == (t.target == TargetWords.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly)), file);
+            task.Spouts.SingleSpoutProbability = 1;
+            task.Spouts.AlwaysIn = true;
+            Assert.IsTrue(Fixture.Draw(task, 300).All(t => !t.singleSpoutOffered && t.SpoutsInCommand == LickSpoutCommand.SpoutsIn), file + ": spouts stay in, both used");
         }
     }
 
     [TestMethod]
-    public void SpoutsStayInIsEachTrialsAndInvertsTheOldSpoutMovements()
+    public void SpoutsAlwaysInIsEachTrialsAndInvertsTheOldSpoutMovements()
     {
-        // A18: spoutMovements false is spoutsStayIn true; a condition may set it, so one condition's trials stay in and another's move.
+        // A18: spoutMovements false is spouts.alwaysIn true; a condition may set it, so one condition's trials stay in and another's move.
         var task = Fixture.Task("task-localization.yml", 3);
-        ((IDictionary<object, object>)task.TrialConditions[1].Set)["spoutsStayIn"] = true;
+        ((IDictionary<object, object>)task.TrialConditions[1].Set)["spouts.alwaysIn"] = true;
         var trials = Fixture.Draw(task, 400);
-        Assert.IsTrue(trials.All(t => t.SpoutsStayIn == (t.trialConditionId == 1)));
-        Assert.IsTrue(trials.Any(t => t.SpoutsStayIn) && trials.Any(t => !t.SpoutsStayIn));
-        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 20).All(t => t.SpoutsStayIn), "habituation: in");
+        Assert.IsTrue(trials.All(t => t.SpoutsAlwaysIn == (t.trialConditionId == 1)));
+        Assert.IsTrue(trials.Any(t => t.SpoutsAlwaysIn) && trials.Any(t => !t.SpoutsAlwaysIn));
+        Assert.IsTrue(Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 0), 20).All(t => t.SpoutsAlwaysIn), "habituation: in");
     }
 
     [TestMethod]
@@ -415,9 +416,9 @@ public class TrialDrawTests
         Fixture.Only(goNoGo, "noGo");
         goNoGo.Repeats.RepeatOn = RepeatOn.NoResponse;
         goNoGo.Repeats.MaxRepeats = 5;
-        var draw = new TrialDraw(Fixture.Text(goNoGo), Fixture.Speakers(), path => 2);
+        var draw = new TrialDraw(Fixture.Text(goNoGo), Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         var first = draw.Next(null);
-        Assert.AreEqual(0, draw.Next(TrialRow.Build(Choice.NoResponse, first, new TrialTimes { Now = 1 }, new ResolvedPenalty { TimeoutSeconds = 4 })).repeatCount);
+        Assert.AreEqual(0, draw.Next(TrialRow.Build(Choice.NoResponse, first, new TrialTimes { Now = 1 }, Penalties.Of(4, -35.0, 0, 10))).repeatCount);
     }
 
     [TestMethod]
@@ -465,21 +466,24 @@ public class TrialDrawTests
         var task = Fixture.Task("task-discrimination-left-right.yml", 3);
         var trials = Fixture.Draw(task, 300, t => t.trialNumber % 3 == 0 ? TrialOutcomes.Incorrect : TrialOutcomes.Correct);
         for (int i = 0; i < trials.Count; i++) Assert.AreEqual(i + 1, trials[i].trialNumber);
-        // What Gerion's mice got: 1.5 to 2.0 s from the outcome (after any timeout) to the stimulus.
-        Assert.IsTrue(trials.All(t => t.itiSeconds >= 1.5 && t.itiSeconds <= 2.0));
-        Assert.IsTrue(trials.Max(t => t.itiSeconds) > 1.95 && trials.Min(t => t.itiSeconds) < 1.55);
+        // The task files' interval (Pip, 20 Nov 2026): 2.5 to 3.5 s.
+        Assert.IsTrue(trials.All(t => t.itiSeconds >= 2.5 && t.itiSeconds <= 3.5));
+        Assert.IsTrue(trials.Max(t => t.itiSeconds) > 3.45 && trials.Min(t => t.itiSeconds) < 2.55);
         var repeats = Fixture.Draw(Fixture.Task("task-localization.yml", 4), 300, t => TrialOutcomes.Incorrect).Where(t => t.repeatCount > 0).ToList();
         Assert.IsTrue(repeats.Count > 10 && repeats.Select(t => t.itiSeconds).Distinct().Count() == repeats.Count, "a repeat draws its own");
     }
 
     [TestMethod]
-    public void TheDiscriminationFileIsWhatGerionsMiceGot()
+    public void TheDiscriminationFileHasTheLabsDefaults()
     {
+        // Pip, 20 Nov 2026: a rewarded trial is its outcome, 1.5 s to drink, then a 2.5 to 3.5 s interval; a penalised one 4 s of timeout, then the interval.
         var s = Fixture.Task("task-discrimination-left-right.yml", 0);
-        Assert.AreEqual(1.5, s.TrialStructure.ItiMinSeconds);
-        Assert.AreEqual(2.0, s.TrialStructure.ItiMaxSeconds);
-        Assert.AreEqual(1.5, s.TrialStructure.OutcomeToSpoutsOutSeconds);
-        Assert.AreEqual(4.0, s.Penalty.TimeoutSeconds);   // incorrect or a miss: 5.5 to 6.0 s outcome to stimulus
+        Assert.AreEqual(2.5, s.TrialStructure.ItiMinSeconds);
+        Assert.AreEqual(3.5, s.TrialStructure.ItiMaxSeconds);
+        Assert.AreEqual(1.5, s.Spouts.RewardConsumptionSeconds);
+        Assert.AreEqual(4.0, s.Penalty.Incorrect.TimeoutSeconds);
+        Assert.AreEqual(4.0, s.Penalty.NoResponse.TimeoutSeconds);
+        Assert.AreEqual(0.0, s.Penalty.Incorrect.Flash.Brightness);
     }
 
     [TestMethod]
@@ -489,6 +493,7 @@ public class TrialDrawTests
         task.Optogenetics.Enabled = true;
         task.Optogenetics.TrialsBeforeLaser = 20;
         task.Optogenetics.LaserOnProbability = 0.5;
+        task.Optogenetics.LaserDurationSeconds = 2.3;   // the most itiMinSeconds 2.5 allows
         var trials = Fixture.Draw(task, 300, t => Choice.NoResponse);
         Assert.IsTrue(trials.All(t => t.laserCondition == 1 || t.laserCondition == 2));
         Assert.IsTrue(trials.Take(20).All(t => !t.laserOn));
@@ -517,7 +522,7 @@ public class TrialDrawTests
     {
         var speakers = Fixture.Speakers();
         Func<UclOpenCoenDomeDecisionMakingTaskParameters, string> refusal = parameters =>
-            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), speakers, path => 2));
+            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), speakers, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)));
 
         var task = Fixture.Task("task-localization.yml", 4);
         task.VisualStimulus.Contrasts.Clear();
@@ -530,16 +535,16 @@ public class TrialDrawTests
         task.AuditoryStimulus.LevelDbfs = -0.5;
         StringAssert.Contains(refusal(task), "auditoryStimulus.levelDbfs -0.5 is above -1 dBFS");
         task = Fixture.Task("task-localization.yml", 4);
-        task.Penalty.Sound.LevelDbfs = "off";
-        StringAssert.Contains(refusal(task), "penalty.sound.levelDbfs: A sound level is a number of dBFS RMS or mute, not off");
+        task.Penalty.Incorrect.Sound.LevelDbfs = "off";
+        StringAssert.Contains(refusal(task), "penalty.incorrect.sound.levelDbfs: A sound level is a number of dBFS RMS or mute, not off");
         // The penalty's level is bounded at Go as the stimulus's is, naming the condition: task-wide, and in a condition's set naming it.
         task = Fixture.Task("task-localization.yml", 4);
-        task.Penalty.Sound.LevelDbfs = 0;
-        StringAssert.Contains(refusal(task), "penalty.sound.levelDbfs 0 is above -1 dBFS");
+        task.Penalty.Incorrect.Sound.LevelDbfs = 0;
+        StringAssert.Contains(refusal(task), "penalty.incorrect.sound.levelDbfs 0 is above -1 dBFS");
         task = Fixture.Task("task-localization.yml", 4);
-        ((IDictionary<object, object>)task.TrialConditions[1].Set)["penalty.sound.levelDbfs"] = 10;
+        ((IDictionary<object, object>)task.TrialConditions[1].Set)["penalty.incorrect.sound.levelDbfs"] = 10;
         StringAssert.Contains(refusal(task), "trialConditions[1]");
-        StringAssert.Contains(refusal(task), "penalty.sound.levelDbfs 10 is above -1 dBFS");
+        StringAssert.Contains(refusal(task), "penalty.incorrect.sound.levelDbfs 10 is above -1 dBFS");
         // repeatOn never exactly when maxRepeats is 0 (task.py's x-rule), both ways.
         task = Fixture.Task("task-localization.yml", 4);
         task.Repeats.RepeatOn = RepeatOn.Never;
@@ -555,13 +560,30 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(task), "initialAzimuthsDeg value 200 is outside [-180, 180]");
 
         task = Fixture.Task("task-localization.yml", 4);
-        task.TrialStructure.VisualStimulusSeconds = 2;
-        StringAssert.Contains(refusal(task), "visualStimulusSeconds");
+        task.Stimulus.DurationSeconds = 2.5;
+        StringAssert.Contains(refusal(task), "stimulus.durationSeconds (2.5 s) is longer than the stimulus to the response window's close (2 s)");
 
         task = Fixture.Task("task-localization.yml", 4);
+        task.Stimulus.DurationSeconds = null;
+        task.Stimulus.ResponseToStimulusOffSeconds = null;
+        StringAssert.Contains(refusal(task), "stimulus.durationSeconds and stimulus.responseToStimulusOffSeconds are both null");
+
+        task = Fixture.Task("task-localization.yml", 4);
+        // Off before the next stimulus: from the soonest outcome (the window's opening, 0.5 s) at most the shortest outcome
+        // to next interval (0: a reward's interval starts at the outcome) plus itiMinSeconds (2.5), so 3 s from onset.
         task.TrialStructure.ResponseWindowSeconds = 5;
-        task.TrialStructure.VisualStimulusSeconds = task.TrialStructure.ItiMinSeconds + 0.5;
-        StringAssert.Contains(refusal(task), "longer than itiMinSeconds");
+        task.Stimulus.DurationSeconds = 3.0;
+        Assert.AreEqual("accepted", refusal(task));
+        task.Stimulus.DurationSeconds = 3.1;
+        StringAssert.Contains(refusal(task), "stimulus.durationSeconds (3.1 s) runs 2.6 s past the soonest outcome, longer than the shortest outcome to next interval (0 s");
+
+        task = Fixture.Task("task-localization.yml", 4);
+        task.Stimulus.RateHz = 21;
+        StringAssert.Contains(refusal(task), "stimulus.rateHz 21 is above 20");
+
+        task = Fixture.Task("task-localization.yml", 4);
+        task.Stimulus.RateHz = 0;
+        StringAssert.Contains(refusal(task), "stimulus.rateHz must be a finite number above 0");
 
         task = Fixture.Task("task-localization.yml", 4);
         task.TrialStructure.ResponseWindowSeconds = null;
@@ -575,7 +597,7 @@ public class TrialDrawTests
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = null;
         task.Optogenetics.LaserDurationSeconds = 0.8;
-        StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => 2)), "laserPowerMw");
+        StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds))), "laserPowerMw");
     }
 
     [TestMethod]
@@ -636,17 +658,26 @@ public class TrialDrawTests
     [TestMethod]
     public void ALaserThatWouldDelayTheNextArmIsRefused()
     {
-        // Discrimination: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s reply margin = 0.8 s.
+        // Discrimination: 0.5 s stimulus to window + 2.5 s interval - the conditions file's largest ramp-down - 0.2 s reply
+        // margin: 2.3 s with a 0.5 s ramp-down, 2.7 s with a 0.1 s one (the file's own, ZapitConditions.Check).
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
-        Assert.AreEqual(0.8, TrialDraw.MaxLaserSeconds(task), 1e-9);
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "laserDurationSeconds (2.5 s) must be at most 0.8 s");
-        task.Optogenetics.LaserDurationSeconds = 0.8;
-        Assert.AreEqual("accepted", Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())));
+        Func<double, string> refusal = rampDown => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(2, rampDown)));
+        Assert.AreEqual(2.3, TrialDraw.MaxLaserSeconds(task, 0.5), 1e-9);
+        Assert.AreEqual(2.7, TrialDraw.MaxLaserSeconds(task, 0.1), 1e-9);
+        StringAssert.Contains(refusal(0.5), "laserDurationSeconds (2.5 s) must be at most 2.3 s");
+        StringAssert.Contains(refusal(0.5), "the Zapit conditions file's 0.5 s ramp-down");
+        Assert.AreEqual("accepted", refusal(0.1), "a 0.1 s ramp-down allows 2.7 s");
+        task.Optogenetics.LaserDurationSeconds = 2.8;
+        StringAssert.Contains(refusal(0.1), "laserDurationSeconds (2.8 s) must be at most 2.7 s");
+        task.Optogenetics.LaserDurationSeconds = 2.3;
+        Assert.AreEqual("accepted", refusal(0.5));
+        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), true, path => new ZapitConditionsFile(2, 0.1));
+        Assert.AreEqual(0.1, rules.Laser.RampDownSeconds, "the next trial armed once the file's own ramp-down has played");
         task.Optogenetics.LaserDurationSeconds = 2.5;
         task.Optogenetics.Enabled = false;
-        Assert.AreEqual("accepted", Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())));
+        Assert.AreEqual("accepted", refusal(0.5));
     }
 
     [TestMethod]
@@ -671,13 +702,30 @@ public class TrialDrawTests
     {
         Func<double, string> refusal = lead =>
         {
-            var task = Fixture.Task("task-discrimination-left-right.yml", 4);   // itiMinSeconds 1.5, response window 0 + 1.5 s
+            var task = Fixture.Task("task-discrimination-left-right.yml", 4);   // itiMinSeconds 2.5, response window 0.5 + 1.5 s
             task.Optogenetics.LaserToStimulusSeconds = lead;
             return Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
         };
-        foreach (var ok in new[] { 1.3, 0.5, 0.0, -0.5, -1.5 }) Assert.AreEqual("accepted", refusal(ok), ok.ToString());
-        StringAssert.Contains(refusal(1.31), "reply margin must be at most trialStructure.itiMinSeconds");
-        StringAssert.Contains(refusal(-1.51), "after the response window");
+        foreach (var ok in new[] { 2.3, 0.5, 0.1, 0.0, -0.5, -2.0 }) Assert.AreEqual("accepted", refusal(ok), ok.ToString());
+        StringAssert.Contains(refusal(2.31), "reply margin must be at most trialStructure.itiMinSeconds");
+        StringAssert.Contains(refusal(-2.01), "after the response window");
+    }
+
+    [TestMethod]
+    public void AResponseWindowOpeningBeforeTheSpoutsIsRefused()
+    {
+        Func<double, double, string> refusal = (window, spouts) =>
+        {
+            var task = Fixture.Task("task-discrimination-left-right.yml", 4);
+            task.Spouts.RewardConsumptionSeconds = 1.0;
+            task.TrialStructure.StimulusToResponseWindowSeconds = window;
+            task.Spouts.StimulusToSpoutsInSeconds = spouts;
+            return Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
+        };
+        var early = refusal(0.4, 0.5);
+        StringAssert.Contains(early, "stimulusToResponseWindowSeconds (0.4 s) is below spouts.stimulusToSpoutsInSeconds (0.5 s)");
+        Assert.AreEqual("accepted", refusal(0, -0.5), "negative: the spouts in before the stimulus, which leads the trial start");
+        Assert.AreEqual("accepted", refusal(0.5, 0.5), "equal: the window opens as the spouts arrive");
     }
 
     [TestMethod]
@@ -700,14 +748,17 @@ public class TrialDrawTests
         task.TrialStructure.ItiMaxSeconds = double.PositiveInfinity;
         StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "trialStructure.itiMaxSeconds is ");
         task = Fixture.Task("task-localization.yml", 4);
-        task.Penalty.TimeoutSeconds = double.NaN;
+        task.Penalty.Incorrect.TimeoutSeconds = double.NaN;
         task.Optogenetics.LaserToStimulusSeconds = double.NaN;
         var refusal = Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
-        StringAssert.Contains(refusal, "penalty.timeoutSeconds must be a finite number, 0 or more");
+        StringAssert.Contains(refusal, "penalty.incorrect.timeoutSeconds must be a finite number, 0 or more");
         StringAssert.Contains(refusal, "laserToStimulusSeconds must be a finite number");
         task = Fixture.Task("task-localization.yml", 4);
-        task.TrialStructure.OutcomeToSpoutsOutSeconds = 3.5;
-        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "below outcomeToSpoutsOutSeconds");
+        // The drink is inside the interval: the spouts go out rewardConsumptionSeconds into it, before the stimulus.
+        task.Spouts.RewardConsumptionSeconds = 3.5;
+        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "spouts.rewardConsumptionSeconds (3.5 s) is above itiMinSeconds");
+        task.Spouts.RewardConsumptionSeconds = double.NaN;
+        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "spouts.rewardConsumptionSeconds must be a finite number, 0 or more");
     }
 
     [TestMethod]
@@ -871,22 +922,22 @@ public class TrialConditionTests
     public void TheMaxSoundLevelIsTheHighestLevelAWeightedConditionDraws()
     {
         var rules = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.levelDbfs", Fixture.List("mute", -46.0, -38.0)), Fixture.Condition(0, "auditoryStimulus.levelDbfs", -10.0))),
-            Fixture.Speakers(), false, path => 2);
+            Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         Assert.AreEqual(-38.0, rules.MaxStimulusLevel.LevelDbfs);
         StringAssert.StartsWith(rules.MaxStimulusLevel.Where, "trialConditions[0] (audiovisualCoherent) with ");
         StringAssert.Contains(rules.MaxStimulusLevel.Where, "auditoryStimulus.levelDbfs -38, ");
-        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.levelDbfs", "mute"))), Fixture.Speakers(), false, path => 2);
+        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.levelDbfs", "mute"))), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         Assert.IsTrue(double.IsNaN(mute.MaxStimulusLevel.LevelDbfs), "all mute: none");
     }
 
     [TestMethod]
     public void ThePenaltyLevelIsEachTrialsAndTheMaxPenaltyLevelIsLaidOutAtGo()
     {
-        // P19: penalty.sound.levelDbfs is condition-level; each outcome carries its trial's level (NaN mute), and
+        // P19: penalty.incorrect.sound.levelDbfs is condition-level; each outcome carries its trial's level (NaN mute), and
         // MaxPenaltyLevelDbfs is the highest a weighted condition draws, for PlayPenaltySound's buffer at Go.
-        var task = With(Fixture.Condition(1, "penalty.sound.levelDbfs", -50.0), Fixture.Condition(1, "penalty.sound.levelDbfs", "mute"),
-            Fixture.Condition(0, "penalty.sound.levelDbfs", -20.0));
-        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => 2).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
+        var task = With(Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", -50.0), Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", "mute"),
+            Fixture.Condition(0, "penalty.incorrect.sound.levelDbfs", -20.0));
+        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
         foreach (var t in Fixture.Draw(task, 100))
         {
             var wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
@@ -897,7 +948,7 @@ public class TrialConditionTests
     }
 
     [TestMethod]
-    public void AMissCostsPenaltyNoResponseWhereSetAndTheChoicesElse()
+    public void AMissCostsPenaltyNoResponseAndAChoicePenaltyIncorrect()
     {
         // The localization file: a miss has the 4 s timeout and no sound (noResponse.sound.levelDbfs mute), a wrong choice both.
         var task = With(Fixture.Condition(1));
@@ -906,7 +957,7 @@ public class TrialConditionTests
         var miss = TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 });
         Assert.IsTrue(wrong.PenaltyTimeoutSeconds == 4 && wrong.PenaltyLevelDbfs == -35 && wrong.Row.Value.penaltyTimeoutSeconds == 4);
         Assert.IsTrue(miss.Penalised && miss.PenaltyTimeoutSeconds == 4 && double.IsNaN(miss.PenaltyLevelDbfs) && miss.Row.Value.penaltyTimeoutSeconds == 4);
-        // Both fields set: the miss's own, the choice's unchanged; the row logs the timeout it used.
+        // The miss's own values changed: the choice's unchanged; the row logs the timeout it used.
         task.Penalty.NoResponse.TimeoutSeconds = 2;
         task.Penalty.NoResponse.Sound.LevelDbfs = -45.0;
         t = Fixture.Draw(task, 1)[0];
@@ -924,31 +975,54 @@ public class TrialConditionTests
     }
 
     [TestMethod]
+    public void APenalisedTrialFlashesItsKindsFlashAndLogsItsBrightness()
+    {
+        // penalty.<kind>.flash (lib-open-rigs PenaltyFlash): the outcome carries its kind's flash for PlayPenaltyFlash, the
+        // row its brightness (0 when none plays or not penalised).
+        var task = With(Fixture.Condition(1));
+        task.Penalty.Incorrect.Flash.Brightness = 0.5;
+        task.Penalty.Incorrect.Flash.RateHz = 5;
+        var t = Fixture.Draw(task, 1)[0];
+        var wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
+        var miss = TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 });
+        var correct = TrialOutcome.At(t.target, t, new TrialTimes { Now = 1 });
+        Assert.IsTrue(wrong.PenaltyFlash.Plays && wrong.PenaltyFlash.Brightness == 0.5 && wrong.PenaltyFlash.RateHz == 5 && wrong.Row.Value.penaltyFlashBrightness == 0.5);
+        Assert.IsTrue(miss.Penalised && !miss.PenaltyFlash.Plays && miss.Row.Value.penaltyFlashBrightness == 0, "penalty.noResponse's flash: brightness 0");
+        Assert.IsTrue(correct.Rewarded && !correct.PenaltyFlash.Plays && correct.Row.Value.penaltyFlashBrightness == 0);
+        var flashes = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)).PenaltyFlashes;
+        Assert.IsTrue(flashes.Plays && flashes.ShortestTimeoutSeconds == 4 && flashes.Problems.Count == 0);
+        // Go/no-go: penalty.noResponse null, so only penalty.incorrect's flash is drawn; none plays at brightness 0.
+        Assert.IsFalse(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-go-no-go.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)).PenaltyFlashes.Plays);
+    }
+
+    [TestMethod]
     public void TheMaxPenaltyLevelCountsAMissesLevelAndAConditionMaySetIt()
     {
         // A condition sets penalty.noResponse.sound.levelDbfs: louder than every choice's, it is the buffer's level, named.
         var task = With(Fixture.Condition(1), Fixture.Condition(1, "penalty.noResponse.sound.levelDbfs", -30.0), Fixture.Condition(0, "penalty.noResponse.sound.levelDbfs", -20.0));
-        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => 2);
+        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         Assert.AreEqual(-30.0, rules.MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
-        var draw = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => 2);
+        var draw = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         StringAssert.StartsWith(draw.MaxPenaltyLevel().Where, "trialConditions[1]");
         foreach (var t in Fixture.Draw(task, 40).Where(x => x.trialConditionId == 1))
             Assert.AreEqual(-30.0, TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 }).PenaltyLevelDbfs);
-        // Null (left-right's file): the choice's level alone.
-        Assert.AreEqual(-35.0, new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), false, path => 2).MaxPenaltyLevelDbfs);
+        // Left-right's file: both kinds at -35.
+        Assert.AreEqual(-35.0, new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)).MaxPenaltyLevelDbfs);
     }
 
     [TestMethod]
-    public void GoNoGoRefusesAMissesOwnCostAndTheOverrideIsCheckedAsTheChoices()
+    public void GoNoGoRefusesAMissesCostAndTheOthersNeedOne()
     {
         Func<UclOpenCoenDomeDecisionMakingTaskParameters, string> refusal = parameters =>
-            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), Fixture.Speakers(), path => 2));
+            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)));
         var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 4);
-        goNoGo.Penalty.NoResponse.Sound.LevelDbfs = "mute";
-        StringAssert.Contains(refusal(goNoGo), "penalty.noResponse.sound.levelDbfs must be null in discriminationGoNoGo");
-        goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 4);
-        goNoGo.Penalty.NoResponse.TimeoutSeconds = 2;
-        StringAssert.Contains(refusal(goNoGo), "penalty.noResponse.timeoutSeconds must be null in discriminationGoNoGo");
+        Assert.IsNull(goNoGo.Penalty.NoResponse);
+        goNoGo.Penalty.NoResponse = Fixture.Task("task-discrimination-left-right.yml", 4).Penalty.NoResponse;
+        StringAssert.Contains(refusal(goNoGo), "penalty.noResponse must be null in discriminationGoNoGo");
+        // A task that penalises a miss needs penalty.noResponse (lib-open-rigs Penalties.Problems).
+        var missing = Fixture.Task("task-localization.yml", 4);
+        missing.Penalty.NoResponse = null;
+        StringAssert.Contains(refusal(missing), "penalty.noResponse is null, but this task penalises a miss");
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Penalty.NoResponse.Sound.LevelDbfs = 0;
         task.Penalty.NoResponse.TimeoutSeconds = double.NaN;
@@ -1050,12 +1124,12 @@ public class TrialConditionTests
     public void AnyFieldButASessionFieldMayBeSetAndItsValuesAreChecked()
     {
         Func<TrialCondition, string> refusal = c => Refused(With(c));
-        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "trialStructure.itiMinSeconds", 4.0, "visualStimulus.orientationDeg", Fixture.List(0.0, 90.0))));
+        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "trialStructure.itiMinSeconds", 2.0, "visualStimulus.orientationDeg", Fixture.List(0.0, 90.0))));
         StringAssert.Contains(refusal(Fixture.Condition(1, "taskType", "localization")), "sets or pairs taskType, a session field (x-session-fields: taskType)");
         // A set path that holds a session field (a map set whole) is refused as the field itself is.
         StringAssert.Contains(refusal(Fixture.Condition(1, "optogenetics", new Dictionary<object, object> { { "enabled", true } })),
             "sets or pairs optogenetics, a session field (x-session-fields: optogenetics.enabled)");
-        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "penalty.sound.levelDbfs", -50.0, "spoutsStayIn", true)), "condition-level since P19");
+        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", -50.0, "spouts.alwaysIn", true)), "condition-level since P19");
         StringAssert.Contains(refusal(Fixture.Condition(1, "colour.red", 1.0)), "sets or pairs colour.red, which is not a task field");
         StringAssert.Contains(refusal(Fixture.Condition(1, "optogenetics.laserOnProbability", 1.0)), "sets optogenetics.laserOnProbability with optogenetics off");
         StringAssert.Contains(refusal(Fixture.Condition(1, "reward.sizeUl", 99.0)), ": reward.sizeUl must be above 0 and at most");
@@ -1072,7 +1146,7 @@ public class TrialConditionTests
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
         task.Optogenetics.TrialsBeforeLaser = 0;
-        task.Optogenetics.LaserDurationSeconds = 1;
+        task.Optogenetics.LaserDurationSeconds = 0.8;
         var trials = Fixture.Draw(task, 200);
         Assert.IsTrue(trials.All(t => t.laserOn == (t.trialConditionId == 0)));
     }

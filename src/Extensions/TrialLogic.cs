@@ -15,13 +15,17 @@ using System.Reactive.Linq;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
 using ConditionTarget = UclOpenCoenDomeDecisionMakingTask.Target;
+using LabSpouts = OpenRigs.Trials.Spouts;
 using BuiltTrialCondition = OpenRigs.Trials.BuiltTrialCondition<UclOpenCoenDomeDecisionMakingTask.UclOpenCoenDomeDecisionMakingTaskParameters>;
+
+// The tests build a trial by hand with its combination's values (Trial.values), as every drawn trial has them.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Extensions.Tests")]
 
 /// <summary>One trial as drawn: the lab's conditioned trial (OpenRigs.Trials ConditionedTrial: trialNumber, trialType,
 /// trialConditionId, trialCombinationId, itiSeconds, rewardOfferedUl, the stimulus, the laser, autoReward) and this task's
 /// own; its fields are named as the trial log's columns where they are one. Every other value is its combination's
 /// (values), read per trial.</summary>
-public class Trial : ConditionedTrial, ILaserDurationTrial
+public class Trial : ConditionedTrial, ILaserDurationTrial, ISpoutTrial
 {
     double ILaserDurationTrial.LaserDurationSeconds { get { return values.Optogenetics.LaserDurationSeconds; } }
 
@@ -38,8 +42,17 @@ public class Trial : ConditionedTrial, ILaserDurationTrial
     /// temporalFrequencyHz): its combination's visualStimulus, read per trial, not copied.</summary>
     public VisualStimulus VisualStimulus { get { return values.VisualStimulus; } }
 
-    /// <summary>Whether the used spouts stay in on this trial (its combination's spoutsStayIn).</summary>
-    public bool SpoutsStayIn { get { return values.SpoutsStayIn; } }
+    /// <summary>What the grating and the sound share (durationSeconds, responseToStimulusOffSeconds, rateHz): its combination's stimulus.</summary>
+    public Stimulus Stimulus { get { return values.Stimulus; } }
+
+    /// <summary>Whether the used spouts are always in on this trial (its combination's spouts.alwaysIn).</summary>
+    public bool SpoutsAlwaysIn { get { return values.Spouts.AlwaysIn; } }
+
+    /// <summary>Where the spouts go at the SpoutsIn cue: the target's alone on a single-spout trial (go/no-go: the left), else both in.</summary>
+    public LickSpoutCommand SpoutsInCommand
+    {
+        get { return singleSpoutOffered ? LabSpouts.Only(target == TargetWords.Right ? "right" : "left") : LickSpoutCommand.SpoutsIn; }
+    }
 
     public Trial Clone()
     {
@@ -115,8 +128,14 @@ public class TrialDraw
     /// <summary>The conditions as built at Go, in trialConditions' order.</summary>
     public IList<BuiltTrialCondition> Conditions { get { return conditions; } }
 
-    /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers; throws naming every problem.</summary>
-    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, Func<string, int> zapitConditionCount)
+    /// <summary>The Zapit conditions file's largest ramp-down, in seconds (0 without optogenetics): the next trial is armed
+    /// once it has played after the laser.</summary>
+    public double MaxRampDownSeconds { get; private set; }
+
+    /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers; zapitConditions gives
+    /// a conditions file's count and largest ramp-down (null: ZapitConditions.Check reads it). Throws naming every problem,
+    /// with optogenetics a laser that could leave Zapit busy at the next trigger (LaserProblems).</summary>
+    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, Func<string, ZapitConditionsFile> zapitConditions)
     {
         conditions = CheckTask(taskText, speakers, out task);
         this.speakers = speakers;
@@ -128,7 +147,11 @@ public class TrialDraw
                 throw new InvalidOperationException("optogenetics is enabled, so optogenetics.laserPowerMw must be a power in mW above 0.");
             }
             var path = optogenetics.ZapitConditionsPath;
-            conditionCount = zapitConditionCount != null ? zapitConditionCount(path) : ZapitConditions.Check(path).Count;
+            var file = zapitConditions != null ? zapitConditions(path) : ZapitConditions.Check(path);
+            conditionCount = file.Count;
+            MaxRampDownSeconds = file.MaxRampDownSeconds;
+            var problems = LaserProblems(conditions, MaxRampDownSeconds);
+            if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
         }
         Seed = RngSeed.Resolve(task.RngSeed);
         random = new Random(Seed);
@@ -173,30 +196,77 @@ public class TrialDraw
     }
 
     /// <summary>The timing rules between a trial and the next, each drawn from any weighted combination (task.py
-    /// _between_trials): every outcomeToSpoutsOutSeconds and visualStimulusSeconds within every itiMinSeconds, and with optogenetics
-    /// every laserDurationSeconds within the shortest trigger to the next trigger less the ramp-down and Zapit's reply margin.</summary>
+    /// _between_trials): the lab's spouts (OpenRigs.Trials Spouts.BetweenTrialsProblems: the longest rewardConsumptionSeconds
+    /// plus the longest lead within the shortest itiMinSeconds) and stimulus off between trials
+    /// (StimulusTiming.BetweenTrialsProblems: the soonest outcome the response window's opening, the shortest outcome to next
+    /// interval 0, MinOutcomeToItiSeconds), and with optogenetics the laser (LaserProblems, once the conditions file's
+    /// ramp-down is known).</summary>
     static void BetweenTrials(List<string> problems, List<UclOpenCoenDomeDecisionMakingTaskParameters> tasks)
     {
         if (tasks.Count == 0) return;
-        var iti = tasks.Min(t => t.TrialStructure.ItiMinSeconds);
-        var spoutsOut = tasks.Max(t => t.TrialStructure.OutcomeToSpoutsOutSeconds);
-        var stimulus = tasks.Max(t => t.TrialStructure.VisualStimulusSeconds);
-        if (spoutsOut > iti + 1e-9) problems.Add(string.Format("trialStructure.outcomeToSpoutsOutSeconds {0} s exceeds trialStructure.itiMinSeconds {1} s of a combination that may come next", spoutsOut, iti));
-        if (stimulus > iti + 1e-9) problems.Add(string.Format("trialStructure.visualStimulusSeconds {0} s exceeds trialStructure.itiMinSeconds {1} s of a combination that may come next", stimulus, iti));
-        if (!tasks[0].Optogenetics.Enabled) return;
-        var maxSeconds = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.ResponseDelaySeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
-            - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
-        var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
-        if (duration > maxSeconds + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin", duration, maxSeconds));
+        var iti = tasks.Select(t => t.TrialStructure.ItiMinSeconds).ToList();
+        problems.AddRange(LabSpouts.BetweenTrialsProblems(tasks.Select(t => t.Spouts.StimulusToSpoutsInSeconds), tasks.Select(t => t.Spouts.AlwaysIn),
+            tasks.Select(t => t.Spouts.RewardConsumptionSeconds), iti));
+        problems.AddRange(StimulusTiming.BetweenTrialsProblems(tasks.Select(t => t.Stimulus.DurationSeconds), tasks.Select(t => t.TrialStructure.StimulusToResponseWindowSeconds),
+            tasks.Select(t => t.Stimulus.ResponseToStimulusOffSeconds), iti, MinOutcomeToItiSeconds));
+    }
+
+    /// <summary>With optogenetics, the laser of every combination (task.py's same rules, its ramp-down the least a file may
+    /// have): each laserDurationSeconds within MaxLaserSeconds, and across the weighted combinations within the shortest
+    /// lead plus stimulus to response window plus the shortest interval less the lead, less the conditions file's largest
+    /// ramp-down and Zapit's reply margin, so Zapit is free at the next trigger.</summary>
+    public static List<string> LaserProblems(IList<BuiltTrialCondition> conditions, double rampDownSeconds)
+    {
+        var problems = new List<string>();
+        foreach (var condition in conditions)
+        {
+            foreach (var combination in condition.Combinations)
+            {
+                var opto = combination.Task.Optogenetics;
+                var maxSeconds = MaxLaserSeconds(combination.Task, rampDownSeconds);
+                if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
+                {
+                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's {3} s ramp-down - {4} s reply margin), so Zapit can be armed for the next trial in time",
+                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, rampDownSeconds, ZapitTrial.ReplyMarginSeconds));
+                }
+            }
+        }
+        var tasks = conditions.Where(c => c.Weight > 0).SelectMany(c => c.Combinations).Select(m => m.Task).ToList();
+        if (tasks.Count > 0 && tasks[0].Optogenetics.Enabled)
+        {
+            var across = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.StimulusToResponseWindowSeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
+                - rampDownSeconds - ZapitTrial.ReplyMarginSeconds;
+            var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
+            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to response window, plus the shortest interval less the lead, less the Zapit conditions file's {2} s ramp-down and Zapit's reply margin", duration, across, rampDownSeconds));
+        }
+        return problems.Distinct().ToList();
+    }
+
+    /// <summary>The shortest outcome to next interval a trial can have (OpenRigs.Trials StimulusTiming: the shortest penalty
+    /// timeout among the outcomes that can occur, 0 where a reward or neither can come): 0 in every task here, as every trial
+    /// can end rewarded or neither (a correct choice, a random probe's heads, a go/no-go miss or withheld noGo, a no-reward
+    /// probe), and a rewarded trial's interval starts at its outcome (task.py's same 0).</summary>
+    public const double MinOutcomeToItiSeconds = 0;
+
+    // Each penalty kind's sound level: a number of dBFS RMS or mute (NaN), at most the peak limit.
+    static void PenaltyLevel(List<string> problems, string block, PenaltyCost cost)
+    {
+        if (cost.Sound == null) { problems.Add(block + ".sound must be given"); return; }
+        double level = double.NaN;
+        try { level = SoundLevels.Parse(cost.Sound.LevelDbfs); }
+        catch (InvalidOperationException e) { problems.Add(block + ".sound.levelDbfs: " + e.Message); }
+        if (level > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("{0}.sound.levelDbfs {1} is above {2} dBFS", block, level, SoundLevel.PeakLimitDbfs));
+        if (!(cost.TimeoutSeconds >= 0) || double.IsInfinity(cost.TimeoutSeconds)) problems.Add(block + ".timeoutSeconds must be a finite number, 0 or more");
+        if (cost.Flash == null) problems.Add(block + ".flash must be given");
     }
 
     // Bonsai reads the task file without pydantic, so what the draw needs is checked again here; x-rules are Python's alone
     // (task.py in check-workflow, app-rig-control at launch).
     static void Check(List<string> problems, UclOpenCoenDomeDecisionMakingTaskParameters task, EqualisedSpeakerArray speakers)
     {
-        if (task.Repeats == null || task.AuditoryStimulus == null || task.VisualStimulus == null)
+        if (task.Repeats == null || task.Spouts == null || task.Stimulus == null || task.AuditoryStimulus == null || task.VisualStimulus == null)
         {
-            problems.Add("repeats, visualStimulus and auditoryStimulus must be given");
+            problems.Add("repeats, spouts, stimulus, visualStimulus and auditoryStimulus must be given");
             return;
         }
         if (task.Repeats.MaxRepeats < 0) problems.Add("repeats.maxRepeats must be 0 or more");
@@ -211,29 +281,20 @@ public class TrialDraw
         try { level = SoundLevels.Parse(task.AuditoryStimulus.LevelDbfs); }
         catch (InvalidOperationException e) { problems.Add("auditoryStimulus.levelDbfs: " + e.Message); }
         if (level > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("auditoryStimulus.levelDbfs {0} is above {1} dBFS", level, SoundLevel.PeakLimitDbfs));
-        double penalty = double.NaN;
-        try { penalty = SoundLevels.Parse(task.Penalty.Sound.LevelDbfs); }
-        catch (InvalidOperationException e) { problems.Add("penalty.sound.levelDbfs: " + e.Message); }
-        if (penalty > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("penalty.sound.levelDbfs {0} is above {1} dBFS", penalty, SoundLevel.PeakLimitDbfs));
-        // A penalised miss's own cost: each field null (the choice's) or as the choice's is checked. discriminationGoNoGo never
-        // penalises a miss, so a value there would never be used.
-        var miss = task.Penalty.NoResponse;
-        if (miss == null || miss.Sound == null) problems.Add("penalty.noResponse and its sound must be given (their fields may be null)");
-        else
-        {
-            if (miss.Sound.LevelDbfs != null)
-            {
-                double missLevel = double.NaN;
-                try { missLevel = SoundLevels.Parse(miss.Sound.LevelDbfs); }
-                catch (InvalidOperationException e) { problems.Add("penalty.noResponse.sound.levelDbfs: " + e.Message); }
-                if (missLevel > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("penalty.noResponse.sound.levelDbfs {0} is above {1} dBFS", missLevel, SoundLevel.PeakLimitDbfs));
-            }
-            if (task.TaskType == TaskType.DiscriminationGoNoGo)
-            {
-                if (miss.TimeoutSeconds.HasValue) problems.Add("penalty.noResponse.timeoutSeconds must be null in discriminationGoNoGo, which never penalises a miss");
-                if (miss.Sound.LevelDbfs != null) problems.Add("penalty.noResponse.sound.levelDbfs must be null in discriminationGoNoGo, which never penalises a miss");
-            }
-        }
+        // Each penalty kind's own full values (lib-open-rigs Penalties): penalty.incorrect always; penalty.noResponse null
+        // exactly when no miss is penalised (Penalties.Problems). discriminationGoNoGo never penalises a miss, so a
+        // penalty.noResponse there would never be used (task.py's x-rule).
+        if (task.Penalty == null || task.Penalty.Incorrect == null) problems.Add("penalty.incorrect must be given");
+        else PenaltyLevel(problems, "penalty.incorrect", task.Penalty.Incorrect);
+        var miss = task.Penalty == null ? null : task.Penalty.NoResponse;
+        if (miss != null) PenaltyLevel(problems, "penalty.noResponse", miss);
+        if (task.TaskType == TaskType.DiscriminationGoNoGo && miss != null) problems.Add("penalty.noResponse must be null in discriminationGoNoGo, which never penalises a miss");
+        problems.AddRange(Penalties.Problems(task.TaskType != TaskType.DiscriminationGoNoGo && task.AutoRewardProbability < 1, miss != null));
+        // The reward tone (task.py's same rule): this workflow has no tone sound to play yet, so only mute.
+        double tone = double.NaN;
+        try { if (task.Reward != null && task.Reward.Tone != null) tone = SoundLevels.Parse(task.Reward.Tone.LevelDbfs); }
+        catch (InvalidOperationException e) { problems.Add("reward.tone.levelDbfs: " + e.Message); }
+        if (!double.IsNaN(tone)) problems.Add("reward.tone.levelDbfs must be mute: this workflow has no reward tone sound to play yet");
         bool sounding = !double.IsNaN(level);
         // The positions (task.py's same rules): each grating azimuth signed and never 0 (its sign is the side); each sound
         // azimuth's nearest speaker, at auditoryStimulus.elevationDeg, on its side (0: any).
@@ -280,54 +341,50 @@ public class TrialDraw
         };
         // The lab's blocks, checked by their one C# check each (OpenRigs.Core TaskBlocks, QuietWait).
         foreach (var p in TaskBlocks.ItiProblems(structure.ItiMinSeconds, structure.ItiMaxSeconds)) problems.Add("trialStructure." + p);
-        finite("trialStructure.outcomeToSpoutsOutSeconds", structure.OutcomeToSpoutsOutSeconds);
-        finite("trialStructure.responseDelaySeconds", structure.ResponseDelaySeconds);
+        finite("trialStructure.stimulusToResponseWindowSeconds", structure.StimulusToResponseWindowSeconds);
         if (structure.ResponseWindowSeconds == null) problems.Add("trialStructure.responseWindowSeconds must be given: this task's response window always closes");
         foreach (var p in TaskBlocks.ResponseWindowProblems(structure.ResponseWindowSeconds)) problems.Add("trialStructure." + p);
         foreach (var p in TaskBlocks.AutoRewardProblems(task.AutoRewardProbability)) problems.Add(p);
-        finite("trialStructure.visualStimulusSeconds", structure.VisualStimulusSeconds);
-        finite("trialStructure.stimulusToSpoutsInSeconds", structure.StimulusToSpoutsInSeconds);
-        finite("penalty.timeoutSeconds", task.Penalty.TimeoutSeconds);
-        if (miss != null && miss.TimeoutSeconds.HasValue) finite("penalty.noResponse.timeoutSeconds", miss.TimeoutSeconds.Value);
+        positive("stimulus.rateHz", task.Stimulus.RateHz);
+        if (task.Stimulus.RateHz > 1 / AuditoryStimulusSet.PulseSeconds + 1e-9) problems.Add(string.Format("stimulus.rateHz {0} is above {1}: each pulse is {2} s, so they would overlap", task.Stimulus.RateHz, 1 / AuditoryStimulusSet.PulseSeconds, AuditoryStimulusSet.PulseSeconds));
         // The quiet waits, the lab's one check each (OpenRigs.Core QuietWait: finite, 0 or more, at most 10 s and 20 cm, the
         // wheel's distance 0 no movement at all): a long wait and a licking mouse would hold the trial start with no message.
         foreach (var p in QuietWait.LickProblems(structure.LickQuietSeconds)) problems.Add("trialStructure." + p);
         foreach (var p in QuietWait.WheelProblems(structure.WheelQuietSeconds, structure.WheelQuietCm)) problems.Add("trialStructure." + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.Enabled) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
-        if (structure.VisualStimulusSeconds > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds) problems.Add("trialStructure.visualStimulusSeconds is longer than responseDelaySeconds plus responseWindowSeconds");
-        if (structure.VisualStimulusSeconds > structure.ItiMinSeconds) problems.Add(string.Format("trialStructure.visualStimulusSeconds ({0} s) is longer than itiMinSeconds ({1} s): the grating would still show when the next trial's stimulus starts", structure.VisualStimulusSeconds, structure.ItiMinSeconds));
-        if (structure.ItiMinSeconds < structure.OutcomeToSpoutsOutSeconds) problems.Add(string.Format("trialStructure.itiMinSeconds ({0} s) is below outcomeToSpoutsOutSeconds ({1} s): the spouts are drawn out outcomeToSpoutsOutSeconds into the interval, before the stimulus", structure.ItiMinSeconds, structure.OutcomeToSpoutsOutSeconds));
+        // The lab's stimulus off and spouts blocks, by their one C# check each (OpenRigs.Trials StimulusTiming, Spouts): the
+        // soonest outcome the response window's opening, the shortest outcome to next interval 0 (MinOutcomeToItiSeconds).
+        var responseEnd = structure.StimulusToResponseWindowSeconds + (structure.ResponseWindowSeconds ?? double.PositiveInfinity);
+        problems.AddRange(StimulusTiming.Problems(task.Stimulus.DurationSeconds, task.Stimulus.ResponseToStimulusOffSeconds, structure.ItiMinSeconds, responseEnd,
+            structure.StimulusToResponseWindowSeconds, MinOutcomeToItiSeconds));
+        problems.AddRange(LabSpouts.Problems(task.Spouts.StimulusToSpoutsInSeconds, task.Spouts.AlwaysIn, task.Spouts.RewardConsumptionSeconds, structure.ItiMinSeconds,
+            structure.StimulusToResponseWindowSeconds));
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
         var leadProblem = ZapitTrial.LeadProblem(lead, structure.ItiMinSeconds);
         if (leadProblem != null) problems.Add(leadProblem);
-        if (-lead > structure.ResponseDelaySeconds + structure.ResponseWindowSeconds + 1e-9)
+        if (-lead > structure.StimulusToResponseWindowSeconds + structure.ResponseWindowSeconds + 1e-9)
         {
-            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (responseDelaySeconds + responseWindowSeconds, {1} s)", lead, structure.ResponseDelaySeconds + structure.ResponseWindowSeconds));
-        }
-        var maxSeconds = MaxLaserSeconds(task);
-        if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
-        {
-            problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (responseDelaySeconds + itiMinSeconds - {2} s ramp-down - {3} s reply margin), so Zapit can be armed for the next trial in time", opto.LaserDurationSeconds, maxSeconds, ZapitConditions.MaximumRampDownSeconds, ZapitTrial.ReplyMarginSeconds));
+            problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (stimulusToResponseWindowSeconds + responseWindowSeconds, {1} s)", lead, structure.StimulusToResponseWindowSeconds + structure.ResponseWindowSeconds));
         }
         // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var reward = task.Reward;
         problems.AddRange(TaskBlocks.LargeRewardProblems(reward.SizeUl, reward.LargeMultiplier, reward.LargeProbability, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
         // The condition fields' bounds (a condition's cell is not checked by pydantic before Go).
         problems.AddRange(TaskBlocks.RewardSizeProblems(reward.SizeUl, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
-        if (!(task.SingleSpoutProbability >= 0 && task.SingleSpoutProbability <= 1)) problems.Add("singleSpoutProbability must be in [0, 1]");
+        if (!(task.Spouts.SingleSpoutProbability >= 0 && task.Spouts.SingleSpoutProbability <= 1)) problems.Add("spouts.singleSpoutProbability must be in [0, 1]");
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
-    /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least responseDelaySeconds
-    /// + itiMinSeconds (a response at once, no timeout, a quiet mouse), and in that time the laser, the maximum ramp-down a
-    /// conditions file may have (Zapit refuses the next StartStimulus until it has played) and Zapit's reply margin must fit
-    /// before the next trigger.</summary>
-    public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task)
+    /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least stimulusToResponseWindowSeconds
+    /// + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse), and in that time the laser, the
+    /// conditions file's largest ramp-down <paramref name="rampDownSeconds"/> (Zapit refuses the next StartStimulus until it
+    /// has played) and Zapit's reply margin must fit before the next trigger.</summary>
+    public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double rampDownSeconds)
     {
         var s = task.TrialStructure;
-        return s.ResponseDelaySeconds + s.ItiMinSeconds - ZapitConditions.MaximumRampDownSeconds - ZapitTrial.ReplyMarginSeconds;
+        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - rampDownSeconds - ZapitTrial.ReplyMarginSeconds;
     }
 
     /// <summary>The next trial, after the last one's row (its outcome and choice; null before the first).</summary>
@@ -383,7 +440,7 @@ public class TrialDraw
         trial.trialConditionId = index;
         trial.trialType = condition.TrialType;
         trial.autoReward = random.NextDouble() < p.AutoRewardProbability;
-        var singleDrawn = random.NextDouble() < p.SingleSpoutProbability;
+        var singleDrawn = random.NextDouble() < p.Spouts.SingleSpoutProbability;
         var large = random.NextDouble() < p.Reward.LargeProbability;
         trial.rewardOfferedUl = large ? p.Reward.SizeUl * p.Reward.LargeMultiplier : p.Reward.SizeUl;
         trial.DrawVisualPhase(random);
@@ -458,7 +515,7 @@ public class TrialDraw
             trial.probeHeads = random.NextDouble() < 0.5;
         }
         // Only the target's spout comes in: always in go/no-go (the left), else on a scored trial whose spouts move, by the draw.
-        trial.singleSpoutOffered = task.TaskType == TaskType.DiscriminationGoNoGo || (trial.target != TargetWords.Random && !p.SpoutsStayIn && singleDrawn);
+        trial.singleSpoutOffered = task.TaskType == TaskType.DiscriminationGoNoGo || (trial.target != TargetWords.Random && !p.Spouts.AlwaysIn && singleDrawn);
 
         var optogenetics = task.Optogenetics;
         if (optogenetics.Enabled)
@@ -480,11 +537,25 @@ public class TrialDraw
         return MaxSoundLevel.Of(conditions, t => t.AuditoryStimulus.LevelDbfs);
     }
 
-    /// <summary>The highest penalty level the conditions can draw (penalty.sound.levelDbfs and a miss's
-    /// penalty.noResponse.sound.levelDbfs), for PlayPenaltySound's buffer at Go.</summary>
+    IEnumerable<UclOpenCoenDomeDecisionMakingTaskParameters> Drawn()
+    {
+        return conditions.Where(c => c.Weight > 0).SelectMany(c => c.Combinations).Select(m => m.Task);
+    }
+
+    /// <summary>Every stimulus.rateHz the weighted conditions can draw, for the stimulus set's peak check.</summary>
+    public double[] StimulusRatesHz() { return Drawn().Select(t => t.Stimulus.RateHz).Distinct().ToArray(); }
+
+    /// <summary>The highest penalty level the conditions can draw (penalty.incorrect.sound.levelDbfs and
+    /// penalty.noResponse.sound.levelDbfs, none when null), for PlayPenaltySound's buffer at Go.</summary>
     public MaxSoundLevel MaxPenaltyLevel()
     {
-        return MaxSoundLevel.Of(conditions, t => t.Penalty.Sound.LevelDbfs, t => t.Penalty.NoResponse.Sound.LevelDbfs);
+        return MaxSoundLevel.Of(conditions, t => t.Penalty.Incorrect.Sound.LevelDbfs, t => t.Penalty.NoResponse == null ? null : t.Penalty.NoResponse.Sound.LevelDbfs);
+    }
+
+    /// <summary>The penalty flashes the weighted conditions can draw (OpenRigs.Trials PenaltyFlashRules), for PlayPenaltyFlash's check at Go.</summary>
+    public PenaltyFlashRules PenaltyFlashes()
+    {
+        return PenaltyFlashRules.Of(conditions, t => TrialRow.Cost(PenaltyKind.Incorrect, t), t => t.Penalty.NoResponse == null ? null : TrialRow.Cost(PenaltyKind.NoResponse, t));
     }
 
     int WeightedCondition()
@@ -510,39 +581,35 @@ public class DecisionUpdate
     public double GratingAzimuthDeg;
 }
 
-/// <summary>A trial's outcome (lib-open-rigs' TrialOutcome: its row, the reward, the penalty sound at the trial's level, the
-/// timeout) and the spouts it moves.</summary>
+/// <summary>A trial's outcome (lib-open-rigs' TrialOutcome: its row, the reward, the penalty sound at the trial's level and
+/// the penalty flash, the timeout) and, by its reward, the spouts it moves (ISpoutOutcome).</summary>
 public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 {
-    public bool SpoutsStayIn;
-    public LickSpoutCommand SpoutCommand;
-
-    TrialOutcome(TrialRow row, string instance, double penaltyLevelDbfs) : base(row, instance, penaltyLevelDbfs) { }
+    TrialOutcome(TrialRow row, string instance, double penaltyLevelDbfs, double penaltyFlashRateHz) : base(row, instance, penaltyLevelDbfs, penaltyFlashRateHz) { }
 
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
-    /// (discriminationGoNoGo's: the left), a random trial's at the spout chosen, the other spout drawn back. Anything else
-    /// draws both back, with the penalty sound and timeout if it was penalised (TrialRow.Cost: a miss's penalty.noResponse
-    /// values where set, else penalty.sound.levelDbfs and penalty.timeoutSeconds). A trial whose spouts stay in leaves them
-    /// where they are.</summary>
+    /// (discriminationGoNoGo's: the left), a random trial's at the spout chosen, the other spout drawn back, the next interval
+    /// from the outcome (both out spouts.rewardConsumptionSeconds into it). Anything else draws both back, with the penalty sound, flash and timeout of its kind
+    /// if it was penalised (TrialRow.Cost: a miss's penalty.noResponse, else penalty.incorrect). A trial whose spouts are
+    /// always in leaves them where they are (OpenRigs.Trials SpoutCommands).</summary>
     public static TrialOutcome At(string choice, Trial trial, TrialTimes times)
     {
-        // Resolved once, for the row's timeout and the sound's level alike.
-        var cost = TrialRow.Cost(choice, trial);
+        var outcome = TrialRow.Outcome(choice, trial);
+        var penalised = TrialRow.Penalised(outcome, choice, trial);
+        // Resolved once, for the row's timeout and flash and the sound's level alike; nothing when not penalised (a
+        // discriminationGoNoGo miss has no penalty.noResponse to resolve).
+        var cost = penalised ? TrialRow.Cost(choice == Choice.NoResponse ? PenaltyKind.NoResponse : PenaltyKind.Incorrect, trial.values) : null;
         var row = TrialRow.Build(choice, trial, times, cost);
         // The valve's instance as rig.yml's wiring names it; go is answered at the left spout.
         var instance = (trial.target == TargetWords.Random ? row.choice : trial.target) == Choice.Right ? "right" : "left";
-        var o = new TrialOutcome(row, instance, cost.LevelDbfs);
-        o.SpoutsStayIn = trial.SpoutsStayIn;
-        o.SpoutCommand = !o.Rewarded ? LickSpoutCommand.SpoutsOut
-            : instance == "left" ? LickSpoutCommand.LeftOnly : LickSpoutCommand.RightOnly;
-        return o;
+        return cost == null ? new TrialOutcome(row, instance, double.NaN, OpenRigs.Trials.PenaltyFlash.DefaultRateHz) : new TrialOutcome(row, instance, cost.LevelDbfs, cost.Flash.RateHz);
     }
 }
 
 /// <summary>
 /// Decision-making's part of each trial, which lib-open-rigs' TrialLoop runs (the interval, the quiet waits, the lead,
 /// the laser, the response window and the timeout are the loop's): the draw (TrialDraw), each trial's timing from the
-/// task file, and the response rule. In the response window, responseDelaySeconds after the stimulus for responseWindowSeconds,
+/// task file, and the response rule. In the response window, stimulusToResponseWindowSeconds after the stimulus for responseWindowSeconds,
 /// each lick adds 1 (left) or -1 (right) to the decision variable, which moves the grating azimuthShiftPerLickDeg per lick from
 /// its drawn azimuth; the choice is left once it reaches thresholdLicks, right once it reaches -thresholdLicks, else
 /// noResponse at the window's end. A lick before the window is not counted. In discriminationGoNoGo only the left
@@ -550,32 +617,25 @@ public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 /// </summary>
 public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 {
-    /// <summary>The cue that ends the grating, visualStimulusSeconds after the stimulus.</summary>
-    public const string GratingOffCue = "GratingOff";
-    /// <summary>The cue that brings the spouts in, stimulusToSpoutsInSeconds after the stimulus.</summary>
-    public const string SpoutsInCue = "SpoutsIn";
-    /// <summary>The cue that draws the spouts out, outcomeToSpoutsOutSeconds into the next interval, unless the coming trial's spouts stay in.</summary>
-    public const string SpoutsOutCue = "SpoutsOut";
-
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly TrialDraw draw;
     readonly LaserTiming laser;
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, int> zapitConditionCount)
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions)
     {
-        draw = new TrialDraw(taskText, speakers, zapitConditionCount);
+        draw = new TrialDraw(taskText, speakers, zapitConditions);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
         // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
-        // maximum ramp-down a conditions file may have has played (Zapit refuses a StartStimulus until then).
-        laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, ZapitConditions.MaximumRampDownSeconds) : null;
+        // conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
+        laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds) : null;
     }
 
     /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
-    public static TrialRules Create(string taskText, LabRig rig, Func<string, int> zapitConditionCount)
+    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions)
     {
-        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditionCount);
+        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions);
     }
 
     public LaserTiming Laser { get { return laser; } }
@@ -589,9 +649,16 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     /// <summary>The highest sound level the task's conditions can draw (TrialDraw.MaxStimulusLevel), for the stimulus set's peak check.</summary>
     public MaxSoundLevel MaxStimulusLevel { get { return draw.MaxStimulusLevel(); } }
 
+    /// <summary>Every stimulus.rateHz the conditions can draw: the periods the stimulus set's peak check builds.</summary>
+    public double[] StimulusRatesHz { get { return draw.StimulusRatesHz(); } }
+
     /// <summary>The highest penalty level the conditions can draw (NaN when all are mute): lib-open-rigs' PlayPenaltySound
     /// lays out its buffer at it at Go and plays each penalised trial's level from it.</summary>
     public double MaxPenaltyLevelDbfs { get { return draw.MaxPenaltyLevel().LevelDbfs; } }
+
+    /// <summary>The penalty flashes the conditions can draw (TrialDraw.PenaltyFlashes): lib-open-rigs' PlayPenaltyFlash checks
+    /// them at Go against the penalty sound's length.</summary>
+    public PenaltyFlashRules PenaltyFlashes { get { return draw.PenaltyFlashes(); } }
 
     /// <summary>Settings_Combinations' text (OpenRigs.Trials TrialConditions.CombinationsJson): every combination built at Go, each a row the trial
     /// log's trialCombinationId names; logged by OpenRigs.Logging ConditionedTaskLogs in the Logging group.</summary>
@@ -605,12 +672,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public TrialTiming Timing(Trial trial)
     {
         var structure = trial.values.TrialStructure;
-        var cues = new List<TrialCue>
-        {
-            new TrialCue(GratingOffCue, CueAnchor.Stimulus, structure.VisualStimulusSeconds),
-            new TrialCue(SpoutsInCue, CueAnchor.Stimulus, structure.StimulusToSpoutsInSeconds, true),
-            new TrialCue(SpoutsOutCue, CueAnchor.NextIti, structure.OutcomeToSpoutsOutSeconds),
-        };
+        var spouts = trial.values.Spouts;
         return new TrialTiming
         {
             ItiSeconds = trial.itiSeconds,
@@ -619,9 +681,12 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             WheelQuietSeconds = structure.WheelQuietSeconds,
             WheelQuietCm = structure.WheelQuietCm,
             Laser = trial.laserCondition > 0,                                    // every trial of an optogenetics experiment, laser on or off
-            ResponseDelaySeconds = structure.ResponseDelaySeconds,
+            ResponseDelaySeconds = structure.StimulusToResponseWindowSeconds,
             ResponseWindowSeconds = structure.ResponseWindowSeconds.Value,     // never null: the Go check refuses it
-            Cues = cues,
+            // The stimulus off (the StimulusOff event: the grating hidden, the sound stopped) and the spouts' SpoutsIn and SpoutsOut cues.
+            StimulusDurationSeconds = trial.Stimulus.DurationSeconds ?? double.NaN,
+            ResponseToStimulusOffSeconds = trial.Stimulus.ResponseToStimulusOffSeconds,
+            Cues = LabSpouts.Cues(spouts.StimulusToSpoutsInSeconds, spouts.AlwaysIn, spouts.RewardConsumptionSeconds),
         };
     }
 
@@ -683,57 +748,5 @@ public class RunTrials
         IObservable<double> wheelCm, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<ZapitReply> zapitReplies)
     {
         return TrialLoop.Observe(rules, clock, new[] { lickLeft, lickRight }, zapitReplies, wheelCm);
-    }
-}
-
-[Combinator]
-[Description("Every spout move, from the trial events: the spouts out at trial 1's interval start and at each SpoutsOut cue, unless the coming trial's spouts stay in (spoutsStayIn, the trial drawn at its interval's start); at each SpoutsIn cue both in, or the target's alone on a single-spout trial (singleSpoutOffered); at the outcome, unless the trial's spouts stay in, the outcome's (the rewarded spout alone, else both out).")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class SpoutCommands
-{
-    public IObservable<LickSpoutCommand> Process(IObservable<TrialEvent<Trial, DecisionUpdate, TrialOutcome>> source)
-    {
-        return Observable.Defer(() =>
-        {
-            var firstIti = true;
-            Trial coming = null;
-            return source.SelectMany(e =>
-            {
-                var command = Command(e, firstIti, coming);
-                if (e.Kind == TrialEventKind.Iti)
-                {
-                    firstIti = false;
-                    coming = e.Trial;
-                }
-                return command.HasValue ? new[] { command.Value } : new LickSpoutCommand[0];
-            });
-        });
-    }
-
-    /// <summary>The spout move an event makes, if any. firstIti on trial 1's interval start, where the spouts go out; coming,
-    /// the trial whose interval the SpoutsOut cue falls in (drawn at that interval's start), which decides whether they go out.</summary>
-    public static LickSpoutCommand? Command(TrialEvent<Trial, DecisionUpdate, TrialOutcome> e, bool firstIti, Trial coming)
-    {
-        switch (e.Kind)
-        {
-            case TrialEventKind.Iti:
-                return firstIti && !e.Trial.SpoutsStayIn ? LickSpoutCommand.SpoutsOut : (LickSpoutCommand?)null;
-            case TrialEventKind.Cue:
-                if (e.Cue == TrialRules.SpoutsInCue) return SpoutsIn(e.Trial);
-                if (e.Cue == TrialRules.SpoutsOutCue) return coming != null && coming.SpoutsStayIn ? (LickSpoutCommand?)null : LickSpoutCommand.SpoutsOut;
-                return null;
-            case TrialEventKind.Outcome:
-                return e.Outcome.SpoutsStayIn ? (LickSpoutCommand?)null : e.Outcome.SpoutCommand;
-            default:
-                return null;
-        }
-    }
-
-    /// <summary>Where the spouts move at the SpoutsIn cue: the target's alone on a single-spout trial (go/no-go: the left),
-    /// else both in.</summary>
-    public static LickSpoutCommand SpoutsIn(Trial trial)
-    {
-        if (!trial.singleSpoutOffered) return LickSpoutCommand.SpoutsIn;
-        return trial.target == TargetWords.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly;   // go-no-go: the left
     }
 }

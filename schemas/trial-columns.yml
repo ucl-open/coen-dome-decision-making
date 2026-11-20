@@ -12,7 +12,7 @@
 # Naming: camelCase; a Harp time ends in Time and is in seconds; a duration or other quantity ends in its
 # unit (itiSeconds, rewardOfferedUl); never a stored latency.
 #
-# The first 25 columns, harpTime to autoReward, are the lab's shared block, its core with the quietWait, optogenetics,
+# The first 27 columns, harpTime to autoReward, are the lab's shared block, its core with the quietWait, optogenetics,
 # conditions, stimulus and autoReward blocks,
 # defined once in lib-open-rigs open_rigs.rigs.trials: coen-dome-decision-making and
 # coen-dome-navigation list them in this order with these types, units and descriptions, word for word
@@ -42,7 +42,7 @@ itiSeconds:
   type: double
   unit: s
   description: 'The inter-trial interval drawn for this trial (every trial draws its own), uniformly between trialStructure.itiMinSeconds and itiMaxSeconds: from itiStartTime to this trial''s stimulus with a quiet mouse, the time to drink included. A task''s quiet waits add quietWaitSeconds, so the stimulus was due at itiStartTime + itiSeconds + quietWaitSeconds (stimulusOnsetTime).'
-  note: The time to drink is trialStructure.outcomeToSpoutsOutSeconds, and the interval starts after any timeout (penaltyTimeoutSeconds).
+  note: A rewarded trial's interval starts at its outcome, the spouts drawn out spouts.rewardConsumptionSeconds into it (the time to drink, inside the interval); a penalised one's after the timeout (penaltyTimeoutSeconds).
 quietWaitSeconds:
   type: double
   unit: s
@@ -50,11 +50,16 @@ quietWaitSeconds:
 trialStartTime:
   type: double
   unit: s
-  description: 'Harp time the trial started: the end of its interval less the lead, max(laserToStimulusSeconds, 0) in the task file (Settings_Task) and 0 for a task file with no optogenetics block, plus quietWaitSeconds where the task has quiet waits.'
+  description: 'Harp time the trial started: the end of its interval less the lead, max(laserToStimulusSeconds, -spouts.stimulusToSpoutsInSeconds unless spouts.alwaysIn, 0) in the task file (Settings_Task), each 0 for a task file without its block, plus quietWaitSeconds where the task has quiet waits.'
 stimulusOnsetTime:
   type: double
   unit: s
   description: 'Harp time the workflow commanded the stimulus on, NaN if it never was: the first tick of the 1 ms Harp clock at or after trialStartTime plus the lead, in every experiment. The physical onset is in the hardware logs.'
+stimulusOffTime:
+  type: double
+  unit: s
+  description: 'Harp time the workflow commanded the stimulus off (OpenRigs.Trials StimulusTiming): the earlier of stimulusOnsetTime plus stimulus.durationSeconds and outcomeTime plus stimulus.responseToStimulusOffSeconds (unless null), at the first tick at or after it; known at the outcome, so logged in the row although it may come later. NaN if the stimulus never came on, or in a task whose stimulus the trial loop does not time. A task that ends it sooner itself says so (its note).'
+  note: The grating is hidden and the sound stopped (faded over 5 ms) at the trial loop's StimulusOff event; a miss's response is the response window's end. The physical offset is in the hardware logs.
 outcomeTime:
   type: double
   unit: s
@@ -67,16 +72,20 @@ rewardOfferedUl:
   note: The task file's reward.sizeUl times reward.largeMultiplier on a large-reward trial; 0 on a discriminationGoNoGo noGo or noReward trial, which offers none; a random trial's offer whether its coin came up heads or tails, and every trial's on a miss.
 rewarded:
   type: bool
-  description: 'True when the board answered the write that opened the valve for the trial''s reward (rewardOfferedUl; its RewardDelivered row in WorkflowData_Events, a few ms after outcomeTime); false on an outcome that earned it when the board had not answered by the next outcome. A stop before the board answered leaves the trial with no row. Which outcomes are rewarded is the task''s (its note).'
+  description: True when the board answered the write that opened the valve for the trial's reward (rewardOfferedUl; its RewardDelivered row in WorkflowData_Events, a few ms after outcomeTime); false on an outcome that earned it when the board had not answered by the next outcome. A stop before the board answered leaves the trial with no row. Which outcomes are rewarded is the task's (its note).
   note: A correct choice (but a withheld noGo, correct and unrewarded), an auto-reward trial's miss (autoReward, choice noResponse, outcome auto), and a choice on a random trial whose coin came up heads, rewarded at the spout chosen.
 penaltyTimeoutSeconds:
   type: double
   unit: s
-  description: 'The timeout after this trial when it was penalised, else 0: the trial''s penalty.timeoutSeconds, or on a miss its penalty.noResponse.timeoutSeconds unless null. The next interval starts after it (itiStartTime).'
-  note: Penalised - an incorrect choice, or a miss that was not auto-rewarded; in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
+  description: 'The timeout after this trial when it was penalised, else 0: the trial''s penalty.incorrect.timeoutSeconds, or on a miss its penalty.noResponse.timeoutSeconds. The next interval starts after it (itiStartTime).'
+  note: Penalised - an incorrect choice (penalty.incorrect), or a miss that was not auto-rewarded (penalty.noResponse); in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised, and penalty.noResponse is null); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
+penaltyFlashBrightness:
+  type: double
+  description: 'The brightness of the penalty flash after this trial when it was penalised, else 0: the trial''s penalty.incorrect.flash.brightness, or on a miss its penalty.noResponse.flash.brightness, 0 to 1 of the projector''s full white after gamma correction; 0 when no flash played. A flash covers the whole projector field at its kind''s flash.rateHz (white the first half of each cycle) from the outcome for the penalty sound''s length (OpenRigs.Vision PlayPenaltyFlash).'
+  note: The penalised kind's penalty.incorrect.flash.brightness or penalty.noResponse.flash.brightness (OpenRigs.Vision PlayPenaltyFlash on the dome's projector).
 penalised:
   type: bool
-  description: 'True when the trial was penalised: the timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.sound.levelDbfs, or on a miss its penalty.noResponse.sound.levelDbfs unless null (none when mute), followed its outcome. Which trials are penalised, and which are misses, is the task''s (its note).'
+  description: 'True when the trial was penalised: the timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.incorrect.sound.levelDbfs, or on a miss its penalty.noResponse.sound.levelDbfs (none when mute), followed its outcome. Which trials are penalised, and which are misses, is the task''s (its note).'
   note: An incorrect choice, or a miss that was not on an auto-reward trial; in discriminationGoNoGo only a lick on a noGo trial (a false alarm; a go miss and a noReward trial are unpenalised); on a random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
 laserCondition:
   type: int
@@ -133,7 +142,7 @@ repeatCount:
   description: How many times in a row the trial has been repeated, 0 for a new draw.
 singleSpoutOffered:
   type: bool
-  description: True when only the target's spout came in (in discriminationGoNoGo the left, on every trial); else both did. Drawn with singleSpoutProbability on a scored trial whose spouts move (spoutsStayIn false); never on a random-reward probe.
+  description: True when only the target's spout came in (in discriminationGoNoGo the left, on every trial); else both did. Drawn with spouts.singleSpoutProbability on a scored trial whose spouts move (spouts.alwaysIn false); never on a random-reward probe.
 visualInitialAzimuthDeg:
   type: double
   unit: deg
@@ -142,4 +151,4 @@ visualInitialAzimuthDeg:
   nanWhen: {column: visualContrast, equals: 0}
 auditorySoundFileIndex:
   type: int
-  description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_train_<index>.wav).
+  description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_<index>.wav), each one 50 ms pulse of noise played every 1/stimulus.rateHz s; until November 2026 each file (then filtered_pink_pulse_train_<index>.wav) held its pulse 12 times at 8 Hz, so an index names the same noise before and after.

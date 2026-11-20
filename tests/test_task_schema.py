@@ -1,5 +1,6 @@
 import json
 import re
+import wave
 from pathlib import Path
 
 import pydantic
@@ -63,7 +64,7 @@ def _task(name):
 def test_the_localization_file_moves_the_spouts():
     task = _task("task-localization.yml")
     assert task.task_type == "localization"
-    assert not task.spouts_stay_in
+    assert not task.spouts.always_in
 
 
 def test_a_task_file_must_name_its_task_type():
@@ -77,7 +78,7 @@ def test_the_discrimination_files_keep_the_spouts_in_for_habituation():
     for name, task_type in (("task-discrimination-left-right.yml", "discriminationLeftRight"), ("task-discrimination-go-no-go.yml", "discriminationGoNoGo")):
         task = _task(name)
         assert task.task_type == task_type
-        assert task.spouts_stay_in   # the defaults are habituation's, the curriculum's first stage
+        assert task.spouts.always_in   # the defaults are habituation's, the curriculum's first stage
 
 
 def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
@@ -86,6 +87,8 @@ def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
     lr = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     gng = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
     roles = {"go": "left", "noGo": "right", "noReward": "random"}
+    assert gng["penalty"]["noResponse"] is None   # go/no-go never penalises a miss
+    lr["penalty"]["noResponse"] = None
     for data in (lr, gng):
         del data["taskType"]
         for c in data["trialConditions"]:
@@ -95,17 +98,17 @@ def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
 
 @pytest.mark.parametrize("name", [path.name for path in TASK_FILES])
 def test_single_spouts_and_spouts_staying_in_need_no_other_setting(name):
-    # P7: the task type says which spouts are used; spoutsStayIn and singleSpoutProbability are refused in no combination.
+    # P7: the task type says which spouts are used; spouts.alwaysIn and spouts.singleSpoutProbability are refused in no combination.
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
     for stay in (False, True):
         for single in (0, 0.5, 1):
-            UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "spoutsStayIn": stay, "singleSpoutProbability": single})
+            UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "spouts": {**data["spouts"], "alwaysIn": stay, "singleSpoutProbability": single}})
 
 
 def test_spouts_staying_in_is_condition_level():
-    # P19: a condition may set it; the C# reads each trial's (SpoutCommands).
-    assert ct.session_field("spoutsStayIn", SESSION_FIELDS) is None
-    _conditions({"weight": 1, "set": {"spoutsStayIn": True, "singleSpoutProbability": 1}})
+    # P19: a condition may set it; the C# reads each trial's (lib-open-rigs SpoutCommands, the trial's SpoutsAlwaysIn).
+    assert ct.session_field("spouts.alwaysIn", SESSION_FIELDS) is None
+    _conditions({"weight": 1, "set": {"spouts.alwaysIn": True, "spouts.singleSpoutProbability": 1}})
 
 
 def test_no_text_says_a_probe_s_side_is_drawn_at_random():
@@ -117,16 +120,27 @@ def test_no_text_says_a_probe_s_side_is_drawn_at_random():
         assert not [s for s in stale if s in text], path.name
 
 
-def test_the_discrimination_iti_is_what_gerion_s_mice_got():
-    # Measured from 18 of Gerion's sessions: 1.5 s drink + max(ITI - 2, 0) with ITI 1.5-2.5 s, so
-    # 1.5-2.0 s from the outcome to the next stimulus, and the 4 s timeout first after an incorrect choice or a miss.
-    task = _task("task-discrimination-left-right.yml")
-    trial = task.trial_structure
-    assert (trial.iti_min_seconds, trial.iti_max_seconds, trial.outcome_to_spouts_out_seconds) == (1.5, 2.0, 1.5)
-    assert task.penalty.timeout_seconds == 4.0
-    # The localization file keeps its interval.
-    local = _task("task-localization.yml").trial_structure
-    assert (local.iti_min_seconds, local.iti_max_seconds, local.outcome_to_spouts_out_seconds) == (3.4, 4.4, 2.0)
+def test_every_task_file_has_the_lab_s_timing_defaults():
+    # Pip, 20 Nov 2026: a rewarded trial is its outcome, 1.5 s to drink, then a 2.5 to 3.5 s interval; a penalised one
+    # 4 s of timeout, then the interval; neither, the interval. The reward tone is mute, the penalty flash off.
+    for path in TASK_FILES:
+        task = _task(path.name)
+        s, penalty = task.trial_structure, task.penalty
+        assert (s.iti_min_seconds, s.iti_max_seconds, task.spouts.reward_consumption_seconds, penalty.incorrect.timeout_seconds) == (2.5, 3.5, 1.5, 4.0)
+        assert task.reward.tone.level_dbfs == "mute" and penalty.incorrect.sound.level_dbfs == -35
+        assert penalty.incorrect.flash.brightness == 0 and penalty.incorrect.flash.rate_hz == 10
+        if task.task_type == "discriminationGoNoGo":
+            assert penalty.no_response is None
+        else:
+            assert penalty.no_response.timeout_seconds == 4.0 and penalty.no_response.flash.brightness == 0
+            assert penalty.no_response.sound.level_dbfs == ("mute" if task.task_type == "localization" else -35)
+
+
+def test_the_reward_tone_is_mute_until_the_workflow_plays_one():
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    data["reward"]["tone"] = {"levelDbfs": -50}
+    with pytest.raises(ValidationError, match="reward.tone.level_dbfs must be mute"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 def test_the_iti_descriptions_say_the_drink_is_in_the_interval():
     from ucl_open_coen_dome_decision_making.task import TrialStructure
@@ -135,7 +149,7 @@ def test_the_iti_descriptions_say_the_drink_is_in_the_interval():
     # The column's description is the dome tasks' shared one; this task's detail is its note.
     column = columns["itiSeconds"]["description"] + " " + columns["itiSeconds"]["note"]
     for text in (TrialStructure.__doc__, column):
-        assert "outcomeToSpoutsOutSeconds" in text and "timeout" in text
+        assert "rewardConsumptionSeconds" in text and "timeout" in text
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda p: p.name)
 def test_rig_control_keeps_the_zapit_file(path):
@@ -180,32 +194,47 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
 
 
-def _with(name="task-discrimination-left-right.yml", opto=None, structure=None):
+def _with(name="task-discrimination-left-right.yml", opto=None, structure=None, spouts=None, stimulus=None):
     data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
     data["optogenetics"].update(opto or {})
     data["trialStructure"].update(structure or {})
+    data["spouts"].update(spouts or {})
+    data["stimulus"].update(stimulus or {})
     return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
-@pytest.mark.parametrize("lead", [1.3, 0.5, 0.0, -0.5, -1.5])
+@pytest.mark.parametrize("lead", [2.3, 0.5, 0.1, 0.0, -0.5, -2.0])
 def test_a_signed_lead_inside_the_interval_and_the_response_window_is_accepted(lead):
-    # Discrimination: itiMinSeconds 1.5 less the 0.2 s reply margin; the response window 0 + 1.5 s.
+    # Discrimination: itiMinSeconds 2.5 less the 0.2 s reply margin; the response window 0.5 + 1.5 s.
     assert _with(opto={"laserToStimulusSeconds": lead}).optogenetics.laser_to_stimulus_seconds == lead
 
 
-@pytest.mark.parametrize("lead, words", [(1.31, "reply margin"), (-1.51, "after the response window")])
+@pytest.mark.parametrize("lead, words", [(2.31, "reply margin"), (-2.01, "after the response window")])
 def test_a_lead_outside_them_is_refused(lead, words):
     with pytest.raises(ValidationError, match=words):
         _with(opto={"laserToStimulusSeconds": lead})
 
 
 def test_a_laser_that_would_delay_the_next_arm_is_refused():
-    # TrialDraw.MaxLaserSeconds' rule: 0 open loop + 1.5 s interval - 0.5 s ramp-down - 0.2 s margin = 0.8 s.
+    # TrialDraw.MaxLaserSeconds' rule: 0.5 s stimulus to window + 2.5 s interval - the ramp-down - 0.2 s margin. The
+    # ramp-down is the conditions file's, which only Go reads (TrialDraw.LaserProblems): here 2.8 s, the file's taken off at Go.
     on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
-    _with(opto={**on, "laserDurationSeconds": 0.8})
+    _with(opto={**on, "laserDurationSeconds": 2.8})
     with pytest.raises(ValidationError, match="laser_duration_seconds"):
-        _with(opto={**on, "laserDurationSeconds": 0.81})
+        _with(opto={**on, "laserDurationSeconds": 2.81})
     _with(opto={**on, "enabled": False, "laserDurationSeconds": 2.5})
+
+
+def test_the_conditions_file_s_ramp_down_given_as_context_shortens_the_laser_limit():
+    # On the rig app-rig-control's check_task reads the Zapit file and passes its largest ramp-down (RAMP_DOWN_CONTEXT):
+    # 0.5 + 2.5 - 0.5 - 0.2 = 2.3 s, so Gerion's 2.5 s is refused there; without the file (no context) it passes, Go deciding.
+    from open_rigs.components.zapit import RAMP_DOWN_CONTEXT
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
+    data["optogenetics"].update({"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserDurationSeconds": 2.5})
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    with pytest.raises(ValidationError, match="ramp-down"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.5})
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.1})
 
 
 @pytest.mark.parametrize(
@@ -234,9 +263,14 @@ def test_the_response_window_always_closes():
         _with(structure={"responseWindowSeconds": None})
 
 
-def test_the_interval_is_at_least_the_drink():
-    with pytest.raises(ValidationError, match="outcome_to_spouts_out_seconds"):
-        _with(structure={"outcomeToSpoutsOutSeconds": 1.6})
+def test_the_drink_and_the_spouts_lead_fit_the_interval():
+    # The drink is inside the interval (spouts.rewardConsumptionSeconds 1.5): with the spouts' lead, at most itiMinSeconds 2.5.
+    _with(spouts={"stimulusToSpoutsInSeconds": -1.0, "alwaysIn": False})   # signed: in before the stimulus
+    with pytest.raises(ValidationError, match=r"plus the 1.1 s the spouts come in"):
+        _with(spouts={"stimulusToSpoutsInSeconds": -1.1, "alwaysIn": False})
+    _with(spouts={"stimulusToSpoutsInSeconds": -1.1, "alwaysIn": True})   # always in: no lead
+    with pytest.raises(ValidationError, match="reward_consumption_seconds"):
+        _with(spouts={"rewardConsumptionSeconds": 2.6})
 
 
 def test_the_quiet_waits_are_the_task_s_off_and_refused_negative():
@@ -265,7 +299,9 @@ def test_the_constants_are_the_c_sharp_s():
     assert "ZapitTrial.ReplyMarginSeconds" in logic and not re.search(r"const double \w*Margin", logic)
     task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
     # The ramp-down and reward caps are lib-open-rigs' too, each tied there to its C# value.
-    assert "from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS" in task_py
+    assert "from open_rigs.components.zapit import ZAPIT_REPLY_MARGIN_SECONDS" in task_py
+    # The ramp-down is the conditions file's own at Go (TrialDraw.MaxRampDownSeconds); at launch the least a file may have.
+    assert "RAMP_DOWN" not in task_py and "draw.MaxRampDownSeconds" in logic and "MaximumRampDownSeconds" not in logic
     assert "check_zapit_free_in_time" in task_py
     assert "    MAX_REWARD_UL,\n" in task_py and "class Reward(CoreReward)" in task_py
     # No constants of its own: the quiet waits' caps are lib-open-rigs' too (open_rigs.core.task LickQuietWait and
@@ -274,7 +310,6 @@ def test_the_constants_are_the_c_sharp_s():
     assert re.findall(r"(?m)^([A-Z_]+) = [0-9.]+", task_py) == []
     assert MAX_WEIGHT_SUM == 2**31 - 1 and "TrialConditions.Build(" in logic   # lib's build refuses a sum above int.MaxValue
     assert "TaskSchema.MaxCombinations" in logic and "QuietWait.LickProblems" in logic and "QuietWait.WheelProblems" in logic
-    assert "ZapitConditions.MaximumRampDownSeconds" in logic
 
 
 def test_a_reward_over_the_cap_is_refused():
@@ -306,7 +341,7 @@ def test_the_spout_wait_is_named_by_its_ends():
     schema = (CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8")
     assert '"stimulusToSpoutsInSeconds"' in schema and '"spoutInDelaySeconds"' not in schema
     for path in TASK_FILES:
-        assert yaml.safe_load(path.read_text())["taskParameters"]["trialStructure"]["stimulusToSpoutsInSeconds"] == 0.5
+        assert yaml.safe_load(path.read_text())["taskParameters"]["spouts"]["stimulusToSpoutsInSeconds"] == 0.5
 
 
 def test_reward_size_says_the_calibration_plans_its_pulses():
@@ -314,19 +349,47 @@ def test_reward_size_says_the_calibration_plans_its_pulses():
     assert "calibration" in Reward.model_fields["size_ul"].description
 
 
-def test_the_stimulus_never_outlasts_the_response_window():
-    from ucl_open_coen_dome_decision_making.task import TrialStructure
-    iti = {"itiMinSeconds": 3.4, "itiMaxSeconds": 4.4}
-    TrialStructure(**iti, visualStimulusSeconds=1.5, responseDelaySeconds=0, responseWindowSeconds=1.5)
-    with pytest.raises(ValidationError, match="stimulus_seconds"):
-        TrialStructure(**iti, visualStimulusSeconds=2.0, responseDelaySeconds=0, responseWindowSeconds=1.5)
+def _localization(**stimulus):
+    from ucl_open_coen_dome_decision_making.task import UclOpenCoenDomeDecisionMakingTaskParameters
+    task = yaml.safe_load((CONFIG / "task-localization.yml").read_text(encoding="utf-8"))["taskParameters"]
+    task["stimulus"].update(stimulus)
+    return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(task)
 
 
-def test_the_stimulus_is_off_before_the_next_one_starts():
-    from ucl_open_coen_dome_decision_making.task import TrialStructure
-    TrialStructure(visualStimulusSeconds=1.5, itiMinSeconds=1.5, itiMaxSeconds=2, outcomeToSpoutsOutSeconds=1, responseDelaySeconds=0, responseWindowSeconds=3)
-    with pytest.raises(ValidationError, match="stimulus_seconds must not exceed iti_min_seconds"):
-        TrialStructure(visualStimulusSeconds=1.6, itiMinSeconds=1.5, itiMaxSeconds=2, outcomeToSpoutsOutSeconds=1, responseDelaySeconds=0, responseWindowSeconds=3)
+def test_the_stimulus_never_outlasts_the_response_window_or_the_interval():
+    # localization: response window 0.5 + 1.5 s, itiMinSeconds 1.0.
+    _localization(durationSeconds=2.0)
+    with pytest.raises(ValidationError, match="duration_seconds \\(2.1 s\\) is longer than the stimulus to the response window's close"):
+        _localization(durationSeconds=2.1)
+    # No duration: off only responseToStimulusOffSeconds after the response; both null never ends, refused.
+    _localization(durationSeconds=None, responseToStimulusOffSeconds=0.5)
+    with pytest.raises(ValidationError, match="both null"):
+        _localization(durationSeconds=None, responseToStimulusOffSeconds=None)
+
+
+def test_a_response_window_opening_before_the_spouts_is_refused():
+    with pytest.raises(ValidationError, match=r"(?s)stimulus_to_response_window_seconds.*stimulus_to_spouts_in_seconds"):
+        _with(structure={"stimulusToResponseWindowSeconds": 0.4}, spouts={"stimulusToSpoutsInSeconds": 0.5})
+    _with(structure={"stimulusToResponseWindowSeconds": 0.5}, spouts={"stimulusToSpoutsInSeconds": 0.5})
+
+
+def test_the_stimulus_rate_is_at_most_one_pulse_after_another():
+    # 20 Hz is one 50 ms pulse after another: the C# pulse and the sound files' length.
+    cs = (CONFIG.parent / "src" / "Extensions" / "AuditoryStimulusSet.cs").read_text(encoding="utf-8-sig")
+    assert "public const double PulseSeconds = 0.05;" in cs
+    with wave.open(str(CONFIG.parent / "src" / "sounds" / "filtered_pink_pulse_0.wav")) as w:
+        assert w.getnframes() == 0.05 * w.getframerate()
+    _localization(rateHz=20)
+    with pytest.raises(ValidationError, match="rate_hz|rateHz"):
+        _localization(rateHz=20.5)
+
+
+def test_every_task_file_shares_one_stimulus_block():
+    # Pip's rule: what the grating and the sound share is the stimulus's, not the trial structure's.
+    for path in TASK_FILES:
+        task = yaml.safe_load(path.read_text())["taskParameters"]
+        assert "visualStimulusSeconds" not in task["trialStructure"]
+        assert task["stimulus"] == {"durationSeconds": 1.5, "rateHz": 8, "responseToStimulusOffSeconds": None}
 
 
 def test_each_committed_condition_s_trial_type_is_derived_and_logged_and_never_stored():
@@ -469,23 +532,27 @@ def test_a_go_no_go_task_with_no_go_trials_is_refused():
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
-@pytest.mark.parametrize("path,value", [("timeoutSeconds", 2.0), ("sound.levelDbfs", "mute")])
-def test_a_go_no_go_miss_s_own_cost_is_refused(path, value):
-    # A go/no-go miss is never penalised (TrialDraw.Check's same rule); the committed file's null leaves validate.
+def test_a_go_no_go_miss_s_cost_is_refused():
+    # A go/no-go miss is never penalised (TrialDraw.Check's same rule): the committed file's penalty.noResponse is null.
     data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
-    block = data["penalty"]["noResponse"]
-    *parents, leaf = path.split(".")
-    for key in parents:
-        block = block[key]
-    block[leaf] = value
+    data["penalty"]["noResponse"] = {"timeoutSeconds": 4.0, "sound": {"levelDbfs": "mute"}}
     with pytest.raises(ValidationError, match="discriminationGoNoGo never penalises a miss"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
+def test_a_task_that_penalises_a_miss_needs_its_cost():
+    # Localization penalises a miss (lib-open-rigs Penalty.check_misses), unless every trial is auto-rewarded.
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    data["penalty"]["noResponse"] = None
+    with pytest.raises(ValidationError, match="penalty.no_response is null, but this task penalises a miss"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "autoRewardProbability": 1.0})
+
+
 def test_the_localization_file_mutes_a_miss_and_keeps_its_timeout():
     data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
-    assert data["penalty"]["noResponse"] == {"timeoutSeconds": None, "sound": {"levelDbfs": "mute"}}
+    assert data["penalty"]["noResponse"] == {"timeoutSeconds": 4.0, "sound": {"levelDbfs": "mute"}, "flash": {"brightness": 0, "rateHz": 10}}
 
 
 def test_a_go_no_go_condition_with_a_set_is_accepted():
@@ -594,7 +661,7 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_session_fields():
 
 
 def test_a_condition_may_set_any_field_but_a_session_field():
-    _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 4, "visualStimulus.orientationDeg": [0, 90], "penalty.timeoutSeconds": 2}})
+    _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 2, "visualStimulus.orientationDeg": [0, 90], "penalty.incorrect.timeoutSeconds": 2}})
     for path in ["rngSeed", "taskType", "curriculum.code", "optogenetics.zapitConditionsPath", "optogenetics.enabled"]:
         field = ct.session_field(path, SESSION_FIELDS)
         with pytest.raises(ValidationError, match=rf"sets or pairs {re.escape(path)}, a session field \(x-session-fields: {re.escape(field)} "):
@@ -604,12 +671,10 @@ def test_a_condition_may_set_any_field_but_a_session_field():
 
 
 def test_timing_between_a_trial_and_the_next_holds_across_combinations():
-    # Each combination alone is fine, but a 2.5 s drink may come before a 2 s interval.
-    with pytest.raises(ValidationError, match="outcomeToSpoutsOutSeconds 2.5 s exceeds trialStructure.itiMinSeconds 2 s"):
-        _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 2, "trialStructure.outcomeToSpoutsOutSeconds": 2}},
-                    {"weight": 1, "set": {"trialStructure.itiMinSeconds": 3, "trialStructure.outcomeToSpoutsOutSeconds": 2.5}})
-    _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 2, "trialStructure.outcomeToSpoutsOutSeconds": 2}},
-                {"weight": 0, "set": {"trialStructure.itiMinSeconds": 3, "trialStructure.outcomeToSpoutsOutSeconds": 2.5}})
+    # Each combination alone is fine, but a 2.5 s drink may come before a 2 s interval (Spouts.BetweenTrialsProblems).
+    with pytest.raises(ValidationError, match="rewardConsumptionSeconds 2.5 s plus the spouts' longest lead before the stimulus 0 s exceeds trialStructure.itiMinSeconds 2 s"):
+        _conditions({"weight": 1, "set": {"spouts.rewardConsumptionSeconds": 2.5}}, {"weight": 1, "set": {"trialStructure.itiMinSeconds": 2}})
+    _conditions({"weight": 1, "set": {"spouts.rewardConsumptionSeconds": 2.5}}, {"weight": 0, "set": {"trialStructure.itiMinSeconds": 2}})
 
 
 def test_a_condition_s_set_is_built_and_checked_as_a_task():
@@ -641,7 +706,7 @@ def test_a_condition_may_expand_into_at_most_the_cap():
 def test_an_oversized_condition_is_refused_before_its_combinations_are_built():
     # Counted first, as OpenRigs.Trials TrialConditions.Build does: 2 x 1000^3 combinations would take hours and all memory to build.
     many = [i / 1000 for i in range(1000)]
-    cells = {"visualStimulus.contrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.sizeUl": [1 + x for x in many], "autoRewardProbability": many, "singleSpoutProbability": [1 - x for x in many]}
+    cells = {"visualStimulus.contrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.sizeUl": [1 + x for x in many], "autoRewardProbability": many, "spouts.singleSpoutProbability": [1 - x for x in many]}
     with pytest.raises(ValidationError, match="expands into 2000000000 combinations"):
         _conditions({"weight": 1, "set": cells})
 

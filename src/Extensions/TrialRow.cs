@@ -1,10 +1,11 @@
 using OpenRigs.Devices;
 using OpenRigs.Trials;
+using UclOpenCoenDomeDecisionMakingTask;
 
 // One row of WorkflowData_Trials. Each field is a column, named and typed as the Data Dictionary
 // (K:\config\data-dictionary.json) allows and as schemas\trial-columns.yml, which says what each
 // means, lists it; the order is the file's. The row travels Timestamped at its outcome, which the
-// lab's CsvWriter writes first as harpTime. The columns up to autoReward are the lab's shared block (its core with the
+// lab's CsvWriter writes first as harpTime. The columns up to autoReward are the lab's shared block (its core, stimulusOffTime included, with the
 // quietWait, optogenetics, conditions, stimulus and autoReward blocks), in coen-dome-navigation's order and words; this
 // task's own follow. Words (outcome, target, choice) are in the task file's camelCase.
 public class TrialRow
@@ -17,10 +18,12 @@ public class TrialRow
     public double quietWaitSeconds;
     public double trialStartTime;
     public double stimulusOnsetTime;
+    public double stimulusOffTime;
     public double outcomeTime;
     public double rewardOfferedUl;
     public bool rewarded;
     public double penaltyTimeoutSeconds;
+    public double penaltyFlashBrightness;
     public bool penalised;
     public int laserCondition;
     public double laserPowerMw;
@@ -87,20 +90,25 @@ public class TrialRow
         return !trial.autoReward;
     }
 
-    // What the trial costs if penalised (lib-open-rigs Penalties.Resolve): a miss (no choice, a probe's too) its
-    // penalty.noResponse values where not null, a choice penalty.timeoutSeconds and penalty.sound.levelDbfs.
-    public static ResolvedPenalty Cost(string choice, Trial trial)
+    // What a penalised trial of a kind costs (lib-open-rigs Penalties.For): a miss (no choice, a probe's too)
+    // penalty.noResponse's, a choice penalty.incorrect's, each its timeout, sound level and flash.
+    public static ResolvedPenalty Cost(PenaltyKind kind, UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
-        var p = trial.values.Penalty;
-        return Penalties.Resolve(p.TimeoutSeconds, p.Sound.LevelDbfs, p.NoResponse.TimeoutSeconds, p.NoResponse.Sound.LevelDbfs, choice == Choice.NoResponse);
+        var p = task.Penalty;
+        var miss = p.NoResponse;
+        return Penalties.For(kind, p.Incorrect.TimeoutSeconds, p.Incorrect.Sound.LevelDbfs, p.Incorrect.Flash.Brightness, p.Incorrect.Flash.RateHz,
+            miss == null ? (double?)null : miss.TimeoutSeconds, miss == null ? null : miss.Sound.LevelDbfs,
+            miss == null ? (double?)null : miss.Flash.Brightness, miss == null ? (double?)null : miss.Flash.RateHz);
     }
 
     // The trial's row at its outcome, the choice made now (times.Now: the lick, or the end of the response window,
-    // the row's own time too), at the cost Cost resolved; the shared block's times are the trial loop's (TrialTimes).
+    // the row's own time too), at the cost Cost resolved (null when not penalised); the shared block's times are the
+    // trial loop's (TrialTimes).
     public static TrialRow Build(string choice, Trial trial, TrialTimes times, ResolvedPenalty cost)
     {
         var outcome = Outcome(choice, trial);
         var penalised = Penalised(outcome, choice, trial);
+        if (penalised && cost == null) throw new System.ArgumentNullException("cost", "A penalised trial's row needs its cost.");
         // The shared core (trial number, the loop's times, the offer on every trial, rewarded, the penalty, the laser: 0 mW
         // when answered before its trigger) is lib-open-rigs' SharedTrialColumns.Fill; the conditions, stimulus and
         // autoReward blocks are the trial's (ConditionedTrial).
@@ -123,6 +131,8 @@ public class TrialRow
             visualInitialAzimuthDeg = trial.visualInitialAzimuthDeg,
             auditorySoundFileIndex = trial.auditorySoundFileIndex,
         };
-        return SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised, cost.TimeoutSeconds);
+        SharedTrialColumns.Fill(row, trial, times, trial.rewardOfferedUl, Rewarded(outcome, choice, trial), penalised,
+            penalised ? cost.TimeoutSeconds : 0, penalised ? cost.Flash.Brightness : 0);
+        return row;
     }
 }

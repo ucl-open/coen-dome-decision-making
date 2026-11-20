@@ -121,8 +121,9 @@ def test_each_trial_event_reaches_its_hardware():
     assert _reached("Start") == {"Trial"}   # Trial at the trial's start; LogRngSeed reads Trial through its own subscription
     assert _reached("Stimulus") == {"StimulusTrial"}   # one subject, read by Display and Audio
     assert _reached("Update") == {"GratingAzimuthDeg"}
-    assert _reached("Cue", "GratingOff") == {"GratingOff"}
-    assert _reached("Outcome") == {"TrialOutcomeEffects.bonsai"}
+    assert _reached("StimulusOff") == {"StimulusOff"}   # once a trial (OpenRigs.Trials StimulusTiming): the grating hidden, the sound stopped
+    assert TEXT.count("<Name>StimulusOff</Name>") == 3 and "GratingOff" not in TEXT   # one publisher, two readers
+    assert _reached("Outcome") == {"TrialOutcomeEffects.bonsai", "PlayPenaltyFlash.bonsai"}   # the flash on the outcomes TrialOutcomeEffects passes on
     # Arm, Trigger and TriggerOff are ZapitTrials': no pick of them here.
     nodes, _ = _scope(_named("TaskLogic"))
     kinds = {n.find(W + "Combinator").findtext(TRL + "Kind") for n in nodes if _kind(n) == PICK}
@@ -130,12 +131,12 @@ def test_each_trial_event_reaches_its_hardware():
 
 
 def test_every_spout_move_is_spout_commands_over_the_trial_events():
-    # One path (tested C#): trial 1's spouts out, the SpoutsIn cue and the outcome, none read from TaskConfig.
+    # One path (lib-open-rigs SpoutCommands on the trials' ISpoutTrial): trial 1's spouts out, the SpoutsIn cue and the outcome, none read from TaskConfig.
     nodes, edges = _scope(_named("TaskLogic"))
     senders = [i for i, n in enumerate(nodes) if n.get(XSI) == "MulticastSubject" and n.findtext(W + "Name") == "LickSpoutStage.Commands"]
     assert len(senders) == 1 and TEXT.count("LickSpoutStage.Commands") == 1
     (command,) = [a for a, b, _ in edges if b == senders[0]]
-    assert _kind(nodes[command]) == "ext:SpoutCommands"
+    assert _kind(nodes[command]) == "trl:SpoutCommands"
     assert [nodes[a].findtext(W + "Name") for a, b, _ in edges if b == command] == ["TrialEvents"]
     assert "TaskConfig" not in {n.findtext(W + "Name") for n in nodes if n.get(XSI) == "SubscribeSubject"}
     assert "SpoutMovements" not in TEXT and "SpoutsInCommand" not in TEXT
@@ -198,7 +199,7 @@ def test_the_auditory_stimuli_are_the_tasks_own_files():
     folder = ROOT / "src" / "sounds"
     shapes = set()
     for i in range(100):
-        with wave.open(str(folder / f"filtered_pink_pulse_train_{i}.wav")) as w:
+        with wave.open(str(folder / f"filtered_pink_pulse_{i}.wav")) as w:
             shapes.add((w.getnchannels(), w.getsampwidth(), w.getframerate()))
     assert len(shapes) == 1
     assert shapes.pop()[:3] == (1, 2, 48000)
@@ -232,12 +233,13 @@ def test_the_speakers_and_the_mixer_are_the_shared_block_s():
 
 
 def test_every_sound_plays_at_the_task_file_s_level():
-    # The stimulus set is checked at Go for the highest level any condition can draw (TrialRules.MaxStimulusLevel).
+    # The stimulus set is checked at Go for the highest level any condition can draw, at every rate for the longest
+    # duration: the whole rules into LevelAuditoryStimulusSet (TrialRules.MaxStimulusLevel, StimulusRatesHz, MaxStimulusSeconds).
     assert lint.sound_level_problems(WORKFLOW) == []
     nodes, edges = _scope(_named("Audio"))
     level = next(i for i, n in enumerate(nodes) if _kind(n) == "ext:LevelAuditoryStimulusSet")
     upstream = list(_upstream(edges, level))
-    assert any(nodes[a].findtext(W + "Selector") == "MaxStimulusLevel" for a in upstream)
+    assert not any(_kind(nodes[a]) == "MemberSelector" for a in upstream)
     assert any(nodes[a].findtext(W + "Name") == "TrialRules" for a in upstream)
 
 
@@ -295,10 +297,14 @@ def test_the_rng_seed_is_logged_at_trial_1s_start():
 
 def test_each_trial_s_sound_carries_its_sync_copy():
     # SelectAuditoryStimulus gives the mixer's buffer at the task's level, sync copy and all (OpenRigs.Audio SpeakerSet.Layout),
-    # straight to the mixer's StimulusSounds; each sounding trial paired with the levelled set by WithLatestFrom, no per-trial graph.
+    # straight to the mixer's LoopStimulusSounds, which loops it until StopStimulusSounds, sent at each StimulusOff (the
+    # trial loop's, once a trial: OpenRigs.Trials StimulusTiming); each sounding trial paired with the levelled set by
+    # WithLatestFrom, no per-trial graph.
     nodes, edges = _scope(_named("Audio"))
     (select,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:SelectAuditoryStimulus"]
-    assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == select] == ["StimulusSounds"]
+    assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == select] == ["LoopStimulusSounds"]
+    (stop,) = [i for i, n in enumerate(nodes) if _kind(n) == "MulticastSubject" and n.findtext(W + "Name") == "StopStimulusSounds"]
+    assert [nodes[a].findtext(W + "Name") for a, b, _ in edges if b == stop] == ["StimulusOff"]
     (latest,) = [a for a, b, _ in edges if b == select]
     assert _kind(nodes[latest]) == "rx:WithLatestFrom"
     into = {label: nodes[a].findtext(W + "Name") for a, b, label in edges if b == latest}

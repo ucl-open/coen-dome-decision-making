@@ -102,7 +102,7 @@
       "type": "object"
     },
     "Optogenetics": {
-      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a timed stimulus here, per trial (its combination's). A repeated trial never has the laser on.",
+      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a fixed laser time here, per trial (its combination's). A repeated trial never has the laser on.",
       "if": {
         "additionalProperties": true,
         "properties": {
@@ -161,7 +161,7 @@
         },
         "laserDurationSeconds": {
           "default": 1.5,
-          "description": "How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most responseDelaySeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
+          "description": "How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)",
           "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
           "type": "number"
@@ -190,10 +190,55 @@
       "type": "object"
     },
     "Penalty": {
-      "description": "What a penalised trial costs: a timeout (the trial log's penaltyTimeoutSeconds), and the penalty sound with it\nunless its level is mute. A penalised choice costs this block's own values, a penalised miss its noResponse override\n(a null field the choice's). Each task decides which trials are penalised and which are misses; timeoutSeconds has no\nlab default: each task file gives it.",
+      "description": "What a penalised trial costs, by its kind (OpenRigs.Trials Penalties.For): incorrect (a wrong choice, a go/no-go\nfalse alarm, a probe's tails) or noResponse (a miss), each its own full values, nothing inherited. noResponse null:\nmisses are never penalised, and a task that penalises one refuses it at Go (check_misses). Which trials are penalised,\nand of which kind, is the task's.",
+      "properties": {
+        "incorrect": {
+          "$ref": "#/$defs/PenaltyCost",
+          "default": {
+            "timeoutSeconds": 4.0,
+            "sound": {
+              "levelDbfs": -35.0
+            },
+            "flash": {
+              "brightness": 0.0,
+              "rateHz": 10.0
+            }
+          },
+          "description": "What a penalised wrong choice costs (a go/no-go false alarm, a probe's tails)",
+          "title": "Incorrect"
+        },
+        "noResponse": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PenaltyCost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": {
+            "timeoutSeconds": 4.0,
+            "sound": {
+              "levelDbfs": -35.0
+            },
+            "flash": {
+              "brightness": 0.0,
+              "rateHz": 10.0
+            }
+          },
+          "description": "What a penalised miss costs; null: misses are never penalised (refused at Go by a task that penalises one)",
+          "title": "NoResponse"
+        }
+      },
+      "title": "Penalty",
+      "type": "object"
+    },
+    "PenaltyCost": {
+      "description": "What one kind of penalised outcome costs: its timeout (the trial log's penaltyTimeoutSeconds), the penalty sound and\nthe penalty flash (penaltyFlashBrightness).",
       "properties": {
         "timeoutSeconds": {
-          "description": "Timeout after a penalised choice, in seconds, and after a penalised miss unless noResponse.timeoutSeconds sets its own; the next interval starts after it",
+          "default": 4.0,
+          "description": "Timeout after the penalised outcome, in seconds; the next interval starts after it",
           "minimum": 0,
           "title": "TimeoutSeconds",
           "type": "number"
@@ -203,80 +248,43 @@
           "default": {
             "levelDbfs": -35.0
           },
-          "description": "The penalty sound, with every timeout",
+          "description": "The penalty sound, with the timeout",
           "title": "Sound"
         },
-        "noResponse": {
-          "$ref": "#/$defs/PenaltyCost",
+        "flash": {
+          "$ref": "#/$defs/PenaltyFlash",
           "default": {
-            "timeoutSeconds": null,
-            "sound": {
-              "levelDbfs": null
-            }
+            "brightness": 0.0,
+            "rateHz": 10.0
           },
-          "description": "What a penalised miss costs where it differs from a penalised choice: each null field the choice's",
-          "title": "NoResponse"
-        }
-      },
-      "required": [
-        "timeoutSeconds"
-      ],
-      "title": "Penalty",
-      "type": "object"
-    },
-    "PenaltyCost": {
-      "description": "What a penalised miss costs, each field null for the penalised choice's (penalty's own): never null itself, so a\ncondition or a training stage can set any one of its fields by its dotted path.",
-      "properties": {
-        "timeoutSeconds": {
-          "anyOf": [
-            {
-              "minimum": 0,
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Timeout after a penalised miss, in seconds; null: penalty.timeoutSeconds",
-          "title": "TimeoutSeconds"
-        },
-        "sound": {
-          "$ref": "#/$defs/PenaltyCostSound",
-          "default": {
-            "levelDbfs": null
-          },
-          "description": "The penalty sound on a penalised miss",
-          "title": "Sound"
+          "description": "The penalty flash, with the sound; off (brightness 0) by default",
+          "title": "Flash"
         }
       },
       "title": "PenaltyCost",
       "type": "object"
     },
-    "PenaltyCostSound": {
-      "description": "A penalised miss's penalty sound: its level, or null for the penalised choice's (penalty.sound.levelDbfs).",
+    "PenaltyFlash": {
+      "description": "The penalty flash (OpenRigs.Vision PlayPenaltyFlash, the same in every task with a projector): the whole projector\nfield at brightness of full white, flashing at rateHz from the outcome for the penalty sound's length, which must fit in\nthe kind's timeout (checked at Go against the sound file, OpenRigs.Trials PenaltyFlashRules, the same rules).",
       "properties": {
-        "levelDbfs": {
-          "default": null,
-          "description": "The penalty sound's level on a penalised miss, in dBFS RMS as penalty.sound.levelDbfs; mute: no sound; null: penalty.sound.levelDbfs",
-          "oneOf": [
-            {
-              "maximum": -1.0,
-              "minimum": -120.0,
-              "type": "number"
-            },
-            {
-              "const": "mute",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "LevelDbfs"
+        "brightness": {
+          "default": 0.0,
+          "description": "Brightness of the flash, 0 to 1 of the projector's full white after gamma correction (1: full white), over the whole field and everything drawn, a stimulus still on included; 0: no flash (as the sound's mute). Logged as penaltyFlashBrightness",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Brightness",
+          "type": "number"
+        },
+        "rateHz": {
+          "default": 10.0,
+          "description": "Flash rate in Hz: the field is white for the first half of each 1/rateHz cycle and the normal display the other half, from the outcome for the penalty sound's length (refused at Go when longer than timeoutSeconds); at most 30, half the projector's 60 Hz render loop",
+          "exclusiveMinimum": 0,
+          "maximum": 30.0,
+          "title": "RateHz",
+          "type": "number"
         }
       },
-      "title": "PenaltyCostSound",
+      "title": "PenaltyFlash",
       "type": "object"
     },
     "PenaltySound": {
@@ -352,7 +360,7 @@
       "type": "object"
     },
     "Reward": {
-      "description": "Reward delivery: the reward size and the large-reward trials (the lab's reward block).",
+      "description": "Reward delivery (the lab's reward block): the reward size, the large-reward trials and the reward tone, which this\nworkflow does not play yet (only mute).",
       "properties": {
         "sizeUl": {
           "description": "Reward size, in microlitres, planned into valve pulses from the valve's calibration; at most 20, the most one reward may ask for",
@@ -375,12 +383,120 @@
           "minimum": 0,
           "title": "LargeProbability",
           "type": "number"
+        },
+        "tone": {
+          "$ref": "#/$defs/RewardTone",
+          "default": {
+            "levelDbfs": "mute"
+          },
+          "description": "The reward tone, with every reward",
+          "title": "Tone"
         }
       },
       "required": [
         "sizeUl"
       ],
       "title": "Reward",
+      "type": "object"
+    },
+    "RewardTone": {
+      "description": "A task's reward tone, played at each rewarded trial's levelDbfs (OpenRigs.Audio PlayRewardTone): reward.tone.",
+      "properties": {
+        "levelDbfs": {
+          "default": "mute",
+          "description": "The reward tone's level in dBFS RMS: the RMS of the sound over its samples outside silent stretches (runs of exactly-zero samples at least 1 ms long), as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3); mute: no sound. The lab's default mute. The workflow stops at Go if any peak at the highest level a trial can draw would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix",
+          "oneOf": [
+            {
+              "maximum": -1.0,
+              "minimum": -120.0,
+              "type": "number"
+            },
+            {
+              "const": "mute",
+              "type": "string"
+            }
+          ],
+          "title": "LevelDbfs"
+        }
+      },
+      "title": "RewardTone",
+      "type": "object"
+    },
+    "Spouts": {
+      "description": "The spouts (the lab's spouts block, open_rigs.core.task Spouts) and this task's single-spout guide.",
+      "properties": {
+        "alwaysIn": {
+          "default": false,
+          "description": "Always in: every spout the task uses is in for the whole trial and interval; they move only at the SpoutsIn cue, never drawn out, and lead nothing (a negative stimulusToSpoutsInSeconds counts as 0)",
+          "title": "AlwaysIn",
+          "type": "boolean"
+        },
+        "stimulusToSpoutsInSeconds": {
+          "default": 0.5,
+          "description": "From stimulus onset to moving the spouts in (the SpoutsIn cue), in seconds, signed like laserToStimulusSeconds: negative, the spouts in that long before the stimulus (the trial starts that much earlier; with rewardConsumptionSeconds at most itiMinSeconds); positive, at most the stimulus to the response window's opening",
+          "title": "StimulusToSpoutsInSeconds",
+          "type": "number"
+        },
+        "rewardConsumptionSeconds": {
+          "default": 1.5,
+          "description": "From the next interval's start (the outcome plus any timeout) to drawing the spouts out (the SpoutsOut cue), in seconds: time to drink a reward, inside the interval, which it never delays; with any lead of the spouts before the stimulus, at most itiMinSeconds",
+          "minimum": 0,
+          "title": "RewardConsumptionSeconds",
+          "type": "number"
+        },
+        "singleSpoutProbability": {
+          "default": 0.0,
+          "description": "Probability that only the target's spout comes in, as a guide, on a scored trial of localization or discriminationLeftRight whose spouts move (alwaysIn false); else both come in. discriminationGoNoGo always uses the left spout alone, and a random-reward probe both (logged as singleSpoutOffered)",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "SingleSpoutProbability",
+          "type": "number"
+        }
+      },
+      "title": "Spouts",
+      "type": "object"
+    },
+    "Stimulus": {
+      "description": "What the grating and the sound share: from onset, a pulse every 1/rateHz seconds (the sound file's 50 ms pulse, the\ngrating on for 50 ms) until the stimulus off (the lab's StimulusTiming: durationSeconds after onset, or\nresponseToStimulusOffSeconds after the response if that comes first), the last pulse cut where it ends.",
+      "properties": {
+        "durationSeconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 1.5,
+          "description": "The longest the stimulus lasts from its onset, in seconds; off before the next trial's stimulus can come (the soonest outcome plus the shortest penalty timeout, 0 where a reward can come, plus itiMinSeconds). Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)",
+          "title": "DurationSeconds"
+        },
+        "responseToStimulusOffSeconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "From the response (the outcome; on a miss, the response window's end) to the stimulus off, in seconds, unless the duration ends it first: 0, off at the response; null, the response does not end it (it runs durationSeconds); at most the shortest penalty timeout (0 where a reward can come) plus itiMinSeconds",
+          "title": "ResponseToStimulusOffSeconds"
+        },
+        "rateHz": {
+          "default": 8.0,
+          "description": "Pulses a second, of the sound and the grating together, each 50 ms long (AuditoryStimulusSet.PulseSeconds, each sound file's length), so at most 20",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "title": "RateHz",
+          "type": "number"
+        }
+      },
+      "title": "Stimulus",
       "type": "object"
     },
     "Target": {
@@ -444,7 +560,7 @@
       "type": "object"
     },
     "TrialStructure": {
-      "description": "Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome\n(after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus,\noutcomeToSpoutsOutSeconds included, so itiMinSeconds is at least outcomeToSpoutsOutSeconds; the quiet waits (the lab's\nLickQuietWait and WheelQuietWait blocks) can only lengthen it. A lick first counts responseDelaySeconds after stimulus\nonset, where the response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
+      "description": "Timing of each trial, every wait on the Harp clock. A rewarded trial is its outcome, then the interval (the lab's\nIti block), the reward drunk inside it (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one\nits outcome, its kind's timeout, then the interval; one neither rewarded nor penalised its outcome, then the interval\n(the first trial's: from the experiment folder's creation). The interval runs to this trial's stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only\nlengthen it. A lick first counts stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's\nResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused.",
       "properties": {
         "wheelQuietSeconds": {
           "default": 0.0,
@@ -496,32 +612,11 @@
           "title": "ItiMaxSeconds",
           "type": "number"
         },
-        "outcomeToSpoutsOutSeconds": {
-          "default": 2.0,
-          "description": "From the outcome (after any timeout) to drawing the spouts out (the SpoutsOut cue), in seconds: time to drink a reward, inside the interval",
-          "minimum": 0,
-          "title": "OutcomeToSpoutsOutSeconds",
-          "type": "number"
-        },
-        "responseDelaySeconds": {
+        "stimulusToResponseWindowSeconds": {
           "default": 0.0,
-          "description": "The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted",
+          "description": "From stimulus onset to the response window opening, in seconds; responseWindowSeconds runs from that opening, and licks before it are not counted",
           "minimum": 0,
-          "title": "ResponseDelaySeconds",
-          "type": "number"
-        },
-        "visualStimulusSeconds": {
-          "default": 1.5,
-          "description": "How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus",
-          "exclusiveMinimum": 0,
-          "title": "VisualStimulusSeconds",
-          "type": "number"
-        },
-        "stimulusToSpoutsInSeconds": {
-          "default": 0.5,
-          "description": "From stimulus onset to moving the response spouts in (the SpoutsIn cue), in seconds",
-          "minimum": 0,
-          "title": "StimulusToSpoutsInSeconds",
+          "title": "StimulusToResponseWindowSeconds",
           "type": "number"
         }
       },
@@ -599,6 +694,14 @@
           "$ref": "#/$defs/TrialStructure",
           "description": "Timing of each trial"
         },
+        "spouts": {
+          "$ref": "#/$defs/Spouts",
+          "description": "The spouts: when they come in and go out, whether they are always in, and the single-spout guide"
+        },
+        "stimulus": {
+          "$ref": "#/$defs/Stimulus",
+          "description": "What the grating and the sound share: their duration, their off after the response, and the pulse rate"
+        },
         "visualStimulus": {
           "$ref": "#/$defs/VisualStimulus",
           "description": "The grating"
@@ -621,7 +724,7 @@
         },
         "penalty": {
           "$ref": "#/$defs/Penalty",
-          "description": "The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a noGo trial (a go miss and a no-reward probe have neither). A penalised miss (a probe's too) costs penalty.noResponse's values where not null, which discriminationGoNoGo refuses; open_rigs.core.task Penalty"
+          "description": "What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
         },
         "optogenetics": {
           "$ref": "#/$defs/Optogenetics",
@@ -651,25 +754,13 @@
         "repeats": {
           "$ref": "#/$defs/Repeats",
           "description": "Trial repetition policy"
-        },
-        "singleSpoutProbability": {
-          "default": 0.0,
-          "description": "Probability that only the target's spout comes in, as a guide, on a scored trial of localization or discriminationLeftRight whose spouts move (spoutsStayIn false); else both come in. discriminationGoNoGo always uses the left spout alone, and a random-reward probe both (logged as singleSpoutOffered)",
-          "maximum": 1,
-          "minimum": 0,
-          "title": "SingleSpoutProbability",
-          "type": "number"
-        },
-        "spoutsStayIn": {
-          "default": false,
-          "description": "Whether the used spouts stay in on this trial (habituation): no withdrawal and no single-spout move; at each interval's start the coming trial's value decides whether the spouts go out",
-          "title": "SpoutsStayIn",
-          "type": "boolean"
         }
       },
       "required": [
         "trialConditions",
         "trialStructure",
+        "spouts",
+        "stimulus",
         "visualStimulus",
         "auditoryStimulus",
         "reward",
@@ -941,13 +1032,10 @@
               "taskType"
             ]
           },
-          "message": "taskType discriminationGoNoGo never penalises a miss, so penalty.noResponse.timeoutSeconds and penalty.noResponse.sound.levelDbfs must be null",
+          "message": "taskType discriminationGoNoGo never penalises a miss, so penalty.noResponse must be null",
           "then": {
             "properties": {
               "penalty.noResponse.timeoutSeconds": {
-                "type": "null"
-              },
-              "penalty.noResponse.sound.levelDbfs": {
                 "type": "null"
               }
             }

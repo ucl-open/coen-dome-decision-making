@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import Any, Literal
 
 # Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt.
-from open_rigs.core.base import Bool, Double, String
+from open_rigs.core.base import Double, String
 from open_rigs.core.task import (
     MAX_REWARD_UL,
     MUTE,
@@ -11,6 +11,8 @@ from open_rigs.core.task import (
     Penalty,
     ResponseWindow,
     Reward as CoreReward,
+    Spouts as LabSpouts,
+    StimulusTiming,
     Task,
     TaskBlock,
     TaskParameters,
@@ -18,7 +20,8 @@ from open_rigs.core.task import (
     level_dbfs,
 )
 from open_rigs.core.task import Optogenetics as LabOptogenetics
-from open_rigs.components.zapit import ZAPIT_MAX_RAMP_DOWN_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
+from open_rigs.components.zapit import ZAPIT_REPLY_MARGIN_SECONDS
+from open_rigs.components.zapit import ramp_down_from
 from open_rigs.rigs import conditioned_task as ct
 from open_rigs.rigs.conditioned_task import ABOVE_0, MAX_WEIGHT_SUM, SIDELESS, SOUNDING, SoundAzimuth, if_
 from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
@@ -31,32 +34,48 @@ STIMULUS_LEVEL_DBFS = -40.0
 
 
 class TrialStructure(Iti, ResponseWindow, LickQuietWait, WheelQuietWait):
-    """Timing of each trial, every wait on the Harp clock. The interval (the lab's Iti block) runs from the last outcome
-    (after any timeout; the first trial: the experiment folder's creation) to this trial's stimulus,
-    outcomeToSpoutsOutSeconds included, so itiMinSeconds is at least outcomeToSpoutsOutSeconds; the quiet waits (the lab's
-    LickQuietWait and WheelQuietWait blocks) can only lengthen it. A lick first counts responseDelaySeconds after stimulus
-    onset, where the response window (the lab's ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused."""
+    """Timing of each trial, every wait on the Harp clock. A rewarded trial is its outcome, then the interval (the lab's
+    Iti block), the reward drunk inside it (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one
+    its outcome, its kind's timeout, then the interval; one neither rewarded nor penalised its outcome, then the interval
+    (the first trial's: from the experiment folder's creation). The interval runs to this trial's stimulus; the quiet waits (the lab's LickQuietWait and WheelQuietWait blocks) can only
+    lengthen it. A lick first counts stimulusToResponseWindowSeconds after stimulus onset, where the response window (the lab's
+    ResponseWindow block) starts; responseWindowSeconds must be given: no limit is refused."""
 
-    outcome_to_spouts_out_seconds: Double = Field(
-        default=2.0, ge=0, description="From the outcome (after any timeout) to drawing the spouts out (the SpoutsOut cue), in seconds: time to drink a reward, inside the interval"
-    )
-    response_delay_seconds: Double = Field(default=0.0, ge=0, description="The response delay: from stimulus onset to the response window opening, in seconds; licks before it are not counted")
-    visual_stimulus_seconds: Double = Field(
-        default=1.5, gt=0, description="How long the grating shows, in seconds from onset; at most responseDelaySeconds plus responseWindowSeconds, so it never outlasts the response window, and at most itiMinSeconds, so it is off before the next stimulus"
-    )
-    stimulus_to_spouts_in_seconds: Double = Field(default=0.5, ge=0, description="From stimulus onset to moving the response spouts in (the SpoutsIn cue), in seconds")
+    stimulus_to_response_window_seconds: Double = Field(default=0.0, ge=0, description="From stimulus onset to the response window opening, in seconds; responseWindowSeconds runs from that opening, and licks before it are not counted")
 
     @model_validator(mode="after")
     def _ordered(self) -> "TrialStructure":
         if self.response_window_seconds is None:
             raise ValueError("response_window_seconds must be given: this task's response window always closes")
-        if self.iti_min_seconds < self.outcome_to_spouts_out_seconds:
-            raise ValueError("iti_min_seconds must be >= outcome_to_spouts_out_seconds: the spouts are drawn out outcome_to_spouts_out_seconds into the interval, before the stimulus")
-        if self.visual_stimulus_seconds > self.response_delay_seconds + self.response_window_seconds:
-            raise ValueError("visual_stimulus_seconds must not exceed response_delay_seconds + response_window_seconds")
-        if self.visual_stimulus_seconds > self.iti_min_seconds:
-            raise ValueError("visual_stimulus_seconds must not exceed iti_min_seconds: the grating would still show when the next trial's stimulus starts")
         return self
+
+
+class Spouts(LabSpouts):
+    """The spouts (the lab's spouts block, open_rigs.core.task Spouts) and this task's single-spout guide."""
+
+    stimulus_to_spouts_in_seconds: Double = Field(default=0.5, description=LabSpouts.model_fields["stimulus_to_spouts_in_seconds"].description)
+    single_spout_probability: Double = Field(
+        default=0.0,
+        ge=0,
+        le=1,
+        description=(
+            "Probability that only the target's spout comes in, as a guide, on a scored trial of localization or discriminationLeftRight "
+            "whose spouts move (alwaysIn false); else both come in. discriminationGoNoGo always uses the left spout alone, and a "
+            "random-reward probe both (logged as singleSpoutOffered)"
+        ),
+    )
+
+
+class Stimulus(StimulusTiming):
+    """What the grating and the sound share: from onset, a pulse every 1/rateHz seconds (the sound file's 50 ms pulse, the
+    grating on for 50 ms) until the stimulus off (the lab's StimulusTiming: durationSeconds after onset, or
+    responseToStimulusOffSeconds after the response if that comes first), the last pulse cut where it ends."""
+
+    duration_seconds: Double | None = Field(default=1.5, gt=0, description=StimulusTiming.model_fields["duration_seconds"].description)
+    rate_hz: Double = Field(
+        default=8.0, gt=0, le=20,
+        description="Pulses a second, of the sound and the grating together, each 50 ms long (AuditoryStimulusSet.PulseSeconds, each sound file's length), so at most 20",
+    )
 
 
 class VisualStimulus(TaskBlock):
@@ -114,7 +133,8 @@ class AuditoryStimulus(ct.AuditoryStimulus):
 
 
 class Reward(CoreReward):
-    """Reward delivery: the reward size and the large-reward trials (the lab's reward block)."""
+    """Reward delivery (the lab's reward block): the reward size, the large-reward trials and the reward tone, which this
+    workflow does not play yet (only mute)."""
 
 
 class Response(TaskBlock):
@@ -193,8 +213,8 @@ RULES = (
      "message": "target auditorySide needs auditory azimuths without 0 or all"},
     # A go/no-go miss is never penalised, so a miss's own cost would never be used (TrialDraw.Check's same rule).
     {"if": if_({"taskType": {"const": TaskType.DISCRIMINATION_GO_NO_GO.value}}),
-     "then": ct.props({"penalty.noResponse.timeoutSeconds": {"type": "null"}, "penalty.noResponse.sound.levelDbfs": {"type": "null"}}),
-     "message": "taskType discriminationGoNoGo never penalises a miss, so penalty.noResponse.timeoutSeconds and penalty.noResponse.sound.levelDbfs must be null"},
+     "then": ct.props({"penalty.noResponse.timeoutSeconds": {"type": "null"}}),
+     "message": "taskType discriminationGoNoGo never penalises a miss, so penalty.noResponse must be null"},
 )
 # How a condition is named (the schema's x-trial-types; derive_trial_type): first match wins, on the condition's values
 # each as a list. A role target names it; else by what it shows, the grating (a contrast above 0) and the sound as a cue
@@ -247,12 +267,12 @@ class Repeats(TaskBlock):
 
 class Optogenetics(LabOptogenetics):
     """Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
-    laserDurationSeconds is a timed stimulus here, per trial (its combination's). A repeated trial never has the laser on."""
+    laserDurationSeconds is a fixed laser time here, per trial (its combination's). A repeated trial never has the laser on."""
 
     laser_duration_seconds: Double = Field(
         default=1.5,
         gt=0,
-        description="How long the laser and the masking light stay on, in seconds from the trigger (a timed stimulus). With optogenetics on, at most responseDelaySeconds + itiMinSeconds - 0.7 s: Zapit is armed for the next trial only once this stimulus and its ramp-down (0.5 s at most) have ended, and its reply must be in 0.2 s before the next trigger",
+        description="How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)",
     )
 
 
@@ -285,6 +305,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         json_schema_extra={"x-whole": True},
     )
     trial_structure: TrialStructure = Field(description="Timing of each trial")
+    spouts: Spouts = Field(description="The spouts: when they come in and go out, whether they are always in, and the single-spout guide")
+    stimulus: Stimulus = Field(description="What the grating and the sound share: their duration, their off after the response, and the pulse rate")
     visual_stimulus: VisualStimulus = Field(description="The grating")
     auditory_stimulus: AuditoryStimulus = Field(description="The sound")
     reward: Reward = Field(description="Reward delivery")
@@ -295,7 +317,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         description="Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is never repeated (neither noResponse nor notCorrect); 0: never, 1: every trial",
     )
     penalty: Penalty = Field(
-        description="The timeout and penalty sound after an incorrect response or a miss (a miss on an auto-reward trial is rewarded instead), and on a random-reward probe after a choice on the coin's tails or a miss; in discriminationGoNoGo only after a lick on a noGo trial (a go miss and a no-reward probe have neither). A penalised miss (a probe's too) costs penalty.noResponse's values where not null, which discriminationGoNoGo refuses; open_rigs.core.task Penalty"
+        description="What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
     )
     optogenetics: Optogenetics = Field(description="Zapit optogenetic stimulation")
     task_type: TaskType = Field(
@@ -318,23 +340,6 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
     )
     response: Response = Field(description="Lick-accumulation response rule")
     repeats: Repeats = Field(description="Trial repetition policy")
-    single_spout_probability: Double = Field(
-        default=0.0,
-        ge=0,
-        le=1,
-        description=(
-            "Probability that only the target's spout comes in, as a guide, on a scored trial of localization or discriminationLeftRight "
-            "whose spouts move (spoutsStayIn false); else both come in. discriminationGoNoGo always uses the left spout alone, and a "
-            "random-reward probe both (logged as singleSpoutOffered)"
-        ),
-    )
-    spouts_stay_in: Bool = Field(
-        default=False,
-        description=(
-            "Whether the used spouts stay in on this trial (habituation): no withdrawal and no single-spout move; at each interval's "
-            "start the coming trial's value decides whether the spouts go out"
-        ),
-    )
 
     @model_validator(mode="after")
     def _target_per_condition(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
@@ -349,22 +354,42 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         return self
 
     @model_validator(mode="after")
-    def _timing_fits(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+    def _timing_fits(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.CheckTask's same rules.
         opto, s = self.optogenetics, self.trial_structure
+        # The soonest outcome is the response window's opening; the shortest outcome to next interval 0, as every trial
+        # here can end rewarded or neither (a correct choice, a probe's heads, a go/no-go miss or withheld noGo).
+        self.stimulus.check_fits(
+            s.iti_min_seconds, s.stimulus_to_response_window_seconds + s.response_window_seconds,
+            stimulus_to_earliest_outcome_seconds=s.stimulus_to_response_window_seconds,
+            min_outcome_to_iti_seconds=0.0,
+        )
+        # A miss is penalised in localization and discriminationLeftRight unless every trial is auto-rewarded.
+        self.penalty.check_misses(self.task_type != TaskType.DISCRIMINATION_GO_NO_GO and self.auto_reward_probability < 1)
+        self.spouts.check_fits(s.iti_min_seconds, s.stimulus_to_response_window_seconds)
         opto.check_lead_fits(s.iti_min_seconds)
         lead = opto.laser_to_stimulus_seconds
-        if -lead > s.response_delay_seconds + s.response_window_seconds + 1e-9:
+        if -lead > s.stimulus_to_response_window_seconds + s.response_window_seconds + 1e-9:
             raise ValueError(
                 f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "
-                f"(response_delay_seconds + response_window_seconds, {s.response_delay_seconds + s.response_window_seconds:g} s)"
+                f"(stimulus_to_response_window_seconds + response_window_seconds, {s.stimulus_to_response_window_seconds + s.response_window_seconds:g} s)"
             )
+        # The Zapit conditions file's largest ramp-down, when the check runs where the file is (on the rig, app-rig-control's
+        # open_rigs.rigs.check_task passes it as context); without it, 0, the laser and the reply margin alone. Go has the
+        # last word either way (TrialDraw.LaserProblems).
         opto.check_zapit_free_in_time(
             s.iti_min_seconds,
             laser_duration_seconds=opto.laser_duration_seconds,
-            ramp_down_seconds=ZAPIT_MAX_RAMP_DOWN_SECONDS,
-            response_delay_seconds=s.response_delay_seconds,
+            ramp_down_seconds=ramp_down_from(info),
+            response_delay_seconds=s.stimulus_to_response_window_seconds,
         )
+        return self
+
+    @model_validator(mode="after")
+    def _reward_tone_mute(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # TrialDraw.Check's same rule: the workflow has no reward tone to play yet.
+        if self.reward.tone.level_dbfs != MUTE:
+            raise ValueError("reward.tone.level_dbfs must be mute: this workflow has no reward tone sound to play yet")
         return self
 
     @model_validator(mode="after")
@@ -379,33 +404,55 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         return self
 
     @classmethod
-    def between_trials(cls, tasks: list[dict]) -> None:
-        _between_trials(tasks)
+    def between_trials(cls, tasks: list[dict], context: dict | None = None) -> None:
+        _between_trials(tasks, ramp_down_from(context))
 
 
 # The list fields one entry of which each trial draws (open_rigs.rigs.conditions.pick_lists).
 LIST_FIELDS = UclOpenCoenDomeDecisionMakingTaskParameters.list_fields()
 
 
-def _between_trials(tasks: list[dict]) -> None:
+def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
     """The timing rules between a trial and the next, each drawn from any weighted combination (TrialDraw.BetweenTrials):
-    every outcomeToSpoutsOutSeconds and visualStimulusSeconds within every itiMinSeconds, and with optogenetics every
-    laserDurationSeconds within the shortest trigger to the next trigger less the ramp-down and Zapit's reply margin."""
+    the longest spouts.rewardConsumptionSeconds plus the spouts' longest lead before the stimulus within the shortest
+    itiMinSeconds (OpenRigs.Trials Spouts.BetweenTrialsProblems); every stimulus.durationSeconds past its soonest outcome,
+    and every stimulus.responseToStimulusOffSeconds, within the shortest itiMinSeconds (the shortest outcome to next
+    interval is 0: every trial can end rewarded or neither; StimulusTiming.BetweenTrialsProblems); and with optogenetics every laserDurationSeconds within the shortest trigger to the next trigger less the ramp-down and
+    Zapit's reply margin."""
     if not tasks:
         return
     s = [task["trialStructure"] for task in tasks]
     iti = min(x["itiMinSeconds"] for x in s)
-    for name in ("outcomeToSpoutsOutSeconds", "visualStimulusSeconds"):
-        if (maximum := max(x[name] for x in s)) > iti + 1e-9:
-            raise ValueError(f"trialStructure.{name} {maximum:g} s exceeds trialStructure.itiMinSeconds {iti:g} s of a combination that may come next")
+    spouts = [task["spouts"] for task in tasks]
+    lead = max([0.0] + [-x["stimulusToSpoutsInSeconds"] for x in spouts if not x["alwaysIn"]])
+    consumption = max(x["rewardConsumptionSeconds"] for x in spouts)
+    if consumption + lead > iti + 1e-9:
+        raise ValueError(
+            f"spouts.rewardConsumptionSeconds {consumption:g} s plus the spouts' longest lead before the stimulus {lead:g} s exceeds "
+            f"trialStructure.itiMinSeconds {iti:g} s of a combination that may come next"
+        )
+    gap = iti
+    past = [task["stimulus"]["durationSeconds"] - x["stimulusToResponseWindowSeconds"] for task, x in zip(tasks, s) if task["stimulus"]["durationSeconds"] is not None]
+    if past and max(past) > gap + 1e-9:
+        raise ValueError(
+            f"stimulus.durationSeconds runs {max(past):g} s past the soonest outcome, longer than itiMinSeconds ({gap:g} s) "
+            "of a combination that may come next (the shortest outcome to next interval is 0, after a reward)"
+        )
+    after = [task["stimulus"]["responseToStimulusOffSeconds"] for task in tasks if task["stimulus"]["responseToStimulusOffSeconds"] is not None]
+    if after and max(after) > gap + 1e-9:
+        raise ValueError(
+            f"stimulus.responseToStimulusOffSeconds {max(after):g} s is longer than itiMinSeconds ({gap:g} s) "
+            "of a combination that may come next (the shortest outcome to next interval is 0, after a reward)"
+        )
     if tasks[0]["optogenetics"]["enabled"]:
         leads = [task["optogenetics"]["laserToStimulusSeconds"] for task in tasks]
-        cap = (min(lead + x["responseDelaySeconds"] for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
-                   - ZAPIT_MAX_RAMP_DOWN_SECONDS - ZAPIT_REPLY_MARGIN_SECONDS)
+        cap = (min(lead + x["stimulusToResponseWindowSeconds"] for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
+                   - ramp_down_seconds - ZAPIT_REPLY_MARGIN_SECONDS)
         duration = max(task["optogenetics"]["laserDurationSeconds"] for task in tasks)
         if duration > cap + 1e-9:
             raise ValueError(f"optogenetics.laserDurationSeconds ({duration} s) must be at most {cap:g} s across the combinations: "
-                             "the shortest lead plus response delay, plus the shortest interval less the lead, less the ramp-down and Zapit's reply margin")
+                             "the shortest lead plus stimulus to response window, plus the shortest interval less the lead, "
+                             f"less the Zapit conditions file's {ramp_down_seconds:g} s ramp-down and Zapit's reply margin")
 
 
 class UclOpenCoenDomeDecisionMakingTaskLogic(Task):

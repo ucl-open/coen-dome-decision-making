@@ -105,7 +105,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's WorkflowData_Trials row, built at its outcome; GratingAzimuthDeg, the response; StimulusTrial, the trial at its stimulus, for the grating and the sound; GratingOff, the trial at its GratingOff cue. Zapit's commands and replies are ConnectForTask's, RewardRequests Rewards'.</Description>
+        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's WorkflowData_Trials row, built at its outcome; GratingAzimuthDeg, the response; StimulusTrial, the trial at its stimulus, for the grating and the sound; StimulusOff, the trial at its StimulusOff event (OpenRigs.Trials StimulusTiming: stimulus.durationSeconds after the stimulus, or stimulus.responseToStimulusOffSeconds after the outcome if sooner), once a trial. Zapit's commands and replies are ConnectForTask's, RewardRequests Rewards'.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
@@ -124,7 +124,7 @@
               <rx:Name>StimulusTrial</rx:Name>
             </Expression>
             <Expression xsi:type="rx:PublishSubject" TypeArguments="ext:Trial">
-              <rx:Name>GratingOff</rx:Name>
+              <rx:Name>StimulusOff</rx:Name>
             </Expression>
           </Nodes>
           <Edges>
@@ -150,7 +150,7 @@
             </Expression>
             <Expression xsi:type="rx:SelectMany">
               <Name>ShowGrating</Name>
-              <Description>Draws a trial's grating from StimulusTrial until GratingOff: contrast, elevation and phase the trial's, the rest its combination's, the azimuth the trial's, then GratingAzimuthDeg's as the licks move it (so its first frame is never the last trial's), flickering at the stimulus set's pulse rate, with the photodiode square black on its on frames and white on its off frames.</Description>
+              <Description>Draws a trial's grating from StimulusTrial until StimulusOff: contrast, elevation and phase the trial's, the rest its combination's, the azimuth the trial's, then GratingAzimuthDeg's as the licks move it (so its first frame is never the last trial's), on for 50 ms at each pulse, every 1/stimulus.rateHz seconds (Flicker), with the photodiode square black on its on frames and white on its off frames.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
@@ -169,18 +169,7 @@
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Name>Flicker</Name>
-                    <Description>The grating on and off at the auditory stimulus set's pulse rate (AuditoryStimulusSet.PulseRateHz): each half period is its FlickerHalfPeriod, mapped in. A render-clock stimulus, not a task wait.</Description>
-                    <Combinator xsi:type="gl:Timer">
-                      <gl:DueTime>PT0S</gl:DueTime>
-                      <gl:Period>PT0S</gl:Period>
-                    </Combinator>
-                  </Expression>
-                  <Expression xsi:type="Mod">
-                    <Operand xsi:type="WorkflowProperty" TypeArguments="sys:Int64">
-                      <Value>2</Value>
-                    </Operand>
-                  </Expression>
-                  <Expression xsi:type="Combinator">
+                    <Description>Each frame with whether the grating shows: on from each pulse onset (PulseOnsets, every 1/stimulus.rateHz seconds) until 50 ms later (PulseOffsets, as long as the sound's pulse), both on the render clock (Bonsai.Shaders Timer and Delay). A render-clock stimulus, not a task wait.</Description>
                     <Combinator xsi:type="rx:WithLatestFrom" />
                   </Expression>
                   <Expression xsi:type="rx:Condition">
@@ -191,7 +180,7 @@
                           <Name>Source1</Name>
                         </Expression>
                         <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>Item2 == 0</scr:Expression>
+                          <scr:Expression>Item2</scr:Expression>
                         </Expression>
                         <Expression xsi:type="WorkflowOutput" />
                       </Nodes>
@@ -212,7 +201,7 @@
                           <Name>Source1</Name>
                         </Expression>
                         <Expression xsi:type="scr:ExpressionTransform">
-                          <scr:Expression>Item2 != 0</scr:Expression>
+                          <scr:Expression>!Item2</scr:Expression>
                         </Expression>
                         <Expression xsi:type="WorkflowOutput" />
                       </Nodes>
@@ -284,7 +273,7 @@
                     <Opacity>1</Opacity>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>GratingOff</Name>
+                    <Name>StimulusOff</Name>
                   </Expression>
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:TakeUntil" />
@@ -324,12 +313,12 @@
                     <Combinator xsi:type="rx:IgnoreElements" />
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
-                    <Name>StimulusWaveforms</Name>
+                    <Name>VisualTrial</Name>
                   </Expression>
-                  <Expression xsi:type="PropertyMapping">
-                    <PropertyMappings>
-                      <Property Name="Period" Selector="FlickerHalfPeriod" />
-                    </PropertyMappings>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Name>PulsePeriod</scr:Name>
+                    <scr:Description>One pulse period, 1/stimulus.rateHz seconds, the trial's.</scr:Description>
+                    <scr:Expression>TimeSpan.FromSeconds(1.0 / Stimulus.RateHz)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
                     <Name>VisualTrial</Name>
@@ -340,42 +329,90 @@
                   <Expression xsi:type="Combinator">
                     <Combinator xsi:type="rx:Merge" />
                   </Expression>
+                  <Expression xsi:type="rx:SelectMany">
+                    <Name>PulseOnsets</Name>
+                    <Description>Each pulse's onset, every 1/stimulus.rateHz seconds from the first frame, on the render clock: a timer made once the trial's period is known (inside SelectMany), as a timer started first would keep its default period.</Description>
+                    <Workflow>
+                      <Nodes>
+                        <Expression xsi:type="WorkflowInput">
+                          <Name>Source1</Name>
+                        </Expression>
+                        <Expression xsi:type="PropertyMapping">
+                          <PropertyMappings>
+                            <Property Name="Period" />
+                          </PropertyMappings>
+                        </Expression>
+                        <Expression xsi:type="Combinator">
+                          <Combinator xsi:type="gl:Timer">
+                            <gl:DueTime>PT0S</gl:DueTime>
+                            <gl:Period>PT0.125S</gl:Period>
+                          </Combinator>
+                        </Expression>
+                        <Expression xsi:type="WorkflowOutput" />
+                      </Nodes>
+                      <Edges>
+                        <Edge From="0" To="1" Label="Source1" />
+                        <Edge From="1" To="2" Label="Source1" />
+                        <Edge From="2" To="3" Label="Source1" />
+                      </Edges>
+                    </Workflow>
+                  </Expression>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Expression>true</scr:Expression>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Name>PulseOffsets</Name>
+                    <Description>Each pulse's end, 50 ms after its onset (AuditoryStimulusSet.PulseSeconds, each sound pulse's length), on the render clock.</Description>
+                    <Combinator xsi:type="gl:Delay">
+                      <gl:DueTime>PT0.05S</gl:DueTime>
+                    </Combinator>
+                  </Expression>
+                  <Expression xsi:type="scr:ExpressionTransform">
+                    <scr:Expression>false</scr:Expression>
+                  </Expression>
+                  <Expression xsi:type="Combinator">
+                    <Combinator xsi:type="rx:Merge" />
+                  </Expression>
                 </Nodes>
                 <Edges>
                   <Edge From="0" To="1" Label="Source1" />
                   <Edge From="1" To="2" Label="Source1" />
-                  <Edge From="4" To="5" Label="Source1" />
-                  <Edge From="3" To="6" Label="Source1" />
-                  <Edge From="5" To="6" Label="Source2" />
-                  <Edge From="6" To="7" Label="Source1" />
+                  <Edge From="5" To="6" Label="Source1" />
                   <Edge From="7" To="8" Label="Source1" />
-                  <Edge From="6" To="9" Label="Source1" />
-                  <Edge From="9" To="10" Label="Source1" />
+                  <Edge From="10" To="9" Label="Source1" />
                   <Edge From="12" To="11" Label="Source1" />
-                  <Edge From="14" To="13" Label="Source1" />
-                  <Edge From="17" To="15" Label="Source1" />
-                  <Edge From="31" To="32" Label="Source1" />
-                  <Edge From="32" To="33" Label="Source1" />
-                  <Edge From="19" To="33" Label="Source2" />
-                  <Edge From="33" To="18" Label="Source1" />
-                  <Edge From="8" To="20" Label="Source1" />
-                  <Edge From="11" To="20" Label="Source2" />
-                  <Edge From="13" To="20" Label="Source3" />
-                  <Edge From="15" To="20" Label="Source4" />
-                  <Edge From="18" To="20" Label="Source5" />
-                  <Edge From="20" To="22" Label="Source1" />
-                  <Edge From="21" To="22" Label="Source2" />
-                  <Edge From="22" To="23" Label="Source1" />
+                  <Edge From="15" To="13" Label="Source1" />
+                  <Edge From="29" To="30" Label="Source1" />
+                  <Edge From="30" To="31" Label="Source1" />
+                  <Edge From="17" To="31" Label="Source2" />
+                  <Edge From="31" To="16" Label="Source1" />
+                  <Edge From="6" To="18" Label="Source1" />
+                  <Edge From="9" To="18" Label="Source2" />
+                  <Edge From="11" To="18" Label="Source3" />
+                  <Edge From="13" To="18" Label="Source4" />
+                  <Edge From="16" To="18" Label="Source5" />
+                  <Edge From="18" To="20" Label="Source1" />
+                  <Edge From="19" To="20" Label="Source2" />
+                  <Edge From="20" To="21" Label="Source1" />
+                  <Edge From="6" To="23" Label="Source1" />
+                  <Edge From="23" To="22" Label="Source1" />
+                  <Edge From="19" To="22" Label="Source2" />
                   <Edge From="8" To="25" Label="Source1" />
                   <Edge From="25" To="24" Label="Source1" />
-                  <Edge From="21" To="24" Label="Source2" />
-                  <Edge From="10" To="27" Label="Source1" />
-                  <Edge From="27" To="26" Label="Source1" />
-                  <Edge From="21" To="26" Label="Source2" />
-                  <Edge From="2" To="28" Label="Source1" />
-                  <Edge From="29" To="30" Label="Source1" />
-                  <Edge From="30" To="4" Label="Source1" />
-                  <Edge From="16" To="17" Label="Source1" />
+                  <Edge From="19" To="24" Label="Source2" />
+                  <Edge From="2" To="26" Label="Source1" />
+                  <Edge From="27" To="28" Label="Source1" />
+                  <Edge From="14" To="15" Label="Source1" />
+                  <Edge From="3" To="4" Label="Source1" />
+                  <Edge From="4" To="5" Label="Source1" />
+                  <Edge From="4" To="7" Label="Source1" />
+                  <Edge From="28" To="32" Label="Source1" />
+                  <Edge From="34" To="35" Label="Source1" />
+                  <Edge From="33" To="36" Label="Source1" />
+                  <Edge From="35" To="36" Label="Source2" />
+                  <Edge From="36" To="4" Label="Source2" />
+                  <Edge From="32" To="33" Label="Source1" />
+                  <Edge From="32" To="34" Label="Source1" />
                 </Edges>
               </Workflow>
             </Expression>
@@ -387,7 +424,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryLevelDbfs (the set measured as one, one gain), TaskLogic's penalty sound at each penalised trial's penalty.sound.levelDbfs, laid out at Go at the highest level any condition can draw; the background noise at the lab's -60 dBFS, sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the highest level any condition can draw (TrialRules.MaxStimulusLevel into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at penalty.sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryLevelDbfs (the set measured as one, one gain), TaskLogic's penalty sound at each penalised trial's kind's sound.levelDbfs (penalty.incorrect or penalty.noResponse), laid out at Go at the highest level any condition can draw; the background noise at the lab's -60 dBFS, sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the highest level any condition can draw, each pulse's train at every stimulus.rateHz for the longest stimulus.durationSeconds (TrialRules into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at the penalised kind's sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -396,7 +433,7 @@
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="ext:LoadAuditoryStimulusSet">
                 <ext:Folder>sounds</ext:Folder>
-                <ext:FilePrefix>filtered_pink_pulse_train_</ext:FilePrefix>
+                <ext:FilePrefix>filtered_pink_pulse_</ext:FilePrefix>
               </Combinator>
             </Expression>
             <Expression xsi:type="Combinator">
@@ -412,9 +449,6 @@
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialRules</Name>
-            </Expression>
-            <Expression xsi:type="MemberSelector">
-              <Selector>MaxStimulusLevel</Selector>
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="rx:Zip" />
@@ -459,23 +493,31 @@
               <Combinator xsi:type="ext:SelectAuditoryStimulus" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>StimulusSounds</Name>
+              <Name>LoopStimulusSounds</Name>
+              <Description>The trial's one-period buffer, which the mixer loops from the stimulus (OpenRigs.Audio SpeakerMixer) until StopStimulusSounds.</Description>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>StimulusOff</Name>
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>StopStimulusSounds</Name>
+              <Description>The stimulus sound stopped with the grating (OpenRigs.Audio SpeakerMixer: faded over 5 ms) at the trial's StimulusOff event: stimulus.durationSeconds after the stimulus, or stimulus.responseToStimulusOffSeconds after the outcome if sooner.</Description>
             </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
             <Edge From="1" To="2" Label="Source1" />
             <Edge From="2" To="3" Label="Source1" />
-            <Edge From="4" To="7" Label="Source1" />
-            <Edge From="5" To="6" Label="Source1" />
-            <Edge From="6" To="7" Label="Source2" />
+            <Edge From="4" To="6" Label="Source1" />
+            <Edge From="6" To="7" Label="Source1" />
             <Edge From="7" To="8" Label="Source1" />
-            <Edge From="8" To="9" Label="Source1" />
-            <Edge From="10" To="11" Label="Source1" />
-            <Edge From="11" To="13" Label="Source1" />
-            <Edge From="12" To="13" Label="Source2" />
+            <Edge From="9" To="10" Label="Source1" />
+            <Edge From="10" To="12" Label="Source1" />
+            <Edge From="11" To="12" Label="Source2" />
+            <Edge From="12" To="13" Label="Source1" />
             <Edge From="13" To="14" Label="Source1" />
-            <Edge From="14" To="15" Label="Source1" />
+            <Edge From="5" To="6" Label="Source2" />
+            <Edge From="15" To="16" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -568,7 +610,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; the cues GratingOff (visualStimulusSeconds after the stimulus), SpoutsIn (stimulusToSpoutsInSeconds after it) and SpoutsOut (outcomeToSpoutsOutSeconds into the next interval: the spouts out unless the coming trial's stay in); Outcome: the trial's row (TrialRow), the reward (RewardRequests) and the penalty sound. Every spout move is SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -611,7 +653,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>RunTrials</Name>
-              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last outcome plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window responseDelaySeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved azimuthShiftPerLickDeg a lick; left at thresholdLicks, right at -thresholdLicks, else noResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once the maximum ramp-down has played. Inputs: the rules, the clock, the wheel, the left and right lick states, Zapit's replies.</Description>
+              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last outcome plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window stimulusToResponseWindowSeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved azimuthShiftPerLickDeg a lick; left at thresholdLicks, right at -thresholdLicks, else noResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once the maximum ramp-down has played. Inputs: the rules, the clock, the wheel, the left and right lick states, Zapit's replies.</Description>
               <Combinator xsi:type="ext:RunTrials" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
@@ -680,15 +722,14 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Combinator xsi:type="trl:PickTrialEvents">
-                <trl:Kind>Cue</trl:Kind>
-                <trl:Cue>GratingOff</trl:Cue>
+                <trl:Kind>StimulusOff</trl:Kind>
               </Combinator>
             </Expression>
             <Expression xsi:type="MemberSelector">
               <Selector>Trial</Selector>
             </Expression>
             <Expression xsi:type="MulticastSubject">
-              <Name>GratingOff</Name>
+              <Name>StimulusOff</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialEvents</Name>
@@ -707,14 +748,17 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>SpoutCommands</Name>
-              <Description>Every spout move, from the trial events (tested C#): the spouts out at trial 1's interval start and at each SpoutsOut cue, unless the coming trial's spouts stay in (spoutsStayIn); at each SpoutsIn cue the target's alone on a single-spout trial (singleSpoutOffered), else both in; at the outcome, unless the trial's spouts stay in, the rewarded spout alone, else both out.</Description>
-              <Combinator xsi:type="ext:SpoutCommands" />
+              <Description>Every spout move, from the trial events (lib-open-rigs OpenRigs.Trials SpoutCommands): the spouts out at trial 1's interval start and at each SpoutsOut cue, unless the coming trial's spouts are always in (spouts.alwaysIn); at each SpoutsIn cue the trial's own (ISpoutTrial: the target's spout alone on a single-spout trial, singleSpoutOffered, else both in); at the outcome, unless the trial's spouts are always in, the rewarded spout alone, else both out.</Description>
+              <Combinator xsi:type="trl:SpoutCommands" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
               <Name>LickSpoutStage.Commands</Name>
             </Expression>
             <Expression xsi:type="SubscribeSubject">
               <Name>Trial</Name>
+            </Expression>
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Vision:PlayPenaltyFlash.bonsai">
+              <Description>The penalty flash on DomeHardware's projector (lib-open-rigs PlayPenaltyFlash): each outcome TrialOutcomeEffects passes on whose PenaltyFlash plays (penalised, its kind's penalty.&lt;kind&gt;.flash.brightness above 0) flashes the whole field at that brightness at its rateHz for the penalty sound's length; TrialRules' PenaltyFlashes checked at Go against the sound.</Description>
             </Expression>
           </Nodes>
           <Edges>
@@ -753,6 +797,7 @@
             <Edge From="38" To="39" Label="Source1" />
             <Edge From="40" To="41" Label="Source1" />
             <Edge From="41" To="42" Label="Source1" />
+            <Edge From="39" To="44" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

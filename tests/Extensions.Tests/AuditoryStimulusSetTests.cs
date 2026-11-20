@@ -13,6 +13,7 @@ using System.Text;
 public class AuditoryStimulusSetTests
 {
     static readonly double[] Symmetric = { 0.01, -0.05, 0.2, 1.1, 0.2, -0.05, 0.01 };
+    const int Pulse = 2400;   // one 50 ms pulse at 48 kHz
     string rig;
     short[][] waves;
 
@@ -26,7 +27,7 @@ public class AuditoryStimulusSetTests
         waves = new short[AuditoryStimulusSet.WaveformCount][];
         for (int i = 0; i < waves.Length; i++)
         {
-            waves[i] = Enumerable.Range(0, 480).Select(_ => (short)random.Next(short.MinValue, short.MaxValue + 1)).ToArray();
+            waves[i] = Enumerable.Range(0, Pulse).Select(_ => (short)random.Next(short.MinValue, short.MaxValue + 1)).ToArray();
             Wave(i, waves[i], 48000);
         }
         File.WriteAllText(Path.Combine(rig, "calibration", "sym.json"),
@@ -42,7 +43,7 @@ public class AuditoryStimulusSetTests
 
     void Wave(int index, short[] samples, int rate)
     {
-        using (var w = new BinaryWriter(File.Create(Path.Combine(rig, "sounds", "filtered_pink_pulse_train_" + index + ".wav"))))
+        using (var w = new BinaryWriter(File.Create(Path.Combine(rig, "sounds", "filtered_pink_pulse_" + index + ".wav"))))
         {
             w.Write(Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + 2 * samples.Length); w.Write(Encoding.ASCII.GetBytes("WAVEfmt "));
             w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
@@ -67,7 +68,7 @@ public class AuditoryStimulusSetTests
 
     AuditoryStimulusSet Load(SpeakerSet speakers)
     {
-        return AuditoryStimulusSet.Load(speakers, Path.Combine(rig, "sounds"), "filtered_pink_pulse_train_");
+        return AuditoryStimulusSet.Load(speakers, Path.Combine(rig, "sounds"), "filtered_pink_pulse_");
     }
 
     [TestMethod]
@@ -75,7 +76,7 @@ public class AuditoryStimulusSetTests
     {
         try
         {
-            AuditoryStimulusSet.Load(Speakers(), "sounds", "filtered_pink_pulse_train_");
+            AuditoryStimulusSet.Load(Speakers(), "sounds", "filtered_pink_pulse_");
             Assert.Fail("a relative folder was taken");
         }
         catch (ArgumentException ex)
@@ -98,12 +99,15 @@ public class AuditoryStimulusSetTests
     }
 
     [TestMethod]
-    public void EqualisingIsTheFiltersCentredConvolution()
+    public void EqualisingIsTheFiltersCentredConvolutionRingingIncluded()
     {
+        // The 7-tap filter spreads a sample 3 either way, measured: each pulse keeps 3 samples of ringing either side.
         var set = Load(Speakers());
+        Assert.AreEqual(3, set.FilterPad);
         var x = waves[7].Select(s => s / 32768.0).ToArray();
-        var got = Samples(set.Stimulus(7, 2));
-        for (int n = 0; n < x.Length; n++)
+        var got = set.Pulse(7, 2);
+        Assert.AreEqual(Pulse + 6, got.Length);
+        for (int n = -3; n < Pulse + 3; n++)
         {
             double want = 0;
             for (int j = 0; j < Symmetric.Length; j++)
@@ -111,14 +115,34 @@ public class AuditoryStimulusSetTests
                 int k = n + j - 3;
                 if (k >= 0 && k < x.Length) want += Symmetric[j] * x[k];
             }
-            Assert.AreEqual(want, got[n], 1e-5);
+            Assert.AreEqual(want, got[n + 3], 1e-5);
         }
+    }
+
+    [TestMethod]
+    public void ThePeriodLoopsAsTheFilteredTrainWithNoSeam()
+    {
+        // 8 Hz: one 6000-sample period, the pulse at its start; its 3 samples of ringing before onset wrapped to the period's
+        // end, so the mixer's loop of it is the filtered pulse train. At 20 Hz a period is the 2400-sample pulse itself, both
+        // tails wrapped in.
+        var set = Load(Speakers());
+        var pulse = set.Pulse(7, 2);
+        var period = Samples(set.Period(7, 2, 8));
+        Assert.AreEqual(6000, period.Length);
+        for (int n = 0; n < 6000; n++)
+        {
+            int j = n < 6000 - 3 ? n + 3 : n - 6000 + 3;   // the pulse's sample at n, the tail before onset at the end
+            Assert.AreEqual(j < pulse.Length ? pulse[j] : 0, period[n], 1e-6, "sample " + n);
+        }
+        var fast = Samples(set.Period(7, 2, 20));
+        Assert.AreEqual(2400, fast.Length);
+        Assert.AreEqual(pulse[3] + pulse[2403], fast[0], 1e-6, "the ringing after the pulse wraps onto the next one's start");
     }
 
     [TestMethod]
     public void A_channel_with_no_speaker_is_refused()
     {
-        StringAssert.Contains(Fixture.Refusal(() => Load(Speakers()).Stimulus(7, 99)), "mixer channel 99");
+        StringAssert.Contains(Fixture.Refusal(() => Load(Speakers()).Pulse(7, 99)), "mixer channel 99");
     }
 
     [TestMethod]
@@ -126,10 +150,12 @@ public class AuditoryStimulusSetTests
     {
         Func<Action, string> refusal = Fixture.Refusal;
         StringAssert.Contains(refusal(() => Load(Speakers(false))), "no syncChannel");
+        Wave(3, waves[3].Take(480).ToArray(), 48000);
+        StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_3.wav is 480 samples, not one 50 ms pulse (2400)");
         Wave(5, waves[5], 44100);
-        StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_train_5.wav");
-        File.Delete(Path.Combine(rig, "sounds", "filtered_pink_pulse_train_42.wav"));
-        StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_train_42.wav");
+        StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_5.wav");
+        File.Delete(Path.Combine(rig, "sounds", "filtered_pink_pulse_42.wav"));
+        StringAssert.Contains(refusal(() => Load(Speakers())), "filtered_pink_pulse_42.wav");
     }
 
     [TestMethod]
@@ -152,30 +178,31 @@ public class AuditoryStimulusSetTests
         var level = set.LevelDbfs;
         var gain = set.Gain(-40);
         Assert.AreEqual(Math.Pow(10, (-40 - level) / 20), gain, 1e-12);
-        var raw = Enumerable.Range(0, AuditoryStimulusSet.WaveformCount).Select(i => OpenRigs.Audio.Wave.Read(Path.Combine(rig, "sounds", "filtered_pink_pulse_train_" + i + ".wav"), 48000)).ToList();
+        var raw = Enumerable.Range(0, AuditoryStimulusSet.WaveformCount).Select(i => OpenRigs.Audio.Wave.Read(Path.Combine(rig, "sounds", "filtered_pink_pulse_" + i + ".wav"), 48000)).ToList();
         var scaled = raw.Select(w => { var m = new OpenCV.Net.Mat(1, w.Cols, OpenCV.Net.Depth.F32, 1); OpenCV.Net.CV.ConvertScale(w, m, gain, 0); return m; }).ToList();
         Assert.AreEqual(-40, AuditoryStimulusSet.SetLevelDbfs(scaled, 48000), 1e-6, "the set as played is at its levelDbfs");
         Assert.AreEqual(0, set.Gain(double.NaN), "mute");
         var repo = Path.Combine(Fixture.Repo(), "src", "sounds");
-        var files = Enumerable.Range(0, AuditoryStimulusSet.WaveformCount).Select(i => OpenRigs.Audio.Wave.Read(Path.Combine(repo, "filtered_pink_pulse_train_" + i + ".wav"), 48000)).ToList();
+        var files = Enumerable.Range(0, AuditoryStimulusSet.WaveformCount).Select(i => OpenRigs.Audio.Wave.Read(Path.Combine(repo, "filtered_pink_pulse_" + i + ".wav"), 48000)).ToList();
         Assert.AreEqual(-43.22, AuditoryStimulusSet.SetLevelDbfs(files, 48000), 0.005, "the repo's set as stored, silent gaps left out");
     }
 
     [TestMethod]
     public void EachStimulusPlaysAtItsLevelUpToTheMaxLevelCheckedAtGo()
     {
-        // A trial's level scales the equalised waveform by the set's one gain, up to the highest level the conditions can draw, whose
-        // every equalised copy is checked under the -1 dBFS peak at Go, naming the condition and the speaker.
+        // A trial's level scales its equalised train by the set's one gain, up to the highest level the conditions can draw, whose
+        // every train at each rate is checked under the -1 dBFS peak at Go, naming the condition, the rate and the speaker.
         var set = Load(Speakers());
         Func<Action, string> refusal = Fixture.Refusal;
-        StringAssert.Contains(refusal(() => set.Buffer(7, 2, -40)), "not at or below the NaN the set was checked for at Go");
+        StringAssert.Contains(refusal(() => set.Buffer(7, 2, -40, 8)), "not at or below the NaN the set was checked for at Go");
         var loud = set.LevelDbfs - 20;
-        var checkedSet = set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = loud, Where = "trialConditions[1] (auditory)" });
-        StringAssert.Contains(refusal(() => checkedSet.Buffer(7, 2, loud + 1)), "the " + loud + " the set was checked for at Go");
-        var equalised = Samples(set.Stimulus(7, 2));
+        var checkedSet = set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = loud, Where = "trialConditions[1] (auditory)" }, new[] { 8.0 });
+        StringAssert.Contains(refusal(() => checkedSet.Buffer(7, 2, loud + 1, 8)), "the " + loud + " the set was checked for at Go");
+        var equalised = Samples(set.Period(7, 2, 8));
         foreach (var level in new[] { loud, loud - 6 })
         {
-            var buffer = checkedSet.Buffer(7, 2, level);
+            var buffer = checkedSet.Buffer(7, 2, level, 8);
+            Assert.AreEqual(6000, buffer.Cols, "one 125 ms period, which the mixer loops");
             using (var row = buffer.GetRow(2))
             using (var copy = new OpenCV.Net.Mat(1, buffer.Cols, OpenCV.Net.Depth.F32, 1))
             {
@@ -185,10 +212,10 @@ public class AuditoryStimulusSetTests
             }
         }
         // At "all" every speaker's channel plays its own equalised copy at the level: the per-speaker check above covers it.
-        var everywhere = checkedSet.Buffer(7, SoundAzimuths.AllSpeakersChannel, loud);
+        var everywhere = checkedSet.Buffer(7, SoundAzimuths.AllSpeakersChannel, loud, 8);
         foreach (var channel in set.Speakers.SpeakerChannels)
         {
-            var own = Samples(set.Stimulus(7, channel));
+            var own = Samples(set.Period(7, channel, 8));
             using (var row = everywhere.GetRow(channel))
             using (var copy = new OpenCV.Net.Mat(1, everywhere.Cols, OpenCV.Net.Depth.F32, 1))
             {
@@ -197,7 +224,7 @@ public class AuditoryStimulusSetTests
                 for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(own[n] * set.Gain(loud), played[n], 1e-6);
             }
         }
-        StringAssert.Contains(refusal(() => set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = -2, Where = "trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2" })),
-            "on speaker 'left' at -2 dBFS (auditoryStimulus.levelDbfs, trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2) peaks at");
+        StringAssert.Contains(refusal(() => set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = -2, Where = "trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2" }, new[] { 8.0 })),
+            "at 8 Hz on speaker 'left' at -2 dBFS (auditoryStimulus.levelDbfs, trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2) peaks at");
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Core;
 using OpenRigs.Devices;
+using OpenRigs.Devices.Zapit;
 using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
@@ -93,7 +94,7 @@ public class HandoverTests
         foreach (var golden in Goldens())
         {
             var built = Built(golden.Key, golden.Value);
-            var draw = new TrialDraw(golden.Value, Fixture.Speakers(), path => 2);
+            var draw = new TrialDraw(golden.Value, Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
             var counts = new Dictionary<int, int>();
             for (int n = 0; n < Draws; n++)
             {
@@ -142,7 +143,7 @@ public class HandoverTests
         foreach (var golden in Goldens())
         {
             var built = Built(golden.Key, golden.Value);
-            var loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(new TrialRules(golden.Value, Fixture.Speakers(), true, path => 2), true);
+            var loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(new TrialRules(golden.Value, Fixture.Speakers(), true, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)), true);
             var mouse = new Random(1);
             var rows = new List<TrialRow>();
             var trials = new Dictionary<int, Trial>();
@@ -205,9 +206,9 @@ public class HandoverTests
                 if (condition.Children.TryGetValue(new YamlScalarNode("set"), out node)) foreach (var key in ((YamlMappingNode)node).Children.Keys) allowed.Add(((YamlScalarNode)key).Value);
                 if (condition.Children.TryGetValue(new YamlScalarNode("pairs"), out node)) foreach (YamlSequenceNode group in (YamlSequenceNode)node) foreach (YamlScalarNode path in group) allowed.Add(path.Value);
             }
-            var rules = new TrialRules(golden.Value, Fixture.Speakers(), true, path => 2);
+            var rules = new TrialRules(golden.Value, Fixture.Speakers(), true, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
             var json = rules.CombinationsJson;
-            var draw = new TrialDraw(golden.Value, Fixture.Speakers(), path => 2);
+            var draw = new TrialDraw(golden.Value, Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
             var own = TaskYaml.Flatten(draw.Task, TaskSchema.ListFields);
             var rows = (Newtonsoft.Json.Linq.JArray)Newtonsoft.Json.Linq.JObject.Parse(json)["rows"];
             var combinations = draw.Conditions.SelectMany((c, i) => c.Combinations.Select(m => Tuple.Create(i, c, m))).ToList();
