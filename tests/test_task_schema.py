@@ -46,7 +46,9 @@ def test_committed_task_files_start_with_the_laser_off(path):
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
 def test_committed_task_files_start_at_the_two_azimuths(path):
     visual = yaml.safe_load(path.read_text())["taskParameters"]["visualStimulus"]
-    assert (visual["initialAzimuthsDeg"], visual["elevationDeg"]) == ([-60, 60], 15)
+    assert (visual["initialAzimuthsDeg"], visual["initialElevationDeg"]) == ([-60, 60], 15)
+    sound = yaml.safe_load(path.read_text())["taskParameters"]["auditoryStimulus"]   # the speakers' (Gerion, 20 Nov 2026)
+    assert (sound["initialAzimuthsDeg"], sound["initialElevationDeg"]) == ([-90, 90], 15)
 
 
 @pytest.mark.parametrize("values, words", [([0], "must not hold 0"), ([-60, 0], "must not hold 0"), ([-60, 200], "outside"), ([], "at least 1")])
@@ -422,9 +424,9 @@ def test_a_target_of_another_task_type_is_refused(task_type, name):
     ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": [0, 60]}, r"target auditorySide needs auditory azimuths without 0 or all \(x-rules\)"),
     ({"target": "auditorySide", "auditoryStimulus.initialAzimuthsDeg": ["all", 60]}, r"target auditorySide needs auditory azimuths without 0 or all \(x-rules\)"),
     ({"auditoryStimulus.initialAzimuthsDeg": ["left"]}, "auditoryStimulus.initialAzimuthsDeg"),
-    ({"auditoryStimulus.levelDbfs": -0.5}, "auditoryStimulus.levelDbfs"),
-    ({"auditoryStimulus.levelDbfs": "off"}, "auditoryStimulus.levelDbfs"),
-    ({"visualStimulus.contrasts": [-1]}, "contrasts must each be 0 or more"),
+    ({"auditoryStimulus.initialLevelDbfs": -0.5}, "auditoryStimulus.initialLevelDbfs"),
+    ({"auditoryStimulus.initialLevelDbfs": "off"}, "auditoryStimulus.initialLevelDbfs"),
+    ({"visualStimulus.initialContrasts": [-1]}, "initialContrasts must each be 0 or more"),
 ])
 def test_a_condition_breaking_a_rule_is_refused(set_, words):
     with pytest.raises(ValidationError, match=words):
@@ -435,14 +437,14 @@ V, S = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg
 
 
 @pytest.mark.parametrize("set_, pairs, trial_type", [
-    ({"target": "go"}, [], "go"), ({"target": "noGo", "visualStimulus.contrasts": [0]}, [], "noGo"), ({"target": "left"}, [], "left"), ({"target": "right"}, [], "right"),
+    ({"target": "go"}, [], "go"), ({"target": "noGo", "visualStimulus.initialContrasts": [0]}, [], "noGo"), ({"target": "left"}, [], "left"), ({"target": "right"}, [], "right"),
     ({}, [], "audiovisualCoherent"), ({V: [-60, 60], S: [-60, 60]}, [[V, S]], "audiovisualCoherent"),
     ({V: [-60, 60], S: [60, -60]}, [[V, S]], "audiovisualConflict"), ({V: [-60, 60], S: [60, -60]}, [], "audiovisualCoherent"),
     ({S: [0]}, [], "visual"), ({S: ["all"]}, [], "visual"), ({S: [0, "all"]}, [], "visual"), ({S: [0, 60]}, [], "audiovisualCoherent"),
-    ({"auditoryStimulus.levelDbfs": "mute"}, [], "visual"), ({"auditoryStimulus.levelDbfs": ["mute", -45]}, [], "audiovisualCoherent"),
-    ({"visualStimulus.contrasts": [0]}, [], "auditory"), ({"visualStimulus.contrasts": [0, 0.5]}, [], "audiovisualCoherent"),
-    ({"visualStimulus.contrasts": [0], S: ["all"]}, [], "neutral"), ({"visualStimulus.contrasts": [0], S: [0]}, [], "neutral"),
-    ({"visualStimulus.contrasts": [0], "auditoryStimulus.levelDbfs": "mute"}, [], "neutral"), ({"target": "random", "visualStimulus.contrasts": [0], S: [0]}, [], "neutral"),
+    ({"auditoryStimulus.initialLevelDbfs": "mute"}, [], "visual"), ({"auditoryStimulus.initialLevelDbfs": ["mute", -45]}, [], "audiovisualCoherent"),
+    ({"visualStimulus.initialContrasts": [0]}, [], "auditory"), ({"visualStimulus.initialContrasts": [0, 0.5]}, [], "audiovisualCoherent"),
+    ({"visualStimulus.initialContrasts": [0], S: ["all"]}, [], "neutral"), ({"visualStimulus.initialContrasts": [0], S: [0]}, [], "neutral"),
+    ({"visualStimulus.initialContrasts": [0], "auditoryStimulus.initialLevelDbfs": "mute"}, [], "neutral"), ({"target": "random", "visualStimulus.initialContrasts": [0], S: [0]}, [], "neutral"),
 ])
 def test_every_trial_type_is_derived_by_x_trial_types(set_, pairs, trial_type):
     # The localization task's contrast 3 and level -40 dBFS at [-60, 60] under each set; the condition itself is not checked.
@@ -487,7 +489,7 @@ def test_all_plays_on_every_speaker_and_pairs():
     # "all" is a sound azimuth item: alone, in a list, paired with the grating's azimuths; it has no side, so no cue.
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
     task = _conditions({"weight": 1, "pairs": [[visual, sound]], "set": {visual: [-60, 60], sound: ["all", 60]}},
-                       {"weight": 1, "set": {"visualStimulus.contrasts": [0], sound: ["all"], "target": "random"}})
+                       {"weight": 1, "set": {"visualStimulus.initialContrasts": [0], sound: ["all"], "target": "random"}})
     assert task.derive_trial_type(task.trial_conditions[1]) == "neutral"
     items = json.loads(SCHEMA.read_text())["$defs"]["AuditoryStimulus"]["properties"]["initialAzimuthsDeg"]["items"]
     assert items == {"oneOf": [{"type": "number"}, {"const": "all", "type": "string"}]}   # oneOf: Bonsai.Sgen's List<object>
@@ -495,30 +497,30 @@ def test_all_plays_on_every_speaker_and_pairs():
 
 def test_a_loud_level_is_the_peak_check_s_to_refuse():
     # Pydantic cannot know the speakers: Go checks the highest level against the -1 dBFS peak (LevelAuditoryStimulusSet).
-    _conditions({"weight": 1, "set": {"target": "auditorySide", "visualStimulus.contrasts": [0], "auditoryStimulus.levelDbfs": [-40, -2]}})
+    _conditions({"weight": 1, "set": {"target": "auditorySide", "visualStimulus.initialContrasts": [0], "auditoryStimulus.initialLevelDbfs": [-40, -2]}})
 
 
 def test_pairs_zip_their_lists_and_the_rest_combine():
     base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
     visual, sound = "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"
-    combos = ct.condition_combinations(base, {sound: [60, -60], "visualStimulus.contrasts": [0.5, 1], "auditoryStimulus.levelDbfs": [-45, -40]}, [[visual, sound], ["visualStimulus.contrasts", "auditoryStimulus.levelDbfs"]], LIST_FIELDS)
+    combos = ct.condition_combinations(base, {sound: [60, -60], "visualStimulus.initialContrasts": [0.5, 1], "auditoryStimulus.initialLevelDbfs": [-45, -40]}, [[visual, sound], ["visualStimulus.initialContrasts", "auditoryStimulus.initialLevelDbfs"]], LIST_FIELDS)
     # The first cell's pick changes fastest (OpenRigs.Trials TrialConditions.Build' order, Settings_Combinations' rows).
     assert combos == [
-        {visual: [-60], sound: [60], "visualStimulus.contrasts": [0.5], "auditoryStimulus.levelDbfs": -45},
-        {visual: [60], sound: [-60], "visualStimulus.contrasts": [0.5], "auditoryStimulus.levelDbfs": -45},
-        {visual: [-60], sound: [60], "visualStimulus.contrasts": [1], "auditoryStimulus.levelDbfs": -40},
-        {visual: [60], sound: [-60], "visualStimulus.contrasts": [1], "auditoryStimulus.levelDbfs": -40},
+        {visual: [-60], sound: [60], "visualStimulus.initialContrasts": [0.5], "auditoryStimulus.initialLevelDbfs": -45},
+        {visual: [60], sound: [-60], "visualStimulus.initialContrasts": [0.5], "auditoryStimulus.initialLevelDbfs": -45},
+        {visual: [-60], sound: [60], "visualStimulus.initialContrasts": [1], "auditoryStimulus.initialLevelDbfs": -40},
+        {visual: [60], sound: [-60], "visualStimulus.initialContrasts": [1], "auditoryStimulus.initialLevelDbfs": -40},
     ]
     # Unpaired, every list field (the set's or the task's) is one entry per combination, a list in a scalar cell one value,
     # by path, the first changing fastest.
-    combos = ct.condition_combinations(base, {"visualStimulus.contrasts": [0.5, 1], "reward.sizeUl": [2, 3]}, [], LIST_FIELDS)
+    combos = ct.condition_combinations(base, {"visualStimulus.initialContrasts": [0.5, 1], "reward.sizeUl": [2, 3]}, [], LIST_FIELDS)
     assert len(combos) == 16 and combos[:3] == [
-        {sound: [-60], "reward.sizeUl": 2, "visualStimulus.contrasts": [0.5], visual: [-60]},
-        {sound: [60], "reward.sizeUl": 2, "visualStimulus.contrasts": [0.5], visual: [-60]},
-        {sound: [-60], "reward.sizeUl": 3, "visualStimulus.contrasts": [0.5], visual: [-60]}]
+        {sound: [-90], "reward.sizeUl": 2, "visualStimulus.initialContrasts": [0.5], visual: [-60]},
+        {sound: [90], "reward.sizeUl": 2, "visualStimulus.initialContrasts": [0.5], visual: [-60]},
+        {sound: [-90], "reward.sizeUl": 3, "visualStimulus.initialContrasts": [0.5], visual: [-60]}]
     with pytest.raises(ValidationError, match=r"pairs \['visualStimulus.initialAzimuthsDeg', 'auditoryStimulus.initialAzimuthsDeg'\] have lists of lengths 2, 3"):
         _conditions({"weight": 1, "pairs": [[visual, sound]], "set": {sound: [-60, 0, 60]}})
-    for pairs in ([[visual]], [[visual, sound], [sound, "visualStimulus.contrasts"]]):
+    for pairs in ([[visual]], [[visual, sound], [sound, "visualStimulus.initialContrasts"]]):
         with pytest.raises(ValidationError, match="each pairs group needs two paths or more"):
             _conditions({"weight": 1, "pairs": pairs})
     with pytest.raises(ValidationError, match="pairs rngSeed, a session field"):
@@ -661,7 +663,7 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_session_fields():
 
 
 def test_a_condition_may_set_any_field_but_a_session_field():
-    _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 2, "visualStimulus.orientationDeg": [0, 90], "penalty.incorrect.timeoutSeconds": 2}})
+    _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 2, "visualStimulus.initialOrientationDeg": [0, 90], "penalty.incorrect.timeoutSeconds": 2}})
     for path in ["rngSeed", "taskType", "curriculum.code", "optogenetics.zapitConditionsPath", "optogenetics.enabled"]:
         field = ct.session_field(path, SESSION_FIELDS)
         with pytest.raises(ValidationError, match=rf"sets or pairs {re.escape(path)}, a session field \(x-session-fields: {re.escape(field)} "):
@@ -678,7 +680,7 @@ def test_timing_between_a_trial_and_the_next_holds_across_combinations():
 
 
 def test_a_condition_s_set_is_built_and_checked_as_a_task():
-    task = _conditions({"weight": 3, "set": {"visualStimulus.contrasts": [0.5, 1], "reward.sizeUl": [2, 3], "visualStimulus.initialAzimuthsDeg": [60]}},
+    task = _conditions({"weight": 3, "set": {"visualStimulus.initialContrasts": [0.5, 1], "reward.sizeUl": [2, 3], "visualStimulus.initialAzimuthsDeg": [60]}},
                        {"weight": 1})
     assert [c.weight for c in task.trial_conditions] == [3, 1]
     for condition, words in [
@@ -695,7 +697,7 @@ def test_a_condition_s_set_is_built_and_checked_as_a_task():
 
 def test_a_condition_may_expand_into_at_most_the_cap():
     # Every list field expands too: the task's two sound azimuths double the set's 16 x 32.
-    cells = {"visualStimulus.contrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.sizeUl": [1 + i / 16 for i in range(16)], "autoRewardProbability": [i / 32 for i in range(32)]}
+    cells = {"visualStimulus.initialContrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.sizeUl": [1 + i / 16 for i in range(16)], "autoRewardProbability": [i / 32 for i in range(32)]}
     assert MAX_COMBINATIONS == 1024 == 2 * 16 * 32
     _conditions({"weight": 1, "set": cells})
     cells["autoRewardProbability"].append(1)
@@ -706,7 +708,7 @@ def test_a_condition_may_expand_into_at_most_the_cap():
 def test_an_oversized_condition_is_refused_before_its_combinations_are_built():
     # Counted first, as OpenRigs.Trials TrialConditions.Build does: 2 x 1000^3 combinations would take hours and all memory to build.
     many = [i / 1000 for i in range(1000)]
-    cells = {"visualStimulus.contrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.sizeUl": [1 + x for x in many], "autoRewardProbability": many, "spouts.singleSpoutProbability": [1 - x for x in many]}
+    cells = {"visualStimulus.initialContrasts": [1], "visualStimulus.initialAzimuthsDeg": [60], "reward.sizeUl": [1 + x for x in many], "autoRewardProbability": many, "spouts.singleSpoutProbability": [1 - x for x in many]}
     with pytest.raises(ValidationError, match="expands into 2000000000 combinations"):
         _conditions({"weight": 1, "set": cells})
 
@@ -719,7 +721,7 @@ def test_a_condition_pins_the_laser_with_optogenetics_on():
 
 
 def test_condition_edges_a_zero_among_others_duplicates_one_condition_the_weight_cap_and_a_wrong_type():
-    _conditions({"weight": 0}, {"weight": 2}, {"weight": 1, "set": {"visualStimulus.contrasts": [1]}})
+    _conditions({"weight": 0}, {"weight": 2}, {"weight": 1, "set": {"visualStimulus.initialContrasts": [1]}})
     _conditions({"weight": 1})
     _conditions({"weight": 1000000}, {"weight": 1000000})
     with pytest.raises(ValidationError, match="1000000"):
@@ -743,7 +745,7 @@ def test_weights_may_add_to_the_draw_s_int_and_no_more():
 def test_side_target_keeps_its_azimuth_read():
     # visualSide and auditorySide set the reward side from the picked azimuth, shown or not (TrialDraw.New).
     base = _task("task-localization.yml").model_dump(by_alias=True, mode="json")
-    unshown = {**base, "visualStimulus": {**base["visualStimulus"], "contrasts": [0]}, "auditoryStimulus": {**base["auditoryStimulus"], "levelDbfs": "mute"}}
+    unshown = {**base, "visualStimulus": {**base["visualStimulus"], "initialContrasts": [0]}, "auditoryStimulus": {**base["auditoryStimulus"], "initialLevelDbfs": "mute"}}
     assert unused_paths(RULES, {**unshown, "target": "left"}) == {"visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"}
     assert unused_paths(RULES, {**unshown, "target": "visualSide"}) == {"auditoryStimulus.initialAzimuthsDeg"}
     assert unused_paths(RULES, {**unshown, "target": "auditorySide"}) == {"visualStimulus.initialAzimuthsDeg"}

@@ -224,7 +224,7 @@ public class AuditoryStimulusSetTests
                 for (int n = 0; n < played.Length; n += 37) Assert.AreEqual(own[n] * set.Gain(loud), played[n], 1e-6);
             }
         }
-        StringAssert.Contains(refusal(() => set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = -2, Where = "trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2" }, new[] { 8.0 })),
-            "at 8 Hz on speaker 'left' at -2 dBFS (auditoryStimulus.levelDbfs, trialConditions[2] (visual) with auditoryStimulus.levelDbfs -2) peaks at");
+        StringAssert.Contains(refusal(() => set.AtMaxLevel(new MaxSoundLevel { LevelDbfs = -2, Where = "trialConditions[2] (visual) with auditoryStimulus.initialLevelDbfs -2" }, new[] { 8.0 })),
+            "at 8 Hz on speaker 'left' at -2 dBFS (auditoryStimulus.initialLevelDbfs, trialConditions[2] (visual) with auditoryStimulus.initialLevelDbfs -2) peaks at");
     }
 }

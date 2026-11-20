@@ -29,7 +29,7 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral, go, noGo, left, right]
-  description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryLevelDbfs, the azimuths, target). It is derived at Go from the condition's settings (the task schema's x-trial-types), never stored - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none).
+  description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualInitialContrast, auditoryInitialLevelDbfs, the azimuths, target). It is derived at Go from the condition's settings (the task schema's x-trial-types), never stored - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none).
 outcome:
   type: string
   values: [correct, incorrect, noResponse, probe, auto]
@@ -78,7 +78,7 @@ penaltyTimeoutSeconds:
   type: double
   unit: s
   description: 'The timeout after this trial when it was penalised, else 0: the trial''s penalty.incorrect.timeoutSeconds, or on a miss its penalty.noResponse.timeoutSeconds. The next interval starts after it (itiStartTime).'
-  note: Penalised - an incorrect choice (penalty.incorrect), or a miss that was not auto-rewarded (penalty.noResponse); in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised, and penalty.noResponse is null); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
+  note: Penalised - an incorrect choice (penalty.incorrect), or a miss that was not auto-rewarded (penalty.noResponse); in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised, and penalty.noResponse is null); a random-reward probe only with penaliseRandomProbes true (default false), then a choice on the coin's tails, as an incorrect choice, or a miss not auto-rewarded (penalty.noResponse); a noReward probe never.
 penaltyFlashBrightness:
   type: double
   description: 'The brightness of the penalty flash after this trial when it was penalised, else 0: the trial''s penalty.incorrect.flash.brightness, or on a miss its penalty.noResponse.flash.brightness, 0 to 1 of the projector''s full white after gamma correction; 0 when no flash played. A flash covers the whole projector field at its kind''s flash.rateHz (white the first half of each cycle) from the outcome for the penalty sound''s length (OpenRigs.Vision PlayPenaltyFlash).'
@@ -86,7 +86,7 @@ penaltyFlashBrightness:
 penalised:
   type: bool
   description: 'True when the trial was penalised: the timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.incorrect.sound.levelDbfs, or on a miss its penalty.noResponse.sound.levelDbfs (none when mute), followed its outcome. Which trials are penalised, and which are misses, is the task''s (its note).'
-  note: An incorrect choice, or a miss that was not on an auto-reward trial; in discriminationGoNoGo only a lick on a noGo trial (a false alarm; a go miss and a noReward trial are unpenalised); on a random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
+  note: An incorrect choice, or a miss that was not on an auto-reward trial; in discriminationGoNoGo only a lick on a noGo trial (a false alarm; a go miss and a noReward trial are unpenalised); a random trial only with penaliseRandomProbes true (default false), then a choice on the coin's tails, or a miss not auto-rewarded; a noReward trial never.
 laserCondition:
   type: int
   description: 'The Zapit condition sent to Zapit this trial (its conditions file''s number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics.'
@@ -104,27 +104,27 @@ trialConditionId:
 trialCombinationId:
   type: int
   description: 'The trial''s row in the experiment''s Settings_Combinations (0-based, session-wide): the combination it was drawn from, one pick of every list (pairs zipped), whose values that differ between combinations or from Settings_Task are the row''s values; the row''s trialConditionId and trialType are this trial''s. A repeat keeps the combination of the trial it repeats.'
-visualContrast:
+visualInitialContrast:
   type: double
-  description: Grating contrast as BonVision's Contrast, 1 full contrast; 0 when no grating was shown.
-  copyOf: visualStimulus.contrasts
+  description: Grating contrast as the trial starts, as BonVision's Contrast, 1 full contrast; 0 when no grating was shown.
+  copyOf: visualStimulus.initialContrasts
 visualPhaseRad:
   type: double
   unit: rad
   description: The grating's phase, drawn uniformly from 0 to 2 pi for every trial from the seeded stream (OpenRigs.Trials ConditionedTrial).
-auditoryLevelDbfs:
+auditoryInitialLevelDbfs:
   type: double
   unit: dBFS
-  description: The sound's level in dBFS RMS, the trial's auditoryStimulus.levelDbfs; NaN when no sound played (mute).
-  copyOf: auditoryStimulus.levelDbfs
+  description: The sound's level in dBFS RMS as the trial starts, the trial's auditoryStimulus.initialLevelDbfs; NaN when no sound played (mute).
+  copyOf: auditoryStimulus.initialLevelDbfs
 auditoryInitialAzimuthDeg:
   type: double
   unit: deg
-  description: Azimuth of the speaker that played, rig.yml's nearest to the initial azimuth drawn; NaN when none played (auditoryLevelDbfs NaN) or when every speaker played (auditoryStimulus.initialAzimuthsDeg all).
-auditoryElevationDeg:
+  description: Azimuth of the speaker that played, rig.yml's nearest to the initial azimuth drawn; NaN when none played (auditoryInitialLevelDbfs NaN) or when every speaker played (auditoryStimulus.initialAzimuthsDeg all).
+auditoryInitialElevationDeg:
   type: double
   unit: deg
-  description: Elevation of the speaker that played; NaN when none or every speaker played, as auditoryInitialAzimuthDeg.
+  description: Elevation of the speaker that played as the trial starts; NaN when none or every speaker played, as auditoryInitialAzimuthDeg.
 autoReward:
   type: bool
   description: 'True on an auto-reward trial (drawn with the task''s autoRewardProbability): one rewarded without a correct response, its outcome auto when the auto-reward answered it with no response of the mouse''s own; how, and so whether its reward came from the auto-reward, is the task''s (its note).'
@@ -132,7 +132,7 @@ autoReward:
 target:
   type: string
   values: [left, right, go, noGo, noReward, random]
-  description: The answer the trial rewards, from its condition's target, in the task file's spelling - left or right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo go (lick) or noGo (withhold). On a trial with no right answer (outcome probe, never repeated) noReward or random - noReward a no-reward probe (never rewarded or penalised; in localization and discriminationLeftRight both spouts in), random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
+  description: The answer the trial rewards, from its condition's target, in the task file's spelling - left or right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo go (lick) or noGo (withhold). On a trial with no right answer (outcome probe, never repeated) noReward or random - noReward a no-reward probe (never rewarded or penalised; in localization and discriminationLeftRight both spouts in), random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there on a coin drawn with the trial (heads), else unrewarded; tails and a miss not auto-rewarded are penalised only with penaliseRandomProbes true (default false).
 choice:
   type: string
   values: [left, right, go, noResponse]
@@ -146,9 +146,9 @@ singleSpoutOffered:
 visualInitialAzimuthDeg:
   type: double
   unit: deg
-  description: The azimuth the grating started at, one of visualStimulus.initialAzimuthsDeg (the licks then move it by azimuthShiftPerLickDeg); NaN when no grating was shown (visualContrast 0), as auditoryInitialAzimuthDeg when no sound played.
+  description: The azimuth the grating started at, one of visualStimulus.initialAzimuthsDeg (the licks then move it by azimuthShiftPerLickDeg); NaN when no grating was shown (visualInitialContrast 0), as auditoryInitialAzimuthDeg when no sound played.
   copyOf: visualStimulus.initialAzimuthsDeg
-  nanWhen: {column: visualContrast, equals: 0}
+  nanWhen: {column: visualInitialContrast, equals: 0}
 auditorySoundFileIndex:
   type: int
   description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_<index>.wav), each one 50 ms pulse of noise played every 1/stimulus.rateHz s; until November 2026 each file (then filtered_pink_pulse_train_<index>.wav) held its pulse 12 times at 8 Hz, so an index names the same noise before and after.

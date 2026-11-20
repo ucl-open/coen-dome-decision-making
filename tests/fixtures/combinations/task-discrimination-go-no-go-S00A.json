@@ -6,8 +6,8 @@
       "trialType": "go",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
@@ -18,8 +18,8 @@
       "trialType": "go",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
@@ -30,8 +30,8 @@
       "trialType": "go",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
@@ -42,8 +42,8 @@
       "trialType": "go",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": 60.0
       }

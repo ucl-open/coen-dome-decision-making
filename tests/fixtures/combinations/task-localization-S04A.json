@@ -10,8 +10,8 @@
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -24,8 +24,8 @@
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -38,8 +38,8 @@
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -52,8 +52,8 @@
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -66,8 +66,8 @@
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -80,8 +80,8 @@
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -90,12 +90,12 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -104,12 +104,12 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -118,12 +118,12 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -132,12 +132,12 @@
       "trialType": "auditory",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -146,12 +146,12 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -160,12 +160,12 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -174,12 +174,12 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -188,12 +188,12 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -202,12 +202,12 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -216,12 +216,12 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 5,
         "repeats.repeatOn": "notCorrect",
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -230,12 +230,12 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -244,12 +244,12 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -258,12 +258,12 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -272,12 +272,12 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -286,12 +286,12 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -300,12 +300,12 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -318,8 +318,8 @@
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -332,8 +332,8 @@
         "repeats.maxRepeats": 0,
         "repeats.repeatOn": "never",
         "target": "random",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     }
   ]

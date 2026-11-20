@@ -105,7 +105,7 @@ public class AuditoryStimulusSet
     }
 
     /// <summary>The set's level as stored, in dBFS RMS (OpenRigs.Audio SoundLevel's rule, silent stretches left out): the
-    /// power mean of its waveforms' levels, which agree within 0.01 dB (-43.22). A trial's auditoryStimulus.levelDbfs is
+    /// power mean of its waveforms' levels, which agree within 0.01 dB (-43.22). A trial's auditoryStimulus.initialLevelDbfs is
     /// one gain over the whole set: every waveform keeps its place relative to the others.</summary>
     public double LevelDbfs { get; private set; }
 
@@ -123,7 +123,7 @@ public class AuditoryStimulusSet
     }
 
     /// <summary>
-    /// The set checked for the highest sound level the task's conditions can draw (auditoryStimulus.levelDbfs, one gain for the
+    /// The set checked for the highest sound level the task's conditions can draw (auditoryStimulus.initialLevelDbfs, one gain for the
     /// set): every pulse's period at each rate the conditions can draw (stimulus.rateHz) at that level checked against the
     /// lab's -1 dBFS peak, the neighbouring pulses' filter ringing wrapped in, so a sound too loud stops the workflow at Go,
     /// naming the condition, the waveform, the rate and the speaker, not at the trial that plays it. A trial may then play
@@ -145,7 +145,7 @@ public class AuditoryStimulusSet
                         CV.ConvertScale(train, played, gain, 0);
                         SoundLevel.CheckPeak(played, "Auditory stimulus " + i + " at " + rate.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) +
                             " Hz on speaker '" + speaker.Name + "' at " + maxLevel.LevelDbfs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) +
-                            " dBFS (auditoryStimulus.levelDbfs, " + maxLevel.Where + ")");
+                            " dBFS (auditoryStimulus.initialLevelDbfs, " + maxLevel.Where + ")");
                     }
                 }
             }
@@ -263,7 +263,7 @@ public class LoadAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The auditory stimulus set checked for the highest sound level the task's conditions can draw (TrialRules.MaxStimulusLevel: the highest auditoryStimulus.levelDbfs, the set measured as one), every pulse's period at each stimulus.rateHz they can draw (TrialRules.StimulusRatesHz): stops the workflow, naming the condition, waveform, rate and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the rules.")]
+[Description("The auditory stimulus set checked for the highest sound level the task's conditions can draw (TrialRules.MaxStimulusLevel: the highest auditoryStimulus.initialLevelDbfs, the set measured as one), every pulse's period at each stimulus.rateHz they can draw (TrialRules.StimulusRatesHz): stops the workflow, naming the condition, waveform, rate and speaker, if any would peak at -1 dBFS or more after equalisation. Input is the stimulus set and the rules.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class LevelAuditoryStimulusSet
 {
@@ -274,7 +274,7 @@ public class LevelAuditoryStimulusSet
 }
 
 [Combinator]
-[Description("The mixer's looped buffer for a trial's sound: the stimulus set's pulse at the trial's auditorySoundFileIndex, equalised for its speaker, then silence to 1/stimulus.rateHz seconds (AuditoryStimulusSet.Period), on that speaker's channel (a trial at \"all\": every speaker's, each its own copy), at its auditoryLevelDbfs (one gain for the set), with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the trial and the set at its level (LevelAuditoryStimulusSet), as WithLatestFrom pairs them.")]
+[Description("The mixer's looped buffer for a trial's sound: the stimulus set's pulse at the trial's auditorySoundFileIndex, equalised for its speaker, then silence to 1/stimulus.rateHz seconds (AuditoryStimulusSet.Period), on that speaker's channel (a trial at \"all\": every speaker's, each its own copy), at its auditoryInitialLevelDbfs (one gain for the set), with its sync copy on rig.yml's syncChannel at syncGain (OpenRigs.Audio SpeakerSet.Layout). Input is the trial and the set at its level (LevelAuditoryStimulusSet), as WithLatestFrom pairs them.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class SelectAuditoryStimulus
 {
@@ -283,7 +283,7 @@ public class SelectAuditoryStimulus
         return source.Select(input =>
         {
             var trial = input.Item1;
-            return input.Item2.Buffer(trial.auditorySoundFileIndex, trial.speakerChannel, trial.auditoryLevelDbfs, trial.Stimulus.RateHz);
+            return input.Item2.Buffer(trial.auditorySoundFileIndex, trial.speakerChannel, trial.auditoryInitialLevelDbfs, trial.Stimulus.RateHz);
         });
     }
 }

@@ -28,7 +28,7 @@ from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_v
 
 from ucl_open_coen_dome_decision_making import __semver__
 
-# The stimulus sound's level (auditoryStimulus.levelDbfs) in the task files: 3.22 dB louder than the waveforms as stored
+# The stimulus sound's level (auditoryStimulus.initialLevelDbfs) in the task files: 3.22 dB louder than the waveforms as stored
 # (-43.22 dBFS RMS while sounding, the level mice had until November 2026).
 STIMULUS_LEVEL_DBFS = -40.0
 
@@ -79,28 +79,28 @@ class Stimulus(StimulusTiming):
 
 
 class VisualStimulus(TaskBlock):
-    """The grating: its contrasts and initial azimuths (one of each drawn per trial) and its shape."""
+    """The grating as each trial starts: its initial contrasts and azimuths (one of each drawn per trial) and its shape."""
 
-    contrasts: list[Double] = Field(default=[1.0], min_length=1, description="Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey screen)")
+    initial_contrasts: list[Double] = Field(default=[1.0], min_length=1, description="Candidate grating contrasts as the trial starts, one drawn per trial; 0 shows no grating (a grey screen)")
     initial_azimuths_deg: list[Double] = Field(
         default=[-60.0, 60.0],
         min_length=1,
         description=(
             "Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; "
-            "with target visualSide the picked azimuth's sign is the trial's side. Unused where contrasts are all 0"
+            "with target visualSide the picked azimuth's sign is the trial's side. Unused where initialContrasts are all 0"
         ),
     )
-    elevation_deg: Double = Field(default=15.0, ge=-90, le=90, description="Elevation of the grating, in degrees")
-    sigma_deg: Double = Field(default=20.0, description="Sigma of the grating's Gaussian window, in degrees")
-    orientation_deg: Double = Field(default=0.0, description="Grating stripe orientation, in degrees; drift direction is orthogonal to it (orientationDeg + 90 degrees)")
-    spatial_frequency_cpd: Double = Field(default=0.066666667, description="Grating spatial frequency, in cycles per degree")
-    temporal_frequency_hz: Double = Field(default=0.0, ge=0, description="Unsigned grating drift rate, in Hz, drifting orthogonal to orientationDeg (orientationDeg + 90 degrees); 0 is static")
+    initial_elevation_deg: Double = Field(default=15.0, ge=-90, le=90, description="Elevation of the grating as the trial starts, in degrees")
+    initial_sigma_deg: Double = Field(default=20.0, description="Sigma of the grating's Gaussian window as the trial starts, in degrees")
+    initial_orientation_deg: Double = Field(default=0.0, description="Grating stripe orientation as the trial starts, in degrees; drift direction is orthogonal to it (initialOrientationDeg + 90 degrees)")
+    initial_spatial_frequency_cpd: Double = Field(default=0.066666667, description="Grating spatial frequency as the trial starts, in cycles per degree")
+    initial_temporal_frequency_hz: Double = Field(default=0.0, ge=0, description="Unsigned grating drift rate as the trial starts, in Hz, drifting orthogonal to initialOrientationDeg (initialOrientationDeg + 90 degrees); 0 is static")
 
-    @field_validator("contrasts")
+    @field_validator("initial_contrasts")
     @classmethod
     def _not_negative(cls, value: list[float]) -> list[float]:
         if any(contrast < 0 for contrast in value):
-            raise ValueError("contrasts must each be 0 or more")
+            raise ValueError("initialContrasts must each be 0 or more")
         return value
 
     @field_validator("initial_azimuths_deg")
@@ -116,13 +116,13 @@ class VisualStimulus(TaskBlock):
 
 
 class AuditoryStimulus(ct.AuditoryStimulus):
-    """The sound: a waveform of the set (src/sounds) at levelDbfs, on rig.yml's speaker nearest the picked azimuth at
-    elevationDeg, or on every rig.yml speaker where the pick is "all"."""
+    """The sound: a waveform of the set (src/sounds) at initialLevelDbfs, on rig.yml's speaker nearest the picked azimuth at
+    initialElevationDeg, or on every rig.yml speaker where the pick is "all"."""
 
-    level_dbfs: ct.SoundLevelDbfs = level_dbfs(STIMULUS_LEVEL_DBFS, "The stimulus sound (the waveform set as one, OpenRigs.Audio SoundLevel measuring the set)")
-    elevation_deg: Double = Field(default=15.0, ge=-90, le=90, description="Elevation the sound plays at, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker")
+    initial_level_dbfs: ct.SoundLevelDbfs = level_dbfs(STIMULUS_LEVEL_DBFS, "The stimulus sound (the waveform set as one, OpenRigs.Audio SoundLevel measuring the set)")
+    initial_elevation_deg: Double = Field(default=15.0, ge=-90, le=90, description="Elevation the sound plays at as the trial starts, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker")
     initial_azimuths_deg: list[SoundAzimuth] = Field(
-        default=[-60.0, 60.0],
+        default=[-90.0, 90.0],
         min_length=1,
         description=(
             "Signed azimuths the sound plays at, in degrees, one picked per trial: positive is right, negative left, 0 the centre; it plays on "
@@ -204,10 +204,10 @@ RULES = (
     # target is each condition's (the task's is null, which no rule reads).
     *({"if": if_({"taskType": {"const": task_type.value}, "target": {"type": "string"}}), "then": ct.props({"target": {"enum": list(targets)}}),
        "message": f"taskType {task_type.value} needs target one of {', '.join(targets)}"} for task_type, targets in TARGETS.items()),
-    {"if": if_({"visualStimulus.contrasts": {"items": {"const": 0}}, "target": {"not": {"const": "visualSide"}}}), "unused": ["visualStimulus.initialAzimuthsDeg"],
-     "message": "visualStimulus.contrasts 0 shows no grating, so its azimuths are unread unless target visualSide"},
-    {"if": if_({"auditoryStimulus.levelDbfs": {"const": MUTE}, "target": {"not": {"const": "auditorySide"}}}), "unused": ["auditoryStimulus.initialAzimuthsDeg"],
-     "message": "auditoryStimulus.levelDbfs mute plays no sound, so its azimuths are unread unless target auditorySide"},
+    {"if": if_({"visualStimulus.initialContrasts": {"items": {"const": 0}}, "target": {"not": {"const": "visualSide"}}}), "unused": ["visualStimulus.initialAzimuthsDeg"],
+     "message": "visualStimulus.initialContrasts 0 shows no grating, so its azimuths are unread unless target visualSide"},
+    {"if": if_({"auditoryStimulus.initialLevelDbfs": {"const": MUTE}, "target": {"not": {"const": "auditorySide"}}}), "unused": ["auditoryStimulus.initialAzimuthsDeg"],
+     "message": "auditoryStimulus.initialLevelDbfs mute plays no sound, so its azimuths are unread unless target auditorySide"},
     # The picked sound azimuth's sign is the side: 0 and "all" have none.
     {"if": if_({"target": {"const": "auditorySide"}}), "then": ct.props({"auditoryStimulus.initialAzimuthsDeg": {"items": {"not": {"enum": SIDELESS}}}}),
      "message": "target auditorySide needs auditory azimuths without 0 or all"},
@@ -220,13 +220,13 @@ RULES = (
 # each as a list. A role target names it; else by what it shows, the grating (a contrast above 0) and the sound as a cue
 # (a level, not mute, at an azimuth off centre: 0 and "all" give no side): both, audiovisualConflict when the azimuths
 # are paired mirrored, else audiovisualCoherent; one alone; or neutral.
-_CUE = {"auditoryStimulus.levelDbfs": SOUNDING, "auditoryStimulus.initialAzimuthsDeg": {"contains": {"not": {"enum": SIDELESS}}}}
+_CUE = {"auditoryStimulus.initialLevelDbfs": SOUNDING, "auditoryStimulus.initialAzimuthsDeg": {"contains": {"not": {"enum": SIDELESS}}}}
 TRIAL_TYPES = (
     *({"trialType": role, "if": if_({"target": {"items": {"const": role}}})} for role in ("go", "noGo", "left", "right")),
-    {"trialType": "audiovisualConflict", "if": if_({"visualStimulus.contrasts": ABOVE_0, **_CUE}),
+    {"trialType": "audiovisualConflict", "if": if_({"visualStimulus.initialContrasts": ABOVE_0, **_CUE}),
      "mirrored": ["visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg"]},
-    {"trialType": "audiovisualCoherent", "if": if_({"visualStimulus.contrasts": ABOVE_0, **_CUE})},
-    {"trialType": "visual", "if": if_({"visualStimulus.contrasts": ABOVE_0})},
+    {"trialType": "audiovisualCoherent", "if": if_({"visualStimulus.initialContrasts": ABOVE_0, **_CUE})},
+    {"trialType": "visual", "if": if_({"visualStimulus.initialContrasts": ABOVE_0})},
     {"trialType": "auditory", "if": if_(_CUE)},
     {"trialType": "neutral"},
 )
@@ -240,7 +240,7 @@ REQUIRED_CONDITIONS = (
 class TrialCondition(ct.TrialCondition):
     """One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it
     pairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar
-    field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial
+    field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.initialContrasts, the initial
     azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial."""
 
     weight: int = Field(ge=0, le=1_000_000, description="Relative draw weight: each new trial picks a condition with these as relative chances")
@@ -248,8 +248,8 @@ class TrialCondition(ct.TrialCondition):
         default_factory=list,
         description=(
             "Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: "
-            "audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], "
-            "audiovisualConflict with [60, -60]. Unpaired lists are picked independently"
+            "audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-90, 90], "
+            "audiovisualConflict with [90, -90]. Unpaired lists are picked independently"
         ),
     )
     set: dict[str, Any] = Field(default_factory=dict, description="Condition-level values by dotted path, any field but x-session-fields'; the rest are the task's")
@@ -317,13 +317,14 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         description="Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is never repeated (neither noResponse nor notCorrect); 0: never, 1: every trial",
     )
     penalty: Penalty = Field(
-        description="What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
+        description="What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseRandomProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseRandomProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
     )
-    penalise_probes: Bool = Field(
+    penalise_random_probes: Bool = Field(
         default=False,
         description=(
-            "Whether a random-reward probe (target random; a noReward probe is never penalised) is penalised: true, a choice on the coin's tails as an incorrect choice "
-            "(penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with "
+            "Whether a random-reward probe (target random) is penalised; it affects only random probes (a noReward probe is never "
+            "rewarded or penalised, a scored trial always is). true: a choice on the coin's tails as an incorrect choice "
+            "(penalty.incorrect) and a miss not auto-rewarded as penalty.noResponse; false (the default): never, tails goes unrewarded with "
             "no timeout, sound or flash, and a miss costs nothing"
         ),
     )
@@ -335,7 +336,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
             "rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. "
             "A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin "
             "drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded "
-            "(and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). A target noReward trial "
+            "(and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseRandomProbes). A target noReward trial "
             "(any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. "
             "The targets each allows are x-rules'"
         ),

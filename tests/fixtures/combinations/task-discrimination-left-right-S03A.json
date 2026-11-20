@@ -6,11 +6,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -19,11 +19,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -32,11 +32,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -45,11 +45,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -58,11 +58,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -71,11 +71,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -84,11 +84,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -97,11 +97,11 @@
       "trialType": "left",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "left",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -110,11 +110,11 @@
       "trialType": "right",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "right",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -123,11 +123,11 @@
       "trialType": "right",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "right",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -136,11 +136,11 @@
       "trialType": "right",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "right",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -149,11 +149,11 @@
       "trialType": "right",
       "conditionWeight": 10,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "right",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -162,11 +162,11 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -175,11 +175,11 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -188,11 +188,11 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -201,11 +201,11 @@
       "trialType": "audiovisualCoherent",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -214,11 +214,11 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -227,11 +227,11 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -240,11 +240,11 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -253,11 +253,11 @@
       "trialType": "audiovisualConflict",
       "conditionWeight": 5,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": -40,
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": -40,
         "target": "random",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -266,11 +266,11 @@
       "trialType": "neutral",
       "conditionWeight": 1,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "random",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -279,11 +279,11 @@
       "trialType": "neutral",
       "conditionWeight": 1,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "random",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -292,11 +292,11 @@
       "trialType": "neutral",
       "conditionWeight": 1,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": -90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "random",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -305,11 +305,11 @@
       "trialType": "neutral",
       "conditionWeight": 1,
       "values": {
-        "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialAzimuthsDeg": 90,
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "random",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     }
   ]

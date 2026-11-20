@@ -12,11 +12,11 @@ taskParameters:
   - weight: 10
     set:
       target: left
-      auditoryStimulus.levelDbfs: mute
+      auditoryStimulus.initialLevelDbfs: mute
   - weight: 10
     set:
       target: right
-      visualStimulus.contrasts:
+      visualStimulus.initialContrasts:
       - 0
   - weight: 10
     pairs:
@@ -28,8 +28,8 @@ taskParameters:
       - -60
       - 60
       auditoryStimulus.initialAzimuthsDeg:
-      - -60
-      - 60
+      - -90
+      - 90
   trialStructure:
     itiMinSeconds: 2.5
     itiMaxSeconds: 3.5
@@ -37,7 +37,7 @@ taskParameters:
     wheelQuietSeconds: 0
     wheelQuietCm: 0
     stimulusToResponseWindowSeconds: 0.5
-    responseWindowSeconds: 1.5
+    responseWindowSeconds: 2.0
   spouts:
     alwaysIn: false
     stimulusToSpoutsInSeconds: 0.5
@@ -48,23 +48,23 @@ taskParameters:
     rateHz: 8
     responseToStimulusOffSeconds: null
   visualStimulus:
-    contrasts:
+    initialContrasts:
     - 0.5
     - 1.0
     initialAzimuthsDeg:
     - -60
     - 60
-    elevationDeg: 15
-    sigmaDeg: 20
-    orientationDeg: 0
-    spatialFrequencyCpd: 0.066666667
-    temporalFrequencyHz: 0
+    initialElevationDeg: 15
+    initialSigmaDeg: 20
+    initialOrientationDeg: 0
+    initialSpatialFrequencyCpd: 0.066666667
+    initialTemporalFrequencyHz: 0
   auditoryStimulus:
-    levelDbfs: -40
-    elevationDeg: 15
+    initialLevelDbfs: -40
+    initialElevationDeg: 15
     initialAzimuthsDeg:
-    - -60
-    - 60
+    - -90
+    - 90
   reward:
     sizeUl: 3
     largeMultiplier: 2
@@ -83,10 +83,11 @@ taskParameters:
     noResponse:
       timeoutSeconds: 4.0
       sound:
-        levelDbfs: -35
+        levelDbfs: mute
       flash:
         brightness: 0
         rateHz: 10
+  penaliseRandomProbes: false
   optogenetics:
     enabled: false
     zapitConditionsPath: ''

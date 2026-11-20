@@ -216,8 +216,8 @@
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
-                      <Property Name="Contrast" Selector="visualContrast" />
-                      <Property Name="LocationY" Selector="VisualStimulus.ElevationDeg" />
+                      <Property Name="Contrast" Selector="visualInitialContrast" />
+                      <Property Name="LocationY" Selector="VisualStimulus.InitialElevationDeg" />
                       <Property Name="Phase" Selector="visualPhaseRad" />
                     </PropertyMappings>
                   </Expression>
@@ -226,9 +226,9 @@
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
-                      <Property Name="TemporalFrequency" Selector="VisualStimulus.TemporalFrequencyHz" />
-                      <Property Name="SpatialFrequency" Selector="VisualStimulus.SpatialFrequencyCpd" />
-                      <Property Name="Angle" Selector="VisualStimulus.OrientationDeg" />
+                      <Property Name="TemporalFrequency" Selector="VisualStimulus.InitialTemporalFrequencyHz" />
+                      <Property Name="SpatialFrequency" Selector="VisualStimulus.InitialSpatialFrequencyCpd" />
+                      <Property Name="Angle" Selector="VisualStimulus.InitialOrientationDeg" />
                     </PropertyMappings>
                   </Expression>
                   <Expression xsi:type="SubscribeSubject">
@@ -244,8 +244,8 @@
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
                     <scr:Name>Aperture</scr:Name>
-                    <scr:Description>The Gaussian window's sigma relative to the grating's 100 degree extent, each trial's (its combination's visualStimulus.sigmaDeg).</scr:Description>
-                    <scr:Expression>VisualStimulus.SigmaDeg * 2 / 100.0</scr:Expression>
+                    <scr:Description>The Gaussian window's sigma relative to the grating's 100 degree extent, each trial's (its combination's visualStimulus.initialSigmaDeg).</scr:Description>
+                    <scr:Expression>VisualStimulus.InitialSigmaDeg * 2 / 100.0</scr:Expression>
                   </Expression>
                   <Expression xsi:type="PropertyMapping">
                     <PropertyMappings>
@@ -424,7 +424,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Audio</Name>
-        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryLevelDbfs (the set measured as one, one gain), TaskLogic's penalty sound at each penalised trial's kind's sound.levelDbfs (penalty.incorrect or penalty.noResponse), laid out at Go at the highest level any condition can draw; the background noise at the lab's -60 dBFS, sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the highest level any condition can draw, each pulse's train at every stimulus.rateHz for the longest stimulus.durationSeconds (TrialRules into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at the penalised kind's sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
+        <Description>The sounds, played by DomeHardware's speakers and mixer (OpenRigs.Audio SpeakerMixer: Speakers, and the mixer started no sooner than 3 s after Start, never sooner, as a fault while the sound card boots can blue-screen the PC); each trial's sound at its auditoryInitialLevelDbfs (the set measured as one, one gain), TaskLogic's penalty sound at each penalised trial's kind's sound.levelDbfs (penalty.incorrect or penalty.noResponse), laid out at Go at the highest level any condition can draw; the background noise at the lab's -60 dBFS, sent at Ready. The auditory stimulus set equalised for rig.yml's speakers at Start (LoadAuditoryStimulusSet into StimulusWaveforms), then at Go for the highest level any condition can draw, each pulse's train at every stimulus.rateHz for the longest stimulus.durationSeconds (TrialRules into LevelAuditoryStimulusSet, into StimulusSoundBuffers, which stops the workflow, naming the condition and speaker, if any would peak at -1 dBFS after equalisation); the lab's penalty sound (PlayPenaltySound, in TaskLogic) on penaltySoundChannel at the penalised kind's sound.levelDbfs. The background noise is the BackgroundNoise include's, after this group.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -464,14 +464,14 @@
             </Expression>
             <Expression xsi:type="rx:Condition">
               <Name>AuditoryTrial?</Name>
-              <Description>A trial at auditoryStimulus.levelDbfs mute (auditoryLevelDbfs NaN) plays no sound.</Description>
+              <Description>A trial at auditoryStimulus.initialLevelDbfs mute (auditoryInitialLevelDbfs NaN) plays no sound.</Description>
               <Workflow>
                 <Nodes>
                   <Expression xsi:type="WorkflowInput">
                     <Name>Source1</Name>
                   </Expression>
                   <Expression xsi:type="scr:ExpressionTransform">
-                    <scr:Expression>!double.IsNaN(auditoryLevelDbfs)</scr:Expression>
+                    <scr:Expression>!double.IsNaN(auditoryInitialLevelDbfs)</scr:Expression>
                   </Expression>
                   <Expression xsi:type="WorkflowOutput" />
                 </Nodes>
@@ -489,7 +489,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>PlayAuditoryStimulus</Name>
-              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location; at "all" every speaker's channel, each its own copy), at its auditoryLevelDbfs, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
+              <Description>Plays a trial's sound: its waveform equalised for its speaker (the channel of rig.yml's speaker nearest the drawn location; at "all" every speaker's channel, each its own copy), at its auditoryInitialLevelDbfs, with the sync copy on rig.yml's syncChannel at syncGain.</Description>
               <Combinator xsi:type="ext:SelectAuditoryStimulus" />
             </Expression>
             <Expression xsi:type="MulticastSubject">

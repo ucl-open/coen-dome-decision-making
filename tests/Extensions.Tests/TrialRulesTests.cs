@@ -235,14 +235,14 @@ public class ResponseRuleTests
     public void ANoRewardTrialInLocalizationAndLeftRightOffersNothingAndCostsNothing()
     {
         // The files' probes: both spouts in, nothing on offer, never auto-rewarded, outcome Probe, never rewarded or
-        // penalised whatever the choice (left, right or a miss), even when penaliseProbes is on.
+        // penalised whatever the choice (left, right or a miss), even when penaliseRandomProbes is on.
         var times = new TrialTimes { Now = 1 };
         foreach (var file in new[] { "task-discrimination-left-right.yml", "task-localization.yml" })
-        foreach (var penaliseProbes in new[] { false, true })
+        foreach (var penaliseRandomProbes in new[] { false, true })
         {
             var task = Fixture.Task(file, 4);
             task.AutoRewardProbability = 1;
-            task.PenaliseProbes = penaliseProbes;
+            task.PenaliseRandomProbes = penaliseRandomProbes;
             task.Spouts.SingleSpoutProbability = 1;
             var probes = Fixture.Draw(task, 2000).Where(t => t.target == TargetWords.NoReward).ToList();
             Assert.IsTrue(probes.Count > 50, file);
@@ -264,7 +264,7 @@ public class ResponseRuleTests
     {
         // Random-reward probes: left-right's two-modality and neutral trials, localization's conflict and
         // neutral. Both spouts in; a choice at either is rewarded there on heads, unrewarded and unpenalised on tails
-        // (penaliseProbes false, the files'); a miss costs nothing; target Random, outcome Probe; the offer kept heads or tails.
+        // (penaliseRandomProbes false, the files'); a miss costs nothing; target Random, outcome Probe; the offer kept heads or tails.
         var times = new TrialTimes { Now = 1 };
         foreach (var file in new[] { "task-discrimination-left-right.yml", "task-localization.yml" })
         {
@@ -794,7 +794,7 @@ public class ConsequenceTests
     [TestMethod]
     public void ARandomTrialsCoinDecidesTheRowsRewardedAndPenalised()
     {
-        // Random (penaliseProbes false): heads rewards a choice at the spout chosen, tails leaves it unrewarded and
+        // Random (penaliseRandomProbes false): heads rewards a choice at the spout chosen, tails leaves it unrewarded and
         // unpenalised, a miss costs nothing; the offer is on the row every time, and the valve's command is the row's rewarded.
         Func<string, bool, TrialOutcome> score = (choice, up) =>
         {

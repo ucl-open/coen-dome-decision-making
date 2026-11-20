@@ -124,34 +124,34 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The sound: a waveform of the set (src/sounds) at levelDbfs, on rig.yml's speaker nearest the picked azimuth at
-    ///elevationDeg, or on every rig.yml speaker where the pick is "all".
+    /// The sound: a waveform of the set (src/sounds) at initialLevelDbfs, on rig.yml's speaker nearest the picked azimuth at
+    ///initialElevationDeg, or on every rig.yml speaker where the pick is "all".
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The sound: a waveform of the set (src/sounds) at levelDbfs, on rig.yml\'s speaker " +
-        "nearest the picked azimuth at\nelevationDeg, or on every rig.yml speaker where th" +
-        "e pick is \"all\".")]
+    [System.ComponentModel.DescriptionAttribute("The sound: a waveform of the set (src/sounds) at initialLevelDbfs, on rig.yml\'s s" +
+        "peaker nearest the picked azimuth at\ninitialElevationDeg, or on every rig.yml sp" +
+        "eaker where the pick is \"all\".")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class AuditoryStimulus
     {
     
-        private object _levelDbfs;
+        private object _initialLevelDbfs;
     
-        private double _elevationDeg;
+        private double _initialElevationDeg;
     
         private System.Collections.Generic.List<object> _initialAzimuthsDeg;
     
         public AuditoryStimulus()
         {
-            _elevationDeg = 15D;
+            _initialElevationDeg = 15D;
             _initialAzimuthsDeg = new System.Collections.Generic.List<object>();
         }
     
         protected AuditoryStimulus(AuditoryStimulus other)
         {
-            _levelDbfs = other._levelDbfs;
-            _elevationDeg = other._elevationDeg;
+            _initialLevelDbfs = other._initialLevelDbfs;
+            _initialElevationDeg = other._initialElevationDeg;
             _initialAzimuthsDeg = other._initialAzimuthsDeg;
         }
     
@@ -159,37 +159,37 @@ namespace UclOpenCoenDomeDecisionMakingTask
         /// The stimulus sound (the waveform set as one, OpenRigs.Audio SoundLevel measuring the set)'s level in dBFS RMS: the RMS of the sound over its samples outside silent stretches (runs of exactly-zero samples at least 1 ms long), as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3); mute: no sound. The lab's default -40. The workflow stops at Go if any peak at the highest level a trial can draw would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("levelDbfs")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="levelDbfs")]
+        [Newtonsoft.Json.JsonPropertyAttribute("initialLevelDbfs")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialLevelDbfs")]
         [System.ComponentModel.DescriptionAttribute(@"The stimulus sound (the waveform set as one, OpenRigs.Audio SoundLevel measuring the set)'s level in dBFS RMS: the RMS of the sound over its samples outside silent stretches (runs of exactly-zero samples at least 1 ms long), as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3); mute: no sound. The lab's default -40. The workflow stops at Go if any peak at the highest level a trial can draw would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix")]
-        public object LevelDbfs
+        public object InitialLevelDbfs
         {
             get
             {
-                return _levelDbfs;
+                return _initialLevelDbfs;
             }
             set
             {
-                _levelDbfs = value;
+                _initialLevelDbfs = value;
             }
         }
     
         /// <summary>
-        /// Elevation the sound plays at, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker
+        /// Elevation the sound plays at as the trial starts, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("elevationDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="elevationDeg")]
-        [System.ComponentModel.DescriptionAttribute("Elevation the sound plays at, in degrees: with the azimuth drawn, it picks rig.ym" +
-            "l\'s nearest speaker")]
-        public double ElevationDeg
+        [Newtonsoft.Json.JsonPropertyAttribute("initialElevationDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialElevationDeg")]
+        [System.ComponentModel.DescriptionAttribute("Elevation the sound plays at as the trial starts, in degrees: with the azimuth dr" +
+            "awn, it picks rig.yml\'s nearest speaker")]
+        public double InitialElevationDeg
         {
             get
             {
-                return _elevationDeg;
+                return _initialElevationDeg;
             }
             set
             {
-                _elevationDeg = value;
+                _initialElevationDeg = value;
             }
         }
     
@@ -224,8 +224,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("LevelDbfs = " + _levelDbfs + ", ");
-            stringBuilder.Append("ElevationDeg = " + _elevationDeg + ", ");
+            stringBuilder.Append("InitialLevelDbfs = " + _initialLevelDbfs + ", ");
+            stringBuilder.Append("InitialElevationDeg = " + _initialElevationDeg + ", ");
             stringBuilder.Append("InitialAzimuthsDeg = " + _initialAzimuthsDeg);
             return true;
         }
@@ -1809,13 +1809,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// <summary>
     /// One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it
     ///pairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar
-    ///field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial
+    ///field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.initialContrasts, the initial
     ///azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it
     pairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar
-    field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial
+    field's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.initialContrasts, the initial
     azimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
@@ -1860,12 +1860,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently
+        /// Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-90, 90], audiovisualConflict with [90, -90]. Unpaired lists are picked independently
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("pairs")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="pairs")]
-        [System.ComponentModel.DescriptionAttribute(@"Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-60, 60], audiovisualConflict with [60, -60]. Unpaired lists are picked independently")]
+        [System.ComponentModel.DescriptionAttribute(@"Groups of paths whose lists (the set's, else the task's) have equal length and share one picked index per trial: audiovisualCoherent pairs visualStimulus.initialAzimuthsDeg [-60, 60] with auditoryStimulus.initialAzimuthsDeg [-90, 90], audiovisualConflict with [90, -90]. Unpaired lists are picked independently")]
         public System.Collections.Generic.List<System.Collections.Generic.List<string>> Pairs
         {
             get
@@ -2185,7 +2185,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private Penalty _penalty;
     
-        private bool _penaliseProbes;
+        private bool _penaliseRandomProbes;
     
         private Optogenetics _optogenetics;
     
@@ -2208,7 +2208,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _reward = new Reward();
             _autoRewardProbability = 0D;
             _penalty = new Penalty();
-            _penaliseProbes = false;
+            _penaliseRandomProbes = false;
             _optogenetics = new Optogenetics();
             _response = new Response();
             _repeats = new Repeats();
@@ -2227,7 +2227,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _reward = other._reward;
             _autoRewardProbability = other._autoRewardProbability;
             _penalty = other._penalty;
-            _penaliseProbes = other._penaliseProbes;
+            _penaliseRandomProbes = other._penaliseRandomProbes;
             _optogenetics = other._optogenetics;
             _taskType = other._taskType;
             _target = other._target;
@@ -2429,12 +2429,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null
+        /// What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseRandomProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseRandomProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("penalty", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penalty")]
-        [System.ComponentModel.DescriptionAttribute(@"What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null")]
+        [System.ComponentModel.DescriptionAttribute(@"What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseRandomProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseRandomProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null")]
         public Penalty Penalty
         {
             get
@@ -2448,20 +2448,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Whether a random-reward probe (target random; a noReward probe is never penalised) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing
+        /// Whether a random-reward probe (target random) is penalised; it affects only random probes (a noReward probe is never rewarded or penalised, a scored trial always is). true: a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss not auto-rewarded as penalty.noResponse; false (the default): never, tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("penaliseProbes")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penaliseProbes")]
-        [System.ComponentModel.DescriptionAttribute(@"Whether a random-reward probe (target random; a noReward probe is never penalised) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing")]
-        public bool PenaliseProbes
+        [Newtonsoft.Json.JsonPropertyAttribute("penaliseRandomProbes")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penaliseRandomProbes")]
+        [System.ComponentModel.DescriptionAttribute(@"Whether a random-reward probe (target random) is penalised; it affects only random probes (a noReward probe is never rewarded or penalised, a scored trial always is). true: a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss not auto-rewarded as penalty.noResponse; false (the default): never, tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing")]
+        public bool PenaliseRandomProbes
         {
             get
             {
-                return _penaliseProbes;
+                return _penaliseRandomProbes;
             }
             set
             {
-                _penaliseProbes = value;
+                _penaliseRandomProbes = value;
             }
         }
     
@@ -2485,11 +2485,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). A target noReward trial (any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. The targets each allows are x-rules'
+        /// localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseRandomProbes). A target noReward trial (any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. The targets each allows are x-rules'
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
-        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). A target noReward trial (any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. The targets each allows are x-rules'")]
+        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseRandomProbes). A target noReward trial (any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. The targets each allows are x-rules'")]
         public TaskType TaskType
         {
             get
@@ -2581,7 +2581,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Reward = " + _reward + ", ");
             stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
             stringBuilder.Append("Penalty = " + _penalty + ", ");
-            stringBuilder.Append("PenaliseProbes = " + _penaliseProbes + ", ");
+            stringBuilder.Append("PenaliseRandomProbes = " + _penaliseRandomProbes + ", ");
             stringBuilder.Append("Optogenetics = " + _optogenetics + ", ");
             stringBuilder.Append("TaskType = " + _taskType + ", ");
             stringBuilder.Append("Target = " + _target + ", ");
@@ -2606,81 +2606,81 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The grating: its contrasts and initial azimuths (one of each drawn per trial) and its shape.
+    /// The grating as each trial starts: its initial contrasts and azimuths (one of each drawn per trial) and its shape.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The grating: its contrasts and initial azimuths (one of each drawn per trial) and" +
-        " its shape.")]
+    [System.ComponentModel.DescriptionAttribute("The grating as each trial starts: its initial contrasts and azimuths (one of each" +
+        " drawn per trial) and its shape.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class VisualStimulus
     {
     
-        private System.Collections.Generic.List<double> _contrasts;
+        private System.Collections.Generic.List<double> _initialContrasts;
     
         private System.Collections.Generic.List<double> _initialAzimuthsDeg;
     
-        private double _elevationDeg;
+        private double _initialElevationDeg;
     
-        private double _sigmaDeg;
+        private double _initialSigmaDeg;
     
-        private double _orientationDeg;
+        private double _initialOrientationDeg;
     
-        private double _spatialFrequencyCpd;
+        private double _initialSpatialFrequencyCpd;
     
-        private double _temporalFrequencyHz;
+        private double _initialTemporalFrequencyHz;
     
         public VisualStimulus()
         {
-            _contrasts = new System.Collections.Generic.List<double>();
+            _initialContrasts = new System.Collections.Generic.List<double>();
             _initialAzimuthsDeg = new System.Collections.Generic.List<double>();
-            _elevationDeg = 15D;
-            _sigmaDeg = 20D;
-            _orientationDeg = 0D;
-            _spatialFrequencyCpd = 0.066666667D;
-            _temporalFrequencyHz = 0D;
+            _initialElevationDeg = 15D;
+            _initialSigmaDeg = 20D;
+            _initialOrientationDeg = 0D;
+            _initialSpatialFrequencyCpd = 0.066666667D;
+            _initialTemporalFrequencyHz = 0D;
         }
     
         protected VisualStimulus(VisualStimulus other)
         {
-            _contrasts = other._contrasts;
+            _initialContrasts = other._initialContrasts;
             _initialAzimuthsDeg = other._initialAzimuthsDeg;
-            _elevationDeg = other._elevationDeg;
-            _sigmaDeg = other._sigmaDeg;
-            _orientationDeg = other._orientationDeg;
-            _spatialFrequencyCpd = other._spatialFrequencyCpd;
-            _temporalFrequencyHz = other._temporalFrequencyHz;
+            _initialElevationDeg = other._initialElevationDeg;
+            _initialSigmaDeg = other._initialSigmaDeg;
+            _initialOrientationDeg = other._initialOrientationDeg;
+            _initialSpatialFrequencyCpd = other._initialSpatialFrequencyCpd;
+            _initialTemporalFrequencyHz = other._initialTemporalFrequencyHz;
         }
     
         /// <summary>
-        /// Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey screen)
+        /// Candidate grating contrasts as the trial starts, one drawn per trial; 0 shows no grating (a grey screen)
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("contrasts")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="contrasts")]
-        [System.ComponentModel.DescriptionAttribute("Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey scre" +
-            "en)")]
-        public System.Collections.Generic.List<double> Contrasts
+        [Newtonsoft.Json.JsonPropertyAttribute("initialContrasts")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialContrasts")]
+        [System.ComponentModel.DescriptionAttribute("Candidate grating contrasts as the trial starts, one drawn per trial; 0 shows no " +
+            "grating (a grey screen)")]
+        public System.Collections.Generic.List<double> InitialContrasts
         {
             get
             {
-                return _contrasts;
+                return _initialContrasts;
             }
             set
             {
-                _contrasts = value;
+                _initialContrasts = value;
             }
         }
     
         /// <summary>
-        /// Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; with target visualSide the picked azimuth's sign is the trial's side. Unused where contrasts are all 0
+        /// Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; with target visualSide the picked azimuth's sign is the trial's side. Unused where initialContrasts are all 0
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("initialAzimuthsDeg")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialAzimuthsDeg")]
         [System.ComponentModel.DescriptionAttribute("Signed azimuths the grating starts at, in degrees, one picked per trial: positive" +
             " is right, negative left, never 0; with target visualSide the picked azimuth\'s s" +
-            "ign is the trial\'s side. Unused where contrasts are all 0")]
+            "ign is the trial\'s side. Unused where initialContrasts are all 0")]
         public System.Collections.Generic.List<double> InitialAzimuthsDeg
         {
             get
@@ -2694,94 +2694,94 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Elevation of the grating, in degrees
+        /// Elevation of the grating as the trial starts, in degrees
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("elevationDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="elevationDeg")]
-        [System.ComponentModel.DescriptionAttribute("Elevation of the grating, in degrees")]
-        public double ElevationDeg
+        [Newtonsoft.Json.JsonPropertyAttribute("initialElevationDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialElevationDeg")]
+        [System.ComponentModel.DescriptionAttribute("Elevation of the grating as the trial starts, in degrees")]
+        public double InitialElevationDeg
         {
             get
             {
-                return _elevationDeg;
+                return _initialElevationDeg;
             }
             set
             {
-                _elevationDeg = value;
+                _initialElevationDeg = value;
             }
         }
     
         /// <summary>
-        /// Sigma of the grating's Gaussian window, in degrees
+        /// Sigma of the grating's Gaussian window as the trial starts, in degrees
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("sigmaDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="sigmaDeg")]
-        [System.ComponentModel.DescriptionAttribute("Sigma of the grating\'s Gaussian window, in degrees")]
-        public double SigmaDeg
+        [Newtonsoft.Json.JsonPropertyAttribute("initialSigmaDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialSigmaDeg")]
+        [System.ComponentModel.DescriptionAttribute("Sigma of the grating\'s Gaussian window as the trial starts, in degrees")]
+        public double InitialSigmaDeg
         {
             get
             {
-                return _sigmaDeg;
+                return _initialSigmaDeg;
             }
             set
             {
-                _sigmaDeg = value;
+                _initialSigmaDeg = value;
             }
         }
     
         /// <summary>
-        /// Grating stripe orientation, in degrees; drift direction is orthogonal to it (orientationDeg + 90 degrees)
+        /// Grating stripe orientation as the trial starts, in degrees; drift direction is orthogonal to it (initialOrientationDeg + 90 degrees)
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("orientationDeg")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="orientationDeg")]
-        [System.ComponentModel.DescriptionAttribute("Grating stripe orientation, in degrees; drift direction is orthogonal to it (orie" +
-            "ntationDeg + 90 degrees)")]
-        public double OrientationDeg
+        [Newtonsoft.Json.JsonPropertyAttribute("initialOrientationDeg")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialOrientationDeg")]
+        [System.ComponentModel.DescriptionAttribute("Grating stripe orientation as the trial starts, in degrees; drift direction is or" +
+            "thogonal to it (initialOrientationDeg + 90 degrees)")]
+        public double InitialOrientationDeg
         {
             get
             {
-                return _orientationDeg;
+                return _initialOrientationDeg;
             }
             set
             {
-                _orientationDeg = value;
+                _initialOrientationDeg = value;
             }
         }
     
         /// <summary>
-        /// Grating spatial frequency, in cycles per degree
+        /// Grating spatial frequency as the trial starts, in cycles per degree
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("spatialFrequencyCpd")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="spatialFrequencyCpd")]
-        [System.ComponentModel.DescriptionAttribute("Grating spatial frequency, in cycles per degree")]
-        public double SpatialFrequencyCpd
+        [Newtonsoft.Json.JsonPropertyAttribute("initialSpatialFrequencyCpd")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialSpatialFrequencyCpd")]
+        [System.ComponentModel.DescriptionAttribute("Grating spatial frequency as the trial starts, in cycles per degree")]
+        public double InitialSpatialFrequencyCpd
         {
             get
             {
-                return _spatialFrequencyCpd;
+                return _initialSpatialFrequencyCpd;
             }
             set
             {
-                _spatialFrequencyCpd = value;
+                _initialSpatialFrequencyCpd = value;
             }
         }
     
         /// <summary>
-        /// Unsigned grating drift rate, in Hz, drifting orthogonal to orientationDeg (orientationDeg + 90 degrees); 0 is static
+        /// Unsigned grating drift rate as the trial starts, in Hz, drifting orthogonal to initialOrientationDeg (initialOrientationDeg + 90 degrees); 0 is static
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("temporalFrequencyHz")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="temporalFrequencyHz")]
-        [System.ComponentModel.DescriptionAttribute("Unsigned grating drift rate, in Hz, drifting orthogonal to orientationDeg (orient" +
-            "ationDeg + 90 degrees); 0 is static")]
-        public double TemporalFrequencyHz
+        [Newtonsoft.Json.JsonPropertyAttribute("initialTemporalFrequencyHz")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="initialTemporalFrequencyHz")]
+        [System.ComponentModel.DescriptionAttribute("Unsigned grating drift rate as the trial starts, in Hz, drifting orthogonal to in" +
+            "itialOrientationDeg (initialOrientationDeg + 90 degrees); 0 is static")]
+        public double InitialTemporalFrequencyHz
         {
             get
             {
-                return _temporalFrequencyHz;
+                return _initialTemporalFrequencyHz;
             }
             set
             {
-                _temporalFrequencyHz = value;
+                _initialTemporalFrequencyHz = value;
             }
         }
     
@@ -2797,13 +2797,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("Contrasts = " + _contrasts + ", ");
+            stringBuilder.Append("InitialContrasts = " + _initialContrasts + ", ");
             stringBuilder.Append("InitialAzimuthsDeg = " + _initialAzimuthsDeg + ", ");
-            stringBuilder.Append("ElevationDeg = " + _elevationDeg + ", ");
-            stringBuilder.Append("SigmaDeg = " + _sigmaDeg + ", ");
-            stringBuilder.Append("OrientationDeg = " + _orientationDeg + ", ");
-            stringBuilder.Append("SpatialFrequencyCpd = " + _spatialFrequencyCpd + ", ");
-            stringBuilder.Append("TemporalFrequencyHz = " + _temporalFrequencyHz);
+            stringBuilder.Append("InitialElevationDeg = " + _initialElevationDeg + ", ");
+            stringBuilder.Append("InitialSigmaDeg = " + _initialSigmaDeg + ", ");
+            stringBuilder.Append("InitialOrientationDeg = " + _initialOrientationDeg + ", ");
+            stringBuilder.Append("InitialSpatialFrequencyCpd = " + _initialSpatialFrequencyCpd + ", ");
+            stringBuilder.Append("InitialTemporalFrequencyHz = " + _initialTemporalFrequencyHz);
             return true;
         }
     
