@@ -29,6 +29,7 @@ dev = [
 [project.scripts]
 regenerate-schemas = "ucl_open_coen_dome_decision_making.regenerate:main"
 summarise-experiment = "open_rigs.rigs.trials:main"
+trial-timeline = "ucl_open_coen_dome_decision_making.trial_timeline:main"
 
 # The model app-rig-control runs on each task field edit and at Launch (open_rigs.rigs.check_task).
 [project.entry-points."open_rigs.task"]
