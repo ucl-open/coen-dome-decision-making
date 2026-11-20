@@ -91,6 +91,16 @@ static class Fixture
         return ((IDictionary<object, object>)c.Set).TryGetValue("target", out target) && (target as string == "random" || target as string == "noReward");
     }
 
+    /// <summary>The task's noReward probe conditions made random-reward probes (target random), as a stage may choose per condition.</summary>
+    public static void RandomProbes(UclOpenCoenDomeDecisionMakingTaskParameters task)
+    {
+        foreach (var c in task.TrialConditions)
+        {
+            var set = (IDictionary<object, object>)c.Set;
+            if (set.ContainsKey("target") && set["target"] as string == "noReward") set["target"] = "random";
+        }
+    }
+
     /// <summary>A well formed curriculum for a stage (id, code S0nA, a fixed version, path A).</summary>
     public static Curriculum Curriculum(int id, string label)
     {
@@ -236,6 +246,7 @@ public class TrialDrawTests
         // A random-reward probe: the grating and sound on opposite sides, no side to answer, its coin
         // heads about half the time (ATrialWithNoRightAnswerRewardsOrPenalisesEitherChoiceOnACoin scores it).
         var task = Fixture.Task("task-localization.yml", 4);
+        Fixture.RandomProbes(task);
         Fixture.Only(task, "audiovisualConflict");
         var trials = Fixture.Draw(task, 600);
         Assert.IsTrue(trials.All(t => t.trialType == "audiovisualConflict" && (t.visualInitialAzimuthDeg > 0) == (t.auditoryInitialAzimuthDeg < 0) && t.target == TargetWords.Random));
@@ -274,8 +285,10 @@ public class TrialDrawTests
         var task = Fixture.Task("task-discrimination-left-right.yml", 2);
         task.AutoRewardProbability = 1;
         var stage2 = Fixture.Draw(task, 300);
-        Assert.IsTrue(stage2.Where(t => t.target != TargetWords.Random).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
-        Assert.IsTrue(stage2.Where(t => t.target == TargetWords.Random).All(t => !t.autoReward), "a probe never is");
+        Assert.IsTrue(stage2.Where(t => t.target != TargetWords.NoReward).All(t => t.autoReward), "left-right: either spout's answer may be auto-rewarded");
+        Assert.IsTrue(stage2.Where(t => t.target == TargetWords.NoReward).All(t => !t.autoReward && t.rewardOfferedUl == 0), "a probe never is");
+        Fixture.RandomProbes(task);
+        Assert.IsTrue(Fixture.Draw(task, 300).Where(t => t.target == TargetWords.Random).All(t => !t.autoReward), "nor a random probe");
     }
 
     [TestMethod]
@@ -318,9 +331,9 @@ public class TrialDrawTests
             var task = Fixture.Task(file, 4);
             task.Spouts.SingleSpoutProbability = 0.3;
             var trials = Fixture.Draw(task, 3000);
-            var scored = trials.Where(t => t.target != TargetWords.Random).ToList();
+            var scored = trials.Where(t => t.target != TargetWords.NoReward).ToList();
             Assert.AreEqual(0.3, scored.Count(t => t.singleSpoutOffered) / (double)scored.Count, 0.03, file);
-            Assert.IsTrue(trials.Where(t => t.target == TargetWords.Random).All(t => !t.singleSpoutOffered), file + ": a probe has both");
+            Assert.IsTrue(trials.Where(t => t.target == TargetWords.NoReward).All(t => !t.singleSpoutOffered), file + ": a probe has both");
             Assert.IsTrue(scored.Where(t => t.singleSpoutOffered).All(t => t.SpoutsInCommand == (t.target == TargetWords.Right ? LickSpoutCommand.RightOnly : LickSpoutCommand.LeftOnly)), file);
             task.Spouts.SingleSpoutProbability = 1;
             task.Spouts.AlwaysIn = true;

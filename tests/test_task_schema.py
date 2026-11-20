@@ -82,11 +82,11 @@ def test_the_discrimination_files_keep_the_spouts_in_for_habituation():
 
 
 def test_the_two_discrimination_files_differ_only_in_what_the_task_needs():
-    # Same mixes and timing (Gerion's), go and noGo where left-right has left and right, noReward probes where it has random
-    # ones (both spouts in); go-no-go offers one spout by design, with no setting.
+    # Same mixes and timing (Gerion's), go and noGo where left-right has left and right; both have noReward probes
+    # (left-right with both spouts in, go-no-go one spout by design, with no setting).
     lr = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     gng = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
-    roles = {"go": "left", "noGo": "right", "noReward": "random"}
+    roles = {"go": "left", "noGo": "right"}
     assert gng["penalty"]["noResponse"] is None   # go/no-go never penalises a miss
     lr["penalty"]["noResponse"] = None
     for data in (lr, gng):
@@ -752,3 +752,13 @@ def test_side_target_keeps_its_azimuth_read():
 def test_the_committed_task_schema_cs_is_the_schema_s():
     # TrialDraw reads x-session-fields, x-max-combinations and the list fields from TaskSchema, generated with the schema.
     assert (CONFIG.parent / "src" / "Extensions" / "TaskSchema.Generated.cs").read_text(encoding="utf-8") == ct.task_schema_cs(SESSION_FIELDS, LIST_FIELDS, TRIAL_TYPES)
+
+
+@pytest.mark.parametrize("name", ["task-localization.yml", "task-discrimination-left-right.yml"])
+def test_the_probe_conditions_default_to_no_reward_probes(name):
+    # Neither rewarded nor penalised by default; target random stays allowed per condition.
+    data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
+    targets = [c["set"]["target"] for c in data["trialConditions"]]
+    assert "noReward" in targets and "random" not in targets
+    for target in ("noReward", "random"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "trialConditions": [{"weight": 1, "set": {"target": target}}]})

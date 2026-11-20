@@ -232,6 +232,34 @@ public class ResponseRuleTests
     }
 
     [TestMethod]
+    public void ANoRewardTrialInLocalizationAndLeftRightOffersNothingAndCostsNothing()
+    {
+        // The files' probes: both spouts in, nothing on offer, never auto-rewarded, outcome Probe, never rewarded or
+        // penalised whatever the choice (left, right or a miss), even when penaliseProbes is on.
+        var times = new TrialTimes { Now = 1 };
+        foreach (var file in new[] { "task-discrimination-left-right.yml", "task-localization.yml" })
+        foreach (var penaliseProbes in new[] { false, true })
+        {
+            var task = Fixture.Task(file, 4);
+            task.AutoRewardProbability = 1;
+            task.PenaliseProbes = penaliseProbes;
+            task.Spouts.SingleSpoutProbability = 1;
+            var probes = Fixture.Draw(task, 2000).Where(t => t.target == TargetWords.NoReward).ToList();
+            Assert.IsTrue(probes.Count > 50, file);
+            Assert.IsTrue(probes.All(t => !t.singleSpoutOffered && !t.autoReward && t.rewardOfferedUl == 0 && t.SpoutsInCommand == LickSpoutCommand.SpoutsIn), file);
+            foreach (var t in probes.Take(60))
+                foreach (var choice in new[] { Choice.Left, Choice.Right, Choice.NoResponse })
+                {
+                    var o = TrialOutcome.At(choice, t, times);
+                    var row = o.Row.Value;
+                    Assert.AreEqual(TrialOutcomes.Probe, row.outcome, file + choice);
+                    Assert.IsTrue(!o.Rewarded && o.Reward == null && !o.Penalised && o.PenaltyTimeoutSeconds == 0, file + choice);
+                    Assert.IsTrue(!row.rewarded && !row.penalised && row.rewardOfferedUl == 0 && !row.singleSpoutOffered && row.target == TargetWords.NoReward, file + choice);
+                }
+        }
+    }
+
+    [TestMethod]
     public void ATrialWithNoRightAnswerRewardsOrPenalisesEitherChoiceOnACoin()
     {
         // Random-reward probes: left-right's two-modality and neutral trials, localization's conflict and
@@ -241,6 +269,7 @@ public class ResponseRuleTests
         foreach (var file in new[] { "task-discrimination-left-right.yml", "task-localization.yml" })
         {
             var task = Fixture.Task(file, 4);
+            Fixture.RandomProbes(task);   // the files' probes are noReward; a stage may choose random per condition
             var all = Fixture.Draw(task, 4000);
             var probes = all.Where(t => t.target == TargetWords.Random).ToList();
             var kinds = file.Contains("left-right") ? new[] { "audiovisualCoherent", "audiovisualConflict", "neutral" } : new[] { "audiovisualConflict", "neutral" };

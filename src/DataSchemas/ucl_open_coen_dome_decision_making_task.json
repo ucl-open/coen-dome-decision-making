@@ -500,7 +500,7 @@
       "type": "object"
     },
     "Target": {
-      "description": "What a trial rewards: localization visualSide, auditorySide or random; discriminationGoNoGo go, noGo or noReward;\ndiscriminationLeftRight left, right or random (x-rules). Logged as the target column in the same spelling, a side as\nleft or right.",
+      "description": "What a trial rewards: localization visualSide, auditorySide, random or noReward; discriminationGoNoGo go, noGo or noReward;\ndiscriminationLeftRight left, right, random or noReward (x-rules). Logged as the target column in the same spelling, a side as\nleft or right.",
       "enum": [
         "visualSide",
         "auditorySide",
@@ -724,11 +724,11 @@
         },
         "penalty": {
           "$ref": "#/$defs/Penalty",
-          "description": "What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too when penaliseProbes. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
+          "description": "What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
         },
         "penaliseProbes": {
           "default": false,
-          "description": "Whether a random-reward probe (target random) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing",
+          "description": "Whether a random-reward probe (target random; a noReward probe is never penalised) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing",
           "title": "PenaliseProbes",
           "type": "boolean"
         },
@@ -738,7 +738,7 @@
         },
         "taskType": {
           "$ref": "#/$defs/TaskType",
-          "description": "localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). The targets each allows are x-rules'"
+          "description": "localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). A target noReward trial (any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. The targets each allows are x-rules'"
         },
         "target": {
           "anyOf": [
@@ -885,14 +885,15 @@
               "target"
             ]
           },
-          "message": "taskType localization needs target one of visualSide, auditorySide, random",
+          "message": "taskType localization needs target one of visualSide, auditorySide, random, noReward",
           "then": {
             "properties": {
               "target": {
                 "enum": [
                   "visualSide",
                   "auditorySide",
-                  "random"
+                  "random",
+                  "noReward"
                 ]
               }
             }
@@ -941,14 +942,15 @@
               "target"
             ]
           },
-          "message": "taskType discriminationLeftRight needs target one of left, right, random",
+          "message": "taskType discriminationLeftRight needs target one of left, right, random, noReward",
           "then": {
             "properties": {
               "target": {
                 "enum": [
                   "left",
                   "right",
-                  "random"
+                  "random",
+                  "noReward"
                 ]
               }
             }

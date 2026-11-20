@@ -1741,8 +1741,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// What a trial rewards: localization visualSide, auditorySide or random; discriminationGoNoGo go, noGo or noReward;
-    ///discriminationLeftRight left, right or random (x-rules). Logged as the target column in the same spelling, a side as
+    /// What a trial rewards: localization visualSide, auditorySide, random or noReward; discriminationGoNoGo go, noGo or noReward;
+    ///discriminationLeftRight left, right, random or noReward (x-rules). Logged as the target column in the same spelling, a side as
     ///left or right.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
@@ -2429,12 +2429,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too when penaliseProbes. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null
+        /// What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("penalty", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penalty")]
-        [System.ComponentModel.DescriptionAttribute(@"What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too when penaliseProbes. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null")]
+        [System.ComponentModel.DescriptionAttribute(@"What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null")]
         public Penalty Penalty
         {
             get
@@ -2448,11 +2448,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Whether a random-reward probe (target random) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing
+        /// Whether a random-reward probe (target random; a noReward probe is never penalised) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("penaliseProbes")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penaliseProbes")]
-        [System.ComponentModel.DescriptionAttribute(@"Whether a random-reward probe (target random) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing")]
+        [System.ComponentModel.DescriptionAttribute(@"Whether a random-reward probe (target random; a noReward probe is never penalised) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing")]
         public bool PenaliseProbes
         {
             get
@@ -2485,11 +2485,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). The targets each allows are x-rules'
+        /// localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). A target noReward trial (any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. The targets each allows are x-rules'
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
-        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). The targets each allows are x-rules'")]
+        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). A target noReward trial (any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. The targets each allows are x-rules'")]
         public TaskType TaskType
         {
             get

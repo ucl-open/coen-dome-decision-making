@@ -2,8 +2,8 @@
 # Task parameters for the coen-dome-decision-making two-spout modality discrimination (the stages and timing Gerion's
 # go/no-go mice got, task-discrimination-go-no-go.yml). The answer is the modality, not the side: here the left spout for
 # the grating, the right spout for the sound. A trial showing both modalities (audiovisualCoherent, audiovisualConflict)
-# or neither (neutral) has no right answer: a random-reward probe (target random, outcome probe), both spouts in, a choice
-# at either rewarded there on a coin drawn with the trial (tails penalised, and a miss, only with penaliseProbes). Each
+# or neither (neutral) has no right answer: a no-reward probe (target noReward, outcome probe), both spouts in, never rewarded or penalised (a stage may
+# choose target random per condition: a random-reward probe, a choice at either rewarded on a coin, tails penalised only with penaliseProbes). Each
 # condition says what its trials show and reward: its set over the task's values (any field but x-session-fields), its pairs picking
 # listed values together; its trialType is derived from them (x-trial-types). A stage's conditions replace them whole. Visual-only and
 # neutral trials are silent (auditoryStimulus.levelDbfs mute).
@@ -20,12 +20,12 @@ taskParameters:
       set: { target: right, visualStimulus.contrasts: [0] }
     - weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
-      set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
+      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
     - weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
-      set: { target: random, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60] }
+      set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60] }
     - weight: 1
-      set: { target: random, visualStimulus.contrasts: [0], auditoryStimulus.levelDbfs: mute }
+      set: { target: noReward, visualStimulus.contrasts: [0], auditoryStimulus.levelDbfs: mute }
   trialStructure:
     itiMinSeconds: 2.5            # s, to the next stimulus: a rewarded trial is its outcome, then this ITI (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one its outcome, the timeout, then the ITI; neither, the ITI
     itiMaxSeconds: 3.5            # s
@@ -77,7 +77,7 @@ taskParameters:
       flash:                # the penalty flash on the projector, for the penalty sound's length
         brightness: 0       # 0 to 1 of the projector's full white; 0: no flash
         rateHz: 10          # Hz, at most 30
-  penaliseProbes: false    # false: a random-reward probe is never penalised (tails unrewarded, a miss free); true: tails as incorrect, a miss as noResponse
+  penaliseProbes: false    # false: a random-reward probe (target random; a noReward probe never is) is never penalised (tails unrewarded, a miss free); true: tails as incorrect, a miss as noResponse
   optogenetics:
     enabled: false
     zapitConditionsPath: ""

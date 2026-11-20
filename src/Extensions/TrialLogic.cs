@@ -506,6 +506,12 @@ public class TrialDraw
                 trial.rewardOfferedUl = 0;  // no reward on offer: a withheld noGo is correct, unrewarded
             }
         }
+        else if (trial.target == TargetWords.NoReward)
+        {
+            // A probe with nothing on offer (localization, discriminationLeftRight): both spouts in, never rewarded or penalised.
+            trial.autoReward = false;
+            trial.rewardOfferedUl = 0;
+        }
         if (trial.target == TargetWords.Random)
         {
             // No right answer: a random-reward probe. Both spouts move in, and a coin drawn
@@ -515,7 +521,7 @@ public class TrialDraw
             trial.probeHeads = random.NextDouble() < 0.5;
         }
         // Only the target's spout comes in: always in go/no-go (the left), else on a scored trial whose spouts move, by the draw.
-        trial.singleSpoutOffered = task.TaskType == TaskType.DiscriminationGoNoGo || (trial.target != TargetWords.Random && !p.Spouts.AlwaysIn && singleDrawn);
+        trial.singleSpoutOffered = task.TaskType == TaskType.DiscriminationGoNoGo || (trial.target != TargetWords.Random && trial.target != TargetWords.NoReward && !p.Spouts.AlwaysIn && singleDrawn);
 
         var optogenetics = task.Optogenetics;
         if (optogenetics.Enabled)

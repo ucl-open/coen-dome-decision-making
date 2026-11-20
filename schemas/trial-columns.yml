@@ -128,11 +128,11 @@ auditoryElevationDeg:
 autoReward:
   type: bool
   description: 'True on an auto-reward trial (drawn with the task''s autoRewardProbability): one rewarded without a correct response, its outcome auto when the auto-reward answered it with no response of the mouse''s own; how, and so whether its reward came from the auto-reward, is the task''s (its note).'
-  note: 'Its reward came from the auto-reward when the mouse made no choice (choice noResponse, outcome auto): its miss was rewarded at the target spout; a side chosen keeps its outcome, correct or incorrect. Forced false on a trial other than go in discriminationGoNoGo and on a random-reward probe.'
+  note: 'Its reward came from the auto-reward when the mouse made no choice (choice noResponse, outcome auto): its miss was rewarded at the target spout; a side chosen keeps its outcome, correct or incorrect. Forced false on a trial other than go in discriminationGoNoGo and on a probe (random or noReward).'
 target:
   type: string
   values: [left, right, go, noGo, noReward, random]
-  description: The answer the trial rewards, from its condition's target, in the task file's spelling - left or right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo go (lick) or noGo (withhold). On a trial with no right answer (outcome probe, never repeated) noReward or random - noReward a no-reward probe in discriminationGoNoGo (never rewarded or penalised), random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
+  description: The answer the trial rewards, from its condition's target, in the task file's spelling - left or right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo go (lick) or noGo (withhold). On a trial with no right answer (outcome probe, never repeated) noReward or random - noReward a no-reward probe (never rewarded or penalised; in localization and discriminationLeftRight both spouts in), random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
 choice:
   type: string
   values: [left, right, go, noResponse]
@@ -142,7 +142,7 @@ repeatCount:
   description: How many times in a row the trial has been repeated, 0 for a new draw.
 singleSpoutOffered:
   type: bool
-  description: True when only the target's spout came in (in discriminationGoNoGo the left, on every trial); else both did. Drawn with spouts.singleSpoutProbability on a scored trial whose spouts move (spouts.alwaysIn false); never on a random-reward probe.
+  description: True when only the target's spout came in (in discriminationGoNoGo the left, on every trial); else both did. Drawn with spouts.singleSpoutProbability on a scored trial whose spouts move (spouts.alwaysIn false); never on a probe (random or noReward) in localization and discriminationLeftRight.
 visualInitialAzimuthDeg:
   type: double
   unit: deg
