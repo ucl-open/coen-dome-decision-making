@@ -317,13 +317,14 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         description="Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is never repeated (neither noResponse nor notCorrect); 0: never, 1: every trial",
     )
     penalty: Penalty = Field(
-        description="What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
+        description="What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseRandomProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a random probe's too when penaliseRandomProbes; a noReward probe is never penalised. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
     )
-    penalise_probes: Bool = Field(
+    penalise_random_probes: Bool = Field(
         default=False,
         description=(
-            "Whether a random-reward probe (target random; a noReward probe is never penalised) is penalised: true, a choice on the coin's tails as an incorrect choice "
-            "(penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with "
+            "Whether a random-reward probe (target random) is penalised; it affects only random probes (a noReward probe is never "
+            "rewarded or penalised, a scored trial always is). true: a choice on the coin's tails as an incorrect choice "
+            "(penalty.incorrect) and a miss not auto-rewarded as penalty.noResponse; false (the default): never, tails goes unrewarded with "
             "no timeout, sound or flash, and a miss costs nothing"
         ),
     )
@@ -335,7 +336,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
             "rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. "
             "A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin "
             "drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded "
-            "(and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). A target noReward trial "
+            "(and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseRandomProbes). A target noReward trial "
             "(any task type) is a probe with nothing on offer: never rewarded or penalised, and in localization and discriminationLeftRight both spouts in. "
             "The targets each allows are x-rules'"
         ),

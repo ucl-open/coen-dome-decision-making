@@ -63,7 +63,7 @@ taskParameters:
         brightness: 0
         rateHz: 10
     noResponse: null
-  penaliseProbes: false
+  penaliseRandomProbes: false
   optogenetics:
     enabled: false
     zapitConditionsPath: ''

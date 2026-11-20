@@ -978,7 +978,7 @@ public class TrialConditionTests
         wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
         Assert.IsTrue(miss.PenaltyTimeoutSeconds == 2 && miss.PenaltyLevelDbfs == -45 && miss.Row.Value.penaltyTimeoutSeconds == 2);
         Assert.IsTrue(wrong.PenaltyTimeoutSeconds == 4 && wrong.PenaltyLevelDbfs == -35);
-        // A random-reward probe is unpenalised by default (penaliseProbes false): tails and a miss cost nothing.
+        // A random-reward probe is unpenalised by default (penaliseRandomProbes false): tails and a miss cost nothing.
         var free = Fixture.Draw(With(Fixture.Condition(1, "target", "random")), 1)[0];
         free.probeHeads = false;
         foreach (var c in new[] { Choice.NoResponse, Choice.Left })
@@ -986,8 +986,8 @@ public class TrialConditionTests
             var o = TrialOutcome.At(c, free, new TrialTimes { Now = 1 });
             Assert.IsTrue(!o.Penalised && !o.Row.Value.penalised && o.PenaltyTimeoutSeconds == 0 && !o.Rewarded, c);
         }
-        // With penaliseProbes, a probe's miss (outcome probe) is a miss; its choice on tails is a choice.
-        var probe = Fixture.Draw(With(Fixture.Condition(1, "target", "random", "penalty.noResponse.timeoutSeconds", 2.0, "penaliseProbes", true)), 1)[0];
+        // With penaliseRandomProbes, a probe's miss (outcome probe) is a miss; its choice on tails is a choice.
+        var probe = Fixture.Draw(With(Fixture.Condition(1, "target", "random", "penalty.noResponse.timeoutSeconds", 2.0, "penaliseRandomProbes", true)), 1)[0];
         probe.probeHeads = false;
         var probeMiss = TrialOutcome.At(Choice.NoResponse, probe, new TrialTimes { Now = 1 });
         var tails = TrialOutcome.At(Choice.Left, probe, new TrialTimes { Now = 1 });

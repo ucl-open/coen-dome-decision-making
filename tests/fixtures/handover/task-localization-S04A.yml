@@ -112,7 +112,7 @@ taskParameters:
       flash:
         brightness: 0
         rateHz: 10
-  penaliseProbes: false
+  penaliseRandomProbes: false
   optogenetics:
     enabled: false
     zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml

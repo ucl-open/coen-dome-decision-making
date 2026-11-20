@@ -5,7 +5,7 @@
 # picking listed values together; its trialType is derived from them (x-trial-types). A stage's conditions replace them whole. audiovisualConflict
 # and neutral trials have no right answer: no-reward probes (target noReward, outcome probe), both spouts in,
 # never rewarded or penalised (a stage may choose target random per condition: a random-reward probe, a choice at either rewarded on a coin,
-# tails penalised only with penaliseProbes). Visual and neutral
+# tails penalised only with penaliseRandomProbes). Visual and neutral
 # trials play the sound at the centre. A penalised miss has the timeout but no penalty sound (penalty.noResponse).
 # The training stages are the share's curriculum (K:\config\curricula\coen-dome-decision-making\<this file's stem>.conditions.yml):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills curriculum.
@@ -63,21 +63,21 @@ taskParameters:
       levelDbfs: mute      # the reward tone on a rewarded trial; mute: none (not played by this workflow yet, so only mute)
   autoRewardProbability: 0.0           # chance a trial is auto-rewarded: its miss is rewarded at the target spout
   penalty:                 # what a penalised trial costs, by its kind (each its own values)
-    incorrect:            # an incorrect choice, or a probe's choice on the coin's tails when penaliseProbes
+    incorrect:            # an incorrect choice, or a probe's choice on the coin's tails when penaliseRandomProbes
       timeoutSeconds: 4.0   # s; a penalised trial is its outcome, this timeout, then the ITI
       sound:
         levelDbfs: -35    # dBFS RMS; mute: no sound
       flash:                # the penalty flash on the projector, for the penalty sound's length
         brightness: 0       # 0 to 1 of the projector's full white; 0: no flash
         rateHz: 10          # Hz, at most 30
-    noResponse:           # a penalised miss (not an auto-rewarded one; a probe's as a scored trial's when penaliseProbes)
+    noResponse:           # a penalised miss (not an auto-rewarded one; a probe's as a scored trial's when penaliseRandomProbes)
       timeoutSeconds: 4.0   # s; a penalised trial is its outcome, this timeout, then the ITI
       sound:
         levelDbfs: mute   # dBFS RMS; mute: no sound
       flash:                # the penalty flash on the projector, for the penalty sound's length
         brightness: 0       # 0 to 1 of the projector's full white; 0: no flash
         rateHz: 10          # Hz, at most 30
-  penaliseProbes: false    # false: a random-reward probe (target random; a noReward probe never is) is never penalised (tails unrewarded, a miss free); true: tails as incorrect, a miss as noResponse
+  penaliseRandomProbes: false    # false: a random-reward probe (target random; a noReward probe never is) is never penalised (tails unrewarded, a miss free); true: tails as incorrect, a miss as noResponse
   optogenetics:
     enabled: false
     zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
