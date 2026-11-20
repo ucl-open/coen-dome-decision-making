@@ -7,7 +7,7 @@
 # penalised (Song et al. 2017). Here the grating is go and the sound noGo; an auditory-Go mouse gets its own
 # task file. Each condition says what its trials show and reward: its set over the task's values (any field but x-session-fields), its
 # pairs picking listed values together; its trialType is derived from them (x-trial-types). A stage's conditions replace them whole.
-# Conditions with no go weight are refused at Go. Visual-only and neutral trials are silent (auditoryStimulus.levelDbfs mute).
+# Conditions with no go weight are refused at Go. Visual-only and neutral trials are silent (auditoryStimulus.initialLevelDbfs mute).
 # Only the left spout moves in.
 # The training stages are the share's curriculum (K:\config\curricula\coen-dome-decision-making\<this file's stem>.conditions.yml):
 # at launch app-rig-control writes the chosen stage's values over these defaults and fills curriculum.
@@ -17,9 +17,9 @@ taskParameters:
   curriculum:              # app-rig-control fills it at launch (id, code, version, path, label, sha256 of the stage run); empty here: Go refuses it
   trialConditions:         # the trial mix, one whole value: a curriculum stage's conditions replace it; set: condition-level values (any field but x-session-fields)
     - weight: 10
-      set: { target: go, auditoryStimulus.levelDbfs: mute }
+      set: { target: go, auditoryStimulus.initialLevelDbfs: mute }
     - weight: 10
-      set: { target: noGo, visualStimulus.contrasts: [0] }
+      set: { target: noGo, visualStimulus.initialContrasts: [0] }
     - weight: 5
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
       set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [-60, 60] }
@@ -27,7 +27,7 @@ taskParameters:
       pairs: [[visualStimulus.initialAzimuthsDeg, auditoryStimulus.initialAzimuthsDeg]]
       set: { target: noReward, visualStimulus.initialAzimuthsDeg: [-60, 60], auditoryStimulus.initialAzimuthsDeg: [60, -60] }
     - weight: 1
-      set: { target: noReward, visualStimulus.contrasts: [0], auditoryStimulus.levelDbfs: mute }
+      set: { target: noReward, visualStimulus.initialContrasts: [0], auditoryStimulus.initialLevelDbfs: mute }
   trialStructure:
     itiMinSeconds: 2.5            # s, to the next stimulus: a rewarded trial is its outcome, then this ITI (the spouts drawn out spouts.rewardConsumptionSeconds into it); a penalised one its outcome, the timeout, then the ITI; neither, the ITI
     itiMaxSeconds: 3.5            # s
@@ -46,16 +46,16 @@ taskParameters:
     rateHz: 8                  # pulses a second, sound and grating together, each 50 ms; at most 20
     responseToStimulusOffSeconds: null      # s from the response (a miss: the response window's end) to both off; 0 at the response; null: the response does not end them
   visualStimulus:
-    contrasts: [1.0]               # grating contrasts, one drawn per trial; 0 no grating
+    initialContrasts: [1.0]  # grating contrasts, one drawn per trial; 0 no grating
     initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive), one picked per trial; never 0. The grating starts there
-    elevationDeg: 15          # deg
-    sigmaDeg: 20              # deg, the Gaussian window's sigma
-    orientationDeg: 0         # deg
-    spatialFrequencyCpd: 0.066666667   # cycles/deg
-    temporalFrequencyHz: 0   # Hz, unsigned drift rate; direction is orthogonal to orientation
+    initialElevationDeg: 15                  # deg
+    initialSigmaDeg: 20                      # deg, the Gaussian window's sigma
+    initialOrientationDeg: 0                 # deg
+    initialSpatialFrequencyCpd: 0.066666667  # cycles/deg
+    initialTemporalFrequencyHz: 0            # Hz, unsigned drift rate; direction is orthogonal to orientation
   auditoryStimulus:
-    levelDbfs: -40         # dBFS RMS while sounding, the waveform set as one (3.22 dB louder than as stored, -43.22); mute: no sound
-    elevationDeg: 15       # deg, with the azimuth drawn, picks rig.yml's nearest speaker
+    initialLevelDbfs: -40    # dBFS RMS while sounding, the waveform set as one (3.22 dB louder than as stored, -43.22); mute: no sound
+    initialElevationDeg: 15  # deg, with the azimuth drawn, picks rig.yml's nearest speaker
     initialAzimuthsDeg: [-60, 60]   # deg, signed (right positive, 0 the centre), one picked per trial; the sound plays on the speaker nearest it, or on every speaker at all
   reward:
     sizeUl: 3              # ul, planned from the valve's calibration

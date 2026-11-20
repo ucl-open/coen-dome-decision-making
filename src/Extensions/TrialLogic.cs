@@ -32,14 +32,14 @@ public class Trial : ConditionedTrial, ILaserDurationTrial, ISpoutTrial
     public string target;              // left or right; in discriminationGoNoGo go or noGo; on a trial with no right answer noReward or random (TargetWords)
     public bool singleSpoutOffered;    // only the target's spout came in (TrialDraw: go/no-go, or a scored trial with the spouts moving and the draw)
     public int repeatCount;            // 0 for a new draw
-    public double visualInitialAzimuthDeg;  // NaN with no grating (visualContrast 0), as the sound's when none plays
+    public double visualInitialAzimuthDeg;  // NaN with no grating (visualInitialContrast 0), as the sound's when none plays
     public double gratingAzimuthDeg;   // what the renderer starts the grating at (not logged): visualInitialAzimuthDeg, 0 with no grating (hidden at contrast 0)
     public int auditorySoundFileIndex;
     public bool probeHeads;            // a random trial's coin: heads rewards a choice, tails penalises it
     internal UclOpenCoenDomeDecisionMakingTaskParameters values;  // its combination's values, which the rules read per trial
 
-    /// <summary>The grating's shape as the renderer draws it (elevationDeg, sigmaDeg, orientationDeg, spatialFrequencyCpd,
-    /// temporalFrequencyHz): its combination's visualStimulus, read per trial, not copied.</summary>
+    /// <summary>The grating's shape as the renderer draws it (initialElevationDeg, initialSigmaDeg, initialOrientationDeg, initialSpatialFrequencyCpd,
+    /// initialTemporalFrequencyHz): its combination's visualStimulus, read per trial, not copied.</summary>
     public VisualStimulus VisualStimulus { get { return values.VisualStimulus; } }
 
     /// <summary>What the grating and the sound share (durationSeconds, responseToStimulusOffSeconds, rateHz): its combination's stimulus.</summary>
@@ -274,13 +274,13 @@ public class TrialDraw
         else if (task.Repeats.RepeatOn == RepeatOn.Never && task.Repeats.MaxRepeats > 0) problems.Add("repeats.repeatOn never needs repeats.maxRepeats 0");
         else if (task.Repeats.RepeatOn != RepeatOn.Never && task.Repeats.MaxRepeats == 0) problems.Add("repeats.maxRepeats 0 needs repeats.repeatOn never");
         var visual = task.VisualStimulus;
-        var contrasts = visual.Contrasts ?? new List<double>();
-        if (contrasts.Count == 0 || contrasts.Any(c => !(c >= 0) || double.IsInfinity(c))) problems.Add("visualStimulus.contrasts must each be a finite number, 0 or more, at least one");
+        var contrasts = visual.InitialContrasts ?? new List<double>();
+        if (contrasts.Count == 0 || contrasts.Any(c => !(c >= 0) || double.IsInfinity(c))) problems.Add("visualStimulus.initialContrasts must each be a finite number, 0 or more, at least one");
         // The sound's level: a number of dBFS RMS or mute (NaN), at most the peak limit.
         double level = double.NaN;
-        try { level = SoundLevels.Parse(task.AuditoryStimulus.LevelDbfs); }
-        catch (InvalidOperationException e) { problems.Add("auditoryStimulus.levelDbfs: " + e.Message); }
-        if (level > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("auditoryStimulus.levelDbfs {0} is above {1} dBFS", level, SoundLevel.PeakLimitDbfs));
+        try { level = SoundLevels.Parse(task.AuditoryStimulus.InitialLevelDbfs); }
+        catch (InvalidOperationException e) { problems.Add("auditoryStimulus.initialLevelDbfs: " + e.Message); }
+        if (level > SoundLevel.PeakLimitDbfs) problems.Add(string.Format("auditoryStimulus.initialLevelDbfs {0} is above {1} dBFS", level, SoundLevel.PeakLimitDbfs));
         // Each penalty kind's own full values (lib-open-rigs Penalties): penalty.incorrect always; penalty.noResponse null
         // exactly when no miss is penalised (Penalties.Problems). discriminationGoNoGo never penalises a miss, so a
         // penalty.noResponse there would never be used (task.py's x-rule).
@@ -297,11 +297,11 @@ public class TrialDraw
         if (!double.IsNaN(tone)) problems.Add("reward.tone.levelDbfs must be mute: this workflow has no reward tone sound to play yet");
         bool sounding = !double.IsNaN(level);
         // The positions (task.py's same rules): each grating azimuth signed and never 0 (its sign is the side); each sound
-        // azimuth's nearest speaker, at auditoryStimulus.elevationDeg, on its side (0: any).
-        if (!(visual.ElevationDeg >= -90 && visual.ElevationDeg <= 90)) problems.Add("visualStimulus.elevationDeg must be in [-90, 90]");
-        var elevation = task.AuditoryStimulus.ElevationDeg;
+        // azimuth's nearest speaker, at auditoryStimulus.initialElevationDeg, on its side (0: any).
+        if (!(visual.InitialElevationDeg >= -90 && visual.InitialElevationDeg <= 90)) problems.Add("visualStimulus.initialElevationDeg must be in [-90, 90]");
+        var elevation = task.AuditoryStimulus.InitialElevationDeg;
         bool elevationOk = elevation >= -90 && elevation <= 90;
-        if (!elevationOk) problems.Add("auditoryStimulus.elevationDeg must be in [-90, 90]");
+        if (!elevationOk) problems.Add("auditoryStimulus.initialElevationDeg must be in [-90, 90]");
         if (visual.InitialAzimuthsDeg == null || visual.InitialAzimuthsDeg.Count == 0) problems.Add("visualStimulus.initialAzimuthsDeg needs an azimuth");
         foreach (var listed in visual.InitialAzimuthsDeg ?? new List<double>())
         {
@@ -448,39 +448,39 @@ public class TrialDraw
         // The grating: the combination's contrast and initial azimuth (each list one entry), shown where the contrast is above 0
         // (0: a grey screen, logged at NaN, NaN; the renderer's start at 0, 0 under contrast 0).
         var visual = p.VisualStimulus;
-        double contrast = visual.Contrasts[0];
+        double contrast = visual.InitialContrasts[0];
         double azimuth = visual.InitialAzimuthsDeg[0];
         trial.visualInitialAzimuthDeg = double.NaN;
         if (contrast > 0)
         {
             trial.visualInitialAzimuthDeg = azimuth;
             trial.gratingAzimuthDeg = azimuth;
-            trial.visualContrast = contrast;
+            trial.visualInitialContrast = contrast;
         }
-        // The sound: at its level (mute: none, NaN) on the speaker nearest an initial azimuth at auditoryStimulus.elevationDeg,
+        // The sound: at its level (mute: none, NaN) on the speaker nearest an initial azimuth at auditoryStimulus.initialElevationDeg,
         // or on every speaker at "all" (logged at azimuth and elevation NaN, with its level).
         var sound = p.AuditoryStimulus;
         double soundAzimuth = SoundAzimuths.Parse(sound.InitialAzimuthsDeg[0]).Value;   // checked at Go
-        trial.auditoryLevelDbfs = SoundLevels.Parse(sound.LevelDbfs);
-        bool sounding = !double.IsNaN(trial.auditoryLevelDbfs);
+        trial.auditoryInitialLevelDbfs = SoundLevels.Parse(sound.InitialLevelDbfs);
+        bool sounding = !double.IsNaN(trial.auditoryInitialLevelDbfs);
         if (sounding && double.IsNaN(soundAzimuth))
         {
             trial.speakerChannel = SoundAzimuths.AllSpeakersChannel;
             trial.auditoryInitialAzimuthDeg = double.NaN;
-            trial.auditoryElevationDeg = double.NaN;
+            trial.auditoryInitialElevationDeg = double.NaN;
         }
         else if (sounding)
         {
-            var speaker = SoundAzimuths.NearestSpeaker(speakers, soundAzimuth, sound.ElevationDeg).Value;
+            var speaker = SoundAzimuths.NearestSpeaker(speakers, soundAzimuth, sound.InitialElevationDeg).Value;
             trial.speakerChannel = speaker.Channel;
             trial.auditoryInitialAzimuthDeg = speaker.Position.Azimuth;
-            trial.auditoryElevationDeg = speaker.Position.Elevation;
+            trial.auditoryInitialElevationDeg = speaker.Position.Elevation;
         }
         else
         {
             trial.speakerChannel = -1;
             trial.auditoryInitialAzimuthDeg = double.NaN;
-            trial.auditoryElevationDeg = double.NaN;
+            trial.auditoryInitialElevationDeg = double.NaN;
         }
 
         // The target: a side (the grating's or the sound's picked azimuth's, or named), a go/no-go role, or a probe (each
@@ -535,12 +535,12 @@ public class TrialDraw
         return trial;
     }
 
-    /// <summary>The highest stimulus level the conditions can draw: the highest auditoryStimulus.levelDbfs of any combination
+    /// <summary>The highest stimulus level the conditions can draw: the highest auditoryStimulus.initialLevelDbfs of any combination
     /// of a condition with a weight above 0 (NaN when all are mute), and where it is, for the stimulus set's peak check at Go
     /// (LevelAuditoryStimulusSet).</summary>
     public MaxSoundLevel MaxStimulusLevel()
     {
-        return MaxSoundLevel.Of(conditions, t => t.AuditoryStimulus.LevelDbfs);
+        return MaxSoundLevel.Of(conditions, t => t.AuditoryStimulus.InitialLevelDbfs);
     }
 
     IEnumerable<UclOpenCoenDomeDecisionMakingTaskParameters> Drawn()

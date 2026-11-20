@@ -66,7 +66,7 @@ static class Fixture
         if (s.Weights != null) task.TrialConditions = Conditions(task, s.Weights);
         task.AutoRewardProbability = s.Auto;
         task.Spouts.SingleSpoutProbability = s.Single;
-        task.VisualStimulus.Contrasts = s.Contrasts.ToList();
+        task.VisualStimulus.InitialContrasts = s.Contrasts.ToList();
         if (s.Repeats)
         {
             task.Repeats.RepeatOn = RepeatOn.NotCorrect;
@@ -227,7 +227,7 @@ public class TrialDrawTests
         var trials = Fixture.Draw(Fixture.Task("task-localization.yml", 4), 500);
         foreach (var t in trials)
         {
-            Assert.IsTrue(!t.SpoutsAlwaysIn && t.auditoryLevelDbfs == -40, t.trialType);
+            Assert.IsTrue(!t.SpoutsAlwaysIn && t.auditoryInitialLevelDbfs == -40, t.trialType);
             if (t.trialType == "visual" || t.trialType == "audiovisualCoherent")
                 Assert.AreEqual(t.visualInitialAzimuthDeg > 0 ? TargetWords.Right : TargetWords.Left, t.target, t.trialType);
             if (t.trialType == "auditory" || t.trialType == "audiovisualCoherent")
@@ -260,7 +260,7 @@ public class TrialDrawTests
         {
             var speaker = Fixture.Speakers().Speakers.Values.Single(s => s.Channel == t.speakerChannel);
             Assert.AreEqual(speaker.Position.Azimuth, t.auditoryInitialAzimuthDeg);
-            Assert.AreEqual(speaker.Position.Elevation, t.auditoryElevationDeg);
+            Assert.AreEqual(speaker.Position.Elevation, t.auditoryInitialElevationDeg);
         }
         var nearest = SoundAzimuths.NearestSpeaker(Fixture.Speakers(), -60, 15);
         Assert.AreEqual("left", nearest.Key);
@@ -272,9 +272,9 @@ public class TrialDrawTests
     {
         foreach (var t in Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), 500))
         {
-            if (t.trialType == "left") Assert.IsTrue(double.IsNaN(t.auditoryLevelDbfs) && t.visualContrast > 0 && t.target == TargetWords.Left);
-            if (t.trialType == "right") Assert.IsTrue(t.auditoryLevelDbfs > -120 && t.visualContrast == 0 && t.target == TargetWords.Right);
-            if (t.trialType == "neutral") Assert.IsTrue(double.IsNaN(t.auditoryLevelDbfs) && double.IsNaN(t.auditoryInitialAzimuthDeg) && t.speakerChannel == -1);
+            if (t.trialType == "left") Assert.IsTrue(double.IsNaN(t.auditoryInitialLevelDbfs) && t.visualInitialContrast > 0 && t.target == TargetWords.Left);
+            if (t.trialType == "right") Assert.IsTrue(t.auditoryInitialLevelDbfs > -120 && t.visualInitialContrast == 0 && t.target == TargetWords.Right);
+            if (t.trialType == "neutral") Assert.IsTrue(double.IsNaN(t.auditoryInitialLevelDbfs) && double.IsNaN(t.auditoryInitialAzimuthDeg) && t.speakerChannel == -1);
         }
     }
 
@@ -313,10 +313,10 @@ public class TrialDrawTests
         // goModality is gone: the go condition shows the sound alone, the noGo condition the grating alone.
         var task = Fixture.Task("task-discrimination-go-no-go.yml", 2);
         Fixture.Weight(task, "audiovisualCoherent", 0);
-        task.TrialConditions[0].Set = new Dictionary<object, object> { { "target", "go" }, { "visualStimulus.contrasts", Fixture.List(0.0) } };
-        task.TrialConditions[1].Set = new Dictionary<object, object> { { "target", "noGo" }, { "auditoryStimulus.levelDbfs", "mute" } };
+        task.TrialConditions[0].Set = new Dictionary<object, object> { { "target", "go" }, { "visualStimulus.initialContrasts", Fixture.List(0.0) } };
+        task.TrialConditions[1].Set = new Dictionary<object, object> { { "target", "noGo" }, { "auditoryStimulus.initialLevelDbfs", "mute" } };
         var trials = Fixture.Draw(task, 400);
-        Assert.IsTrue(trials.All(t => t.trialType == "go" ? t.target == TargetWords.Go && t.auditoryLevelDbfs > -120 && t.visualContrast == 0 : t.target == TargetWords.NoGo && double.IsNaN(t.auditoryLevelDbfs) && t.visualContrast > 0));
+        Assert.IsTrue(trials.All(t => t.trialType == "go" ? t.target == TargetWords.Go && t.auditoryInitialLevelDbfs > -120 && t.visualInitialContrast == 0 : t.target == TargetWords.NoGo && double.IsNaN(t.auditoryInitialLevelDbfs) && t.visualInitialContrast > 0));
         Assert.AreEqual(0.5, trials.Count(t => t.trialType == "go") / 400.0, 0.08, "go 10, noGo 10");
     }
 
@@ -538,15 +538,15 @@ public class TrialDrawTests
             Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), speakers, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)));
 
         var task = Fixture.Task("task-localization.yml", 4);
-        task.VisualStimulus.Contrasts.Clear();
-        StringAssert.Contains(refusal(task), "contrasts must each be a finite number, 0 or more, at least one");
+        task.VisualStimulus.InitialContrasts.Clear();
+        StringAssert.Contains(refusal(task), "initialContrasts must each be a finite number, 0 or more, at least one");
 
         task = Fixture.Task("task-localization.yml", 4);
-        task.AuditoryStimulus.LevelDbfs = "loud";
-        StringAssert.Contains(refusal(task), "auditoryStimulus.levelDbfs: A sound level is a number of dBFS RMS or mute, not loud");
+        task.AuditoryStimulus.InitialLevelDbfs = "loud";
+        StringAssert.Contains(refusal(task), "auditoryStimulus.initialLevelDbfs: A sound level is a number of dBFS RMS or mute, not loud");
         task = Fixture.Task("task-localization.yml", 4);
-        task.AuditoryStimulus.LevelDbfs = -0.5;
-        StringAssert.Contains(refusal(task), "auditoryStimulus.levelDbfs -0.5 is above -1 dBFS");
+        task.AuditoryStimulus.InitialLevelDbfs = -0.5;
+        StringAssert.Contains(refusal(task), "auditoryStimulus.initialLevelDbfs -0.5 is above -1 dBFS");
         task = Fixture.Task("task-localization.yml", 4);
         task.Penalty.Incorrect.Sound.LevelDbfs = "off";
         StringAssert.Contains(refusal(task), "penalty.incorrect.sound.levelDbfs: A sound level is a number of dBFS RMS or mute, not off");
@@ -648,7 +648,7 @@ public class TrialDrawTests
         var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 2);
         Fixture.Weight(goNoGo, "audiovisualCoherent", 0);
         var stage2 = Fixture.Draw(goNoGo, 400);
-        Assert.IsTrue(stage2.All(t => t.trialType == "go" ? t.target == TargetWords.Go && t.visualContrast > 0 && double.IsNaN(t.auditoryLevelDbfs) : t.trialType == "noGo" && t.target == TargetWords.NoGo && t.auditoryLevelDbfs > -120));
+        Assert.IsTrue(stage2.All(t => t.trialType == "go" ? t.target == TargetWords.Go && t.visualInitialContrast > 0 && double.IsNaN(t.auditoryInitialLevelDbfs) : t.trialType == "noGo" && t.target == TargetWords.NoGo && t.auditoryInitialLevelDbfs > -120));
         Assert.AreEqual(0.5, stage2.Count(t => t.trialType == "go") / 400.0, 0.08, "go 10, noGo 10");
         var built = Fixture.Check(Fixture.Task("task-discrimination-left-right.yml", 2), Fixture.Speakers());
         CollectionAssert.AreEqual(new[] { "left", "right", "audiovisualCoherent", "audiovisualConflict", "neutral" }, built.Select(c => c.TrialType).ToArray());
@@ -867,7 +867,7 @@ public class TrialConditionTests
     {
         var position = Fixture.List(azimuth);
         if (label == "visual") return Fixture.Condition(1, "target", "visualSide", "visualStimulus.initialAzimuthsDeg", position, "auditoryStimulus.initialAzimuthsDeg", Fixture.List(0.0));
-        if (label == "auditory") return Fixture.Condition(1, "target", "auditorySide", "visualStimulus.contrasts", Fixture.List(0.0), "auditoryStimulus.initialAzimuthsDeg", position);
+        if (label == "auditory") return Fixture.Condition(1, "target", "auditorySide", "visualStimulus.initialContrasts", Fixture.List(0.0), "auditoryStimulus.initialAzimuthsDeg", position);
         return Fixture.Paired(Fixture.Condition(1, "target", "visualSide", "visualStimulus.initialAzimuthsDeg", position, "auditoryStimulus.initialAzimuthsDeg", position));
     }
 
@@ -881,7 +881,7 @@ public class TrialConditionTests
                 var trials = Fixture.Draw(With(AtAzimuth(type, azimuth)), 40);
                 var side = azimuth > 0 ? Choice.Right : Choice.Left;
                 Assert.IsTrue(trials.All(t => t.target == side && t.trialType == type), type);
-                if (type != "auditory") Assert.IsTrue(trials.All(t => t.visualInitialAzimuthDeg == azimuth && t.VisualStimulus.ElevationDeg == 15), "the grating starts there exactly");
+                if (type != "auditory") Assert.IsTrue(trials.All(t => t.visualInitialAzimuthDeg == azimuth && t.VisualStimulus.InitialElevationDeg == 15), "the grating starts there exactly");
                 if (type != "visual") Assert.IsTrue(trials.All(t => t.auditoryInitialAzimuthDeg == (azimuth > 0 ? 90 : -90)), "the nearest speaker");
                 if (type == "visual") Assert.IsTrue(trials.All(t => t.auditoryInitialAzimuthDeg == 0), "the centre sound");
             }
@@ -895,15 +895,15 @@ public class TrialConditionTests
     [TestMethod]
     public void ANoGratingTrialLogsItsAzimuthAsNaNAndRendersAtZero()
     {
-        var none = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List(0.0))), 20);
-        Assert.IsTrue(none.All(t => t.visualContrast == 0 && double.IsNaN(t.visualInitialAzimuthDeg)), "logged NaN, contrast 0");
+        var none = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List(0.0))), 20);
+        Assert.IsTrue(none.All(t => t.visualInitialContrast == 0 && double.IsNaN(t.visualInitialAzimuthDeg)), "logged NaN, contrast 0");
         Assert.IsTrue(none.All(t => t.gratingAzimuthDeg == 0), "the renderer never gets NaN");
-        var shown = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List(1.0))), 20);
+        var shown = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List(1.0))), 20);
         Assert.IsTrue(shown.All(t => t.gratingAzimuthDeg == t.visualInitialAzimuthDeg && !double.IsNaN(t.visualInitialAzimuthDeg)));
         // P13: the grating's shape is read from the trial's combination, a condition's set too.
-        var shaped = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.orientationDeg", Fixture.List(0.0, 90.0), "visualStimulus.sigmaDeg", 10.0)), 100);
-        Assert.IsTrue(shaped.All(t => t.VisualStimulus.SigmaDeg == 10 && t.VisualStimulus.ElevationDeg == 15));
-        Assert.IsTrue(shaped.Any(t => t.VisualStimulus.OrientationDeg == 90) && shaped.Any(t => t.VisualStimulus.OrientationDeg == 0));
+        var shaped = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.initialOrientationDeg", Fixture.List(0.0, 90.0), "visualStimulus.initialSigmaDeg", 10.0)), 100);
+        Assert.IsTrue(shaped.All(t => t.VisualStimulus.InitialSigmaDeg == 10 && t.VisualStimulus.InitialElevationDeg == 15));
+        Assert.IsTrue(shaped.Any(t => t.VisualStimulus.InitialOrientationDeg == 90) && shaped.Any(t => t.VisualStimulus.InitialOrientationDeg == 0));
     }
 
     [TestMethod]
@@ -917,29 +917,29 @@ public class TrialConditionTests
         var unpaired = Fixture.Draw(With(Fixture.Condition(1, "visualStimulus.initialAzimuthsDeg", both, "auditoryStimulus.initialAzimuthsDeg", both)), 400);
         Assert.AreEqual(0.5, unpaired.Count(t => (t.visualInitialAzimuthDeg > 0) == (t.auditoryInitialAzimuthDeg > 0)) / 400.0, 0.08, "independent");
         // Contrast paired with level: the brighter grating with the louder sound.
-        var levels = Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List(0.25, 1.0), "auditoryStimulus.levelDbfs", Fixture.List(-46.0, -40.0));
-        levels.Pairs = new List<List<string>> { new List<string> { "visualStimulus.contrasts", "auditoryStimulus.levelDbfs" } };
+        var levels = Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List(0.25, 1.0), "auditoryStimulus.initialLevelDbfs", Fixture.List(-46.0, -40.0));
+        levels.Pairs = new List<List<string>> { new List<string> { "visualStimulus.initialContrasts", "auditoryStimulus.initialLevelDbfs" } };
         var drawn = Fixture.Draw(With(levels), 200);
-        Assert.IsTrue(drawn.All(t => t.visualContrast == 0.25 ? t.auditoryLevelDbfs == -46 : t.auditoryLevelDbfs == -40));
-        Assert.IsTrue(drawn.Any(t => t.auditoryLevelDbfs == -46) && drawn.Any(t => t.auditoryLevelDbfs == -40));
+        Assert.IsTrue(drawn.All(t => t.visualInitialContrast == 0.25 ? t.auditoryInitialLevelDbfs == -46 : t.auditoryInitialLevelDbfs == -40));
+        Assert.IsTrue(drawn.Any(t => t.auditoryInitialLevelDbfs == -46) && drawn.Any(t => t.auditoryInitialLevelDbfs == -40));
         Assert.AreEqual(8, Fixture.Check(With(levels), Fixture.Speakers())[0].Combinations.Count, "the pair's 2 by the task's two lists of 2 azimuths");
-        levels.Set = new Dictionary<object, object> { { "target", "visualSide" }, { "visualStimulus.contrasts", Fixture.List(0.25, 0.5, 1.0) }, { "auditoryStimulus.levelDbfs", Fixture.List(-46.0, -40.0) } };
-        StringAssert.Contains(Refused(With(levels)), "trialConditions[0] (audiovisualCoherent): pairs [visualStimulus.contrasts, auditoryStimulus.levelDbfs] have lists of lengths 3, 2");
-        levels.Pairs = new List<List<string>> { new List<string> { "visualStimulus.contrasts" } };
+        levels.Set = new Dictionary<object, object> { { "target", "visualSide" }, { "visualStimulus.initialContrasts", Fixture.List(0.25, 0.5, 1.0) }, { "auditoryStimulus.initialLevelDbfs", Fixture.List(-46.0, -40.0) } };
+        StringAssert.Contains(Refused(With(levels)), "trialConditions[0] (audiovisualCoherent): pairs [visualStimulus.initialContrasts, auditoryStimulus.initialLevelDbfs] have lists of lengths 3, 2");
+        levels.Pairs = new List<List<string>> { new List<string> { "visualStimulus.initialContrasts" } };
         StringAssert.Contains(Refused(With(levels)), "each pairs group needs two paths or more");
-        levels.Pairs = new List<List<string>> { new List<string> { "visualStimulus.contrasts", "rngSeed" } };
+        levels.Pairs = new List<List<string>> { new List<string> { "visualStimulus.initialContrasts", "rngSeed" } };
         StringAssert.Contains(Refused(With(levels)), "sets or pairs rngSeed, a session field (x-session-fields: rngSeed)");
     }
 
     [TestMethod]
     public void TheMaxSoundLevelIsTheHighestLevelAWeightedConditionDraws()
     {
-        var rules = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.levelDbfs", Fixture.List("mute", -46.0, -38.0)), Fixture.Condition(0, "auditoryStimulus.levelDbfs", -10.0))),
+        var rules = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", Fixture.List("mute", -46.0, -38.0)), Fixture.Condition(0, "auditoryStimulus.initialLevelDbfs", -10.0))),
             Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         Assert.AreEqual(-38.0, rules.MaxStimulusLevel.LevelDbfs);
         StringAssert.StartsWith(rules.MaxStimulusLevel.Where, "trialConditions[0] (audiovisualCoherent) with ");
-        StringAssert.Contains(rules.MaxStimulusLevel.Where, "auditoryStimulus.levelDbfs -38, ");
-        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.levelDbfs", "mute"))), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
+        StringAssert.Contains(rules.MaxStimulusLevel.Where, "auditoryStimulus.initialLevelDbfs -38, ");
+        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", "mute"))), Fixture.Speakers(), false, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
         Assert.IsTrue(double.IsNaN(mute.MaxStimulusLevel.LevelDbfs), "all mute: none");
     }
 
@@ -1061,16 +1061,16 @@ public class TrialConditionTests
         // Two visual conditions 3:1 with their own contrasts, and auditory 4, over a seeded run: each trial's trialConditionId
         // is its condition's index and its values that condition's.
         var task = With(
-            Fixture.Condition(3, "visualStimulus.contrasts", Fixture.List(0.25)),
-            Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List(1.0)),
-            Fixture.Condition(4, "visualStimulus.contrasts", Fixture.List(0.0), "target", "auditorySide"));
+            Fixture.Condition(3, "visualStimulus.initialContrasts", Fixture.List(0.25)),
+            Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List(1.0)),
+            Fixture.Condition(4, "visualStimulus.initialContrasts", Fixture.List(0.0), "target", "auditorySide"));
         var trials = Fixture.Draw(task, 4000);
         var weights = new[] { 3, 1, 4 };
         for (int i = 0; i < weights.Length; i++)
         {
             Assert.AreEqual(weights[i] / 8.0, trials.Count(t => t.trialConditionId == i) / 4000.0, 0.02, "condition " + i);
         }
-        Assert.IsTrue(trials.All(t => t.trialConditionId == 0 ? t.visualContrast == 0.25 : t.trialConditionId == 1 ? t.visualContrast == 1 : t.trialType == "auditory"));
+        Assert.IsTrue(trials.All(t => t.trialConditionId == 0 ? t.visualInitialContrast == 0.25 : t.trialConditionId == 1 ? t.visualInitialContrast == 1 : t.trialType == "auditory"));
     }
 
     [TestMethod]
@@ -1110,14 +1110,14 @@ public class TrialConditionTests
     public void AllPlaysTheSoundOnEverySpeaker()
     {
         // "all" plays on every speaker (speakerChannel AllSpeakersChannel), logged at azimuth and elevation NaN with its
-        // auditoryLevelDbfs above -120, which a silent trial's NaN tells apart; paired with the grating's azimuths it keeps their pick.
+        // auditoryInitialLevelDbfs above -120, which a silent trial's NaN tells apart; paired with the grating's azimuths it keeps their pick.
         var all = Fixture.Condition(1, "visualStimulus.initialAzimuthsDeg", Fixture.List(-60.0, 60.0), "auditoryStimulus.initialAzimuthsDeg", Fixture.List("all", 60.0));
         all.Pairs = new List<List<string>> { new List<string> { "visualStimulus.initialAzimuthsDeg", "auditoryStimulus.initialAzimuthsDeg" } };
         var trials = Fixture.Draw(With(all), 200);
         foreach (var t in trials)
         {
-            Assert.IsTrue(t.auditoryLevelDbfs > -120);
-            if (t.visualInitialAzimuthDeg < 0) Assert.IsTrue(t.speakerChannel == SoundAzimuths.AllSpeakersChannel && double.IsNaN(t.auditoryInitialAzimuthDeg) && double.IsNaN(t.auditoryElevationDeg));
+            Assert.IsTrue(t.auditoryInitialLevelDbfs > -120);
+            if (t.visualInitialAzimuthDeg < 0) Assert.IsTrue(t.speakerChannel == SoundAzimuths.AllSpeakersChannel && double.IsNaN(t.auditoryInitialAzimuthDeg) && double.IsNaN(t.auditoryInitialElevationDeg));
             else Assert.IsTrue(t.speakerChannel >= 0 && t.auditoryInitialAzimuthDeg > 0, "the right speaker nearest 60");
         }
         Assert.IsTrue(trials.Any(t => t.visualInitialAzimuthDeg < 0) && trials.Any(t => t.visualInitialAzimuthDeg > 0));
@@ -1131,7 +1131,7 @@ public class TrialConditionTests
         // Every list field expands too: the task's two sound azimuths double the set's 16 x 32.
         var sizes = Fixture.List(Enumerable.Range(0, 16).Select(i => (object)(1 + i / 16.0)).ToArray());
         var probabilities = Fixture.List(Enumerable.Range(0, 32).Select(i => (object)(i / 32.0)).ToArray());
-        Func<TrialCondition> condition = () => Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List(1.0), "visualStimulus.initialAzimuthsDeg", Fixture.List(60.0),
+        Func<TrialCondition> condition = () => Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List(1.0), "visualStimulus.initialAzimuthsDeg", Fixture.List(60.0),
             "auditoryStimulus.initialAzimuthsDeg", Fixture.List(-60.0, 60.0), "reward.sizeUl", sizes, "autoRewardProbability", probabilities);
         var watch = System.Diagnostics.Stopwatch.StartNew();
         Assert.AreEqual(1024, Fixture.Check(With(condition()), Fixture.Speakers())[0].Combinations.Count);
@@ -1145,7 +1145,7 @@ public class TrialConditionTests
     public void AnyFieldButASessionFieldMayBeSetAndItsValuesAreChecked()
     {
         Func<TrialCondition, string> refusal = c => Refused(With(c));
-        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "trialStructure.itiMinSeconds", 2.0, "visualStimulus.orientationDeg", Fixture.List(0.0, 90.0))));
+        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "trialStructure.itiMinSeconds", 2.0, "visualStimulus.initialOrientationDeg", Fixture.List(0.0, 90.0))));
         StringAssert.Contains(refusal(Fixture.Condition(1, "taskType", "localization")), "sets or pairs taskType, a session field (x-session-fields: taskType)");
         // A set path that holds a session field (a map set whole) is refused as the field itself is.
         StringAssert.Contains(refusal(Fixture.Condition(1, "optogenetics", new Dictionary<object, object> { { "enabled", true } })),
@@ -1156,8 +1156,8 @@ public class TrialConditionTests
         StringAssert.Contains(refusal(Fixture.Condition(1, "reward.sizeUl", 99.0)), ": reward.sizeUl must be above 0 and at most");
         StringAssert.Contains(refusal(Fixture.Condition(1, "reward.sizeUl", Fixture.List(2.0, 99.0))), "reward.sizeUl 99, ");
         StringAssert.Contains(refusal(Fixture.Condition(1, "reward.sizeUl", Fixture.List(2.0, 99.0))), ": reward.sizeUl must be");
-        StringAssert.Contains(refusal(Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List(-1.0))), "contrasts must each be a finite number, 0 or more");
-        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List(0.0), "target", "auditorySide")), "contrast 0: no grating");
+        StringAssert.Contains(refusal(Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List(-1.0))), "initialContrasts must each be a finite number, 0 or more");
+        Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List(0.0), "target", "auditorySide")), "contrast 0: no grating");
     }
 
     [TestMethod]
@@ -1187,23 +1187,23 @@ public class TrialConditionTests
         // Sgen types set as object: read (ReadTask) it is a map of YAML-typed values, written back as YAML or as JSON (Settings_Task) as numbers.
         var text = File.ReadAllText(Path.Combine(Fixture.Repo(), "config", "task-localization.yml")).Replace(
             "      set: { target: visualSide, auditoryStimulus.initialAzimuthsDeg: [0] }",
-            "      set: { target: visualSide, visualStimulus.contrasts: [0.5, 1], reward.sizeUl: [2, 3], visualStimulus.initialAzimuthsDeg: [60] }");
+            "      set: { target: visualSide, visualStimulus.initialContrasts: [0.5, 1], reward.sizeUl: [2, 3], visualStimulus.initialAzimuthsDeg: [60] }");
         var task = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(text).TaskParameters;
         var set = (IDictionary<object, object>)task.TrialConditions[0].Set;
-        CollectionAssert.AreEqual(new object[] { "target", "visualStimulus.contrasts", "reward.sizeUl", "visualStimulus.initialAzimuthsDeg" }, set.Keys.ToArray());
+        CollectionAssert.AreEqual(new object[] { "target", "visualStimulus.initialContrasts", "reward.sizeUl", "visualStimulus.initialAzimuthsDeg" }, set.Keys.ToArray());
         var again = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(Fixture.Text(task)).TaskParameters;
         StringAssert.Contains(Newtonsoft.Json.JsonConvert.SerializeObject(again.TrialConditions[0]),
-            "\"set\":{\"target\":\"visualSide\",\"visualStimulus.contrasts\":[0.5,1],\"reward.sizeUl\":[2,3],\"visualStimulus.initialAzimuthsDeg\":[60]}");
+            "\"set\":{\"target\":\"visualSide\",\"visualStimulus.initialContrasts\":[0.5,1],\"reward.sizeUl\":[2,3],\"visualStimulus.initialAzimuthsDeg\":[60]}");
         again.Curriculum = Fixture.Curriculum(4, "x");
         var built = Fixture.Check(again, Fixture.Speakers());
         // A list field's entries are one combination each, by path in alphabetical order, the first changing fastest (the
         // task's two sound azimuths, then the rewards, then the contrasts): the draw's chances unchanged.
         CollectionAssert.AreEqual(new[] { 2.0, 2.0, 3.0, 3.0, 2.0, 2.0, 3.0, 3.0 }, built[0].Combinations.Select(v => v.Task.Reward.SizeUl).ToArray());
-        CollectionAssert.AreEqual(new[] { 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0 }, built[0].Combinations.Select(v => v.Task.VisualStimulus.Contrasts.Single()).ToArray());
+        CollectionAssert.AreEqual(new[] { 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0 }, built[0].Combinations.Select(v => v.Task.VisualStimulus.InitialContrasts.Single()).ToArray());
         CollectionAssert.AreEqual(new[] { 60.0 }, built[0].Combinations[1].Task.VisualStimulus.InitialAzimuthsDeg);
         Assert.AreEqual(4, built[1].Combinations.Count, "the task's two lists of 2 azimuths");
         Assert.AreEqual(3.0, built[1].Combinations[0].Task.Reward.SizeUl);
-        CollectionAssert.AreEqual(new[] { 0.0 }, built[1].Combinations[0].Task.VisualStimulus.Contrasts);
+        CollectionAssert.AreEqual(new[] { 0.0 }, built[1].Combinations[0].Task.VisualStimulus.InitialContrasts);
     }
 
     [TestMethod]
@@ -1212,7 +1212,7 @@ public class TrialConditionTests
         StringAssert.Contains(Refused(With(Fixture.Condition(1, "reward.sizeUl", "abc"))), "trialConditions[0] (audiovisualCoherent)");
         StringAssert.Contains(Refused(With(Fixture.Condition(1, "autoRewardProbability", Fixture.List("x", 0.5)))), "trialConditions[0] (audiovisualCoherent)");
         StringAssert.Contains(Refused(With(Fixture.Condition(1, "visualStimulus.initialAzimuthsDeg", "left"))), "trialConditions[0] (audiovisualCoherent)");
-        StringAssert.Contains(Refused(With(Fixture.Condition(1, "visualStimulus.contrasts", Fixture.List()))), "trialConditions[0] (auditory)");
+        StringAssert.Contains(Refused(With(Fixture.Condition(1, "visualStimulus.initialContrasts", Fixture.List()))), "trialConditions[0] (auditory)");
     }
 
     [TestMethod]
@@ -1223,7 +1223,7 @@ public class TrialConditionTests
         // Weight 0 among others: its index is never logged, though its set is still checked at Go.
         var zero = With(Fixture.Condition(0), Fixture.Condition(2), Fixture.Condition(1));
         Assert.IsTrue(Fixture.Draw(zero, 300).All(t => t.trialConditionId != 0));
-        StringAssert.Contains(Refused(With(Fixture.Condition(0, "visualStimulus.contrasts", Fixture.List(-1.0)), Fixture.Condition(1))), "trialConditions[0] (auditory)");
+        StringAssert.Contains(Refused(With(Fixture.Condition(0, "visualStimulus.initialContrasts", Fixture.List(-1.0)), Fixture.Condition(1))), "trialConditions[0] (auditory)");
         Assert.AreEqual("accepted", Refused(With(Fixture.Condition(TrialConditions.MaxWeight), Fixture.Condition(TrialConditions.MaxWeight))));
         Assert.IsTrue(Fixture.Draw(With(Fixture.Condition(TrialConditions.MaxWeight), Fixture.Condition(TrialConditions.MaxWeight)), 40).Any(t => t.trialConditionId == 1));
     }

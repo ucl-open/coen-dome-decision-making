@@ -7,7 +7,7 @@
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
@@ -19,7 +19,7 @@
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": -60.0
       }
@@ -31,7 +31,7 @@
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": 60.0
       }
@@ -43,7 +43,7 @@
       "conditionWeight": 10,
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
-        "auditoryStimulus.levelDbfs": "mute",
+        "auditoryStimulus.initialLevelDbfs": "mute",
         "target": "go",
         "visualStimulus.initialAzimuthsDeg": 60.0
       }

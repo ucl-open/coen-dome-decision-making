@@ -8,8 +8,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 0,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -20,8 +20,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 0,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -32,8 +32,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 0,
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -44,8 +44,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 0,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -56,8 +56,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 0,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -68,8 +68,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 0,
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -80,8 +80,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -92,8 +92,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -104,8 +104,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -116,8 +116,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
         "target": "auditorySide",
-        "visualStimulus.contrasts": 0.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.0
       }
     },
     {
@@ -128,8 +128,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -140,8 +140,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.25,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.25
       }
     },
     {
@@ -152,8 +152,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -164,8 +164,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
         "target": "visualSide",
-        "visualStimulus.contrasts": 0.5,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 0.5
       }
     },
     {
@@ -176,8 +176,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": -60,
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": -60.0
+        "visualStimulus.initialAzimuthsDeg": -60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     },
     {
@@ -188,8 +188,8 @@
       "values": {
         "auditoryStimulus.initialAzimuthsDeg": 60,
         "target": "visualSide",
-        "visualStimulus.contrasts": 1.0,
-        "visualStimulus.initialAzimuthsDeg": 60.0
+        "visualStimulus.initialAzimuthsDeg": 60.0,
+        "visualStimulus.initialContrasts": 1.0
       }
     }
   ]

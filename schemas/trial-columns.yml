@@ -29,7 +29,7 @@ trialNumber:
 trialType:
   type: string
   values: [visual, auditory, audiovisualCoherent, audiovisualConflict, neutral, go, noGo, left, right]
-  description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualContrast, auditoryLevelDbfs, the azimuths, target). It is derived at Go from the condition's settings (the task schema's x-trial-types), never stored - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none).
+  description: The label of the trial's condition (trialConditionId) - a name for the rows and analysis groups that drives nothing; what the trial showed and rewarded are its own columns (visualInitialContrast, auditoryInitialLevelDbfs, the azimuths, target). It is derived at Go from the condition's settings (the task schema's x-trial-types), never stored - go, noGo, left or right for that target; else one modality alone, both on the same side (audiovisualCoherent) or mirrored (audiovisualConflict), or neutral (neither; a centre sound counts as none).
 outcome:
   type: string
   values: [correct, incorrect, noResponse, probe, auto]
@@ -104,27 +104,27 @@ trialConditionId:
 trialCombinationId:
   type: int
   description: 'The trial''s row in the experiment''s Settings_Combinations (0-based, session-wide): the combination it was drawn from, one pick of every list (pairs zipped), whose values that differ between combinations or from Settings_Task are the row''s values; the row''s trialConditionId and trialType are this trial''s. A repeat keeps the combination of the trial it repeats.'
-visualContrast:
+visualInitialContrast:
   type: double
-  description: Grating contrast as BonVision's Contrast, 1 full contrast; 0 when no grating was shown.
-  copyOf: visualStimulus.contrasts
+  description: Grating contrast as the trial starts, as BonVision's Contrast, 1 full contrast; 0 when no grating was shown.
+  copyOf: visualStimulus.initialContrasts
 visualPhaseRad:
   type: double
   unit: rad
   description: The grating's phase, drawn uniformly from 0 to 2 pi for every trial from the seeded stream (OpenRigs.Trials ConditionedTrial).
-auditoryLevelDbfs:
+auditoryInitialLevelDbfs:
   type: double
   unit: dBFS
-  description: The sound's level in dBFS RMS, the trial's auditoryStimulus.levelDbfs; NaN when no sound played (mute).
-  copyOf: auditoryStimulus.levelDbfs
+  description: The sound's level in dBFS RMS as the trial starts, the trial's auditoryStimulus.initialLevelDbfs; NaN when no sound played (mute).
+  copyOf: auditoryStimulus.initialLevelDbfs
 auditoryInitialAzimuthDeg:
   type: double
   unit: deg
-  description: Azimuth of the speaker that played, rig.yml's nearest to the initial azimuth drawn; NaN when none played (auditoryLevelDbfs NaN) or when every speaker played (auditoryStimulus.initialAzimuthsDeg all).
-auditoryElevationDeg:
+  description: Azimuth of the speaker that played, rig.yml's nearest to the initial azimuth drawn; NaN when none played (auditoryInitialLevelDbfs NaN) or when every speaker played (auditoryStimulus.initialAzimuthsDeg all).
+auditoryInitialElevationDeg:
   type: double
   unit: deg
-  description: Elevation of the speaker that played; NaN when none or every speaker played, as auditoryInitialAzimuthDeg.
+  description: Elevation of the speaker that played as the trial starts; NaN when none or every speaker played, as auditoryInitialAzimuthDeg.
 autoReward:
   type: bool
   description: 'True on an auto-reward trial (drawn with the task''s autoRewardProbability): one rewarded without a correct response, its outcome auto when the auto-reward answered it with no response of the mouse''s own; how, and so whether its reward came from the auto-reward, is the task''s (its note).'
@@ -146,9 +146,9 @@ singleSpoutOffered:
 visualInitialAzimuthDeg:
   type: double
   unit: deg
-  description: The azimuth the grating started at, one of visualStimulus.initialAzimuthsDeg (the licks then move it by azimuthShiftPerLickDeg); NaN when no grating was shown (visualContrast 0), as auditoryInitialAzimuthDeg when no sound played.
+  description: The azimuth the grating started at, one of visualStimulus.initialAzimuthsDeg (the licks then move it by azimuthShiftPerLickDeg); NaN when no grating was shown (visualInitialContrast 0), as auditoryInitialAzimuthDeg when no sound played.
   copyOf: visualStimulus.initialAzimuthsDeg
-  nanWhen: {column: visualContrast, equals: 0}
+  nanWhen: {column: visualInitialContrast, equals: 0}
 auditorySoundFileIndex:
   type: int
   description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_<index>.wav), each one 50 ms pulse of noise played every 1/stimulus.rateHz s; until November 2026 each file (then filtered_pink_pulse_train_<index>.wav) held its pulse 12 times at 8 Hz, so an index names the same noise before and after.

@@ -12,7 +12,7 @@ taskParameters:
   - weight: 10
     set:
       target: auditorySide
-      visualStimulus.contrasts:
+      visualStimulus.initialContrasts:
       - 0
   - weight: 10
     pairs:
@@ -44,21 +44,21 @@ taskParameters:
     rateHz: 8
     responseToStimulusOffSeconds: null
   visualStimulus:
-    contrasts:
+    initialContrasts:
     - 0.25
     - 0.5
     - 1.0
     initialAzimuthsDeg:
     - -60
     - 60
-    elevationDeg: 15
-    sigmaDeg: 20
-    orientationDeg: 0
-    spatialFrequencyCpd: 0.066666667
-    temporalFrequencyHz: 0
+    initialElevationDeg: 15
+    initialSigmaDeg: 20
+    initialOrientationDeg: 0
+    initialSpatialFrequencyCpd: 0.066666667
+    initialTemporalFrequencyHz: 0
   auditoryStimulus:
-    levelDbfs: -40
-    elevationDeg: 15
+    initialLevelDbfs: -40
+    initialElevationDeg: 15
     initialAzimuthsDeg:
     - -60
     - 60

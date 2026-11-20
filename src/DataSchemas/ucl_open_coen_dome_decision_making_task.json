@@ -1,9 +1,9 @@
 {
   "$defs": {
     "AuditoryStimulus": {
-      "description": "The sound: a waveform of the set (src/sounds) at levelDbfs, on rig.yml's speaker nearest the picked azimuth at\nelevationDeg, or on every rig.yml speaker where the pick is \"all\".",
+      "description": "The sound: a waveform of the set (src/sounds) at initialLevelDbfs, on rig.yml's speaker nearest the picked azimuth at\ninitialElevationDeg, or on every rig.yml speaker where the pick is \"all\".",
       "properties": {
-        "levelDbfs": {
+        "initialLevelDbfs": {
           "default": -40.0,
           "description": "The stimulus sound (the waveform set as one, OpenRigs.Audio SoundLevel measuring the set)'s level in dBFS RMS: the RMS of the sound over its samples outside silent stretches (runs of exactly-zero samples at least 1 ms long), as the task gives it, before the speaker's equalisation, against full scale (a full-scale sine is -3); mute: no sound. The lab's default -40. The workflow stops at Go if any peak at the highest level a trial can draw would reach -1 dBFS after equalisation. Sounds overlapping on a speaker share its headroom: each buffer's peak is checked, not their mix",
           "oneOf": [
@@ -17,14 +17,14 @@
               "type": "string"
             }
           ],
-          "title": "LevelDbfs"
+          "title": "InitialLevelDbfs"
         },
-        "elevationDeg": {
+        "initialElevationDeg": {
           "default": 15.0,
-          "description": "Elevation the sound plays at, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker",
+          "description": "Elevation the sound plays at as the trial starts, in degrees: with the azimuth drawn, it picks rig.yml's nearest speaker",
           "maximum": 90,
           "minimum": -90,
-          "title": "ElevationDeg",
+          "title": "InitialElevationDeg",
           "type": "number"
         },
         "initialAzimuthsDeg": {
@@ -526,7 +526,7 @@
     },
     "TrialCondition": {
       "additionalProperties": false,
-      "description": "One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it\npairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar\nfield's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.contrasts, the initial\nazimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.",
+      "description": "One kind of trial in the mix: its relative weight, its condition-level values (set) by dotted path and the lists it\npairs; its trialType is derived from its values (x-trial-types, derive_trial_type), never stored. A list in a scalar\nfield's cell is one value picked per trial; a list field's list (LIST_FIELDS: visualStimulus.initialContrasts, the initial\nazimuths), at any level, one entry picked per trial. Paired lists share one picked index per trial.",
       "properties": {
         "weight": {
           "description": "Relative draw weight: each new trial picks a condition with these as relative chances",
@@ -959,7 +959,7 @@
         {
           "if": {
             "properties": {
-              "visualStimulus.contrasts": {
+              "visualStimulus.initialContrasts": {
                 "items": {
                   "const": 0
                 }
@@ -971,11 +971,11 @@
               }
             },
             "required": [
-              "visualStimulus.contrasts",
+              "visualStimulus.initialContrasts",
               "target"
             ]
           },
-          "message": "visualStimulus.contrasts 0 shows no grating, so its azimuths are unread unless target visualSide",
+          "message": "visualStimulus.initialContrasts 0 shows no grating, so its azimuths are unread unless target visualSide",
           "unused": [
             "visualStimulus.initialAzimuthsDeg"
           ]
@@ -983,7 +983,7 @@
         {
           "if": {
             "properties": {
-              "auditoryStimulus.levelDbfs": {
+              "auditoryStimulus.initialLevelDbfs": {
                 "const": "mute"
               },
               "target": {
@@ -993,11 +993,11 @@
               }
             },
             "required": [
-              "auditoryStimulus.levelDbfs",
+              "auditoryStimulus.initialLevelDbfs",
               "target"
             ]
           },
-          "message": "auditoryStimulus.levelDbfs mute plays no sound, so its azimuths are unread unless target auditorySide",
+          "message": "auditoryStimulus.initialLevelDbfs mute plays no sound, so its azimuths are unread unless target auditorySide",
           "unused": [
             "auditoryStimulus.initialAzimuthsDeg"
           ]
@@ -1122,12 +1122,12 @@
         {
           "if": {
             "properties": {
-              "visualStimulus.contrasts": {
+              "visualStimulus.initialContrasts": {
                 "contains": {
                   "exclusiveMinimum": 0
                 }
               },
-              "auditoryStimulus.levelDbfs": {
+              "auditoryStimulus.initialLevelDbfs": {
                 "contains": {
                   "type": "number"
                 }
@@ -1144,8 +1144,8 @@
               }
             },
             "required": [
-              "visualStimulus.contrasts",
-              "auditoryStimulus.levelDbfs",
+              "visualStimulus.initialContrasts",
+              "auditoryStimulus.initialLevelDbfs",
               "auditoryStimulus.initialAzimuthsDeg"
             ]
           },
@@ -1158,12 +1158,12 @@
         {
           "if": {
             "properties": {
-              "visualStimulus.contrasts": {
+              "visualStimulus.initialContrasts": {
                 "contains": {
                   "exclusiveMinimum": 0
                 }
               },
-              "auditoryStimulus.levelDbfs": {
+              "auditoryStimulus.initialLevelDbfs": {
                 "contains": {
                   "type": "number"
                 }
@@ -1180,8 +1180,8 @@
               }
             },
             "required": [
-              "visualStimulus.contrasts",
-              "auditoryStimulus.levelDbfs",
+              "visualStimulus.initialContrasts",
+              "auditoryStimulus.initialLevelDbfs",
               "auditoryStimulus.initialAzimuthsDeg"
             ]
           },
@@ -1190,14 +1190,14 @@
         {
           "if": {
             "properties": {
-              "visualStimulus.contrasts": {
+              "visualStimulus.initialContrasts": {
                 "contains": {
                   "exclusiveMinimum": 0
                 }
               }
             },
             "required": [
-              "visualStimulus.contrasts"
+              "visualStimulus.initialContrasts"
             ]
           },
           "trialType": "visual"
@@ -1205,7 +1205,7 @@
         {
           "if": {
             "properties": {
-              "auditoryStimulus.levelDbfs": {
+              "auditoryStimulus.initialLevelDbfs": {
                 "contains": {
                   "type": "number"
                 }
@@ -1222,7 +1222,7 @@
               }
             },
             "required": [
-              "auditoryStimulus.levelDbfs",
+              "auditoryStimulus.initialLevelDbfs",
               "auditoryStimulus.initialAzimuthsDeg"
             ]
           },
@@ -1234,18 +1234,18 @@
       ]
     },
     "VisualStimulus": {
-      "description": "The grating: its contrasts and initial azimuths (one of each drawn per trial) and its shape.",
+      "description": "The grating as each trial starts: its initial contrasts and azimuths (one of each drawn per trial) and its shape.",
       "properties": {
-        "contrasts": {
+        "initialContrasts": {
           "default": [
             1.0
           ],
-          "description": "Candidate grating contrasts, one drawn per trial; 0 shows no grating (a grey screen)",
+          "description": "Candidate grating contrasts as the trial starts, one drawn per trial; 0 shows no grating (a grey screen)",
           "items": {
             "type": "number"
           },
           "minItems": 1,
-          "title": "Contrasts",
+          "title": "InitialContrasts",
           "type": "array"
         },
         "initialAzimuthsDeg": {
@@ -1253,7 +1253,7 @@
             -60.0,
             60.0
           ],
-          "description": "Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; with target visualSide the picked azimuth's sign is the trial's side. Unused where contrasts are all 0",
+          "description": "Signed azimuths the grating starts at, in degrees, one picked per trial: positive is right, negative left, never 0; with target visualSide the picked azimuth's sign is the trial's side. Unused where initialContrasts are all 0",
           "items": {
             "type": "number"
           },
@@ -1261,37 +1261,37 @@
           "title": "InitialAzimuthsDeg",
           "type": "array"
         },
-        "elevationDeg": {
+        "initialElevationDeg": {
           "default": 15.0,
-          "description": "Elevation of the grating, in degrees",
+          "description": "Elevation of the grating as the trial starts, in degrees",
           "maximum": 90,
           "minimum": -90,
-          "title": "ElevationDeg",
+          "title": "InitialElevationDeg",
           "type": "number"
         },
-        "sigmaDeg": {
+        "initialSigmaDeg": {
           "default": 20.0,
-          "description": "Sigma of the grating's Gaussian window, in degrees",
-          "title": "SigmaDeg",
+          "description": "Sigma of the grating's Gaussian window as the trial starts, in degrees",
+          "title": "InitialSigmaDeg",
           "type": "number"
         },
-        "orientationDeg": {
+        "initialOrientationDeg": {
           "default": 0.0,
-          "description": "Grating stripe orientation, in degrees; drift direction is orthogonal to it (orientationDeg + 90 degrees)",
-          "title": "OrientationDeg",
+          "description": "Grating stripe orientation as the trial starts, in degrees; drift direction is orthogonal to it (initialOrientationDeg + 90 degrees)",
+          "title": "InitialOrientationDeg",
           "type": "number"
         },
-        "spatialFrequencyCpd": {
+        "initialSpatialFrequencyCpd": {
           "default": 0.066666667,
-          "description": "Grating spatial frequency, in cycles per degree",
-          "title": "SpatialFrequencyCpd",
+          "description": "Grating spatial frequency as the trial starts, in cycles per degree",
+          "title": "InitialSpatialFrequencyCpd",
           "type": "number"
         },
-        "temporalFrequencyHz": {
+        "initialTemporalFrequencyHz": {
           "default": 0.0,
-          "description": "Unsigned grating drift rate, in Hz, drifting orthogonal to orientationDeg (orientationDeg + 90 degrees); 0 is static",
+          "description": "Unsigned grating drift rate as the trial starts, in Hz, drifting orthogonal to initialOrientationDeg (initialOrientationDeg + 90 degrees); 0 is static",
           "minimum": 0,
-          "title": "TemporalFrequencyHz",
+          "title": "InitialTemporalFrequencyHz",
           "type": "number"
         }
       },

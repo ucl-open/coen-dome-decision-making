@@ -99,7 +99,7 @@ public class HandoverTests
             for (int n = 0; n < Draws; n++)
             {
                 var t = draw.Next(new TrialRow { outcome = TrialOutcomes.Correct, choice = Choice.Left });   // never repeated, so every trial is a new draw
-                CheckTrial(golden.Key, built, t.trialType, t.trialConditionId, t.trialCombinationId, t.visualContrast, t.visualInitialAzimuthDeg, t.auditoryLevelDbfs, t.auditoryInitialAzimuthDeg, t.target);
+                CheckTrial(golden.Key, built, t.trialType, t.trialConditionId, t.trialCombinationId, t.visualInitialContrast, t.visualInitialAzimuthDeg, t.auditoryInitialLevelDbfs, t.auditoryInitialAzimuthDeg, t.target);
                 counts[t.trialCombinationId] = (counts.ContainsKey(t.trialCombinationId) ? counts[t.trialCombinationId] : 0) + 1;
             }
             // Each Settings_Combinations row at its condition's weight over the sum of weights over its number of combinations.
@@ -119,13 +119,13 @@ public class HandoverTests
         var combination = built[condition].Combinations.SingleOrDefault(m => m.Id == combinationId);
         Assert.IsNotNull(combination, where + ": not a combination of its condition");
         var c = combination.Task;
-        var picked = c.VisualStimulus.Contrasts[0];
+        var picked = c.VisualStimulus.InitialContrasts[0];
         Assert.AreEqual(picked, contrast, where);
         Assert.AreEqual(picked > 0 ? c.VisualStimulus.InitialAzimuthsDeg[0] : double.NaN, visualAzimuth, where);
-        Assert.AreEqual(SoundLevels.Parse(c.AuditoryStimulus.LevelDbfs), levelDbfs, where);
+        Assert.AreEqual(SoundLevels.Parse(c.AuditoryStimulus.InitialLevelDbfs), levelDbfs, where);
         var soundAzimuth = SoundAzimuths.Parse(c.AuditoryStimulus.InitialAzimuthsDeg[0]).Value;
         var heard = !double.IsNaN(levelDbfs) && !double.IsNaN(soundAzimuth)
-            ? SoundAzimuths.NearestSpeaker(Fixture.Speakers(), soundAzimuth, c.AuditoryStimulus.ElevationDeg).Value.Position.Azimuth : double.NaN;
+            ? SoundAzimuths.NearestSpeaker(Fixture.Speakers(), soundAzimuth, c.AuditoryStimulus.InitialElevationDeg).Value.Position.Azimuth : double.NaN;
         Assert.AreEqual(heard, auditoryAzimuth, where);
         var named = EnumNames.Name(c.Target.Value);
         var expected = c.Target == UclOpenCoenDomeDecisionMakingTask.Target.VisualSide ? (c.VisualStimulus.InitialAzimuthsDeg[0] > 0 ? TargetWords.Right : TargetWords.Left)
@@ -173,7 +173,7 @@ public class HandoverTests
             }
             foreach (var r in rows)
             {
-                CheckTrial(golden.Key, built, r.trialType, r.trialConditionId, r.trialCombinationId, r.visualContrast, r.visualInitialAzimuthDeg, r.auditoryLevelDbfs, r.auditoryInitialAzimuthDeg, r.target);
+                CheckTrial(golden.Key, built, r.trialType, r.trialConditionId, r.trialCombinationId, r.visualInitialContrast, r.visualInitialAzimuthDeg, r.auditoryInitialLevelDbfs, r.auditoryInitialAzimuthDeg, r.target);
                 Assert.AreEqual(trials[r.trialNumber].trialCombinationId, r.trialCombinationId, golden.Key);
                 if (r.target == TargetWords.NoGo && r.choice == Choice.Go)
                 {

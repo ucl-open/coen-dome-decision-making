@@ -30,11 +30,11 @@ public class TrialRow
     public double laserTriggerTime;
     public int trialConditionId;
     public int trialCombinationId;
-    public double visualContrast;
+    public double visualInitialContrast;
     public double visualPhaseRad;
-    public double auditoryLevelDbfs;
+    public double auditoryInitialLevelDbfs;
     public double auditoryInitialAzimuthDeg;
-    public double auditoryElevationDeg;
+    public double auditoryInitialElevationDeg;
     public bool autoReward;
     public string target;
     public string choice;
@@ -118,11 +118,11 @@ public class TrialRow
             trialType = trial.trialType,
             trialConditionId = trial.trialConditionId,
             trialCombinationId = trial.trialCombinationId,
-            visualContrast = trial.visualContrast,
+            visualInitialContrast = trial.visualInitialContrast,
             visualPhaseRad = trial.visualPhaseRad,
-            auditoryLevelDbfs = trial.auditoryLevelDbfs,
+            auditoryInitialLevelDbfs = trial.auditoryInitialLevelDbfs,
             auditoryInitialAzimuthDeg = trial.auditoryInitialAzimuthDeg,
-            auditoryElevationDeg = trial.auditoryElevationDeg,
+            auditoryInitialElevationDeg = trial.auditoryInitialElevationDeg,
             autoReward = trial.autoReward,
             outcome = outcome,
             target = trial.target,
