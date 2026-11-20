@@ -78,7 +78,7 @@ penaltyTimeoutSeconds:
   type: double
   unit: s
   description: 'The timeout after this trial when it was penalised, else 0: the trial''s penalty.incorrect.timeoutSeconds, or on a miss its penalty.noResponse.timeoutSeconds. The next interval starts after it (itiStartTime).'
-  note: Penalised - an incorrect choice (penalty.incorrect), or a miss that was not auto-rewarded (penalty.noResponse); in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised, and penalty.noResponse is null); on a random-reward probe a choice on the coin's tails, as an incorrect choice, or a miss, as a scored trial's miss.
+  note: Penalised - an incorrect choice (penalty.incorrect), or a miss that was not auto-rewarded (penalty.noResponse); in discriminationGoNoGo only a lick on a noGo trial (a go miss is unpenalised, and penalty.noResponse is null); a random-reward probe only with penaliseRandomProbes true (default false), then a choice on the coin's tails, as an incorrect choice, or a miss not auto-rewarded (penalty.noResponse); a noReward probe never.
 penaltyFlashBrightness:
   type: double
   description: 'The brightness of the penalty flash after this trial when it was penalised, else 0: the trial''s penalty.incorrect.flash.brightness, or on a miss its penalty.noResponse.flash.brightness, 0 to 1 of the projector''s full white after gamma correction; 0 when no flash played. A flash covers the whole projector field at its kind''s flash.rateHz (white the first half of each cycle) from the outcome for the penalty sound''s length (OpenRigs.Vision PlayPenaltyFlash).'
@@ -86,7 +86,7 @@ penaltyFlashBrightness:
 penalised:
   type: bool
   description: 'True when the trial was penalised: the timeout (penaltyTimeoutSeconds) and the penalty sound at the trial''s penalty.incorrect.sound.levelDbfs, or on a miss its penalty.noResponse.sound.levelDbfs (none when mute), followed its outcome. Which trials are penalised, and which are misses, is the task''s (its note).'
-  note: An incorrect choice, or a miss that was not on an auto-reward trial; in discriminationGoNoGo only a lick on a noGo trial (a false alarm; a go miss and a noReward trial are unpenalised); on a random trial a choice on the coin's tails, or a miss, as a scored trial's miss.
+  note: An incorrect choice, or a miss that was not on an auto-reward trial; in discriminationGoNoGo only a lick on a noGo trial (a false alarm; a go miss and a noReward trial are unpenalised); a random trial only with penaliseRandomProbes true (default false), then a choice on the coin's tails, or a miss not auto-rewarded; a noReward trial never.
 laserCondition:
   type: int
   description: 'The Zapit condition sent to Zapit this trial (its conditions file''s number, from 1), laser on or off: every trial of an optogenetics experiment has one, so laser on is laserPowerMw > 0, not laserCondition > 0. 0 without optogenetics.'
@@ -132,7 +132,7 @@ autoReward:
 target:
   type: string
   values: [left, right, go, noGo, noReward, random]
-  description: The answer the trial rewards, from its condition's target, in the task file's spelling - left or right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo go (lick) or noGo (withhold). On a trial with no right answer (outcome probe, never repeated) noReward or random - noReward a no-reward probe (never rewarded or penalised; in localization and discriminationLeftRight both spouts in), random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there or penalised on a coin drawn with the trial, a miss as a scored trial's miss.
+  description: The answer the trial rewards, from its condition's target, in the task file's spelling - left or right, the side of the grating's or the sound's azimuth (visualSide, auditorySide) or named (left, right); in discriminationGoNoGo go (lick) or noGo (withhold). On a trial with no right answer (outcome probe, never repeated) noReward or random - noReward a no-reward probe (never rewarded or penalised; in localization and discriminationLeftRight both spouts in), random a random-reward probe in localization and discriminationLeftRight - both spouts in, a choice at either rewarded there on a coin drawn with the trial (heads), else unrewarded; tails and a miss not auto-rewarded are penalised only with penaliseRandomProbes true (default false).
 choice:
   type: string
   values: [left, right, go, noResponse]

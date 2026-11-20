@@ -35,7 +35,7 @@ public class Trial : ConditionedTrial, ILaserDurationTrial, ISpoutTrial
     public double visualInitialAzimuthDeg;  // NaN with no grating (visualInitialContrast 0), as the sound's when none plays
     public double gratingAzimuthDeg;   // what the renderer starts the grating at (not logged): visualInitialAzimuthDeg, 0 with no grating (hidden at contrast 0)
     public int auditorySoundFileIndex;
-    public bool probeHeads;            // a random trial's coin: heads rewards a choice, tails penalises it
+    public bool probeHeads;            // a random trial's coin: heads rewards a choice, tails does not (penalised only with penaliseRandomProbes)
     internal UclOpenCoenDomeDecisionMakingTaskParameters values;  // its combination's values, which the rules read per trial
 
     /// <summary>The grating's shape as the renderer draws it (initialElevationDeg, initialSigmaDeg, initialOrientationDeg, initialSpatialFrequencyCpd,
@@ -84,7 +84,7 @@ public class CheckTaskAtGo
 
 /// <summary>Every word the target column holds, in the task file's spelling: the sides left and right, discriminationGoNoGo's go
 /// and noGo, and on a trial with no right answer (a probe, outcome probe) noReward (never rewarded or penalised) or random
-/// (a choice rewarded or penalised on a coin).</summary>
+/// (a choice rewarded on a coin's heads; penalised on tails only with penaliseRandomProbes).</summary>
 public static class TargetWords
 {
     public const string Left = "left";
@@ -515,8 +515,9 @@ public class TrialDraw
         if (trial.target == TargetWords.Random)
         {
             // No right answer: a random-reward probe. Both spouts move in, and a coin drawn
-            // now, from the seeded stream, decides a choice at either: heads rewarded at that spout, tails penalised as an
-            // incorrect choice; a miss as a scored trial's miss. Its rewardOfferedUl is kept, heads or tails. It never repeats.
+            // now, from the seeded stream, decides a choice at either: heads rewarded at that spout, tails unrewarded. Only
+            // with penaliseRandomProbes (default false) is tails penalised as an incorrect choice and a miss not
+            // auto-rewarded as penalty.noResponse (TrialRow.Penalised); otherwise neither costs anything. Its rewardOfferedUl is kept, heads or tails. It never repeats.
             trial.autoReward = false;
             trial.probeHeads = random.NextDouble() < 0.5;
         }
