@@ -133,7 +133,7 @@ def test_every_task_file_has_the_lab_s_timing_defaults():
             assert penalty.no_response is None
         else:
             assert penalty.no_response.timeout_seconds == 4.0 and penalty.no_response.flash.brightness == 0
-            assert penalty.no_response.sound.level_dbfs == ("mute" if task.task_type == "localization" else -35)
+            assert penalty.no_response.sound.level_dbfs == "mute"   # no error tone on a miss (Pip, 20 Nov 2026)
 
 
 def test_the_reward_tone_is_mute_until_the_workflow_plays_one():
