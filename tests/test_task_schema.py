@@ -203,13 +203,13 @@ def _with(name="task-discrimination-left-right.yml", opto=None, structure=None, 
     return UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
-@pytest.mark.parametrize("lead", [2.3, 0.5, 0.1, 0.0, -0.5, -2.0])
+@pytest.mark.parametrize("lead", [2.3, 0.5, 0.1, 0.0, -0.5, -2.5])
 def test_a_signed_lead_inside_the_interval_and_the_response_window_is_accepted(lead):
-    # Discrimination: itiMinSeconds 2.5 less the 0.2 s reply margin; the response window 0.5 + 1.5 s.
+    # Discrimination: itiMinSeconds 2.5 less the 0.2 s reply margin; the response window 0.5 + 2.0 s.
     assert _with(opto={"laserToStimulusSeconds": lead}).optogenetics.laser_to_stimulus_seconds == lead
 
 
-@pytest.mark.parametrize("lead, words", [(2.31, "reply margin"), (-2.01, "after the response window")])
+@pytest.mark.parametrize("lead, words", [(2.31, "reply margin"), (-2.51, "after the response window")])
 def test_a_lead_outside_them_is_refused(lead, words):
     with pytest.raises(ValidationError, match=words):
         _with(opto={"laserToStimulusSeconds": lead})
@@ -357,10 +357,10 @@ def _localization(**stimulus):
 
 
 def test_the_stimulus_never_outlasts_the_response_window_or_the_interval():
-    # localization: response window 0.5 + 1.5 s, itiMinSeconds 1.0.
-    _localization(durationSeconds=2.0)
-    with pytest.raises(ValidationError, match="duration_seconds \\(2.1 s\\) is longer than the stimulus to the response window's close"):
-        _localization(durationSeconds=2.1)
+    # localization: response window 0.5 + 2.0 s, itiMinSeconds 1.0.
+    _localization(durationSeconds=2.5)
+    with pytest.raises(ValidationError, match="duration_seconds \\(2.6 s\\) is longer than the stimulus to the response window's close"):
+        _localization(durationSeconds=2.6)
     # No duration: off only responseToStimulusOffSeconds after the response; both null never ends, refused.
     _localization(durationSeconds=None, responseToStimulusOffSeconds=0.5)
     with pytest.raises(ValidationError, match="both null"):

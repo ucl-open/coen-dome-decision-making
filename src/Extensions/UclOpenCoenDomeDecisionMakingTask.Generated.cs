@@ -2185,6 +2185,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private Penalty _penalty;
     
+        private bool _penaliseProbes;
+    
         private Optogenetics _optogenetics;
     
         private TaskType _taskType;
@@ -2206,6 +2208,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _reward = new Reward();
             _autoRewardProbability = 0D;
             _penalty = new Penalty();
+            _penaliseProbes = false;
             _optogenetics = new Optogenetics();
             _response = new Response();
             _repeats = new Repeats();
@@ -2224,6 +2227,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _reward = other._reward;
             _autoRewardProbability = other._autoRewardProbability;
             _penalty = other._penalty;
+            _penaliseProbes = other._penaliseProbes;
             _optogenetics = other._optogenetics;
             _taskType = other._taskType;
             _target = other._target;
@@ -2425,12 +2429,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null
+        /// What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too when penaliseProbes. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("penalty", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penalty")]
-        [System.ComponentModel.DescriptionAttribute(@"What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null")]
+        [System.ComponentModel.DescriptionAttribute(@"What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too when penaliseProbes. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null")]
         public Penalty Penalty
         {
             get
@@ -2440,6 +2444,24 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _penalty = value;
+            }
+        }
+    
+        /// <summary>
+        /// Whether a random-reward probe (target random) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("penaliseProbes")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="penaliseProbes")]
+        [System.ComponentModel.DescriptionAttribute(@"Whether a random-reward probe (target random) is penalised: true, a choice on the coin's tails as an incorrect choice (penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with no timeout, sound or flash, and a miss costs nothing")]
+        public bool PenaliseProbes
+        {
+            get
+            {
+                return _penaliseProbes;
+            }
+            set
+            {
+                _penaliseProbes = value;
             }
         }
     
@@ -2463,11 +2485,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'
+        /// localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). The targets each allows are x-rules'
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("taskType", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="taskType")]
-        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'")]
+        [System.ComponentModel.DescriptionAttribute(@"localization: the answer is a side, at that side's spout. discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded (and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). The targets each allows are x-rules'")]
         public TaskType TaskType
         {
             get
@@ -2559,6 +2581,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Reward = " + _reward + ", ");
             stringBuilder.Append("AutoRewardProbability = " + _autoRewardProbability + ", ");
             stringBuilder.Append("Penalty = " + _penalty + ", ");
+            stringBuilder.Append("PenaliseProbes = " + _penaliseProbes + ", ");
             stringBuilder.Append("Optogenetics = " + _optogenetics + ", ");
             stringBuilder.Append("TaskType = " + _taskType + ", ");
             stringBuilder.Append("Target = " + _target + ", ");

@@ -2,7 +2,7 @@ from enum import StrEnum
 from typing import Any, Literal
 
 # Integers are int: open_rigs' Int carries its own range, which drops a Field's ge or gt.
-from open_rigs.core.base import Double, String
+from open_rigs.core.base import Bool, Double, String
 from open_rigs.core.task import (
     MAX_REWARD_UL,
     MUTE,
@@ -317,7 +317,15 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         description="Probability that a trial is an auto-reward trial (logged as autoReward): its miss is rewarded at the target spout, and is never repeated (neither noResponse nor notCorrect); 0: never, 1: every trial",
     )
     penalty: Penalty = Field(
-        description="What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
+        description="What a penalised trial costs, by its kind (open_rigs.core.task Penalty): penalty.incorrect after an incorrect choice, and on a random-reward probe after a choice on the coin's tails when penaliseProbes; penalty.noResponse after a miss (a miss on an auto-reward trial is rewarded instead), a probe's too when penaliseProbes. discriminationGoNoGo penalises only a lick on a noGo trial (a go miss and a no-reward probe have neither), so its penalty.noResponse is null"
+    )
+    penalise_probes: Bool = Field(
+        default=False,
+        description=(
+            "Whether a random-reward probe (target random) is penalised: true, a choice on the coin's tails as an incorrect choice "
+            "(penalty.incorrect) and a miss as a scored trial's miss (penalty.noResponse); false, never: tails goes unrewarded with "
+            "no timeout, sound or flash, and a miss costs nothing"
+        ),
     )
     optogenetics: Optogenetics = Field(description="Zapit optogenetic stimulation")
     task_type: TaskType = Field(
@@ -326,8 +334,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
             "discriminationGoNoGo: one spout (the left); lick on a go trial, withhold on a noGo trial; a noReward trial is a probe, never "
             "rewarded or penalised. discriminationLeftRight: the left spout on a left trial, the right on a right trial. "
             "A target random trial (localization, discriminationLeftRight) is a random-reward probe: both spouts in, and a coin "
-            "drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails penalised "
-            "as an incorrect choice; a miss as a scored trial's miss. The targets each allows are x-rules'"
+            "drawn with the trial from the seeded stream decides a choice at either: heads rewarded at that spout, tails unrewarded "
+            "(and penalised as an incorrect choice, a miss as a scored trial's miss, only when penaliseProbes). The targets each allows are x-rules'"
         ),
     )
     target: Target | None = Field(

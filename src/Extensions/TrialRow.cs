@@ -64,11 +64,12 @@ public class TrialRow
         return trial.autoReward ? TrialOutcomes.Auto : TrialOutcomes.NoResponse;
     }
 
-    // Penalised (the penalty sound and timeout): an incorrect choice, or a miss that was not auto-rewarded, except a
-    // discriminationGoNoGo miss, which has neither (Song et al. 2017). On a random-reward probe a choice
-    // is penalised when its coin came up tails, and a miss as a scored trial's miss, by the same rule.
+    // Penalised (the penalty's timeout, sound and flash, by its kind): an incorrect choice, or a miss that was not
+    // auto-rewarded, except a discriminationGoNoGo miss, which has neither (Song et al. 2017). A random-reward probe only
+    // when its condition's penaliseProbes: then a choice when its coin came up tails, and a miss as a scored trial's miss.
     public static bool Penalised(string outcome, string choice, Trial trial)
     {
+        if (trial.target == TargetWords.Random && !trial.values.PenaliseProbes) return false;
         if (choice == Choice.NoResponse) return MissPenalised(trial);
         if (trial.target == TargetWords.Random) return !trial.probeHeads;
         return outcome == TrialOutcomes.Incorrect;
