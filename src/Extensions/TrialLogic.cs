@@ -115,7 +115,7 @@ public class TrialDraw
     readonly List<BuiltTrialCondition> conditions;
     readonly EqualisedSpeakerArray speakers;
     readonly Random random;
-    readonly int conditionCount;
+    readonly ZapitConditionsFile zapitConditionsFile;   // null without optogenetics
     Trial last;
     int drawn;
 
@@ -148,7 +148,7 @@ public class TrialDraw
             }
             var path = optogenetics.ZapitConditionsPath;
             var file = zapitConditions != null ? zapitConditions(path) : ZapitConditions.Check(path);
-            conditionCount = file.Count;
+            zapitConditionsFile = file;
             MaxRampDownSeconds = file.MaxRampDownSeconds;
             var problems = LaserProblems(conditions, MaxRampDownSeconds);
             if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
@@ -530,8 +530,8 @@ public class TrialDraw
         if (optogenetics.Enabled)
         {
             // drawn + 1: this trial's number, which Next sets once it is drawn.
-            ZapitTrial.Draw(random, drawn + 1, conditionCount, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
-                out trial.laserCondition, out trial.laserOn, out trial.laserPowerMw);
+            ZapitTrial.Draw(random, drawn + 1, zapitConditionsFile, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
+                out trial.laserCondition, out trial.laserPointsMm, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
         trial.auditorySoundFileIndex = random.Next(AuditoryStimulusSet.WaveformCount);

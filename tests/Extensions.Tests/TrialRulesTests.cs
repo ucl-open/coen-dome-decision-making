@@ -104,7 +104,7 @@ static class Rules
             if (task.TaskType == TaskType.DiscriminationLeftRight) Fixture.Weight(task, "audiovisualCoherent", 0);
         }
         if (edit != null) edit(task);
-        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), hardwareTriggered, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
+        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), hardwareTriggered, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
     }
 
     public static void Optogenetics(UclOpenCoenDomeDecisionMakingTaskParameters task)
@@ -122,7 +122,7 @@ static class Rules
     {
         var task = Fixture.Task("task-localization.yml", 4);
         task.Spouts.AlwaysIn = alwaysIn;
-        var trial = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)).Next(null);
+        var trial = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).Next(null);
         trial.target = target;
         trial.rewardOfferedUl = rewardOfferedUl;
         trial.autoReward = trial.probeHeads = trial.singleSpoutOffered = false;
@@ -242,7 +242,7 @@ public class ResponseRuleTests
     public void TheLoopRunsTheDrawsTrialsInOrder()
     {
         // The same seed draws the same trials through the loop as TrialDraw alone, every trial a miss.
-        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), true, path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds)));
+        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), true, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)));
         run.RunTo(200);
         var looped = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), looped.Count, t => Choice.NoResponse);
@@ -761,13 +761,13 @@ public class TrialRowTests
     [TestMethod]
     public void TheRowLogsTheConditionAndThePowerFired()
     {
-        var trial = new Trial { target = TargetWords.Left, laserCondition = 2, laserOn = true, laserPowerMw = 3, values = Fixture.Task("task-localization.yml", 4) };
+        var trial = new Trial { target = TargetWords.Left, laserCondition = 2, laserPointsMm = "1.5 1;1.5 -1", laserOn = true, laserPowerMw = 3, values = Fixture.Task("task-localization.yml", 4) };
         var times = Times(10);
         times.LaserTriggerTime = 9.25;
         var row = TrialRow.Build(Choice.Left, trial, times, Penalties.Of(4, -35.0, 0, 10));
-        Assert.IsTrue(row.laserCondition == 2 && row.laserPowerMw == 3 && row.laserTriggerTime == 9.25);
+        Assert.IsTrue(row.laserCondition == 2 && row.laserPointsMm == "1.5 1;1.5 -1" && row.laserPowerMw == 3 && row.laserTriggerTime == 9.25);
         var answered = TrialRow.Build(Choice.Left, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
-        Assert.IsTrue(answered.laserCondition == 2 && answered.laserPowerMw == 0 && double.IsNaN(answered.laserTriggerTime), "answered before its trigger");
+        Assert.IsTrue(answered.laserCondition == 2 && answered.laserPointsMm == "1.5 1;1.5 -1" && answered.laserPowerMw == 0 && double.IsNaN(answered.laserTriggerTime), "answered before its trigger");
     }
 
     [TestMethod]

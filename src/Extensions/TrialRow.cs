@@ -27,6 +27,7 @@ public class TrialRow
     public double penaltyFlashBrightness;
     public bool penalised;
     public int laserCondition;
+    public string laserPointsMm;
     public double laserPowerMw;
     public double laserTriggerTime;
     public int trialConditionId;

@@ -46,7 +46,7 @@ public class OutcomeTableTests
             foreach (var random in new[] { false, true })
             {
                 if (random && file.Contains("go-no-go")) continue;   // go/no-go has no random-reward probe
-                var draw = new TrialDraw(Fixture.Text(Task(file, random, false)), Fixture.Speakers(), path => new ZapitConditionsFile(2, ZapitConditions.MaximumRampDownSeconds));
+                var draw = new TrialDraw(Fixture.Text(Task(file, random, false)), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
                 for (int n = 0; n < Draws; n++)
                 {
                     var t = draw.Next(new TrialRow { outcome = TrialOutcomes.Correct, choice = Choice.Left });
