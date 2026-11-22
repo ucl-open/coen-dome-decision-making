@@ -69,3 +69,16 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 ## Audit 18 Nov 2026: not recommended
 
 - Amplitude only for the stimulus sounds: reward tone, background and penalty stay levelDbfs (lib-open-rigs' shared blocks; the plan settled it).
+
+## Audit 2026-11-22 (/audit-rigs, pipeline)
+
+Changed (697fbc0): ExperimentControl's description gets its missing space (P3D-L8); this file drops released items and names the columns' current names (P3D-L4).
+
+Deferred:
+
+- P3D-L5 (Gerion's call): `config\task-localization.yml:47` has `initialContrasts: [3.0]` since d8c891e, the other task files use `[1.0]`, and `task.py` refuses only values below 0, so a saturated grating would run with `visualInitialContrast` 3 logged. The share's curriculum sets contrast on every stage read, so it shows only for a stage that sets none.
+- P3D-L1: the pin is 845da2a while NAV and the share are at 7c7c0c3 (CI and lint only, no behaviour); rerun app-rig-setup's update-workflows at the lib-open-rigs release.
+
+Not changed, do not raise again without new information:
+
+- None in this repo this round.
