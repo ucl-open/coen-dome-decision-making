@@ -143,7 +143,7 @@ public class HandoverTests
         foreach (var golden in Goldens())
         {
             var built = Built(golden.Key, golden.Value);
-            var loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(new TrialRules(golden.Value, Fixture.Speakers(), Fixture.Bank()), true);
+            var loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(new TrialRules(golden.Value, Fixture.Speakers(), Fixture.Bank()), true, true);
             var mouse = new Random(1);
             var rows = new List<TrialRow>();
             var trials = new Dictionary<int, Trial>();

@@ -83,7 +83,7 @@ def _reached(kind, cue=None, group="TaskLogic"):
                 reached.add(nodes[i].findtext(W + "Name"))
             elif nodes[i].get("Path"):
                 reached.add(nodes[i].get("Path").split(":")[1] + (f" Set={nodes[i].findtext(W + 'Set')}" if nodes[i].findtext(W + "Set") else ""))
-            elif _kind(nodes[i]) == "trl:ZapitTrialCommand":
+            elif _kind(nodes[i]) == "trl:ZapitDaqTrialCommand":
                 reached.add(nodes[i].findtext(W + "Name"))
     return reached
 
@@ -103,16 +103,16 @@ def test_task_logic_runs_the_trial_loop():
     assert [nodes[into[f"Source{k}"]].findtext(W + "Name") for k in range(2, 7)] == [
         "Timestamp", "WheelDistanceCm", "LickStateLeft", "LickStateRight", "Zapit.Events"]
     assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == run] == ["TrialEvents"]
-    # No nested graph: Zapit's commands are OpenRigs.Trials ZapitTrials', given the rules.
+    # No nested graph: Zapit's commands are OpenRigs.Trials ZapitDaqTrials', given the rules.
     assert not [n for n in _named("TaskLogic").iter(W + "Expression") if n.get(XSI) in lint.PER_ELEMENT]
 
 
 def test_the_task_is_checked_once_at_go_into_the_rules():
     # The one task check: CheckTaskAtGo builds TrialRules from the task, the stage, rig.yml and the Zapit bank the setup
-    # loaded (Zapit.Bank, ConnectForTask's), so TaskRules comes after ConnectForTask, which comes after DomeHardware.
+    # loaded (Zapit.Bank, ConnectForTaskZapitDaq's), so TaskRules comes after ConnectForTaskZapitDaq, which comes after DomeHardware.
     assert TEXT.count('"ext:CheckTaskAtGo"') == 1
     top = [n.get("Path") or n.findtext(W + "Name") for n in ET.fromstring(TEXT).find(W + "Workflow").find(W + "Nodes")]
-    assert top.index("OpenRigs.Devices:DomeHardware.bonsai") < top.index(lint.ZAPIT_FOR_TASK) < top.index("TaskRules") < top.index("Audio")
+    assert top.index("OpenRigs.Devices:DomeHardware.bonsai") < top.index(lint.ZAPIT_DAQ_FOR_TASK) < top.index("TaskRules") < top.index("Audio")
     nodes, edges = _scope(_named("TaskRules"))
     (check,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:CheckTaskAtGo"]
     assert [(nodes[b].get(XSI), nodes[b].findtext(W + "Name")) for a, b, _ in edges if a == check] == [("rx:AsyncSubject", "TrialRules")]
@@ -127,7 +127,7 @@ def test_each_trial_event_reaches_its_hardware():
     assert _reached("StimulusOff") == {"StimulusOff"}   # once a trial (OpenRigs.Trials StimulusTiming): the grating hidden, the sound stopped
     assert TEXT.count("<Name>StimulusOff</Name>") == 3 and "GratingOff" not in TEXT   # one publisher, two readers
     assert _reached("Outcome") == {"TrialOutcomeEffects.bonsai", "PlayPenaltyFlash.bonsai"}   # the flash on the outcomes TrialOutcomeEffects passes on
-    # Arm, Trigger and TriggerOff are ZapitTrials': no pick of them here.
+    # Arm, Trigger and TriggerOff are ZapitDaqTrials': no pick of them here.
     nodes, _ = _scope(_named("TaskLogic"))
     kinds = {n.find(W + "Combinator").findtext(TRL + "Kind") for n in nodes if _kind(n) == PICK}
     assert not kinds & {"Arm", "Trigger", "TriggerOff", "LaserCap"}
@@ -146,14 +146,14 @@ def test_every_spout_move_is_spout_commands_over_the_trial_events():
 
 
 def test_zapit_s_trials_are_the_shared_include_given_the_rules():
-    # OpenRigs.Trials ZapitTrials, once, given TrialRules: its StartStimulus at Arm on a hardware-triggered rig, else at the
+    # OpenRigs.Trials ZapitDaqTrials, once, given TrialRules: its StartStimulus at Arm on a hardware-triggered rig, else at the
     # trigger, timed by the rules' Laser (rig.yml's zapit.hardwareTriggered and the task's laserDurationSeconds, fixed at Go).
-    assert TEXT.count('Path="OpenRigs.Trials:ZapitTrials.bonsai"') == 1
+    assert TEXT.count('Path="OpenRigs.Trials:ZapitDaqTrials.bonsai"') == 1
     nodes, edges = _scope(_named("TaskLogic"))
-    (zapit,) = [i for i, n in enumerate(nodes) if n.get("Path") == "OpenRigs.Trials:ZapitTrials.bonsai"]
+    (zapit,) = [i for i, n in enumerate(nodes) if n.get("Path") == "OpenRigs.Trials:ZapitDaqTrials.bonsai"]
     assert [(nodes[a].get(XSI), nodes[a].findtext(W + "Name"), label) for a, b, label in edges if b == zapit] == [
         ("SubscribeSubject", "TrialRules", "Source1")]
-    assert "ZapitTrialCommand" not in TEXT and "SetZapitTriggerLine" not in TEXT and "HardwareTriggered" not in TEXT
+    assert "ZapitDaqTrialCommand" not in TEXT and "SetZapitTriggerLine" not in TEXT and "HardwareTriggered" not in TEXT
 
 
 def test_each_grating_starts_at_its_own_trial_s_azimuth():
@@ -171,7 +171,7 @@ def test_each_grating_starts_at_its_own_trial_s_azimuth():
 
 def test_the_shared_blocks_replace_the_local_copies():
     for block in ("OpenRigs.Devices:ReadLabRig.bonsai", "OpenRigs.Devices:DomeHardware.bonsai",
-                  lint.REWARDS, "OpenRigs.Devices:ConnectForTask.bonsai",
+                  lint.REWARDS, "OpenRigs.Devices:ConnectForTaskZapitDaq.bonsai",
                   "OpenRigs.Logging:ExperimentLogs.bonsai", lint.LAUNCH_SETTINGS, lint.BACKGROUND_NOISE, lint.EXPERIMENT_RECORDS):
         assert f'Path="{block}"' in TEXT
     # The speakers and the projector are DomeHardware's (every task has background noise and a screen).

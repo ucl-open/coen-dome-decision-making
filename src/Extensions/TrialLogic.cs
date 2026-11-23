@@ -232,7 +232,7 @@ public class TrialDraw
                 if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
                 {
                     problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's {3} s ramp-down - {4} s arm time), so Zapit can be armed for the next trial in time",
-                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, rampDownSeconds, ZapitTrial.ArmSeconds));
+                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, rampDownSeconds, ZapitDaqTrial.ArmSeconds));
                 }
             }
         }
@@ -240,7 +240,7 @@ public class TrialDraw
         if (tasks.Count > 0 && tasks[0].Optogenetics.Enabled)
         {
             var across = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.StimulusToResponseWindowSeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
-                - rampDownSeconds - ZapitTrial.ArmSeconds;
+                - rampDownSeconds - ZapitDaqTrial.ArmSeconds;
             var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
             if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to response window, plus the shortest interval less the lead, less the Zapit bank's {2} s ramp-down and Zapit's arm time", duration, across, rampDownSeconds));
         }
@@ -369,7 +369,7 @@ public class TrialDraw
             structure.StimulusToResponseWindowSeconds));
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
-        var leadProblem = ZapitTrial.LeadProblem(lead, structure.ItiMinSeconds);
+        var leadProblem = ZapitDaqTrial.LeadProblem(lead, structure.ItiMinSeconds);
         if (leadProblem != null) problems.Add(leadProblem);
         if (-lead > structure.StimulusToResponseWindowSeconds + structure.ResponseWindowSeconds + 1e-9)
         {
@@ -391,7 +391,7 @@ public class TrialDraw
     public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double rampDownSeconds)
     {
         var s = task.TrialStructure;
-        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - rampDownSeconds - ZapitTrial.ArmSeconds;
+        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - rampDownSeconds - ZapitDaqTrial.ArmSeconds;
     }
 
     /// <summary>The next trial, after the last one's row (its outcome and choice; null before the first).</summary>
@@ -535,7 +535,7 @@ public class TrialDraw
         if (optogenetics.Enabled)
         {
             // drawn + 1: this trial's number, which Next sets once it is drawn.
-            ZapitTrial.Draw(random, drawn + 1, bank, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
+            ZapitDaqTrial.Draw(random, drawn + 1, bank, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
                 out trial.laserCondition, out trial.laserPointsMm, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
@@ -676,7 +676,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public PenaltyFlashRules PenaltyFlashes { get { return draw.PenaltyFlashes(); } }
 
     /// <summary>Settings_Combinations' text (OpenRigs.Trials TrialConditions.CombinationsJson): every combination built at Go, each a row the trial
-    /// log's trialCombinationId names; logged by OpenRigs.Logging ConditionedTaskLogs in the Logging group.</summary>
+    /// log's trialCombinationId names; logged by OpenRigs.Logging ConditionedTaskLogsZapitDaq in the Logging group.</summary>
     public string CombinationsJson { get { return TrialConditions.CombinationsJson(draw.Task, draw.Conditions, TrialDraw.Schema); } }
 
     public Trial Draw(TrialOutcome previous)

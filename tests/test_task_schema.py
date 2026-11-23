@@ -211,7 +211,8 @@ def test_a_signed_lead_inside_the_interval_and_the_response_window_is_accepted(l
     assert _with(opto={"laserToStimulusSeconds": lead}).optogenetics.laser_to_stimulus_seconds == lead
 
 
-@pytest.mark.parametrize("lead, words", [(2.31, "arm time"), (-2.51, "after the response window")])
+@pytest.mark.parametrize("lead, words", [(2.31, "reply margin"),  # the shared block's words for the same 0.2 s (ZAPIT_REPLY_MARGIN_SECONDS)
+                                          (-2.51, "after the response window")])
 def test_a_lead_outside_them_is_refused(lead, words):
     with pytest.raises(ValidationError, match=words):
         _with(opto={"laserToStimulusSeconds": lead})
@@ -307,8 +308,8 @@ def test_a_quiet_wait_above_its_maximum_is_refused(structure):
 def test_the_constants_are_the_c_sharp_s():
     import re
     logic = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
-    # ZapitDaq's arm time is lib-open-rigs' alone (ZapitTrial.ArmSeconds, ZAPIT_ARM_SECONDS).
-    assert "ZapitTrial.ArmSeconds" in logic and not re.search(r"const double \w*Margin", logic)
+    # ZapitDaq's arm time is lib-open-rigs' alone (ZapitDaqTrial.ArmSeconds, ZAPIT_ARM_SECONDS).
+    assert "ZapitDaqTrial.ArmSeconds" in logic and not re.search(r"const double \w*Margin", logic)
     task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
     # The ramp-down and reward caps are lib-open-rigs' too, each tied there to its C# value.
     assert "from open_rigs.components.zapit import ZAPIT_ARM_SECONDS" in task_py

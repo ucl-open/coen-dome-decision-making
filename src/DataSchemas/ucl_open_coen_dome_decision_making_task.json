@@ -117,13 +117,13 @@
       "properties": {
         "enabled": {
           "default": false,
-          "description": "Whether this is an optogenetics experiment: every trial arms Zapit's DAQ with a condition from the session's bank (laser off on laser-off trials: the galvos move and the masking light shows), and the launching app runs Zapit's setup (scanner calibration, sample, bank) before Go",
+          "description": "Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go",
           "title": "Enabled",
           "type": "boolean"
         },
         "zapitConditionsPath": {
           "default": "",
-          "description": "Path to the Zapit conditions file, inside the rig's mirror of the lab's shared zapit-conditions folder (RigConfigs/shared/zapit-conditions). Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps; the session's bank is built from it. The launching app keeps a copy beside the task file at Go",
+          "description": "Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. The launching app keeps a copy beside the task file at Go",
           "title": "ZapitConditionsPath",
           "type": "string"
         },
@@ -138,23 +138,23 @@
             }
           ],
           "default": null,
-          "description": "Laser power asked for on laser-on trials, in mW, the same for every condition (overriding the conditions file's power): the bank holds it in volts from the laser curve, capped at rig.yml's zapit.ceilingMw, and the power delivered is logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
+          "description": "Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus (overriding the conditions file's power; Zapit's laser calibration turns it into volts) and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on",
           "title": "LaserPowerMw"
         },
         "laserOnProbability": {
-          "description": "Probability that a trial after trialsBeforeLaser is a laser-on trial, shared equally by every condition in the conditions file; all other trials are laser-off trials, armed with a condition and the laser off",
+          "description": "Probability that a trial after trialsBeforeLaser is a laser-on trial, shared equally by every condition in the conditions file; all other trials are laser-off trials, sent a condition with the laser off",
           "maximum": 1,
           "minimum": 0,
           "title": "LaserOnProbability",
           "type": "number"
         },
         "laserToStimulusSeconds": {
-          "description": "Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (ZapitDaq's arm time); each task adds its own limits",
+          "description": "Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits",
           "title": "LaserToStimulusSeconds",
           "type": "number"
         },
         "trialsBeforeLaser": {
-          "description": "Trials at the experiment's start with no laser-on trial among them (each still arms Zapit with a condition, laser off); laserOnProbability applies from the next trial",
+          "description": "Trials at the experiment's start with no laser-on trial among them (each still sends Zapit a condition, at 0 mW); laserOnProbability applies from the next trial",
           "minimum": 0,
           "title": "TrialsBeforeLaser",
           "type": "integer"

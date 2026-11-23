@@ -47,7 +47,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskFile</Name>
-        <Description>Reads the task file (TaskPath) at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, read by ReadTask, which keeps a trial condition's set values as numbers and bools. TaskRules, after ConnectForTask, checks it at Go and builds the trials' rules.</Description>
+        <Description>Reads the task file (TaskPath) at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, read by ReadTask, which keeps a trial condition's set values as numbers and bools. TaskRules, after ConnectForTaskZapitDaq, checks it at Go and builds the trials' rules.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Core:TaskFileText.bonsai" />
@@ -66,7 +66,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's WorkflowData_Trials row, built at its outcome; GratingAzimuthDeg, the response; StimulusTrial, the trial at its stimulus, for the grating and the sound; StimulusOff, the trial at its StimulusOff event (OpenRigs.Trials StimulusTiming: stimulus.durationSeconds after the stimulus, or stimulus.responseToStimulusOffSeconds after the outcome if sooner), once a trial. Zapit's commands, events and bank (Zapit.Commands, Zapit.Events, Zapit.Bank) are ConnectForTask's, RewardRequests Rewards'.</Description>
+        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's WorkflowData_Trials row, built at its outcome; GratingAzimuthDeg, the response; StimulusTrial, the trial at its stimulus, for the grating and the sound; StimulusOff, the trial at its StimulusOff event (OpenRigs.Trials StimulusTiming: stimulus.durationSeconds after the stimulus, or stimulus.responseToStimulusOffSeconds after the outcome if sooner), once a trial. Zapit's commands, events and bank (Zapit.Commands, Zapit.Events, Zapit.Bank) are ConnectForTaskZapitDaq's, RewardRequests Rewards'.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
@@ -102,10 +102,10 @@
         <Description>Every dome device as a piece, named as in the data (lib-open-rigs Building Blocks): the Ready gate, the timestamp generator's clock, the Behavior board with its reward lines, Zapit line and wheel, both Lickety Splits, the lick spout stage, the three cameras, which start triggering once all three acquire, the speakers (SpeakerMixer) and the projector (ProjectorDisplay, stimuli on DrawStimuli). The dome's devices (OpenRigs.Devices DomeHardware: every device as a piece, each logging itself; the cameras triggered once all three acquire; the speakers and their mixer; the projector, DisplayDevice a launch property), with Ready once the Harp clock is set, the spouts are homed, each camera has sent a frame and the mixer has started, and a stop naming what never came after 180 s.</Description>
         <WorkflowStages>LabClockChecked</WorkflowStages>
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTask.bonsai" />
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTaskZapitDaq.bonsai" />
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskRules</Name>
-        <Description>At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once with rig.yml and, in an optogenetics experiment, the Zapit bank the setup loaded (Zapit.Bank, ConnectForTask's: hence after it), and publishes the trials' rules (TrialRules) for TaskLogic, and the stage as CurriculumStage.</Description>
+        <Description>At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once with rig.yml and, in an optogenetics experiment, the Zapit bank the setup loaded (Zapit.Bank, ConnectForTaskZapitDaq's: hence after it), and publishes the trials' rules (TrialRules) for TaskLogic, and the stage as CurriculumStage.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -542,7 +542,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Logging</Name>
-        <Description>Everything else written to the experiment folder (ExperimentLogs, before DomeHardware, makes it at Go, with WorkflowData_Events, Settings_Rig and Settings_Experiment; each device logs itself): ConditionedTaskLogs (OpenRigs.Logging) writes Settings_Combinations (TrialRules.CombinationsJson) every combination the conditions built at Go, each a row the trial log's trialCombinationId names, with the values that vary, and through TaskLogs Settings_Task (the task file as JSON), WorkflowData_Trials and each ZapitDaq event as an Events row (Event Zapit); the Zapit bank, sample, scanner fit, accuracy and conditions copy are app-rig-control's files, the scanner frames and Camera-Zapit ConnectForTask's; Rewards (OpenRigs.Devices) logs each reward (RewardDelivered) and each RewardValve piece its calibration file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to WorkflowData_Events, records the Harp devices and writes the manifest.</Description>
+        <Description>Everything else written to the experiment folder (ExperimentLogs, before DomeHardware, makes it at Go, with WorkflowData_Events, Settings_Rig and Settings_Experiment; each device logs itself): ConditionedTaskLogsZapitDaq (OpenRigs.Logging) writes Settings_Combinations (TrialRules.CombinationsJson) every combination the conditions built at Go, each a row the trial log's trialCombinationId names, with the values that vary, and through TaskLogsZapitDaq Settings_Task (the task file as JSON), WorkflowData_Trials and each ZapitDaq event as an Events row (Event Zapit); the Zapit bank, sample, scanner fit, accuracy and conditions copy are app-rig-control's files, the scanner frames and Camera-Zapit ConnectForTaskZapitDaq's; Rewards (OpenRigs.Devices) logs each reward (RewardDelivered) and each RewardValve piece its calibration file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to WorkflowData_Events, records the Harp devices and writes the manifest.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -553,7 +553,7 @@
                 <task:Formatting>Indented</task:Formatting>
               </Combinator>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ConditionedTaskLogs.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ConditionedTaskLogsZapitDaq.bonsai" />
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -625,7 +625,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: ZapitDaq's Arm and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: ZapitDaq's Arm and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitDaqTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -703,7 +703,7 @@
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialRules</Name>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Trials:ZapitTrials.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Trials:ZapitDaqTrials.bonsai" />
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialEvents</Name>
             </Expression>

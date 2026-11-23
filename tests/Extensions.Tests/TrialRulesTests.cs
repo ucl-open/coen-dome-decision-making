@@ -22,7 +22,7 @@ class Harness
 
     public Harness(TrialRules rules)
     {
-        Loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(rules, true);
+        Loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(rules, true, true);   // ZapitDaq arms the laser trials
         Loop.OnWheel(0);
         Events.AddRange(Loop.OnClock(Now));
     }
