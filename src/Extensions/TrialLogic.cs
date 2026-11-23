@@ -4,8 +4,8 @@ using OpenRigs.Audio;
 using OpenRigs.Core;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
-using OpenRigs.Devices.Zapit;
 using OpenRigs.Trials;
+using OpenRigs.Zapit;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -72,13 +72,16 @@ public class ReadTask
 }
 
 [Combinator]
-[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): curriculum is present and well formed, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the Zapit conditions file. Input: the task file's text and rig.yml; stops the workflow naming every problem.")]
+[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): curriculum is present and well formed, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the session's Zapit bank (its conditions drawn from, its longest ramp-down). Inputs: the task file's text and rig.yml; Zapit.Bank (none on a rig without Zapit or before the setup loads one). Stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
-    public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source)
+    public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source, IObservable<ZapitBank> bank)
     {
-        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null));
+        // The bank as loaded at Go, null when none was: a rig without Zapit never loads one, and needs none without optogenetics.
+        // Zapit.Bank is a BehaviorSubject, subscribed first, so its last bank is in hand before the task text comes, once.
+        return bank.StartWith((ZapitBank)null).CombineLatest(source, (loaded, input) => Tuple.Create(input, loaded)).Take(1)
+            .Select(x => TrialRules.Create(x.Item1.Item1, x.Item1.Item2, x.Item2));
     }
 }
 
@@ -115,7 +118,7 @@ public class TrialDraw
     readonly List<BuiltTrialCondition> conditions;
     readonly EqualisedSpeakerArray speakers;
     readonly Random random;
-    readonly ZapitConditionsFile zapitConditionsFile;   // null without optogenetics
+    readonly ZapitBank bank;   // null without optogenetics
     Trial last;
     int drawn;
 
@@ -128,14 +131,14 @@ public class TrialDraw
     /// <summary>The conditions as built at Go, in trialConditions' order.</summary>
     public IList<BuiltTrialCondition> Conditions { get { return conditions; } }
 
-    /// <summary>The Zapit conditions file's largest ramp-down, in seconds (0 without optogenetics): the next trial is armed
-    /// once it has played after the laser.</summary>
+    /// <summary>The Zapit bank's longest ramp-down (ZapitBank.LongestRampSeconds), in seconds (0 without optogenetics): the
+    /// next trial is armed once it has played after the laser.</summary>
     public double MaxRampDownSeconds { get; private set; }
 
-    /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers; zapitConditions gives
-    /// a conditions file's count and largest ramp-down (null: ZapitConditions.Check reads it). Throws naming every problem,
-    /// with optogenetics a laser that could leave Zapit busy at the next trigger (LaserProblems).</summary>
-    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, Func<string, ZapitConditionsFile> zapitConditions)
+    /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers, with the session's
+    /// Zapit bank (null without one: refused with optogenetics on). Throws naming every problem, with optogenetics a laser
+    /// that could leave Zapit busy at the next trigger (LaserProblems).</summary>
+    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank)
     {
         conditions = CheckTask(taskText, speakers, out task);
         this.speakers = speakers;
@@ -146,10 +149,12 @@ public class TrialDraw
             {
                 throw new InvalidOperationException("optogenetics is enabled, so optogenetics.laserPowerMw must be a power in mW above 0.");
             }
-            var path = optogenetics.ZapitConditionsPath;
-            var file = zapitConditions != null ? zapitConditions(path) : ZapitConditions.Check(path);
-            zapitConditionsFile = file;
-            MaxRampDownSeconds = file.MaxRampDownSeconds;
+            if (bank == null)
+            {
+                throw new InvalidOperationException("optogenetics is enabled, but no Zapit bank was loaded before Go: run Zapit's setup (scanner, sample, bank) in app-rig-control, or turn optogenetics off.");
+            }
+            this.bank = bank;
+            MaxRampDownSeconds = bank.LongestRampSeconds;
             var problems = LaserProblems(conditions, MaxRampDownSeconds);
             if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
         }
@@ -199,7 +204,7 @@ public class TrialDraw
     /// _between_trials): the lab's spouts (OpenRigs.Trials Spouts.BetweenTrialsProblems: the longest rewardConsumptionSeconds
     /// plus the longest lead within the shortest itiMinSeconds) and stimulus off between trials
     /// (StimulusTiming.BetweenTrialsProblems: the soonest outcome the response window's opening, the shortest outcome to next
-    /// interval 0, MinOutcomeToItiSeconds), and with optogenetics the laser (LaserProblems, once the conditions file's
+    /// interval 0, MinOutcomeToItiSeconds), and with optogenetics the laser (LaserProblems, once the bank's
     /// ramp-down is known).</summary>
     static void BetweenTrials(List<string> problems, List<UclOpenCoenDomeDecisionMakingTaskParameters> tasks)
     {
@@ -211,10 +216,10 @@ public class TrialDraw
             tasks.Select(t => t.Stimulus.ResponseToStimulusOffSeconds), iti, MinOutcomeToItiSeconds));
     }
 
-    /// <summary>With optogenetics, the laser of every combination (task.py's same rules, its ramp-down the least a file may
-    /// have): each laserDurationSeconds within MaxLaserSeconds, and across the weighted combinations within the shortest
-    /// lead plus stimulus to response window plus the shortest interval less the lead, less the conditions file's largest
-    /// ramp-down and Zapit's reply margin, so Zapit is free at the next trigger.</summary>
+    /// <summary>With optogenetics, the laser of every combination (task.py's same rules, with the bank's ramp-down when the
+    /// check has it): each laserDurationSeconds within MaxLaserSeconds, and across the weighted combinations within the shortest
+    /// lead plus stimulus to response window plus the shortest interval less the lead, less the bank's longest
+    /// ramp-down and Zapit's arm time, so Zapit is free at the next trigger.</summary>
     public static List<string> LaserProblems(IList<BuiltTrialCondition> conditions, double rampDownSeconds)
     {
         var problems = new List<string>();
@@ -226,8 +231,8 @@ public class TrialDraw
                 var maxSeconds = MaxLaserSeconds(combination.Task, rampDownSeconds);
                 if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
                 {
-                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's {3} s ramp-down - {4} s reply margin), so Zapit can be armed for the next trial in time",
-                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, rampDownSeconds, ZapitTrial.ReplyMarginSeconds));
+                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's {3} s ramp-down - {4} s arm time), so Zapit can be armed for the next trial in time",
+                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, rampDownSeconds, ZapitTrial.ArmSeconds));
                 }
             }
         }
@@ -235,9 +240,9 @@ public class TrialDraw
         if (tasks.Count > 0 && tasks[0].Optogenetics.Enabled)
         {
             var across = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.StimulusToResponseWindowSeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
-                - rampDownSeconds - ZapitTrial.ReplyMarginSeconds;
+                - rampDownSeconds - ZapitTrial.ArmSeconds;
             var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
-            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to response window, plus the shortest interval less the lead, less the Zapit conditions file's {2} s ramp-down and Zapit's reply margin", duration, across, rampDownSeconds));
+            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to response window, plus the shortest interval less the lead, less the Zapit bank's {2} s ramp-down and Zapit's arm time", duration, across, rampDownSeconds));
         }
         return problems.Distinct().ToList();
     }
@@ -381,12 +386,12 @@ public class TrialDraw
 
     /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least stimulusToResponseWindowSeconds
     /// + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse), and in that time the laser, the
-    /// conditions file's largest ramp-down <paramref name="rampDownSeconds"/> (Zapit refuses the next StartStimulus until it
-    /// has played) and Zapit's reply margin must fit before the next trigger.</summary>
+    /// bank's longest ramp-down <paramref name="rampDownSeconds"/> (the next trial is armed only once it has played) and
+    /// ZapitDaq's arm time must fit before the next trigger.</summary>
     public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double rampDownSeconds)
     {
         var s = task.TrialStructure;
-        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - rampDownSeconds - ZapitTrial.ReplyMarginSeconds;
+        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - rampDownSeconds - ZapitTrial.ArmSeconds;
     }
 
     /// <summary>The next trial, after the last one's row (its outcome and choice; null before the first).</summary>
@@ -530,7 +535,7 @@ public class TrialDraw
         if (optogenetics.Enabled)
         {
             // drawn + 1: this trial's number, which Next sets once it is drawn.
-            ZapitTrial.Draw(random, drawn + 1, zapitConditionsFile, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
+            ZapitTrial.Draw(random, drawn + 1, bank, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
                 out trial.laserCondition, out trial.laserPointsMm, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
@@ -631,20 +636,21 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     readonly LaserTiming laser;
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions)
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank)
     {
-        draw = new TrialDraw(taskText, speakers, zapitConditions);
+        draw = new TrialDraw(taskText, speakers, bank);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
         // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
-        // conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
-        laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds) : null;
+        // bank's longest ramp-down has played.
+        laser = optogenetics.Enabled ? LaserTiming.ForDuration(draw.MaxRampDownSeconds) : null;
     }
 
-    /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
-    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions)
+    /// <summary>The rules for a task file's text on a rig (its speakers) with the session's Zapit bank (null for none);
+    /// throws naming every problem.</summary>
+    public static TrialRules Create(string taskText, LabRig rig, ZapitBank bank)
     {
-        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions);
+        return new TrialRules(taskText, rig.SpeakerArray, bank);
     }
 
     public LaserTiming Laser { get { return laser; } }
@@ -750,13 +756,13 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 }
 
 [Combinator]
-[Description("Runs the trials (lib-open-rigs TrialLoop on TrialRules). Inputs: the rules, the Harp clock, the wheel in cm, the left and right lick states, Zapit's replies.")]
+[Description("Runs the trials (lib-open-rigs TrialLoop on TrialRules). Inputs: the rules, the Harp clock, the wheel in cm, the left and right lick states, ZapitDaq's events (Zapit.Events).")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
 public class RunTrials
 {
     public IObservable<TrialEvent<Trial, DecisionUpdate, TrialOutcome>> Process(IObservable<TrialRules> rules, IObservable<double> clock,
-        IObservable<double> wheelCm, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<ZapitReply> zapitReplies)
+        IObservable<double> wheelCm, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<ZapitDaqEvent> zapitEvents)
     {
-        return TrialLoop.Observe(rules, clock, new[] { lickLeft, lickRight }, zapitReplies, wheelCm);
+        return TrialLoop.Observe(rules, clock, new[] { lickLeft, lickRight }, zapitEvents, wheelCm);
     }
 }

@@ -101,20 +101,23 @@ def test_task_logic_runs_the_trial_loop():
     rules = _upstream(edges, tick)
     assert {nodes[i].findtext(W + "Name") for i in rules if nodes[i].get(XSI) == "SubscribeSubject"} == {"TrialRules", "PathPrefix", "Timestamp"}
     assert [nodes[into[f"Source{k}"]].findtext(W + "Name") for k in range(2, 7)] == [
-        "Timestamp", "WheelDistanceCm", "LickStateLeft", "LickStateRight", "ZapitReplies"]
+        "Timestamp", "WheelDistanceCm", "LickStateLeft", "LickStateRight", "Zapit.Events"]
     assert [nodes[b].findtext(W + "Name") for a, b, _ in edges if a == run] == ["TrialEvents"]
     # No nested graph: Zapit's commands are OpenRigs.Trials ZapitTrials', given the rules.
     assert not [n for n in _named("TaskLogic").iter(W + "Expression") if n.get(XSI) in lint.PER_ELEMENT]
 
 
 def test_the_task_is_checked_once_at_go_into_the_rules():
-    # The one task check: CheckTaskAtGo builds TrialRules from the task, the stage and rig.yml.
+    # The one task check: CheckTaskAtGo builds TrialRules from the task, the stage, rig.yml and the Zapit bank the setup
+    # loaded (Zapit.Bank, ConnectForTask's), so TaskRules comes after ConnectForTask, which comes after DomeHardware.
     assert TEXT.count('"ext:CheckTaskAtGo"') == 1
-    nodes, edges = _scope(_named("TaskFile"))
+    top = [n.get("Path") or n.findtext(W + "Name") for n in ET.fromstring(TEXT).find(W + "Workflow").find(W + "Nodes")]
+    assert top.index("OpenRigs.Devices:DomeHardware.bonsai") < top.index(lint.ZAPIT_FOR_TASK) < top.index("TaskRules") < top.index("Audio")
+    nodes, edges = _scope(_named("TaskRules"))
     (check,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:CheckTaskAtGo"]
     assert [(nodes[b].get(XSI), nodes[b].findtext(W + "Name")) for a, b, _ in edges if a == check] == [("rx:AsyncSubject", "TrialRules")]
     assert {nodes[i].findtext(W + "Name") for i in _upstream(edges, check) if nodes[i].get(XSI) == "SubscribeSubject"} == {
-        "TaskText", "RigConfigs"}
+        "TaskText", "RigConfigs", "Zapit.Bank"}
 
 
 def test_each_trial_event_reaches_its_hardware():
@@ -251,9 +254,9 @@ def test_the_background_noise_is_the_shared_include():
 
 def test_the_stage_is_the_task_file_s_alone():
     # No TrainingStage parameter, include or subject: the stage is the task file's curriculum, which CheckTaskAtGo found
-    # well formed; TaskFile publishes its code-version as CurriculumStage (from the TrialRules) and reports it as the metric curriculumStage.
+    # well formed; TaskRules publishes its code-version as CurriculumStage (from the TrialRules) and reports it as the metric curriculumStage.
     assert "TrainingStage" not in TEXT
-    nodes, edges = _scope(_named("TaskFile"))
+    nodes, edges = _scope(_named("TaskRules"))
     (subject,) = [i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "CurriculumStage"]
     (source,) = [a for a, b, _ in edges if b == subject]
     assert nodes[source].get(XSI) == "MemberSelector" and nodes[source].findtext(W + "Selector") == "CurriculumStage"

@@ -7,7 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
-using OpenRigs.Devices.Zapit;
+using OpenRigs.Zapit;
 using OpenRigs.Trials;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;
@@ -196,7 +196,7 @@ static class Fixture
     // its choice noResponse after a noResponse, else a lick at the left.
     public static List<Trial> Draw(UclOpenCoenDomeDecisionMakingTaskParameters task, int count, Func<Trial, string> outcome = null)
     {
-        var draw = new TrialDraw(Text(task), Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        var draw = new TrialDraw(Text(task), Speakers(), Fixture.Bank());
         var trials = new List<Trial>();
         TrialRow last = null;
         for (int i = 0; i < count; i++)
@@ -208,6 +208,42 @@ static class Fixture
             last = new TrialRow { outcome = probe ? TrialOutcomes.Probe : said, choice = said == TrialOutcomes.NoResponse ? Choice.NoResponse : Choice.Left };
         }
         return trials;
+    }
+
+    /// <summary>The ramp-down the tests' bank has unless a test asks for another, in seconds.</summary>
+    public const double RampDownSeconds = 0.5;
+
+    /// <summary>A Zapit bank (index version 2, read by OpenRigs.Zapit ZapitBank.Load) with two conditions, at -0.7 1.5;-0.7 -1.5
+    /// and 1.5 1;1.5 -1 (AP ML), laser off and on at 3 mW, every sample 0 V, and a ramp-down of rampDownSeconds: 10-row
+    /// cycles at 100 samples/s, so 0.1 s a cycle.</summary>
+    public static OpenRigs.Zapit.ZapitBank Bank(double rampDownSeconds = RampDownSeconds)
+    {
+        const int cycle = 10;
+        var tail = (int)Math.Round(rampDownSeconds * 100 / cycle);
+        var dir = Path.Combine(Path.GetTempPath(), "dm-zapit-bank-" + tail);
+        Directory.CreateDirectory(dir);
+        var points = new[] { "[[1.5, -0.7], [-1.5, -0.7]]", "[[1, 1.5], [-1, 1.5]]" };
+        var laserRows = 0;
+        var conditions = new List<string>();
+        for (int c = 0; c < 2; c++)
+        {
+            var on = string.Format("{{\"laser_on\": true, \"power_mw\": 3.0, \"capped_power_mw\": 3.0, \"power_capped\": false, \"laser_cycle\": {{\"offset\": {0}, \"length\": {1}}}, \"laser_tail\": {2}, \"tail_cycles\": {3}, \"tail_replaces\": {4}}}",
+                laserRows, cycle, tail == 0 ? "null" : string.Format("{{\"offset\": {0}, \"length\": {1}}}", laserRows + cycle, tail * cycle), tail, tail == 0 ? 1 : 0);
+            laserRows += cycle + tail * cycle;
+            conditions.Add(string.Format("{{\"condition\": {0}, \"points_mm\": {1}, \"stereotaxic_mm\": {1}, \"n_points\": 2, \"scan_cycle\": {{\"offset\": {2}, \"length\": {3}}}, \"scan_end\": {{\"offset\": {4}, \"length\": 1}}, " +
+                "\"variants\": [{{\"laser_on\": false, \"power_mw\": 0.0, \"capped_power_mw\": 0.0, \"power_capped\": false, \"laser_cycle\": null, \"laser_tail\": null, \"tail_cycles\": 0, \"tail_replaces\": 1}}, {5}]}}",
+                c + 1, points[c], c * (cycle + 1), cycle, c * (cycle + 1) + cycle, on));
+        }
+        var scanRows = 2 * (cycle + 1);
+        var bin = new byte[(scanRows * 3 + laserRows) * sizeof(float)];
+        File.WriteAllBytes(Path.Combine(dir, "Settings_ZapitBank_T.bin"), bin);
+        string hash;
+        using (var sha = System.Security.Cryptography.SHA256.Create()) hash = string.Concat(sha.ComputeHash(bin).Select(b => b.ToString("x2")));
+        var json = Path.Combine(dir, "Settings_ZapitBank_T.json");
+        File.WriteAllText(json, string.Format("{{\"version\": 2, \"bin\": \"Settings_ZapitBank_T.bin\", \"sample_rate\": 100.0, \"scan_channels\": [\"galvo_x\", \"galvo_y\", \"led\"], \"scan_rows\": {0}, \"laser_rows\": {1}, " +
+            "\"hashes\": {{\"bin\": \"{2}\", \"scanner_fit\": \"\", \"laser_curve\": \"\", \"sample\": \"\"}}, \"conditions_name\": \"avdome_main_initialstim.yml\", \"conditions_sha256\": \"\", \"conditions\": [{3}]}}",
+            scanRows, laserRows, hash, string.Join(", ", conditions)));
+        return OpenRigs.Zapit.ZapitBank.Load(json);
     }
 
     public static string Refusal(Action action)
@@ -429,7 +465,7 @@ public class TrialDrawTests
         Fixture.Only(goNoGo, "noGo");
         goNoGo.Repeats.RepeatOn = RepeatOn.NoResponse;
         goNoGo.Repeats.MaxRepeats = 5;
-        var draw = new TrialDraw(Fixture.Text(goNoGo), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        var draw = new TrialDraw(Fixture.Text(goNoGo), Fixture.Speakers(), Fixture.Bank());
         var first = draw.Next(null);
         Assert.AreEqual(0, draw.Next(TrialRow.Build(Choice.NoResponse, first, new TrialTimes { Now = 1 }, Penalties.Of(4, -35.0, 0, 10))).repeatCount);
     }
@@ -536,7 +572,7 @@ public class TrialDrawTests
     {
         var speakers = Fixture.Speakers();
         Func<UclOpenCoenDomeDecisionMakingTaskParameters, string> refusal = parameters =>
-            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), speakers, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)));
+            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), speakers, Fixture.Bank()));
 
         var task = Fixture.Task("task-localization.yml", 4);
         task.VisualStimulus.InitialContrasts.Clear();
@@ -615,7 +651,7 @@ public class TrialDrawTests
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = null;
         task.Optogenetics.LaserDurationSeconds = 0.8;
-        StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds))), "laserPowerMw");
+        StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank())), "laserPowerMw");
     }
 
     [TestMethod]
@@ -676,23 +712,23 @@ public class TrialDrawTests
     [TestMethod]
     public void ALaserThatWouldDelayTheNextArmIsRefused()
     {
-        // Discrimination: 0.5 s stimulus to window + 2.5 s interval - the conditions file's largest ramp-down - 0.2 s reply
-        // margin: 2.3 s with a 0.5 s ramp-down, 2.7 s with a 0.1 s one (the file's own, ZapitConditions.Check).
+        // Discrimination: 0.5 s stimulus to window + 2.5 s interval - the bank's longest ramp-down - 0.2 s arm
+        // time: 2.3 s with a 0.5 s ramp-down, 2.7 s with a 0.1 s one (ZapitBank.LongestRampSeconds).
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
-        Func<double, string> refusal = rampDown => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, rampDown)));
+        Func<double, string> refusal = rampDown => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(rampDown)));
         Assert.AreEqual(2.3, TrialDraw.MaxLaserSeconds(task, 0.5), 1e-9);
         Assert.AreEqual(2.7, TrialDraw.MaxLaserSeconds(task, 0.1), 1e-9);
         StringAssert.Contains(refusal(0.5), "laserDurationSeconds (2.5 s) must be at most 2.3 s");
-        StringAssert.Contains(refusal(0.5), "the Zapit conditions file's 0.5 s ramp-down");
+        StringAssert.Contains(refusal(0.5), "the Zapit bank's 0.5 s ramp-down");
         Assert.AreEqual("accepted", refusal(0.1), "a 0.1 s ramp-down allows 2.7 s");
         task.Optogenetics.LaserDurationSeconds = 2.8;
         StringAssert.Contains(refusal(0.1), "laserDurationSeconds (2.8 s) must be at most 2.7 s");
         task.Optogenetics.LaserDurationSeconds = 2.3;
         Assert.AreEqual("accepted", refusal(0.5));
-        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), true, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, 0.1));
-        Assert.AreEqual(0.1, rules.Laser.RampDownSeconds, "the next trial armed once the file's own ramp-down has played");
+        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(0.1));
+        Assert.AreEqual(0.1, rules.Laser.RampDownSeconds, "the next trial armed once the bank's own ramp-down has played");
         task.Optogenetics.LaserDurationSeconds = 2.5;
         task.Optogenetics.Enabled = false;
         Assert.AreEqual("accepted", refusal(0.5));
@@ -725,7 +761,7 @@ public class TrialDrawTests
             return Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
         };
         foreach (var ok in new[] { 2.3, 0.5, 0.1, 0.0, -0.5, -2.5 }) Assert.AreEqual("accepted", refusal(ok), ok.ToString());
-        StringAssert.Contains(refusal(2.31), "reply margin must be at most trialStructure.itiMinSeconds");
+        StringAssert.Contains(refusal(2.31), "arm time must be at most trialStructure.itiMinSeconds");
         StringAssert.Contains(refusal(-2.51), "after the response window");
     }
 
@@ -940,11 +976,11 @@ public class TrialConditionTests
     public void TheMaxSoundLevelIsTheHighestLevelAWeightedConditionDraws()
     {
         var rules = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", Fixture.List("mute", -46.0, -38.0)), Fixture.Condition(0, "auditoryStimulus.initialLevelDbfs", -10.0))),
-            Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+            Fixture.Speakers(), Fixture.Bank());
         Assert.AreEqual(-38.0, rules.MaxStimulusLevel.LevelDbfs);
         StringAssert.StartsWith(rules.MaxStimulusLevel.Where, "trialConditions[0] (audiovisualCoherent) with ");
         StringAssert.Contains(rules.MaxStimulusLevel.Where, "auditoryStimulus.initialLevelDbfs -38, ");
-        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", "mute"))), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", "mute"))), Fixture.Speakers(), Fixture.Bank());
         Assert.IsTrue(double.IsNaN(mute.MaxStimulusLevel.LevelDbfs), "all mute: none");
     }
 
@@ -955,7 +991,7 @@ public class TrialConditionTests
         // MaxPenaltyLevelDbfs is the highest a weighted condition draws, for PlayPenaltySound's buffer at Go.
         var task = With(Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", -50.0), Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", "mute"),
             Fixture.Condition(0, "penalty.incorrect.sound.levelDbfs", -20.0));
-        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
+        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank()).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
         foreach (var t in Fixture.Draw(task, 100))
         {
             var wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
@@ -1015,10 +1051,10 @@ public class TrialConditionTests
         Assert.IsTrue(wrong.PenaltyFlash.Plays && wrong.PenaltyFlash.Brightness == 0.5 && wrong.PenaltyFlash.RateHz == 5 && wrong.Row.Value.penaltyFlashBrightness == 0.5);
         Assert.IsTrue(miss.Penalised && !miss.PenaltyFlash.Plays && miss.Row.Value.penaltyFlashBrightness == 0, "penalty.noResponse's flash: brightness 0");
         Assert.IsTrue(correct.Rewarded && !correct.PenaltyFlash.Plays && correct.Row.Value.penaltyFlashBrightness == 0);
-        var flashes = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).PenaltyFlashes;
+        var flashes = new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank()).PenaltyFlashes;
         Assert.IsTrue(flashes.Plays && flashes.ShortestTimeoutSeconds == 4 && flashes.Problems.Count == 0);
         // Go/no-go: penalty.noResponse null, so only penalty.incorrect's flash is drawn; none plays at brightness 0.
-        Assert.IsFalse(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-go-no-go.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).PenaltyFlashes.Plays);
+        Assert.IsFalse(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-go-no-go.yml", 4)), Fixture.Speakers(), Fixture.Bank()).PenaltyFlashes.Plays);
     }
 
     [TestMethod]
@@ -1026,21 +1062,21 @@ public class TrialConditionTests
     {
         // A condition sets penalty.noResponse.sound.levelDbfs: louder than every choice's, it is the buffer's level, named.
         var task = With(Fixture.Condition(1), Fixture.Condition(1, "penalty.noResponse.sound.levelDbfs", -30.0), Fixture.Condition(0, "penalty.noResponse.sound.levelDbfs", -20.0));
-        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank());
         Assert.AreEqual(-30.0, rules.MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
-        var draw = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        var draw = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank());
         StringAssert.StartsWith(draw.MaxPenaltyLevel().Where, "trialConditions[1]");
         foreach (var t in Fixture.Draw(task, 40).Where(x => x.trialConditionId == 1))
             Assert.AreEqual(-30.0, TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 }).PenaltyLevelDbfs);
         // Left-right's file: both kinds at -35.
-        Assert.AreEqual(-35.0, new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).MaxPenaltyLevelDbfs);
+        Assert.AreEqual(-35.0, new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), Fixture.Bank()).MaxPenaltyLevelDbfs);
     }
 
     [TestMethod]
     public void GoNoGoRefusesAMissesCostAndTheOthersNeedOne()
     {
         Func<UclOpenCoenDomeDecisionMakingTaskParameters, string> refusal = parameters =>
-            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)));
+            Fixture.Refusal(() => new TrialDraw(Fixture.Text(parameters), Fixture.Speakers(), Fixture.Bank()));
         var goNoGo = Fixture.Task("task-discrimination-go-no-go.yml", 4);
         Assert.IsNull(goNoGo.Penalty.NoResponse);
         goNoGo.Penalty.NoResponse = Fixture.Task("task-discrimination-left-right.yml", 4).Penalty.NoResponse;

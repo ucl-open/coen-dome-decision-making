@@ -477,11 +477,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go
+        /// Whether this is an optogenetics experiment: every trial arms Zapit's DAQ with a condition from the session's bank (laser off on laser-off trials: the galvos move and the masking light shows), and the launching app runs Zapit's setup (scanner calibration, sample, bank) before Go
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("enabled")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="enabled")]
-        [System.ComponentModel.DescriptionAttribute(@"Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go")]
+        [System.ComponentModel.DescriptionAttribute(@"Whether this is an optogenetics experiment: every trial arms Zapit's DAQ with a condition from the session's bank (laser off on laser-off trials: the galvos move and the masking light shows), and the launching app runs Zapit's setup (scanner calibration, sample, bank) before Go")]
         public bool Enabled
         {
             get
@@ -495,13 +495,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. The launching app keeps a copy beside the task file at Go
+        /// Path to the Zapit conditions file, inside the rig's mirror of the lab's shared zapit-conditions folder (RigConfigs/shared/zapit-conditions). Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps; the session's bank is built from it. The launching app keeps a copy beside the task file at Go
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("zapitConditionsPath")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitConditionsPath")]
-        [System.ComponentModel.DescriptionAttribute("Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01," +
-            " stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. " +
-            "The launching app keeps a copy beside the task file at Go")]
+        [System.ComponentModel.DescriptionAttribute(@"Path to the Zapit conditions file, inside the rig's mirror of the lab's shared zapit-conditions folder (RigConfigs/shared/zapit-conditions). Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps; the session's bank is built from it. The launching app keeps a copy beside the task file at Go")]
         public string ZapitConditionsPath
         {
             get
@@ -515,11 +513,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus (overriding the conditions file's power; Zapit's laser calibration turns it into volts) and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on
+        /// Laser power asked for on laser-on trials, in mW, the same for every condition (overriding the conditions file's power): the bank holds it in volts from the laser curve, capped at rig.yml's zapit.ceilingMw, and the power delivered is logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserPowerMw")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserPowerMw")]
-        [System.ComponentModel.DescriptionAttribute(@"Laser power on laser-on trials, in mW, the same for every condition: sent to Zapit with each StartStimulus (overriding the conditions file's power; Zapit's laser calibration turns it into volts) and logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on")]
+        [System.ComponentModel.DescriptionAttribute(@"Laser power asked for on laser-on trials, in mW, the same for every condition (overriding the conditions file's power): the bank holds it in volts from the laser curve, capped at rig.yml's zapit.ceilingMw, and the power delivered is logged as laserPowerMw (0 on laser-off trials). Required with optogenetics on")]
         public double? LaserPowerMw
         {
             get
@@ -533,13 +531,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Probability that a trial after trialsBeforeLaser is a laser-on trial, shared equally by every condition in the conditions file; all other trials are laser-off trials, sent a condition with the laser off
+        /// Probability that a trial after trialsBeforeLaser is a laser-on trial, shared equally by every condition in the conditions file; all other trials are laser-off trials, armed with a condition and the laser off
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserOnProbability", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserOnProbability")]
         [System.ComponentModel.DescriptionAttribute("Probability that a trial after trialsBeforeLaser is a laser-on trial, shared equa" +
             "lly by every condition in the conditions file; all other trials are laser-off tr" +
-            "ials, sent a condition with the laser off")]
+            "ials, armed with a condition and the laser off")]
         public double LaserOnProbability
         {
             get
@@ -553,11 +551,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits
+        /// Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (ZapitDaq's arm time); each task adds its own limits
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserToStimulusSeconds", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserToStimulusSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (Zapit's reply margin); each task adds its own limits")]
+        [System.ComponentModel.DescriptionAttribute(@"Signed, in seconds: the trigger (the ZapitTrigger line) comes this long before the stimulus; 0 with it; negative after it. The trial's start is the end of the interval less the lead, max(this, 0), once the quiet waits hold, and the stimulus comes the lead after the trial's start in every experiment, optogenetics on or off, so timing never reveals Zapit; the trigger only with optogenetics. Zapit is armed during the interval and adds no time. Refused above itiMinSeconds - 0.2 s (ZapitDaq's arm time); each task adds its own limits")]
         public double LaserToStimulusSeconds
         {
             get
@@ -571,12 +569,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Trials at the experiment's start with no laser-on trial among them (each still sends Zapit a condition, at 0 mW); laserOnProbability applies from the next trial
+        /// Trials at the experiment's start with no laser-on trial among them (each still arms Zapit with a condition, laser off); laserOnProbability applies from the next trial
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("trialsBeforeLaser", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialsBeforeLaser")]
-        [System.ComponentModel.DescriptionAttribute("Trials at the experiment\'s start with no laser-on trial among them (each still se" +
-            "nds Zapit a condition, at 0 mW); laserOnProbability applies from the next trial")]
+        [System.ComponentModel.DescriptionAttribute("Trials at the experiment\'s start with no laser-on trial among them (each still ar" +
+            "ms Zapit with a condition, laser off); laserOnProbability applies from the next " +
+            "trial")]
         public int TrialsBeforeLaser
         {
             get
@@ -590,11 +589,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)
+        /// How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's longest ramp-down - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserDurationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserDurationSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)")]
+        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's longest ramp-down - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go)")]
         public double LaserDurationSeconds
         {
             get

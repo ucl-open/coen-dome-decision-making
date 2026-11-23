@@ -207,11 +207,11 @@ def _with(name="task-discrimination-left-right.yml", opto=None, structure=None, 
 
 @pytest.mark.parametrize("lead", [2.3, 0.5, 0.1, 0.0, -0.5, -2.5])
 def test_a_signed_lead_inside_the_interval_and_the_response_window_is_accepted(lead):
-    # Discrimination: itiMinSeconds 2.5 less the 0.2 s reply margin; the response window 0.5 + 2.0 s.
+    # Discrimination: itiMinSeconds 2.5 less the 0.2 s arm time; the response window 0.5 + 2.0 s.
     assert _with(opto={"laserToStimulusSeconds": lead}).optogenetics.laser_to_stimulus_seconds == lead
 
 
-@pytest.mark.parametrize("lead, words", [(2.31, "reply margin"), (-2.51, "after the response window")])
+@pytest.mark.parametrize("lead, words", [(2.31, "arm time"), (-2.51, "after the response window")])
 def test_a_lead_outside_them_is_refused(lead, words):
     with pytest.raises(ValidationError, match=words):
         _with(opto={"laserToStimulusSeconds": lead})
@@ -228,7 +228,7 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
 
 
 def test_the_conditions_file_s_ramp_down_given_as_context_shortens_the_laser_limit():
-    # On the rig app-rig-control's check_task reads the Zapit file and passes its largest ramp-down (RAMP_DOWN_CONTEXT):
+    # On the rig app-rig-control's check_task reads the session's Zapit bank and passes its longest ramp-down (RAMP_DOWN_CONTEXT):
     # 0.5 + 2.5 - 0.5 - 0.2 = 2.3 s, so Gerion's 2.5 s is refused there; without the file (no context) it passes, Go deciding.
     from open_rigs.components.zapit import RAMP_DOWN_CONTEXT
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
@@ -307,12 +307,12 @@ def test_a_quiet_wait_above_its_maximum_is_refused(structure):
 def test_the_constants_are_the_c_sharp_s():
     import re
     logic = (CONFIG.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8-sig")
-    # Zapit's reply margin is lib-open-rigs' alone (ZapitTrial.ReplyMarginSeconds, ZAPIT_REPLY_MARGIN_SECONDS).
-    assert "ZapitTrial.ReplyMarginSeconds" in logic and not re.search(r"const double \w*Margin", logic)
+    # ZapitDaq's arm time is lib-open-rigs' alone (ZapitTrial.ArmSeconds, ZAPIT_ARM_SECONDS).
+    assert "ZapitTrial.ArmSeconds" in logic and not re.search(r"const double \w*Margin", logic)
     task_py = (CONFIG.parent / "src" / "ucl_open_coen_dome_decision_making" / "task.py").read_text(encoding="utf-8")
     # The ramp-down and reward caps are lib-open-rigs' too, each tied there to its C# value.
-    assert "from open_rigs.components.zapit import ZAPIT_REPLY_MARGIN_SECONDS" in task_py
-    # The ramp-down is the conditions file's own at Go (TrialDraw.MaxRampDownSeconds); at launch the least a file may have.
+    assert "from open_rigs.components.zapit import ZAPIT_ARM_SECONDS" in task_py
+    # The ramp-down is the session's bank's at Go (TrialDraw.MaxRampDownSeconds, ZapitBank.LongestRampSeconds); before, the context's.
     assert "RAMP_DOWN" not in task_py and "draw.MaxRampDownSeconds" in logic and "MaximumRampDownSeconds" not in logic
     assert "check_zapit_free_in_time" in task_py
     assert "    MAX_REWARD_UL,\n" in task_py and "class Reward(CoreReward)" in task_py

@@ -1,7 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
-using OpenRigs.Devices.Zapit;
+using OpenRigs.Zapit;
 using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
@@ -91,7 +91,7 @@ static class Rules
     // Discrimination stage 4 with every interval exactly 2 s: trial 1's interval from 10 s, its start at 11.5 (the 0.5 s
     // lead), the stimulus at 12 and its response window 12.5 to 14.5 (stimulusToResponseWindowSeconds 0.5, the spouts' arrival), where every trial ends. Stage 4 takes the task's weights,
     // here scored trials alone in the two-spout tasks, so every trial has a side to answer (the probes' own test below).
-    public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, bool hardwareTriggered = true, string file = "task-discrimination-left-right.yml", int stage = 4)
+    public static TrialRules Make(Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = null, string file = "task-discrimination-left-right.yml", int stage = 4)
     {
         var task = Fixture.Task(file, stage);
         task.TrialStructure.ItiMinSeconds = 2;
@@ -104,7 +104,7 @@ static class Rules
             if (task.TaskType == TaskType.DiscriminationLeftRight) Fixture.Weight(task, "audiovisualCoherent", 0);
         }
         if (edit != null) edit(task);
-        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), hardwareTriggered, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank());
     }
 
     public static void Optogenetics(UclOpenCoenDomeDecisionMakingTaskParameters task)
@@ -122,21 +122,25 @@ static class Rules
     {
         var task = Fixture.Task("task-localization.yml", 4);
         task.Spouts.AlwaysIn = alwaysIn;
-        var trial = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).Next(null);
+        var trial = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank()).Next(null);
         trial.target = target;
         trial.rewardOfferedUl = rewardOfferedUl;
         trial.autoReward = trial.probeHeads = trial.singleSpoutOffered = false;
         return trial;
     }
 
-    public static ZapitReply Armed(Trial trial, bool error = false)
+    // ZapitDaq's Armed event for the trial, as asked, at the power it asked for.
+    public static ZapitDaqEvent Armed(Trial trial)
     {
-        var reply = new ZapitReply();
-        reply.Command = ZapitCommandType.StartStimulus;
-        reply.Value = trial.laserCondition;
-        reply.LaserOn = trial.laserOn ? 1 : 0;
-        reply.IsError = error;
-        return reply;
+        return new ZapitDaqEvent
+        {
+            Kind = ZapitDaqEventKind.Armed,
+            Trial = trial.trialNumber,
+            Condition = trial.laserCondition,
+            LaserOn = trial.laserOn,
+            PowerMw = trial.laserPowerMw,
+            CappedPowerMw = trial.laserPowerMw,
+        };
     }
 }
 
@@ -242,7 +246,7 @@ public class ResponseRuleTests
     public void TheLoopRunsTheDrawsTrialsInOrder()
     {
         // The same seed draws the same trials through the loop as TrialDraw alone, every trial a miss.
-        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), true, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)));
+        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), Fixture.Bank()));
         run.RunTo(200);
         var looped = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), looped.Count, t => Choice.NoResponse);
@@ -665,12 +669,12 @@ public class LaserTests
         // before the line falls; a 0.2 s window (the stimulus 0.5 s to fit it) ends the trial at 12.7 s, where trial 2's
         // interval starts, before Zapit is free.
         var rules = Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 1.3; t.TrialStructure.ResponseWindowSeconds = 0.2; t.Stimulus.DurationSeconds = 0.5; });
-        Assert.IsTrue(rules.Laser.HardwareTriggered && rules.Laser.End == LaserEnd.AfterDuration);
-        Assert.AreEqual(ZapitConditions.MaximumRampDownSeconds, rules.Laser.RampDownSeconds);
+        Assert.AreEqual(LaserEnd.AfterDuration, rules.Laser.End);
+        Assert.AreEqual(Fixture.RampDownSeconds, rules.Laser.RampDownSeconds);
         var run = new Harness(rules);
         Assert.AreEqual(10.0, run.Of(TrialEventKind.Arm)[0].Seconds, "armed as the interval starts");
         Assert.AreEqual(1.3, LaserTiming.DurationOf(run.Of(TrialEventKind.Arm)[0].Trial), "each trial's own laserDurationSeconds");
-        run.Loop.OnZapitReply(Rules.Armed(run.Of(TrialEventKind.Arm)[0].Trial));
+        run.Loop.OnZapitEvent(Rules.Armed(run.Of(TrialEventKind.Arm)[0].Trial));
         run.RunTo(12.05);
         Assert.AreEqual(11.5, run.Of(TrialEventKind.Trigger)[0].Seconds, 1e-12, "laserToStimulusSeconds before the stimulus");
         var right = run.Spout(true);
@@ -685,8 +689,8 @@ public class LaserTests
     public void ATrialAnsweredBeforeItsTriggerHasNoLaserAndItsRowSaysSo()
     {
         // The trigger 0.9 s after the stimulus (12.9 s); a lick at 12.6 s answers first.
-        var run = new Harness(Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserToStimulusSeconds = -0.9; }, hardwareTriggered: false));
-        Assert.AreEqual(0, run.Of(TrialEventKind.Arm).Count, "without hardware triggering the StartStimulus goes at the trigger");
+        var run = new Harness(Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserToStimulusSeconds = -0.9; }));
+        run.Loop.OnZapitEvent(Rules.Armed(run.Of(TrialEventKind.Arm)[0].Trial));
         run.RunTo(12.05).At(12.6, h => h.Lick(0)).RunTo(13.5);
         Assert.AreEqual(0, run.Of(TrialEventKind.Trigger).Count);
         Assert.AreEqual(0, run.Row().laserPowerMw);
@@ -697,24 +701,24 @@ public class LaserTests
     public void ZapitNotArmedByTheTriggerStopsTheWorkflow()
     {
         var run = new Harness(Rules.Make(Rules.Optogenetics));
-        StringAssert.Contains(Fixture.Refusal(() => run.RunTo(12)), "had not answered trial 1's StartStimulus by its trigger");
+        StringAssert.Contains(Fixture.Refusal(() => run.RunTo(12)), "ZapitDaq had not armed trial 1 by its trigger");
     }
 
     [TestMethod]
     public void TheTrialGoesOnOnlyOnceZapitArmedItAsAsked()
     {
-        Func<Action<ZapitReply>, string> refusal = change =>
+        Func<Action<ZapitDaqEvent>, string> refusal = change =>
         {
             var run = new Harness(Rules.Make(Rules.Optogenetics));
             var trial = run.Of(TrialEventKind.Arm)[0].Trial;
             var reply = Rules.Armed(trial);
             change(reply);
-            return Fixture.Refusal(() => run.Loop.OnZapitReply(reply));
+            return Fixture.Refusal(() => run.Loop.OnZapitEvent(reply));
         };
         Assert.AreEqual("accepted", refusal(r => { }));
-        StringAssert.Contains(refusal(r => r.Value = r.Value + 1), "StartStimulus (condition ");
-        StringAssert.Contains(refusal(r => r.LaserOn = 0), "laserOn=0");
-        StringAssert.Contains(refusal(r => r.IsError = true), "error=True");
+        StringAssert.Contains(refusal(r => r.Condition = r.Condition + 1), "asked for condition ");
+        StringAssert.Contains(refusal(r => r.LaserOn = !r.LaserOn), "laser off) when trial 1 asked");
+        StringAssert.Contains(refusal(r => r.Trial = 2), "ZapitDaq armed trial 2");
     }
 
     [TestMethod]
@@ -764,8 +768,9 @@ public class TrialRowTests
         var trial = new Trial { target = TargetWords.Left, laserCondition = 2, laserPointsMm = "1.5 1;1.5 -1", laserOn = true, laserPowerMw = 3, values = Fixture.Task("task-localization.yml", 4) };
         var times = Times(10);
         times.LaserTriggerTime = 9.25;
+        times.LaserPowerMw = 2.5;   // ZapitDaq's Armed CappedPowerMw: the 3 mW asked for, capped by the rig's ceiling
         var row = TrialRow.Build(Choice.Left, trial, times, Penalties.Of(4, -35.0, 0, 10));
-        Assert.IsTrue(row.laserCondition == 2 && row.laserPointsMm == "1.5 1;1.5 -1" && row.laserPowerMw == 3 && row.laserTriggerTime == 9.25);
+        Assert.IsTrue(row.laserCondition == 2 && row.laserPointsMm == "1.5 1;1.5 -1" && row.laserPowerMw == 2.5 && row.laserTriggerTime == 9.25);
         var answered = TrialRow.Build(Choice.Left, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
         Assert.IsTrue(answered.laserCondition == 2 && answered.laserPointsMm == "1.5 1;1.5 -1" && answered.laserPowerMw == 0 && double.IsNaN(answered.laserTriggerTime), "answered before its trigger");
     }
@@ -872,7 +877,7 @@ public class CheckTaskAtGoTests
         var rules = new BehaviorSubject<TrialRules>(Rules.Make());
         var clock = new Subject<double>();
         var events = new List<Event>();
-        new RunTrials().Process(rules, clock, new Subject<double>(), new Subject<bool>(), new Subject<bool>(), new Subject<ZapitReply>()).Subscribe(events.Add);
+        new RunTrials().Process(rules, clock, new Subject<double>(), new Subject<bool>(), new Subject<bool>(), new Subject<ZapitDaqEvent>()).Subscribe(events.Add);
         for (int ms = 10000; ms <= 12000; ms++) clock.OnNext(ms / 1000.0);
         CollectionAssert.AreEqual(new[] { TrialEventKind.Iti, TrialEventKind.Start, TrialEventKind.Stimulus, TrialEventKind.Update },
                                   events.Select(e => e.Kind).Take(4).ToList());

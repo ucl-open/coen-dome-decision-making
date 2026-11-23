@@ -21,7 +21,7 @@ from open_rigs.core.task import (
     level_dbfs,
 )
 from open_rigs.core.task import Optogenetics as LabOptogenetics
-from open_rigs.components.zapit import ZAPIT_REPLY_MARGIN_SECONDS
+from open_rigs.components.zapit import ZAPIT_ARM_SECONDS
 from open_rigs.components.zapit import ramp_down_from
 from open_rigs.rigs import conditioned_task as ct
 from open_rigs.rigs.conditioned_task import ABOVE_0, MAX_WEIGHT_SUM, SIDELESS, SOUNDING, SoundAzimuth, if_
@@ -279,7 +279,7 @@ class Optogenetics(LabOptogenetics):
     laser_duration_seconds: Double = Field(
         default=1.5,
         gt=0,
-        description="How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)",
+        description="How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's longest ramp-down - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go)",
     )
 
 
@@ -392,8 +392,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
                 f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "
                 f"(stimulus_to_response_window_seconds + response_window_seconds, {s.stimulus_to_response_window_seconds + s.response_window_seconds:g} s)"
             )
-        # The Zapit conditions file's largest ramp-down, when the check runs where the file is (on the rig, app-rig-control's
-        # open_rigs.rigs.check_task passes it as context); without it, 0, the laser and the reply margin alone. Go has the
+        # The Zapit bank's longest ramp-down, once the session's bank is built (app-rig-control's open_rigs.rigs.check_task
+        # passes it as context); without it, 0, the laser and the arm time alone. Go has the
         # last word either way (TrialDraw.LaserProblems).
         opto.check_zapit_free_in_time(
             s.iti_min_seconds,
@@ -436,7 +436,7 @@ def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
     itiMinSeconds (OpenRigs.Trials Spouts.BetweenTrialsProblems); every stimulus.durationSeconds past its soonest outcome,
     and every stimulus.responseToStimulusOffSeconds, within the shortest itiMinSeconds (the shortest outcome to next
     interval is 0: every trial can end rewarded or neither; StimulusTiming.BetweenTrialsProblems); and with optogenetics every laserDurationSeconds within the shortest trigger to the next trigger less the ramp-down and
-    Zapit's reply margin."""
+    ZapitDaq's arm time."""
     if not tasks:
         return
     s = [task["trialStructure"] for task in tasks]
@@ -465,12 +465,12 @@ def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
     if tasks[0]["optogenetics"]["enabled"]:
         leads = [task["optogenetics"]["laserToStimulusSeconds"] for task in tasks]
         cap = (min(lead + x["stimulusToResponseWindowSeconds"] for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
-                   - ramp_down_seconds - ZAPIT_REPLY_MARGIN_SECONDS)
+                   - ramp_down_seconds - ZAPIT_ARM_SECONDS)
         duration = max(task["optogenetics"]["laserDurationSeconds"] for task in tasks)
         if duration > cap + 1e-9:
             raise ValueError(f"optogenetics.laserDurationSeconds ({duration} s) must be at most {cap:g} s across the combinations: "
                              "the shortest lead plus stimulus to response window, plus the shortest interval less the lead, "
-                             f"less the Zapit conditions file's {ramp_down_seconds:g} s ramp-down and Zapit's reply margin")
+                             f"less the Zapit bank's {ramp_down_seconds:g} s ramp-down and Zapit's arm time")
 
 
 class UclOpenCoenDomeDecisionMakingTaskLogic(Task):
