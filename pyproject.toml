@@ -7,9 +7,9 @@ name = "ucl-open-coen-dome-decision-making"
 description = "The coen-dome-decision-making experiment's task schema and shaping-stage choice."
 authors = [ {name = "NeuroThom", email = "t.ryan@neurogears.org"}]
 license = "BSD-3-Clause"
-requires-python = ">=3.11, <3.12"
+requires-python = ">=3.13, <3.14"
 classifiers = [
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: Microsoft :: Windows",
 ]
 version = "0.0.0-rc1"
@@ -37,7 +37,7 @@ parameters = "ucl_open_coen_dome_decision_making.task:UclOpenCoenDomeDecisionMak
 
 [tool.ruff]
 line-length = 120
-target-version = 'py311'
+target-version = 'py313'
 
 [tool.ruff.lint]
 extend-select = ['Q', 'RUF100', 'C90', 'I']
