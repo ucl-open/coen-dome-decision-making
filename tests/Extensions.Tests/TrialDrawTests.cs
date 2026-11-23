@@ -240,7 +240,7 @@ static class Fixture
         string hash;
         using (var sha = System.Security.Cryptography.SHA256.Create()) hash = string.Concat(sha.ComputeHash(bin).Select(b => b.ToString("x2")));
         var json = Path.Combine(dir, "Settings_ZapitBank_T.json");
-        File.WriteAllText(json, string.Format("{{\"version\": 2, \"bin\": \"Settings_ZapitBank_T.bin\", \"sample_rate\": 100.0, \"scan_channels\": [\"galvo_x\", \"galvo_y\", \"led\"], \"scan_rows\": {0}, \"laser_rows\": {1}, " +
+        File.WriteAllText(json, string.Format("{{\"version\": 2, \"bin\": \"Settings_ZapitBank_T.bin\", \"sample_rate\": 100.0, \"ceiling_mw\": 1e9, \"scan_channels\": [\"galvo_x\", \"galvo_y\", \"led\"], \"scan_rows\": {0}, \"laser_rows\": {1}, " +
             "\"hashes\": {{\"bin\": \"{2}\", \"scanner_fit\": \"\", \"laser_curve\": \"\", \"sample\": \"\"}}, \"conditions_name\": \"avdome_main_initialstim.yml\", \"conditions_sha256\": \"\", \"conditions\": [{3}]}}",
             scanRows, laserRows, hash, string.Join(", ", conditions)));
         return OpenRigs.Zapit.ZapitBank.Load(json);
