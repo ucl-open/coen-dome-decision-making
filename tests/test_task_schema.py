@@ -233,6 +233,28 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
         _with(opto={**on, "laserEnd": "outcome"})
 
 
+def test_with_laser_end_stimulus_off_the_cap_covers_the_stimulus_s_own_off():
+    # TrialDraw.CheckTask's same rule: the trigger 0.1 s before the stimulus, off 1.5 s after it, so a cap of at least 1.6 s.
+    on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserEnd": "stimulusOff"}
+    _with(opto={**on, "laserDurationSeconds": 1.6})
+    with pytest.raises(ValidationError, match=r"laserDurationSeconds \(1.5 s\) is the laser's cap .* goes off 1.6 s after the trigger"):
+        _with(opto={**on, "laserDurationSeconds": 1.5})
+    _with(opto={**on, "laserEnd": "duration", "laserDurationSeconds": 1.5})
+    _with(opto={**on, "enabled": False, "laserDurationSeconds": 1.5})
+    # An off that follows the answer is not known at Go: the cap may end the laser first.
+    _with(opto={**on, "laserDurationSeconds": 1.5}, stimulus={"durationSeconds": None, "responseToStimulusOffSeconds": 0.1})
+
+
+def test_with_laser_end_stimulus_off_a_trigger_after_the_stimulus_s_own_off_is_refused():
+    # TrialDraw.CheckTask's same rule: the stimulus off 1.5 s after its onset, so the trigger at most 1.5 s after it, exclusive.
+    on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserEnd": "stimulusOff"}
+    _with(opto={**on, "laserToStimulusSeconds": -1.4})
+    with pytest.raises(ValidationError, match=r"laserToStimulusSeconds \(-1.5 s\) triggers the laser 1.5 s after the stimulus onset, when the stimulus .* is already off"):
+        _with(opto={**on, "laserToStimulusSeconds": -1.5})
+    _with(opto={**on, "laserEnd": "duration", "laserToStimulusSeconds": -1.5})
+    _with(opto={**on, "laserToStimulusSeconds": -1.5}, stimulus={"durationSeconds": None, "responseToStimulusOffSeconds": 0.1})
+
+
 def test_the_conditions_file_s_ramp_down_given_as_context_shortens_the_laser_limit():
     # On the rig app-rig-control's check_task reads the Zapit file and passes its largest ramp-down (RAMP_DOWN_CONTEXT):
     # 0.5 + 2.5 - 0.5 - 0.2 = 2.3 s, so Gerion's 2.5 s is refused there; without the file (no context) it passes, Go deciding.

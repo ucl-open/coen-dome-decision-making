@@ -405,6 +405,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
                 f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "
                 f"(stimulus_to_response_window_seconds + response_window_seconds, {s.stimulus_to_response_window_seconds + s.response_window_seconds:g} s)"
             )
+        _laser_to_stimulus_off_fits(opto.enabled and opto.laser_end == LaserEndMode.STIMULUS_OFF, lead, opto.laser_duration_seconds,
+                                    self.stimulus.duration_seconds)
         # The Zapit conditions file's largest ramp-down, when the check runs where the file is (on the rig, app-rig-control's
         # open_rigs.rigs.check_task passes it as context); without it, 0, the laser and the reply margin alone. Go has the
         # last word either way (TrialDraw.LaserProblems).
@@ -441,6 +443,26 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
 
 # The list fields one entry of which each trial draws (open_rigs.rigs.conditions.pick_lists).
 LIST_FIELDS = UclOpenCoenDomeDecisionMakingTaskParameters.list_fields()
+
+
+def _laser_to_stimulus_off_fits(stimulus_off: Bool,lead: Double, laser_duration_seconds: Double, duration_seconds: Double | None) -> None:
+    """With laserEnd stimulusOff, the stimulus's own off (stimulus.durationSeconds after its onset) after the trigger and within
+    the laser's cap, laserDurationSeconds from the trigger (TrialDraw.CheckTask's same rules). Only that off is known at Go: one
+    that follows the answer (stimulus.responseToStimulusOffSeconds, the earlier of the two) is not checked, and the cap ends a
+    laser still on then."""
+    if not stimulus_off or duration_seconds is None:
+        return
+    if -lead >= duration_seconds - 1e-9:
+        raise ValueError(
+            f"optogenetics.laserToStimulusSeconds ({lead} s) triggers the laser {-lead:g} s after the stimulus onset, when the stimulus "
+            f"(stimulus.durationSeconds {duration_seconds} s) is already off: with optogenetics.laserEnd stimulusOff the laser would stop as it starts"
+        )
+    if lead + duration_seconds > laser_duration_seconds + 1e-9:
+        raise ValueError(
+            f"optogenetics.laserDurationSeconds ({laser_duration_seconds} s) is the laser's cap with optogenetics.laserEnd stimulusOff, but the "
+            f"stimulus goes off {lead + duration_seconds:g} s after the trigger (optogenetics.laserToStimulusSeconds {lead} s + stimulus.durationSeconds "
+            f"{duration_seconds} s): the cap would end the laser before the stimulus off"
+        )
 
 
 def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:

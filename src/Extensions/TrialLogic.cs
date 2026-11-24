@@ -370,6 +370,17 @@ public class TrialDraw
         {
             problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (stimulusToResponseWindowSeconds + responseWindowSeconds, {1} s)", lead, structure.StimulusToResponseWindowSeconds + structure.ResponseWindowSeconds));
         }
+        // laserEnd stimulusOff (task.py's same rules): the stimulus's own off, durationSeconds after its onset, after the trigger
+        // and within the laser's cap. Only that off is known at Go: one that follows the answer (responseToStimulusOffSeconds, the
+        // earlier of the two) is not checked, and the cap ends a laser still on then.
+        var duration = task.Stimulus.DurationSeconds;
+        if (opto.Enabled && opto.LaserEnd == LaserEndMode.StimulusOff && duration.HasValue)
+        {
+            if (-lead >= duration.Value - 1e-9)
+                problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) triggers the laser {1} s after the stimulus onset, when the stimulus (stimulus.durationSeconds {2} s) is already off: with optogenetics.laserEnd stimulusOff the laser would stop as it starts", lead, -lead, duration.Value));
+            else if (lead + duration.Value > opto.LaserDurationSeconds + 1e-9)
+                problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) is the laser's cap with optogenetics.laserEnd stimulusOff, but the stimulus goes off {1} s after the trigger (optogenetics.laserToStimulusSeconds {2} s + stimulus.durationSeconds {3} s): the cap would end the laser before the stimulus off", opto.LaserDurationSeconds, lead + duration.Value, lead, duration.Value));
+        }
         // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var reward = task.Reward;
         problems.AddRange(TaskBlocks.LargeRewardProblems(reward.SizeUl, reward.LargeMultiplier, reward.LargeProbability, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));

@@ -718,6 +718,62 @@ public class LaserTests
     }
 
     [TestMethod]
+    public void WithLaserEndStimulusOffATimedStimulusEndsTheLaserPastTheOutcomeOnEitherRig()
+    {
+        // The stimulus 1 s long (12 to 13 s), the cap 1.6 s (13.1 s): a lick at 12.6 s answers, and the laser runs on to the
+        // stimulus off at 13 s, the line the ramp-down later. Without hardware triggering the StartStimulus goes at the trigger.
+        foreach (var hardware in new[] { true, false })
+        {
+            var rules = Rules.Make(t =>
+            {
+                Rules.Optogenetics(t);
+                t.Optogenetics.LaserEnd = LaserEndMode.StimulusOff;
+                t.Optogenetics.LaserDurationSeconds = 1.6;
+                t.Stimulus.DurationSeconds = 1.0;
+            }, hardwareTriggered: hardware);
+            Assert.AreEqual(hardware, rules.Laser.HardwareTriggered);
+            Assert.IsTrue(rules.Laser.UntilStopped, "the StartStimulus carries no duration");
+            var run = new Harness(rules);
+            Assert.AreEqual(hardware ? 1 : 0, run.Of(TrialEventKind.Arm).Count);
+            if (hardware) run.Loop.OnZapitReply(Rules.Armed(run.Of(TrialEventKind.Arm)[0].Trial));
+            run.RunTo(11.55);
+            Assert.AreEqual(11.5, run.Of(TrialEventKind.Trigger)[0].Seconds, 1e-12);
+            if (!hardware) run.Loop.OnZapitReply(Rules.Armed(run.Of(TrialEventKind.Trigger)[0].Trial));
+            var right = run.Spout(true);
+            run.At(12.6, h => h.Lick(right)).RunTo(13.7);
+            Assert.AreEqual(12.6, run.Of(TrialEventKind.Outcome)[0].Seconds, 1e-9);
+            Assert.AreEqual(13.0, run.Of(TrialEventKind.StimulusOff)[0].Seconds, 1e-9);
+            Assert.AreEqual(13.0, run.Of(TrialEventKind.LaserOff)[0].Seconds, 1e-9, "the laser ends with the stimulus, after the outcome");
+            Assert.AreEqual(13.0 + ZapitConditions.MaximumRampDownSeconds, run.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9);
+            Assert.AreEqual(0, run.Of(TrialEventKind.LaserCap).Count);
+        }
+    }
+
+    [TestMethod]
+    public void WithLaserEndStimulusOffGoRefusesACapOrTriggerTheStimulusOffMakesPointless()
+    {
+        // The trigger 0.5 s before a 1 s stimulus: its off 1.5 s after the trigger, past a 1.4 s cap.
+        StringAssert.Contains(Fixture.Refusal(() => Rules.Make(t =>
+        {
+            Rules.Optogenetics(t);
+            t.Optogenetics.LaserEnd = LaserEndMode.StimulusOff;
+            t.Optogenetics.LaserDurationSeconds = 1.4;
+            t.Stimulus.DurationSeconds = 1.0;
+        })), "optogenetics.laserDurationSeconds (1.4 s) is the laser's cap with optogenetics.laserEnd stimulusOff, but the stimulus goes off 1.5 s after the trigger (optogenetics.laserToStimulusSeconds 0.5 s + stimulus.durationSeconds 1 s)");
+        // The trigger 1 s after the onset of a 1 s stimulus: already off.
+        StringAssert.Contains(Fixture.Refusal(() => Rules.Make(t =>
+        {
+            Rules.Optogenetics(t);
+            t.Optogenetics.LaserEnd = LaserEndMode.StimulusOff;
+            t.Optogenetics.LaserToStimulusSeconds = -1.0;
+            t.Stimulus.DurationSeconds = 1.0;
+        })), "optogenetics.laserToStimulusSeconds (-1 s) triggers the laser 1 s after the stimulus onset, when the stimulus (stimulus.durationSeconds 1 s) is already off");
+        // The same with a laser for its duration: no such rule.
+        Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 1.4; t.Stimulus.DurationSeconds = 1.0; });
+        Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserToStimulusSeconds = -1.0; t.Stimulus.DurationSeconds = 1.0; });
+    }
+
+    [TestMethod]
     public void ATrialAnsweredBeforeItsTriggerHasNoLaserAndItsRowSaysSo()
     {
         // The trigger 0.9 s after the stimulus (12.9 s); a lick at 12.6 s answers first.
