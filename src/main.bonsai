@@ -768,7 +768,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>BiasMoves</Name>
-              <Description>The spouts' bias moves (TrialRules' bias correction, with spouts.biasCorrection on; nothing when off): the move the last outcome set off (Trial.BiasMove), sent at the Iti event, as the next interval begins, rewarded or not, spouts always in or not; a numeric move of the base (+ toward the mouse's left) into DomeHardware's LickSpoutStage.Moves, logged there as SpoutMoved.</Description>
+              <Description>The spouts' bias moves (TrialRules' bias correction, with spouts.biasCorrection on; nothing when off): the move the last outcome set off (Trial.BiasMove), sent at the Iti event, as the next interval begins, rewarded or not, spouts always in or not; a numeric move of the base (+ toward the mouse's left) into DomeHardware's LickSpoutStage.Moves, logged there as SpoutPositionsMoved.</Description>
               <Combinator xsi:type="trl:PickTrialEvents">
                 <trl:Kind>Iti</trl:Kind>
               </Combinator>
