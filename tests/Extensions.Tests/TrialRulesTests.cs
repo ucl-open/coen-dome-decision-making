@@ -677,6 +677,7 @@ public class LaserTests
         run.Loop.OnZapitEvent(Rules.Armed(run.Of(TrialEventKind.Arm)[0].Trial));
         run.RunTo(12.05);
         Assert.AreEqual(11.5, run.Of(TrialEventKind.Trigger)[0].Seconds, 1e-12, "laserToStimulusSeconds before the stimulus");
+        run.Loop.OnZapitEvent(new ZapitDaqEvent { Kind = ZapitDaqEventKind.Started, Trial = run.Of(TrialEventKind.Arm)[0].Trial.trialNumber });   // the samples began: the row logs the power
         var right = run.Spout(true);
         run.At(12.6, h => h.Lick(right)).RunTo(13.5);
         Assert.AreEqual(12.8, run.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9, "laserDurationSeconds after the trigger, outcome or not");

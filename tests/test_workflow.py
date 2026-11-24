@@ -184,7 +184,7 @@ def test_the_launch_properties():
     # No MissingCalibration: a reward valve without a calibration always stops the workflow.
     top = list(MAIN.find(W + "Workflow").find(W + "Nodes"))
     exposed = {p.get("Name") for n in top if n.get(XSI) == "ExternalizedMapping" for p in n.iter(W + "Property")}
-    assert {"SubjectId", "SessionId", "TaskPath", "DisplayDevice", "ConfigRoot", "LaunchId"} == exposed
+    assert {"SubjectId", "SessionId", "TaskPath", "DisplayDevice", "ConfigRoot", "LaunchId", "LaserCeilingVolts"} == exposed
     assert lint.launch_id_problems(WORKFLOW) == []
 
 
