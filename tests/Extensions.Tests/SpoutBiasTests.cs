@@ -4,13 +4,11 @@ using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
 using UclOpenCoenDomeDecisionMakingTask;
 using Event = OpenRigs.Trials.TrialEvent<global::Trial, global::DecisionUpdate, global::TrialOutcome>;
 
-/// <summary>The spouts' bias correction (spouts.biasCorrection, SpoutBias): refused where it cannot run, inert when off,
-/// and when on each outcome's move, each row's spoutBiasSteps and when SpoutBiasMoves sends the move.</summary>
+/// <summary>The spouts' bias correction (spouts.biasCorrection, TrialRules): refused where it cannot run, inert when off,
+/// and when on each outcome's move, each row's spoutBiasSteps and when main.bonsai sends the move (the next Iti event).</summary>
 [TestClass]
 public class SpoutBiasTests
 {
@@ -26,6 +24,19 @@ public class SpoutBiasTests
     static TrialRow Row(string target, string choice)
     {
         return new TrialRow { target = target, choice = choice };
+    }
+
+    static SpoutMove Respond(TrialRules rules, string target, string choice)
+    {
+        return rules.CorrectBias(Row(target, choice));
+    }
+
+    // The sum of the moves so far, as the next row's spoutBiasSteps: an uncounted row changes nothing.
+    static int Steps(TrialRules rules)
+    {
+        var row = Row(TargetWords.NoReward, Choice.NoResponse);
+        rules.CorrectBias(row);
+        return row.spoutBiasSteps;
     }
 
     // A mouse that answers every trial at the left spout just after its response window opens: every left trial
@@ -48,15 +59,10 @@ public class SpoutBiasTests
         return run;
     }
 
-    // Each move SpoutBiasMoves sends, with the event it sends it at.
-    static List<Tuple<Event, SpoutMove>> Sent(Harness run)
+    // The events main.bonsai sends a move at (BiasMoves: each Iti event whose Trial.BiasMove is set).
+    static List<Event> Sent(Harness run)
     {
-        var sent = new List<Tuple<Event, SpoutMove>>();
-        Event current = null;
-        var events = new Subject<Event>();
-        new SpoutBiasMoves().Process(events).Subscribe(m => sent.Add(Tuple.Create(current, m)));
-        foreach (var e in run.Events) { current = e; events.OnNext(e); }
-        return sent;
+        return run.Of(TrialEventKind.Iti).Where(e => e.Trial.BiasMove != null).ToList();
     }
 
     [TestMethod]
@@ -97,43 +103,43 @@ public class SpoutBiasTests
     [TestMethod]
     public void TheRuleMovesOnceBothSidesAreFullThenStartsAgain()
     {
-        var bias = new SpoutBias(new BiasCorrection { Enabled = true, TrialsPerSide = 3, Threshold = 0.3, MaxSteps = 500 }, 50);
-        for (int i = 0; i < 3; i++) Assert.IsNull(bias.Respond(Row(TargetWords.Left, Choice.Left)), "the right side is empty");
-        Assert.IsNull(bias.Respond(Row(TargetWords.Right, Choice.Left)));
-        Assert.IsNull(bias.Respond(Row(TargetWords.Right, Choice.Left)));
-        var move = bias.Respond(Row(TargetWords.Right, Choice.Left));
+        var bias = Rules.Make(t => On(t, 3, 500));
+        for (int i = 0; i < 3; i++) Assert.IsNull(Respond(bias, TargetWords.Left, Choice.Left), "the right side is empty");
+        Assert.IsNull(Respond(bias, TargetWords.Right, Choice.Left));
+        Assert.IsNull(Respond(bias, TargetWords.Right, Choice.Left));
+        var move = Respond(bias, TargetWords.Right, Choice.Left);
         Assert.IsTrue(move.Axis == SpoutAxis.BaseTransverse && move.Steps == 50, "1 - 0 above 0.3: toward the mouse's left");
-        Assert.AreEqual(50, bias.Steps);
+        Assert.AreEqual(50, Steps(bias));
         // Both buffers emptied: the next response alone moves nothing.
-        Assert.IsNull(bias.Respond(Row(TargetWords.Right, Choice.Left)));
-        Assert.IsNull(bias.Respond(Row(TargetWords.Left, Choice.Left)));
+        Assert.IsNull(Respond(bias, TargetWords.Right, Choice.Left));
+        Assert.IsNull(Respond(bias, TargetWords.Left, Choice.Left));
         // Refilled right-handed: back the other way.
-        Assert.IsNull(bias.Respond(Row(TargetWords.Left, Choice.Right)));
-        Assert.IsNull(bias.Respond(Row(TargetWords.Left, Choice.Right)));
-        Assert.IsNull(bias.Respond(Row(TargetWords.Right, Choice.Right)));
-        Assert.AreEqual(-50, bias.Respond(Row(TargetWords.Right, Choice.Right)).Steps, "left 1/3 correct, right 3/3");
-        Assert.AreEqual(0, bias.Steps);
+        Assert.IsNull(Respond(bias, TargetWords.Left, Choice.Right));
+        Assert.IsNull(Respond(bias, TargetWords.Left, Choice.Right));
+        Assert.IsNull(Respond(bias, TargetWords.Right, Choice.Right));
+        Assert.AreEqual(-50, Respond(bias, TargetWords.Right, Choice.Right).Steps, "left 1/3 correct, right 3/3");
+        Assert.AreEqual(0, Steps(bias));
         // A difference of exactly threshold or less moves nothing: 2/3 against 1/3 is not above 0.34.
-        var even = new SpoutBias(new BiasCorrection { Enabled = true, TrialsPerSide = 3, Threshold = 0.34, MaxSteps = 500 }, 50);
-        foreach (var choice in new[] { Choice.Left, Choice.Left, Choice.Right }) even.Respond(Row(TargetWords.Left, choice));
-        foreach (var choice in new[] { Choice.Right, Choice.Left, Choice.Left }) Assert.IsNull(even.Respond(Row(TargetWords.Right, choice)));
+        var even = Rules.Make(t => { On(t, 3, 500); t.Spouts.BiasCorrection.Threshold = 0.34; });
+        foreach (var choice in new[] { Choice.Left, Choice.Left, Choice.Right }) Respond(even, TargetWords.Left, choice);
+        foreach (var choice in new[] { Choice.Right, Choice.Left, Choice.Left }) Assert.IsNull(Respond(even, TargetWords.Right, choice));
     }
 
     [TestMethod]
     public void TheRuleCountsOnlySideTrialsAnsweredWithBothSpoutsUnrepeatedAndLaserOff()
     {
-        Assert.IsTrue(SpoutBias.Counts(Row(TargetWords.Left, Choice.Right)));
-        Assert.IsFalse(SpoutBias.Counts(Row(TargetWords.NoReward, Choice.Right)), "a probe");
-        Assert.IsFalse(SpoutBias.Counts(Row(TargetWords.Left, Choice.NoResponse)), "a miss");
-        Assert.IsFalse(SpoutBias.Counts(new TrialRow { target = TargetWords.Left, choice = Choice.Left, singleSpoutOffered = true }), "one spout");
-        Assert.IsFalse(SpoutBias.Counts(new TrialRow { target = TargetWords.Left, choice = Choice.Left, repeatCount = 1 }), "a repeat");
-        Assert.IsFalse(SpoutBias.Counts(new TrialRow { target = TargetWords.Left, choice = Choice.Left, laserPowerMw = 3 }), "the laser on");
+        Assert.IsTrue(TrialRules.CountsForBias(Row(TargetWords.Left, Choice.Right)));
+        Assert.IsFalse(TrialRules.CountsForBias(Row(TargetWords.NoReward, Choice.Right)), "a probe");
+        Assert.IsFalse(TrialRules.CountsForBias(Row(TargetWords.Left, Choice.NoResponse)), "a miss");
+        Assert.IsFalse(TrialRules.CountsForBias(new TrialRow { target = TargetWords.Left, choice = Choice.Left, singleSpoutOffered = true }), "one spout");
+        Assert.IsFalse(TrialRules.CountsForBias(new TrialRow { target = TargetWords.Left, choice = Choice.Left, repeatCount = 1 }), "a repeat");
+        Assert.IsFalse(TrialRules.CountsForBias(new TrialRow { target = TargetWords.Left, choice = Choice.Left, laserPowerMw = 3 }), "the laser on");
     }
 
     [TestMethod]
     public void AStepOfZeroIsRefused()
     {
-        StringAssert.Contains(Assert.ThrowsException<ArgumentOutOfRangeException>(() => new SpoutBias(new BiasCorrection(), 0)).Message, "CheckTaskAtGo.SpoutBiasStep must be above 0");
+        StringAssert.Contains(Assert.ThrowsException<ArgumentOutOfRangeException>(() => new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), true, null, 0)).Message, "CheckTaskAtGo.SpoutBiasStep must be above 0");
     }
 
     [TestMethod]
@@ -144,6 +150,15 @@ public class SpoutBiasTests
         Assert.IsTrue(run.Outcomes.Count > 20 && run.Outcomes.Any(o => o.Row.Value.choice == Choice.Left && o.Row.Value.target == TargetWords.Right), "a biased run");
         Assert.IsTrue(run.Outcomes.All(o => o.BiasMove == null && o.Row.Value.spoutBiasSteps == 0));
         Assert.AreEqual(0, Sent(run).Count);
+    }
+
+    [TestMethod]
+    public void WithTheSpoutsAlwaysInTheMovesStillGoAtTheIti()
+    {
+        var run = LeftLicker(Rules.Make(t => { On(t, 3, 170); t.Spouts.AlwaysIn = true; }), 1500);
+        var made = run.Outcomes.Where(o => o.BiasMove != null).Select(o => o.BiasMove).ToList();
+        Assert.IsTrue(made.Count > 0);
+        CollectionAssert.AreEqual(made, Sent(run).Select(e => e.Trial.BiasMove).ToList());
     }
 
     [TestMethod]
@@ -159,30 +174,31 @@ public class SpoutBiasTests
         Assert.AreEqual(170, outcomes.Last().Row.Value.spoutBiasSteps);
 
         // The same moves replayed through a fresh rule from the rows; between moves each side fills again from empty.
-        var replay = new SpoutBias(new BiasCorrection { Enabled = true, TrialsPerSide = 3, Threshold = 0.3, MaxSteps = 170 }, 50);
+        var replay = Rules.Make(t => On(t, 3, 170));
         var since = new List<TrialRow>();
         foreach (var outcome in outcomes)
         {
             var row = outcome.Row.Value;
-            Assert.AreEqual(replay.Steps, row.spoutBiasSteps, "trial " + row.trialNumber);
-            var move = replay.Respond(row);
+            var steps = row.spoutBiasSteps;
+            var move = replay.CorrectBias(row);
+            Assert.AreEqual(steps, row.spoutBiasSteps, "trial " + row.trialNumber);
             Assert.AreEqual(outcome.BiasMove == null ? (int?)null : outcome.BiasMove.Steps, move == null ? (int?)null : move.Steps, "trial " + row.trialNumber);
             since.Add(row);
             if (move == null) continue;
-            var counted = since.Where(SpoutBias.Counts).ToList();
+            var counted = since.Where(TrialRules.CountsForBias).ToList();
             Assert.IsTrue(counted.Count(r => r.target == TargetWords.Left) >= 3 && counted.Count(r => r.target == TargetWords.Right) >= 3, "trial " + row.trialNumber);
             since.Clear();
         }
 
-        // Sent after an unrewarded outcome at once, after a rewarded one at the next SpoutsOut cue; both happen here.
+        // Each sent at the next Iti event after its outcome, as the next interval begins, rewarded or not.
         var sent = Sent(run);
         Assert.AreEqual(made.Count, sent.Count);
         foreach (var outcome in made)
         {
-            var at = run.Events.First(e => e.Kind == TrialEventKind.Outcome && e.Outcome == outcome);
-            var expected = outcome.Rewarded ? run.Events.Skip(run.Events.IndexOf(at)).First(e => e.Kind == TrialEventKind.Cue && e.Cue == OpenRigs.Trials.Spouts.OutCue) : at;
-            Assert.IsTrue(sent.Any(s => s.Item1 == expected && s.Item2 == outcome.BiasMove), "trial " + outcome.Row.Value.trialNumber + (outcome.Rewarded ? ", rewarded" : ", unrewarded"));
+            var at = run.Events.IndexOf(run.Events.First(e => e.Kind == TrialEventKind.Outcome && e.Outcome == outcome));
+            var iti = run.Events.Skip(at).First(e => e.Kind == TrialEventKind.Iti);
+            Assert.AreSame(outcome.BiasMove, iti.Trial.BiasMove, "trial " + outcome.Row.Value.trialNumber + (outcome.Rewarded ? ", rewarded" : ", unrewarded"));
         }
-        Assert.IsTrue(made.Any(o => o.Rewarded) && made.Any(o => !o.Rewarded), "both timings seen");
+        Assert.IsTrue(made.Any(o => o.Rewarded) && made.Any(o => !o.Rewarded), "rewarded and unrewarded moves seen");
     }
 }

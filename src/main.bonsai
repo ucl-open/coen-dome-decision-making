@@ -613,7 +613,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. With spouts.biasCorrection on, each outcome's bias move (SpoutBiasMoves) goes to LickSpoutStage.Moves. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. With spouts.biasCorrection on, an outcome's bias move goes to LickSpoutStage.Moves at the next Iti event (BiasMoves). Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -767,9 +767,17 @@
               <Name>TrialEvents</Name>
             </Expression>
             <Expression xsi:type="Combinator">
-              <Name>SpoutBiasMoves</Name>
-              <Description>The spouts' bias moves (TrialRules' SpoutBias, with spouts.biasCorrection on; nothing when off), each a numeric move of the base (+ toward the mouse's left) into DomeHardware's LickSpoutStage.Moves, logged there as SpoutMoved: after an unrewarded outcome at once, after a rewarded one at the next SpoutsOut cue, so the spout never shifts while the mouse drinks.</Description>
-              <Combinator xsi:type="ext:SpoutBiasMoves" />
+              <Name>BiasMoves</Name>
+              <Description>The spouts' bias moves (TrialRules' bias correction, with spouts.biasCorrection on; nothing when off): the move the last outcome set off (Trial.BiasMove), sent at the Iti event, as the next interval begins, rewarded or not, spouts always in or not; a numeric move of the base (+ toward the mouse's left) into DomeHardware's LickSpoutStage.Moves, logged there as SpoutMoved.</Description>
+              <Combinator xsi:type="trl:PickTrialEvents">
+                <trl:Kind>Iti</trl:Kind>
+              </Combinator>
+            </Expression>
+            <Expression xsi:type="scr:ExpressionCondition">
+              <scr:Expression>Trial.BiasMove != null</scr:Expression>
+            </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>Trial.BiasMove</Selector>
             </Expression>
             <Expression xsi:type="MulticastSubject">
               <Name>LickSpoutStage.Moves</Name>
@@ -814,6 +822,8 @@
             <Edge From="39" To="44" Label="Source1" />
             <Edge From="45" To="46" Label="Source1" />
             <Edge From="46" To="47" Label="Source1" />
+            <Edge From="47" To="48" Label="Source1" />
+            <Edge From="48" To="49" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>

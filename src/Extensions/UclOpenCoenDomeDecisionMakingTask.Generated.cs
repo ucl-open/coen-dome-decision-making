@@ -246,18 +246,20 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The spouts' bias correction (SpoutBias, src/Extensions): the last trialsPerSide counted results of left-target and of
+    /// The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of
     ///right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
     ///counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
     ///workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
-    ///maxSteps either way; after a move both buffers empty. One value per experiment (SESSION_FIELDS).
+    ///maxSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
+    ///per experiment (SESSION_FIELDS).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"The spouts' bias correction (SpoutBias, src/Extensions): the last trialsPerSide counted results of left-target and of
+    [System.ComponentModel.DescriptionAttribute(@"The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of
     right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
     counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
     workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
-    maxSteps either way; after a move both buffers empty. One value per experiment (SESSION_FIELDS).")]
+    maxSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
+    per experiment (SESSION_FIELDS).")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class BiasCorrection

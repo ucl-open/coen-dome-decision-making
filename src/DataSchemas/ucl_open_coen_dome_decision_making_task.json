@@ -53,7 +53,7 @@
       "type": "object"
     },
     "BiasCorrection": {
-      "description": "The spouts' bias correction (SpoutBias, src/Extensions): the last trialsPerSide counted results of left-target and of\nright-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each\ncounted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the\nworkflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past\nmaxSteps either way; after a move both buffers empty. One value per experiment (SESSION_FIELDS).",
+      "description": "The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of\nright-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each\ncounted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the\nworkflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past\nmaxSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value\nper experiment (SESSION_FIELDS).",
       "properties": {
         "enabled": {
           "default": false,

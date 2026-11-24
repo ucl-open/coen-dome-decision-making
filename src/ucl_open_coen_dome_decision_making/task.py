@@ -58,11 +58,12 @@ class TrialStructure(Iti, ResponseWindow, ResponseWindowAlwaysFull, LickQuietWai
 
 
 class BiasCorrection(TaskBlock):
-    """The spouts' bias correction (SpoutBias, src/Extensions): the last trialsPerSide counted results of left-target and of
+    """The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of
     right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
     counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
     workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
-    maxSteps either way; after a move both buffers empty. One value per experiment (SESSION_FIELDS)."""
+    maxSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
+    per experiment (SESSION_FIELDS)."""
 
     enabled: Bool = Field(default=False, description="Bias correction on: the spouts move sideways, a step at a time, toward the side the mouse neglects; off unless a curriculum stage sets it")
     trials_per_side: int = Field(default=10, ge=1, description="Counted trials of each target side the bias is worked out from; nothing moves until both sides have this many, and both start again after a move")
