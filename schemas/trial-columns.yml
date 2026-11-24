@@ -162,3 +162,7 @@ visualInitialAzimuthDeg:
 auditorySoundFileIndex:
   type: int
   description: Index into the auditory stimulus set (src\sounds\filtered_pink_pulse_<index>.wav), each one 50 ms pulse of noise played every 1/stimulus.rateHz s; until November 2026 each file (then filtered_pink_pulse_train_<index>.wav) held its pulse 12 times at 8 Hz, so an index names the same noise before and after.
+spoutBiasSteps:
+  type: int
+  unit: steps
+  description: 'The spouts'' bias offset this trial ran with (spouts.biasCorrection), in motor steps of the base transverse axis from the mouse''s in position, positive toward the mouse''s left (BaseLeft''s way: the right spout nearer the midline), negative toward its right. The offset before this trial''s own move: a move it set off (after an unrewarded outcome at once, after a reward at the SpoutsOut cue) is the next trial''s. 0 with the correction off, and at every experiment''s start.'

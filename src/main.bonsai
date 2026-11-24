@@ -611,7 +611,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: Zapit's StartStimulus and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's, and with spouts.biasCorrection on each outcome's bias move (TrialRules' SpoutBias: at once when unrewarded, at the SpoutsOut cue when rewarded), its step and limit sent to LickSpoutStage.BiasSettings at Go (SpoutBiasSettingsOf). Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -749,7 +749,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>SpoutCommands</Name>
-              <Description>Every spout move, from the trial events (lib-open-rigs OpenRigs.Trials SpoutCommands): the spouts out at trial 1's interval start and at each SpoutsOut cue, unless the coming trial's spouts are always in (spouts.alwaysIn); at each SpoutsIn cue the trial's own (ISpoutTrial: the target's spout alone on a single-spout trial, singleSpoutOffered, else both in); at the outcome, unless the trial's spouts are always in, the rewarded spout alone, else both out.</Description>
+              <Description>Every spout move, from the trial events (lib-open-rigs OpenRigs.Trials SpoutCommands): the spouts out at trial 1's interval start and at each SpoutsOut cue, unless the coming trial's spouts are always in (spouts.alwaysIn); at each SpoutsIn cue the trial's own (ISpoutTrial: the target's spout alone on a single-spout trial, singleSpoutOffered, else both in); at the outcome, unless the trial's spouts are always in, the rewarded spout alone, else both out; with spouts.biasCorrection on, the outcome's bias move (TrialOutcome.SpoutBiasCommand) after the outcome's own on an unrewarded trial, at the next SpoutsOut cue on a rewarded one, so the spout never shifts while the mouse drinks.</Description>
               <Combinator xsi:type="trl:SpoutCommands" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
@@ -760,6 +760,17 @@
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Vision:PlayPenaltyFlash.bonsai">
               <Description>The penalty flash on DomeHardware's projector (lib-open-rigs PlayPenaltyFlash): each outcome TrialOutcomeEffects passes on whose PenaltyFlash plays (penalised, its kind's penalty.&lt;kind&gt;.flash.brightness above 0) flashes the whole field at that brightness at its rateHz for the penalty sound's length; TrialRules' PenaltyFlashes checked at Go against the sound.</Description>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialRules</Name>
+            </Expression>
+            <Expression xsi:type="Combinator">
+              <Name>SpoutBiasSettingsOf</Name>
+              <Description>The spouts' bias step and limit (spouts.biasCorrection's stepSteps and maxSteps, OpenRigs.Trials SpoutBias.StageSettings) sent once at Go to DomeHardware's LickSpoutStage, when the bias correction is on; nothing when it is off, so the stage never moves its offset.</Description>
+              <Combinator xsi:type="ext:SpoutBiasSettingsOf" />
+            </Expression>
+            <Expression xsi:type="MulticastSubject">
+              <Name>LickSpoutStage.BiasSettings</Name>
             </Expression>
           </Nodes>
           <Edges>
@@ -799,6 +810,8 @@
             <Edge From="40" To="41" Label="Source1" />
             <Edge From="41" To="42" Label="Source1" />
             <Edge From="39" To="44" Label="Source1" />
+            <Edge From="45" To="46" Label="Source1" />
+            <Edge From="46" To="47" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
