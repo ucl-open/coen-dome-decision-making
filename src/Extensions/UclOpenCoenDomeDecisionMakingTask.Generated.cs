@@ -246,22 +246,18 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The spouts' bias correction (OpenRigs.Trials SpoutBias, LickSpoutStage's bias offset): the last trialsPerSide counted
-    ///results of left-target and of right-target trials (a side target, both spouts offered, a choice, not a repeat, laser
-    ///off); once both are full, after every counted response (after a move, once each side has newTrialsAfterMove new counted
-    ///trials), the left fraction correct less the right's above threshold moves
-    ///the spouts' base stepSteps toward the mouse's left (the right spout toward the midline), below minus threshold toward its
-    ///right, at most one move a trial and never past maxSteps either way. The offset rides on the mouse's in position, never
-    ///saved, and starts at 0 every experiment. One value per experiment: a trial condition may not set it (SPOUTS_SESSION_FIELDS).
+    /// The spouts' bias correction (SpoutBias, src/Extensions): the last trialsPerSide counted results of left-target and of
+    ///right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
+    ///counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
+    ///workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
+    ///maxSteps either way; after a move both buffers empty. One value per experiment (SESSION_FIELDS).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute(@"The spouts' bias correction (OpenRigs.Trials SpoutBias, LickSpoutStage's bias offset): the last trialsPerSide counted
-    results of left-target and of right-target trials (a side target, both spouts offered, a choice, not a repeat, laser
-    off); once both are full, after every counted response (after a move, once each side has newTrialsAfterMove new counted
-    trials), the left fraction correct less the right's above threshold moves
-    the spouts' base stepSteps toward the mouse's left (the right spout toward the midline), below minus threshold toward its
-    right, at most one move a trial and never past maxSteps either way. The offset rides on the mouse's in position, never
-    saved, and starts at 0 every experiment. One value per experiment: a trial condition may not set it (SPOUTS_SESSION_FIELDS).")]
+    [System.ComponentModel.DescriptionAttribute(@"The spouts' bias correction (SpoutBias, src/Extensions): the last trialsPerSide counted results of left-target and of
+    right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
+    counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
+    workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
+    maxSteps either way; after a move both buffers empty. One value per experiment (SESSION_FIELDS).")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class BiasCorrection
@@ -273,10 +269,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _threshold;
     
-        private int _stepSteps;
-    
-        private int _newTrialsAfterMove;
-    
         private int _maxSteps;
     
         public BiasCorrection()
@@ -284,8 +276,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _enabled = false;
             _trialsPerSide = 10;
             _threshold = 0.3D;
-            _stepSteps = 100;
-            _newTrialsAfterMove = 3;
             _maxSteps = 500;
         }
     
@@ -294,19 +284,16 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _enabled = other._enabled;
             _trialsPerSide = other._trialsPerSide;
             _threshold = other._threshold;
-            _stepSteps = other._stepSteps;
-            _newTrialsAfterMove = other._newTrialsAfterMove;
             _maxSteps = other._maxSteps;
         }
     
         /// <summary>
-        /// Bias correction on: the spouts move sideways, a step at a time, toward the side the mouse neglects, until it uses both equally; off unless a curriculum stage sets it
+        /// Bias correction on: the spouts move sideways, a step at a time, toward the side the mouse neglects; off unless a curriculum stage sets it
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("enabled")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="enabled")]
         [System.ComponentModel.DescriptionAttribute("Bias correction on: the spouts move sideways, a step at a time, toward the side t" +
-            "he mouse neglects, until it uses both equally; off unless a curriculum stage set" +
-            "s it")]
+            "he mouse neglects; off unless a curriculum stage sets it")]
         public bool Enabled
         {
             get
@@ -320,12 +307,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Counted trials of each target side the bias is worked out from (each side's ring buffer); nothing moves until both are full
+        /// Counted trials of each target side the bias is worked out from; nothing moves until both sides have this many, and both start again after a move
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("trialsPerSide")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="trialsPerSide")]
-        [System.ComponentModel.DescriptionAttribute("Counted trials of each target side the bias is worked out from (each side\'s ring " +
-            "buffer); nothing moves until both are full")]
+        [System.ComponentModel.DescriptionAttribute("Counted trials of each target side the bias is worked out from; nothing moves unt" +
+            "il both sides have this many, and both start again after a move")]
         public int TrialsPerSide
         {
             get
@@ -339,12 +326,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Fraction correct on the left less on the right above which the spouts move toward the mouse's left (below minus this, toward its right); above 0, at most 1
+        /// Fraction correct on the left less on the right above which the spouts move toward the mouse's left (below minus this, toward its right)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("threshold")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="threshold")]
         [System.ComponentModel.DescriptionAttribute("Fraction correct on the left less on the right above which the spouts move toward" +
-            " the mouse\'s left (below minus this, toward its right); above 0, at most 1")]
+            " the mouse\'s left (below minus this, toward its right)")]
         public double Threshold
         {
             get
@@ -358,51 +345,12 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Motor steps of the base transverse axis one move shifts the spouts; at most maxSteps
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("stepSteps")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="stepSteps")]
-        [System.ComponentModel.DescriptionAttribute("Motor steps of the base transverse axis one move shifts the spouts; at most maxSt" +
-            "eps")]
-        public int StepSteps
-        {
-            get
-            {
-                return _stepSteps;
-            }
-            set
-            {
-                _stepSteps = value;
-            }
-        }
-    
-        /// <summary>
-        /// After a move, the new counted trials each side takes before the bias is worked out again (the buffers are kept), so a move is judged on trials at its place; 0: after every counted response; at most 100
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("newTrialsAfterMove")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="newTrialsAfterMove")]
-        [System.ComponentModel.DescriptionAttribute("After a move, the new counted trials each side takes before the bias is worked ou" +
-            "t again (the buffers are kept), so a move is judged on trials at its place; 0: a" +
-            "fter every counted response; at most 100")]
-        public int NewTrialsAfterMove
-        {
-            get
-            {
-                return _newTrialsAfterMove;
-            }
-            set
-            {
-                _newTrialsAfterMove = value;
-            }
-        }
-    
-        /// <summary>
-        /// The furthest all moves together may take the spouts from the mouse's in position, each way, in motor steps; at most 1000
+        /// The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("maxSteps")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="maxSteps")]
-        [System.ComponentModel.DescriptionAttribute("The furthest all moves together may take the spouts from the mouse\'s in position," +
-            " each way, in motor steps; at most 1000")]
+        [System.ComponentModel.DescriptionAttribute("The furthest all moves together take the spouts\' base from where the experiment s" +
+            "tarted, each way, in motor steps")]
         public int MaxSteps
         {
             get
@@ -430,8 +378,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Enabled = " + _enabled + ", ");
             stringBuilder.Append("TrialsPerSide = " + _trialsPerSide + ", ");
             stringBuilder.Append("Threshold = " + _threshold + ", ");
-            stringBuilder.Append("StepSteps = " + _stepSteps + ", ");
-            stringBuilder.Append("NewTrialsAfterMove = " + _newTrialsAfterMove + ", ");
             stringBuilder.Append("MaxSteps = " + _maxSteps);
             return true;
         }
@@ -1683,11 +1629,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// The spouts (the lab's spouts block, open_rigs.core.task Spouts) and this task's single-spout guide.
+    /// The spouts (the lab's spouts block, open_rigs.core.task Spouts), this task's single-spout guide and its bias correction.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("The spouts (the lab\'s spouts block, open_rigs.core.task Spouts) and this task\'s s" +
-        "ingle-spout guide.")]
+    [System.ComponentModel.DescriptionAttribute("The spouts (the lab\'s spouts block, open_rigs.core.task Spouts), this task\'s sing" +
+        "le-spout guide and its bias correction.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class Spouts
@@ -1699,17 +1645,17 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _rewardConsumptionSeconds;
     
-        private BiasCorrection _biasCorrection;
-    
         private double _singleSpoutProbability;
+    
+        private BiasCorrection _biasCorrection;
     
         public Spouts()
         {
             _alwaysIn = false;
             _stimulusToSpoutsInSeconds = 0.5D;
             _rewardConsumptionSeconds = 1.5D;
-            _biasCorrection = new BiasCorrection();
             _singleSpoutProbability = 0D;
+            _biasCorrection = new BiasCorrection();
         }
     
         protected Spouts(Spouts other)
@@ -1717,8 +1663,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _alwaysIn = other._alwaysIn;
             _stimulusToSpoutsInSeconds = other._stimulusToSpoutsInSeconds;
             _rewardConsumptionSeconds = other._rewardConsumptionSeconds;
-            _biasCorrection = other._biasCorrection;
             _singleSpoutProbability = other._singleSpoutProbability;
+            _biasCorrection = other._biasCorrection;
         }
     
         /// <summary>
@@ -1778,27 +1724,6 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; a move after an unrewarded outcome at once, after a reward at the SpoutsOut cue. One value per experiment, off by default
-        /// </summary>
-        [System.Xml.Serialization.XmlIgnoreAttribute()]
-        [Newtonsoft.Json.JsonPropertyAttribute("biasCorrection")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="biasCorrection")]
-        [System.ComponentModel.DescriptionAttribute("Bias correction: the spouts shifted sideways, a step at a time, toward the side t" +
-            "he mouse neglects; a move after an unrewarded outcome at once, after a reward at" +
-            " the SpoutsOut cue. One value per experiment, off by default")]
-        public BiasCorrection BiasCorrection
-        {
-            get
-            {
-                return _biasCorrection;
-            }
-            set
-            {
-                _biasCorrection = value;
-            }
-        }
-    
-        /// <summary>
         /// Probability that only the target's spout comes in, as a guide, on a scored trial of localization or discriminationLeftRight whose spouts move (alwaysIn false); else both come in. discriminationGoNoGo always uses the left spout alone, and a random-reward probe both (logged as singleSpoutOffered)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("singleSpoutProbability")]
@@ -1813,6 +1738,28 @@ namespace UclOpenCoenDomeDecisionMakingTask
             set
             {
                 _singleSpoutProbability = value;
+            }
+        }
+    
+        /// <summary>
+        /// Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; a move after an unrewarded outcome at once, after a reward at the SpoutsOut cue. One value per experiment, off by default; refused on discriminationGoNoGo
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [Newtonsoft.Json.JsonPropertyAttribute("biasCorrection")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="biasCorrection")]
+        [System.ComponentModel.DescriptionAttribute("Bias correction: the spouts shifted sideways, a step at a time, toward the side t" +
+            "he mouse neglects; a move after an unrewarded outcome at once, after a reward at" +
+            " the SpoutsOut cue. One value per experiment, off by default; refused on discrim" +
+            "inationGoNoGo")]
+        public BiasCorrection BiasCorrection
+        {
+            get
+            {
+                return _biasCorrection;
+            }
+            set
+            {
+                _biasCorrection = value;
             }
         }
     
@@ -1831,8 +1778,8 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("AlwaysIn = " + _alwaysIn + ", ");
             stringBuilder.Append("StimulusToSpoutsInSeconds = " + _stimulusToSpoutsInSeconds + ", ");
             stringBuilder.Append("RewardConsumptionSeconds = " + _rewardConsumptionSeconds + ", ");
-            stringBuilder.Append("BiasCorrection = " + _biasCorrection + ", ");
-            stringBuilder.Append("SingleSpoutProbability = " + _singleSpoutProbability);
+            stringBuilder.Append("SingleSpoutProbability = " + _singleSpoutProbability + ", ");
+            stringBuilder.Append("BiasCorrection = " + _biasCorrection);
             return true;
         }
     
@@ -2573,13 +2520,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The spouts: when they come in and go out, whether they are always in, and the single-spout guide
+        /// The spouts: when they come in and go out, whether they are always in, the single-spout guide and the bias correction
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("spouts", Required=Newtonsoft.Json.Required.Always)]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="spouts")]
-        [System.ComponentModel.DescriptionAttribute("The spouts: when they come in and go out, whether they are always in, and the sin" +
-            "gle-spout guide")]
+        [System.ComponentModel.DescriptionAttribute("The spouts: when they come in and go out, whether they are always in, the single-" +
+            "spout guide and the bias correction")]
         public Spouts Spouts
         {
             get

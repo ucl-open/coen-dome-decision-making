@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
     MAX_WEIGHT_SUM,
+    BiasCorrection,
     REQUIRED_CONDITIONS,
     RULES,
     SESSION_FIELDS,
@@ -117,12 +118,14 @@ def test_spouts_staying_in_is_condition_level():
 def test_every_task_file_carries_the_bias_correction_off_at_its_defaults(path):
     # app-rig-control's curriculum offers only the fields a task file has; off until a stage turns it on.
     written = yaml.safe_load(path.read_text())["taskParameters"]["spouts"]["biasCorrection"]
-    defaults = UclOpenCoenDomeDecisionMakingTaskParameters.model_fields["spouts"].annotation.model_fields["bias_correction"].default
-    assert written == defaults.model_dump(by_alias=True) and written["enabled"] is False
+    assert written == BiasCorrection().model_dump(by_alias=True) and written["enabled"] is False
 
 
-def test_the_bias_correction_is_a_session_field_and_refused_on_go_no_go():
-    # One value per experiment (its buffers and offset run across all trials), and go/no-go has one spout (TrialDraw.CheckTask).
+def test_the_bias_correction_is_optional_a_session_field_and_refused_on_go_no_go():
+    # An old task file without it reads as off; one value per experiment; go/no-go has one spout (TrialDraw.CheckTask).
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    del data["spouts"]["biasCorrection"]
+    assert not UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data).spouts.bias_correction.enabled
     assert ct.session_field("spouts.biasCorrection.threshold", SESSION_FIELDS) == "spouts.biasCorrection"
     with pytest.raises(ValidationError, match="a session field"):
         _conditions({"weight": 1, "set": {"spouts.biasCorrection.enabled": True}})

@@ -8,7 +8,7 @@ using UclOpenCoenDomeDecisionMakingTask;
 // lab's CsvWriter writes first as harpTime. The columns up to autoReward are the lab's shared block (its core, stimulusOffTime included, with the
 // quietWait, trialEnd, optogenetics, conditions, stimulus and autoReward blocks), in coen-dome-navigation's order and words; this
 // task's own follow. Words (outcome, target, choice) are in the task file's camelCase.
-public class TrialRow : ISpoutBiasResponse
+public class TrialRow
 {
     public int trialNumber;
     public string trialType;
@@ -45,15 +45,6 @@ public class TrialRow : ISpoutBiasResponse
     public double visualInitialAzimuthDeg;
     public int auditorySoundFileIndex;
     public int spoutBiasSteps;
-
-    // The finished trial as the spouts' bias correction counts it (OpenRigs.Trials SpoutBias): its target and choice, its
-    // single spout, its repeat, and the laser on when its power was above 0 (laserPowerMw, so a laser trial answered before
-    // its trigger ran with the laser off).
-    string ISpoutBiasResponse.Target { get { return target; } }
-    string ISpoutBiasResponse.Choice { get { return choice; } }
-    bool ISpoutBiasResponse.SingleSpoutOffered { get { return singleSpoutOffered; } }
-    int ISpoutBiasResponse.RepeatCount { get { return repeatCount; } }
-    bool ISpoutBiasResponse.LaserOn { get { return laserPowerMw > 0; } }
 
     // left or right against the target, or no choice (NoChoice); in discriminationGoNoGo, go or no choice against go or
     // noGo (a withheld noGo is correct), and a probe's outcome is probe whatever the choice.

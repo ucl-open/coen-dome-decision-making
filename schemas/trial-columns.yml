@@ -165,4 +165,4 @@ auditorySoundFileIndex:
 spoutBiasSteps:
   type: int
   unit: steps
-  description: 'The spouts'' bias offset this trial ran with (spouts.biasCorrection), in motor steps of the base transverse axis from the mouse''s in position, positive toward the mouse''s left (BaseLeft''s way: the right spout nearer the midline), negative toward its right. The offset before this trial''s own move: a move it set off (after an unrewarded outcome at once, after a reward at the SpoutsOut cue) is the next trial''s. 0 with the correction off, and at every experiment''s start.'
+  description: 'The sum of the spouts'' bias correction moves (spouts.biasCorrection) before this trial''s own, in motor steps of the base transverse axis, positive toward the mouse''s left: 0 at every experiment''s start and with the correction off. A move this trial sets off (after an unrewarded outcome at once, after a reward at the SpoutsOut cue) is in the next row. The stage''s real position is in the SpoutMoved events, as a limit or a nudge can differ.'

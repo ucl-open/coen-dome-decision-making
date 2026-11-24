@@ -76,9 +76,17 @@ public class ReadTask
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
+    public CheckTaskAtGo()
+    {
+        SpoutBiasStep = 50;
+    }
+
+    [Description("Motor steps of the spouts' base one bias correction move shifts them (spouts.biasCorrection).")]
+    public int SpoutBiasStep { get; set; }
+
     public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source)
     {
-        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null));
+        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null, SpoutBiasStep));
     }
 }
 
@@ -376,15 +384,7 @@ public class TrialDraw
         // The condition fields' bounds (a condition's cell is not checked by pydantic before Go).
         problems.AddRange(TaskBlocks.RewardSizeProblems(reward.SizeUl, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
         if (!(task.Spouts.SingleSpoutProbability >= 0 && task.Spouts.SingleSpoutProbability <= 1)) problems.Add("spouts.singleSpoutProbability must be in [0, 1]");
-        // The spouts' bias correction (OpenRigs.Trials SpoutBias, its one check; task.py's same rules): its bounds, and only
-        // with two spouts, as it weighs the left spout against the right.
-        var bias = task.Spouts.BiasCorrection;
-        if (bias == null) problems.Add("spouts.biasCorrection must be given");
-        else
-        {
-            problems.AddRange(SpoutBias.Problems(bias.TrialsPerSide, bias.Threshold, bias.StepSteps, bias.MaxSteps, bias.NewTrialsAfterMove));
-            if (bias.Enabled && task.TaskType == TaskType.DiscriminationGoNoGo) problems.Add("spouts.biasCorrection.enabled is for two spouts: discriminationGoNoGo uses the left spout alone");
-        }
+        problems.AddRange(SpoutBias.Problems(task.Spouts.BiasCorrection, task.TaskType));
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
@@ -605,6 +605,9 @@ public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 {
     TrialOutcome(TrialRow row, string instance, double penaltyLevelDbfs, double penaltyFlashRateHz) : base(row, instance, penaltyLevelDbfs, penaltyFlashRateHz) { }
 
+    /// <summary>The spouts' bias move this outcome sets off (SpoutBias), or null; sent by SpoutBiasMoves.</summary>
+    public SpoutMove BiasMove { get; set; }
+
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
     /// (discriminationGoNoGo's: the left), a random trial's at the spout chosen, the other spout drawn back, the next interval
     /// from the trial's end, the response window's (both out spouts.rewardConsumptionSeconds into it). Anything else draws both back, with the penalty sound, flash and timeout of its kind
@@ -641,7 +644,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     readonly SpoutBias spoutBias;   // null with spouts.biasCorrection off
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions)
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions, int spoutBiasStep)
     {
         draw = new TrialDraw(taskText, speakers, zapitConditions);
         task = draw.Task;
@@ -649,23 +652,16 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
         // conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
         laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds) : null;
-        // One bias correction for the experiment, at offset 0 with empty buffers (spouts.biasCorrection, a session field,
-        // checked at Go), or none with it off.
-        var bias = task.Spouts.BiasCorrection;
-        spoutBias = bias.Enabled ? new SpoutBias(bias.TrialsPerSide, bias.Threshold, bias.StepSteps, bias.MaxSteps, bias.NewTrialsAfterMove) : null;
+        spoutBias = task.Spouts.BiasCorrection.Enabled ? new SpoutBias(task.Spouts.BiasCorrection, spoutBiasStep) : null;
     }
 
-    /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
-    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions)
+    /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering) and the bias correction's step; throws naming every problem.</summary>
+    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions, int spoutBiasStep)
     {
-        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions);
+        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions, spoutBiasStep);
     }
 
     public LaserTiming Laser { get { return laser; } }
-
-    /// <summary>The experiment's spouts bias correction (OpenRigs.Trials SpoutBias), null with spouts.biasCorrection off:
-    /// each outcome's move (TrialOutcome.SpoutBiasCommand) and its offset so far.</summary>
-    public SpoutBias SpoutBias { get { return spoutBias; } }
 
     /// <summary>The seed every draw of the experiment follows from (TrialDraw.Seed), logged once as an RngSeed event at trial 1's start.</summary>
     public int Seed { get { return draw.Seed; } }
@@ -761,29 +757,16 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         return new DecisionUpdate { GratingAzimuthDeg = decision * trial.values.Response.AzimuthShiftPerLickDeg + trial.gratingAzimuthDeg };
     }
 
-    // The outcome, and with the bias correction on its move (sent by SpoutCommands: at once when unrewarded, at the
-    // SpoutsOut cue when rewarded): the row's spoutBiasSteps is the offset the trial ran with, before its own move.
+    // The row's spoutBiasSteps is the sum of the moves before the trial's own (BiasMove, sent by SpoutBiasMoves).
     TrialOutcome Outcome(Trial trial, string choice, TrialTimes times)
     {
         var outcome = TrialOutcome.At(choice, trial, times);
         if (spoutBias != null)
         {
-            var row = outcome.Row.Value;
-            row.spoutBiasSteps = spoutBias.OffsetSteps;
-            outcome.SpoutBiasCommand = spoutBias.Respond(row);
+            outcome.Row.Value.spoutBiasSteps = spoutBias.Steps;
+            outcome.BiasMove = spoutBias.Respond(outcome.Row.Value);
         }
         return outcome;
-    }
-}
-
-[Combinator]
-[Description("The spouts' bias step and limit (OpenRigs.Trials SpoutBias.StageSettings) for LickSpoutStage.BiasSettings, once from the experiment's rules at Go when spouts.biasCorrection is on; nothing when it is off, so the stage's bias moves stay inert.")]
-[WorkflowElementCategory(ElementCategory.Transform)]
-public class SpoutBiasSettingsOf
-{
-    public IObservable<SpoutBiasSettings> Process(IObservable<TrialRules> source)
-    {
-        return source.Where(rules => rules.SpoutBias != null).Select(rules => rules.SpoutBias.StageSettings);
     }
 }
 
