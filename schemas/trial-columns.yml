@@ -165,4 +165,4 @@ auditorySoundFileIndex:
 biasCorrectionSteps:
   type: int
   unit: steps
-  description: 'The sum of the spouts'' bias correction moves (spouts.biasCorrection) before this trial''s own, in motor steps of the base transverse axis, positive toward the mouse''s left: 0 at every experiment''s start and with the correction off. A move this trial sets off (sent as the next inter-trial interval begins) is in the next row. The stage''s real position is in the SpoutMoved events, as a limit or a nudge can differ.'
+  description: 'The sum of the spouts'' bias correction moves (spouts.biasCorrection) before this trial''s own, in motor steps of the base transverse axis, positive toward the mouse''s left: 0 at every experiment''s start and with the correction off. A move this trial sets off (sent as the next inter-trial interval begins) is in the next row. The stage''s real position is in the SpoutPositionsMoved events, as a limit or a nudge can differ.'
