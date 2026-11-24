@@ -113,6 +113,29 @@ def test_spouts_staying_in_is_condition_level():
     _conditions({"weight": 1, "set": {"spouts.alwaysIn": True, "spouts.singleSpoutProbability": 1}})
 
 
+@pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
+def test_every_task_file_carries_the_bias_correction_off_at_its_defaults(path):
+    # app-rig-control's curriculum offers only the fields a task file has; off until a stage turns it on.
+    written = yaml.safe_load(path.read_text())["taskParameters"]["spouts"]["biasCorrection"]
+    defaults = UclOpenCoenDomeDecisionMakingTaskParameters.model_fields["spouts"].annotation.model_fields["bias_correction"].default
+    assert written == defaults.model_dump(by_alias=True) and written["enabled"] is False
+
+
+def test_the_bias_correction_is_a_session_field_and_refused_on_go_no_go():
+    # One value per experiment (its buffers and offset run across all trials), and go/no-go has one spout (TrialDraw.CheckTask).
+    assert ct.session_field("spouts.biasCorrection.threshold", SESSION_FIELDS) == "spouts.biasCorrection"
+    with pytest.raises(ValidationError, match="a session field"):
+        _conditions({"weight": 1, "set": {"spouts.biasCorrection.enabled": True}})
+    for name in ("task-localization.yml", "task-discrimination-left-right.yml"):
+        data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
+        data["spouts"]["biasCorrection"]["enabled"] = True
+        assert UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data).spouts.bias_correction.enabled
+    data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    data["spouts"]["biasCorrection"]["enabled"] = True
+    with pytest.raises(ValidationError, match="discriminationGoNoGo uses the left spout alone"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+
+
 def test_no_text_says_a_probe_s_side_is_drawn_at_random():
     # A two-modality or neutral trial is a probe (target noReward or random, a coin on a random trial's choice),
     # never a trial whose side is drawn at random; and a random probe's tails is penalised.

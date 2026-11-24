@@ -187,6 +187,7 @@ class RepeatOn(StrEnum):
 # draw reads it per trial from the trial's combination, logged through trialCombinationId and Settings_Combinations.
 SESSION_FIELDS = {
     **ct.COMMON_SESSION_FIELDS,
+    **ct.SPOUTS_SESSION_FIELDS,
     "taskType": "the task the file and its curriculum train; x-required-conditions keys on it",
 }
 # Where one setting limits another (the schema's x-rules, JSON Schema over dotted paths; open_rigs.rigs.conditions
@@ -401,6 +402,13 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
             ramp_down_seconds=ramp_down_from(info),
             response_delay_seconds=s.stimulus_to_response_window_seconds,
         )
+        return self
+
+    @model_validator(mode="after")
+    def _bias_correction_two_spouts(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # TrialDraw.CheckTask's same rule: the correction weighs the left spout against the right, and go/no-go has one.
+        if self.spouts.bias_correction.enabled and self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
+            raise ValueError("spouts.bias_correction.enabled is for two spouts: discriminationGoNoGo uses the left spout alone")
         return self
 
     @model_validator(mode="after")
