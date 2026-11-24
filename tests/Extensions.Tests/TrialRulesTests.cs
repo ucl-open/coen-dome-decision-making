@@ -104,7 +104,7 @@ static class Rules
             if (task.TaskType == TaskType.DiscriminationLeftRight) Fixture.Weight(task, "audiovisualCoherent", 0);
         }
         if (edit != null) edit(task);
-        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), hardwareTriggered, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.SpoutBiasStep);
+        return new TrialRules(Fixture.Text(task), Fixture.Speakers(), hardwareTriggered, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize);
     }
 
     public static void Optogenetics(UclOpenCoenDomeDecisionMakingTaskParameters task)
@@ -242,7 +242,7 @@ public class ResponseRuleTests
     public void TheLoopRunsTheDrawsTrialsInOrder()
     {
         // The same seed draws the same trials through the loop as TrialDraw alone, every trial a miss.
-        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), true, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.SpoutBiasStep));
+        var run = new Harness(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 3)), Fixture.Speakers(), true, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize));
         run.RunTo(200);
         var looped = run.Of(TrialEventKind.Start).Select(e => e.Trial).ToList();
         var drawn = Fixture.Draw(Fixture.Task("task-discrimination-left-right.yml", 3), looped.Count, t => Choice.NoResponse);
@@ -856,8 +856,8 @@ public class CheckTaskAtGoTests
         var rig = new LabRig { SpeakerArray = Fixture.Speakers() };
         var unfilled = Fixture.Task("task-localization.yml", 4);
         unfilled.Curriculum = null;
-        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(unfilled), rig, null, Fixture.SpoutBiasStep)), "The task file's curriculum is empty");
-        var rules = TrialRules.Create(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), rig, null, Fixture.SpoutBiasStep);
+        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(unfilled), rig, null, Fixture.BiasStepSize)), "The task file's curriculum is empty");
+        var rules = TrialRules.Create(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), rig, null, Fixture.BiasStepSize);
         Assert.IsNull(rules.Laser, "no optogenetics");
         Assert.AreEqual("S04A-k7f2", rules.CurriculumStage);
         var timing = rules.Timing(rules.Draw(null));

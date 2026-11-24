@@ -61,14 +61,14 @@ class BiasCorrection(TaskBlock):
     """The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of
     right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
     counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
-    workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
-    maxSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
+    workflow's CheckTaskAtGo.BiasStepSize) toward the mouse's left, below minus threshold toward its right, never past
+    maxOffsetSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
     per experiment (SESSION_FIELDS)."""
 
     enabled: Bool = Field(default=False, description="Bias correction on: the spouts move sideways, a step at a time, toward the side the mouse neglects; off unless a curriculum stage sets it")
     trials_per_side: int = Field(default=10, ge=1, description="Counted trials of each target side the bias is worked out from; nothing moves until both sides have this many, and both start again after a move")
     threshold: Double = Field(default=0.3, gt=0, le=1, description="Fraction correct on the left less on the right above which the spouts move toward the mouse's left (below minus this, toward its right)")
-    max_steps: int = Field(default=500, ge=1, description="The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps")
+    max_offset_steps: int = Field(default=500, ge=1, description="The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps")
 
 
 class Spouts(LabSpouts):

@@ -249,16 +249,16 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of
     ///right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
     ///counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
-    ///workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
-    ///maxSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
+    ///workflow's CheckTaskAtGo.BiasStepSize) toward the mouse's left, below minus threshold toward its right, never past
+    ///maxOffsetSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
     ///per experiment (SESSION_FIELDS).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of
     right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
     counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
-    workflow's CheckTaskAtGo.SpoutBiasStep) toward the mouse's left, below minus threshold toward its right, never past
-    maxSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
+    workflow's CheckTaskAtGo.BiasStepSize) toward the mouse's left, below minus threshold toward its right, never past
+    maxOffsetSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
     per experiment (SESSION_FIELDS).")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
@@ -271,14 +271,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private double _threshold;
     
-        private int _maxSteps;
+        private int _maxOffsetSteps;
     
         public BiasCorrection()
         {
             _enabled = false;
             _trialsPerSide = 10;
             _threshold = 0.3D;
-            _maxSteps = 500;
+            _maxOffsetSteps = 500;
         }
     
         protected BiasCorrection(BiasCorrection other)
@@ -286,7 +286,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _enabled = other._enabled;
             _trialsPerSide = other._trialsPerSide;
             _threshold = other._threshold;
-            _maxSteps = other._maxSteps;
+            _maxOffsetSteps = other._maxOffsetSteps;
         }
     
         /// <summary>
@@ -349,19 +349,19 @@ namespace UclOpenCoenDomeDecisionMakingTask
         /// <summary>
         /// The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps
         /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("maxSteps")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="maxSteps")]
+        [Newtonsoft.Json.JsonPropertyAttribute("maxOffsetSteps")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="maxOffsetSteps")]
         [System.ComponentModel.DescriptionAttribute("The furthest all moves together take the spouts\' base from where the experiment s" +
             "tarted, each way, in motor steps")]
-        public int MaxSteps
+        public int MaxOffsetSteps
         {
             get
             {
-                return _maxSteps;
+                return _maxOffsetSteps;
             }
             set
             {
-                _maxSteps = value;
+                _maxOffsetSteps = value;
             }
         }
     
@@ -380,7 +380,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("Enabled = " + _enabled + ", ");
             stringBuilder.Append("TrialsPerSide = " + _trialsPerSide + ", ");
             stringBuilder.Append("Threshold = " + _threshold + ", ");
-            stringBuilder.Append("MaxSteps = " + _maxSteps);
+            stringBuilder.Append("MaxOffsetSteps = " + _maxOffsetSteps);
             return true;
         }
     

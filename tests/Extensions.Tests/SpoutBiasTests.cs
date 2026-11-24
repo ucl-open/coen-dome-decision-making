@@ -8,17 +8,17 @@ using UclOpenCoenDomeDecisionMakingTask;
 using Event = OpenRigs.Trials.TrialEvent<global::Trial, global::DecisionUpdate, global::TrialOutcome>;
 
 /// <summary>The spouts' bias correction (spouts.biasCorrection, TrialRules): refused where it cannot run, inert when off,
-/// and when on each outcome's move, each row's spoutBiasSteps and when main.bonsai sends the move (the next Iti event).</summary>
+/// and when on each outcome's move, each row's biasCorrectionSteps and when main.bonsai sends the move (the next Iti event).</summary>
 [TestClass]
 public class SpoutBiasTests
 {
-    static void On(UclOpenCoenDomeDecisionMakingTaskParameters task, int trialsPerSide, int maxSteps)
+    static void On(UclOpenCoenDomeDecisionMakingTaskParameters task, int trialsPerSide, int maxOffsetSteps)
     {
         var bias = task.Spouts.BiasCorrection;
         bias.Enabled = true;
         bias.TrialsPerSide = trialsPerSide;
         bias.Threshold = 0.3;
-        bias.MaxSteps = maxSteps;
+        bias.MaxOffsetSteps = maxOffsetSteps;
     }
 
     static TrialRow Row(string target, string choice)
@@ -31,12 +31,12 @@ public class SpoutBiasTests
         return rules.CorrectBias(Row(target, choice));
     }
 
-    // The sum of the moves so far, as the next row's spoutBiasSteps: an uncounted row changes nothing.
+    // The sum of the moves so far, as the next row's biasCorrectionSteps: an uncounted row changes nothing.
     static int Steps(TrialRules rules)
     {
         var row = Row(TargetWords.NoReward, Choice.NoResponse);
         rules.CorrectBias(row);
-        return row.spoutBiasSteps;
+        return row.biasCorrectionSteps;
     }
 
     // A mouse that answers every trial at the left spout just after its response window opens: every left trial
@@ -73,11 +73,11 @@ public class SpoutBiasTests
         var bias = task.Spouts.BiasCorrection;
         bias.TrialsPerSide = 0;
         bias.Threshold = 1.5;
-        bias.MaxSteps = 0;
+        bias.MaxOffsetSteps = 0;
         var refusal = Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
         StringAssert.Contains(refusal, "spouts.biasCorrection.trialsPerSide (0) must be 1 or more");
         StringAssert.Contains(refusal, "spouts.biasCorrection.threshold (1.5) must be above 0 and at most 1");
-        StringAssert.Contains(refusal, "spouts.biasCorrection.maxSteps (0) must be 1 or more");
+        StringAssert.Contains(refusal, "spouts.biasCorrection.maxOffsetSteps (0) must be 1 or more");
         task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Spouts.BiasCorrection.Threshold = 0;
         StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "spouts.biasCorrection.threshold (0) must be above 0 and at most 1");
@@ -139,7 +139,7 @@ public class SpoutBiasTests
     [TestMethod]
     public void AStepOfZeroIsRefused()
     {
-        StringAssert.Contains(Assert.ThrowsException<ArgumentOutOfRangeException>(() => new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), true, null, 0)).Message, "CheckTaskAtGo.SpoutBiasStep must be above 0");
+        StringAssert.Contains(Assert.ThrowsException<ArgumentOutOfRangeException>(() => new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), true, null, 0)).Message, "CheckTaskAtGo.BiasStepSize must be above 0");
     }
 
     [TestMethod]
@@ -148,7 +148,7 @@ public class SpoutBiasTests
         // The task files' default: no move, every row 0, however biased the mouse.
         var run = LeftLicker(Rules.Make(), 400);
         Assert.IsTrue(run.Outcomes.Count > 20 && run.Outcomes.Any(o => o.Row.Value.choice == Choice.Left && o.Row.Value.target == TargetWords.Right), "a biased run");
-        Assert.IsTrue(run.Outcomes.All(o => o.BiasMove == null && o.Row.Value.spoutBiasSteps == 0));
+        Assert.IsTrue(run.Outcomes.All(o => o.BiasMove == null && o.Row.Value.biasCorrectionSteps == 0));
         Assert.AreEqual(0, Sent(run).Count);
     }
 
@@ -162,7 +162,7 @@ public class SpoutBiasTests
     }
 
     [TestMethod]
-    public void OnALeftLickingMouseStepsTheSpoutsToItsLeftUpToFurthestBias()
+    public void OnALeftLickingMouseStepsTheSpoutsToItsLeftUpToMaxOffset()
     {
         // 3 counted trials a side, the workflow's 50 steps a move, 170 at most: 50, 100, 150, then the last move held to 170.
         var run = LeftLicker(Rules.Make(t => On(t, 3, 170)), 1500);
@@ -170,8 +170,8 @@ public class SpoutBiasTests
         var made = outcomes.Where(o => o.BiasMove != null).ToList();
         CollectionAssert.AreEqual(new[] { 50, 50, 50, 20 }, made.Select(o => o.BiasMove.Steps).ToArray());
         Assert.IsTrue(made.All(o => o.BiasMove.Axis == SpoutAxis.BaseTransverse));
-        CollectionAssert.AreEqual(new[] { 0, 50, 100, 150 }, made.Select(o => o.Row.Value.spoutBiasSteps).ToArray(), "each row the sum before its own move");
-        Assert.AreEqual(170, outcomes.Last().Row.Value.spoutBiasSteps);
+        CollectionAssert.AreEqual(new[] { 0, 50, 100, 150 }, made.Select(o => o.Row.Value.biasCorrectionSteps).ToArray(), "each row the sum before its own move");
+        Assert.AreEqual(170, outcomes.Last().Row.Value.biasCorrectionSteps);
 
         // The same moves replayed through a fresh rule from the rows; between moves each side fills again from empty.
         var replay = Rules.Make(t => On(t, 3, 170));
@@ -179,9 +179,9 @@ public class SpoutBiasTests
         foreach (var outcome in outcomes)
         {
             var row = outcome.Row.Value;
-            var steps = row.spoutBiasSteps;
+            var steps = row.biasCorrectionSteps;
             var move = replay.CorrectBias(row);
-            Assert.AreEqual(steps, row.spoutBiasSteps, "trial " + row.trialNumber);
+            Assert.AreEqual(steps, row.biasCorrectionSteps, "trial " + row.trialNumber);
             Assert.AreEqual(outcome.BiasMove == null ? (int?)null : outcome.BiasMove.Steps, move == null ? (int?)null : move.Steps, "trial " + row.trialNumber);
             since.Add(row);
             if (move == null) continue;

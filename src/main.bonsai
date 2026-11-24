@@ -68,9 +68,9 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>CheckTaskAtGo</Name>
-              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the task file's curriculum present and well formed, each trial condition built (its set and pairs over the task's values, every combination), rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, the x-rules, a go/no-go task with no go trials, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. SpoutBiasStep: the motor steps of the spouts' base one bias correction move takes (spouts.biasCorrection). A problem stops the workflow here, naming each, before the first trial.</Description>
+              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the task file's curriculum present and well formed, each trial condition built (its set and pairs over the task's values, every combination), rig.yml's speakers and Zapit's triggering, the draw's rules (TrialDraw.CheckTask: a stage past the table, the x-rules, a go/no-go task with no go trials, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit conditions file. BiasStepSize: the motor steps of the spouts' base one bias correction move takes (spouts.biasCorrection). A problem stops the workflow here, naming each, before the first trial.</Description>
               <Combinator xsi:type="ext:CheckTaskAtGo">
-                <ext:SpoutBiasStep>50</ext:SpoutBiasStep>
+                <ext:BiasStepSize>50</ext:BiasStepSize>
               </Combinator>
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">

@@ -81,15 +81,15 @@ public class CheckTaskAtGo
 {
     public CheckTaskAtGo()
     {
-        SpoutBiasStep = 50;
+        BiasStepSize = 50;
     }
 
     [Description("Motor steps of the spouts' base one bias correction move shifts them (spouts.biasCorrection).")]
-    public int SpoutBiasStep { get; set; }
+    public int BiasStepSize { get; set; }
 
     public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source)
     {
-        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null, SpoutBiasStep));
+        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null, BiasStepSize));
     }
 }
 
@@ -394,7 +394,7 @@ public class TrialDraw
         {
             if (bias.TrialsPerSide < 1) problems.Add("spouts.biasCorrection.trialsPerSide (" + bias.TrialsPerSide + ") must be 1 or more");
             if (!(bias.Threshold > 0 && bias.Threshold <= 1)) problems.Add("spouts.biasCorrection.threshold (" + bias.Threshold + ") must be above 0 and at most 1");
-            if (bias.MaxSteps < 1) problems.Add("spouts.biasCorrection.maxSteps (" + bias.MaxSteps + ") must be 1 or more");
+            if (bias.MaxOffsetSteps < 1) problems.Add("spouts.biasCorrection.maxOffsetSteps (" + bias.MaxOffsetSteps + ") must be 1 or more");
             if (bias.Enabled && task.TaskType == TaskType.DiscriminationGoNoGo) problems.Add("spouts.biasCorrection.enabled is for two spouts: discriminationGoNoGo uses the left spout alone");
         }
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
@@ -660,22 +660,22 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     int biasSteps;
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions, int spoutBiasStep)
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions, int biasStepSize)
     {
-        if (spoutBiasStep <= 0) throw new ArgumentOutOfRangeException("spoutBiasStep", spoutBiasStep, "CheckTaskAtGo.SpoutBiasStep must be above 0");
+        if (biasStepSize <= 0) throw new ArgumentOutOfRangeException("biasStepSize", biasStepSize, "CheckTaskAtGo.BiasStepSize must be above 0");
         draw = new TrialDraw(taskText, speakers, zapitConditions);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
         // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
         // conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
         laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds) : null;
-        biasStep = spoutBiasStep;
+        biasStep = biasStepSize;
     }
 
     /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering) and the bias correction's step; throws naming every problem.</summary>
-    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions, int spoutBiasStep)
+    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions, int biasStepSize)
     {
-        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions, spoutBiasStep);
+        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions, biasStepSize);
     }
 
     public LaserTiming Laser { get { return laser; } }
@@ -793,14 +793,14 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             && row.laserPowerMw == 0;
     }
 
-    /// <summary>The bias correction (spouts.biasCorrection) after a finished trial: the row's spoutBiasSteps is the sum of the
+    /// <summary>The bias correction (spouts.biasCorrection) after a finished trial: the row's biasCorrectionSteps is the sum of the
     /// moves before its own. Once both sides hold trialsPerSide counted results, the left fraction correct less the right's
     /// above threshold moves the base one step toward the mouse's left (+ on BaseTransverse), below minus threshold toward
-    /// its right, never past maxSteps in all either way; after a move both sides empty. Returns the move, or null.</summary>
+    /// its right, never past maxOffsetSteps in all either way; after a move both sides empty. Returns the move, or null.</summary>
     internal SpoutMove CorrectBias(TrialRow row)
     {
         var settings = task.Spouts.BiasCorrection;
-        row.spoutBiasSteps = biasSteps;
+        row.biasCorrectionSteps = biasSteps;
         if (!CountsForBias(row)) return null;
         var side = row.target == TargetWords.Left ? biasLeft : biasRight;
         side.Enqueue(row.choice == row.target);
@@ -808,7 +808,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         if (biasLeft.Count < settings.TrialsPerSide || biasRight.Count < settings.TrialsPerSide) return null;
         var bias = FractionCorrect(biasLeft) - FractionCorrect(biasRight);
         var wanted = bias > settings.Threshold ? biasStep : bias < -settings.Threshold ? -biasStep : 0;
-        var moved = Math.Max(-settings.MaxSteps, Math.Min(settings.MaxSteps, biasSteps + wanted)) - biasSteps;
+        var moved = Math.Max(-settings.MaxOffsetSteps, Math.Min(settings.MaxOffsetSteps, biasSteps + wanted)) - biasSteps;
         if (moved == 0) return null;
         biasSteps += moved;
         biasLeft.Clear();

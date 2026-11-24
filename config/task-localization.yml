@@ -43,7 +43,7 @@ taskParameters:
       enabled: false                   # off unless a curriculum stage sets it; refused on discriminationGoNoGo (one spout)
       trialsPerSide: 10                # counted trials of each target side the bias is worked out from; both start again after a move
       threshold: 0.3                   # fraction correct left less right above which the spouts move toward the mouse's left (below minus it, right)
-      maxSteps: 500                    # furthest all moves together take the spouts' base, each way, in steps
+      maxOffsetSteps: 500                    # furthest all moves together take the spouts' base, each way, in steps
   stimulus:
     durationSeconds: 1.5       # s, the most the grating and the sound last from onset (null: no cap); at most stimulusToResponseWindowSeconds + responseWindowSeconds, and over before the next trial's earliest stimulus: the earliest outcome (stimulusToResponseWindowSeconds) + the shortest penalty timeout, 0 where a reward or neither can come (always here) + itiMinSeconds
     rateHz: 8                  # pulses a second, sound and grating together, each 50 ms; at most 20
