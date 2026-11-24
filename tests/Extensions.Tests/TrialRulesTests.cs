@@ -682,6 +682,42 @@ public class LaserTests
     }
 
     [TestMethod]
+    public void WithLaserEndStimulusOffTheLaserEndsWithTheStimulusCappedAtItsDuration()
+    {
+        // The stimulus off 0.1 s after the answer (no duration of its own); laserDurationSeconds 1.3 caps the laser at 12.8 s.
+        // A lick at 12.6 s: the stimulus and the laser off at 12.7 s, the line 0.5 s (the ramp-down) later. No lick: the cap
+        // stops the laser at 12.8 s, before the stimulus goes off at the window's end.
+        Action<UclOpenCoenDomeDecisionMakingTaskParameters> edit = t =>
+        {
+            Rules.Optogenetics(t);
+            t.Optogenetics.LaserEnd = LaserEndMode.StimulusOff;
+            t.Optogenetics.LaserDurationSeconds = 1.3;
+            t.Stimulus.DurationSeconds = null;
+            t.Stimulus.ResponseToStimulusOffSeconds = 0.1;
+        };
+        var rules = Rules.Make(edit);
+        Assert.IsTrue(rules.Laser.End == LaserEnd.AtStimulusOff);
+        Assert.AreEqual(1.3, rules.Laser.LaserCapSeconds, 1e-12, "the longest laserDurationSeconds, LaserBackstop's wait");
+        Assert.AreEqual(ZapitConditions.MaximumRampDownSeconds, rules.Laser.TriggerHoldSeconds);
+        var run = new Harness(rules);
+        run.Loop.OnZapitReply(Rules.Armed(run.Of(TrialEventKind.Arm)[0].Trial));
+        run.RunTo(12.05);
+        var right = run.Spout(true);
+        run.At(12.6, h => h.Lick(right)).RunTo(13.5);
+        Assert.AreEqual(12.7, run.Of(TrialEventKind.StimulusOff)[0].Seconds, 1e-9);
+        Assert.AreEqual(12.7, run.Of(TrialEventKind.LaserOff)[0].Seconds, 1e-9, "the laser ends with the stimulus, after the outcome");
+        Assert.AreEqual(12.7 + ZapitConditions.MaximumRampDownSeconds, run.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9);
+        Assert.AreEqual(0, run.Of(TrialEventKind.LaserCap).Count);
+
+        var capped = new Harness(Rules.Make(edit));
+        capped.Loop.OnZapitReply(Rules.Armed(capped.Of(TrialEventKind.Arm)[0].Trial));
+        capped.RunTo(14.7);
+        Assert.AreEqual(12.8, capped.Of(TrialEventKind.LaserCap)[0].Seconds, 1e-9, "laserDurationSeconds after the trigger");
+        Assert.AreEqual(0, capped.Of(TrialEventKind.LaserOff).Count, "stopped by the cap");
+        Assert.AreEqual(12.8 + ZapitConditions.MaximumRampDownSeconds, capped.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9);
+    }
+
+    [TestMethod]
     public void ATrialAnsweredBeforeItsTriggerHasNoLaserAndItsRowSaysSo()
     {
         // The trigger 0.9 s after the stimulus (12.9 s); a lick at 12.6 s answers first.

@@ -225,6 +225,12 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
     with pytest.raises(ValidationError, match="laser_duration_seconds"):
         _with(opto={**on, "laserDurationSeconds": 2.81})
     _with(opto={**on, "enabled": False, "laserDurationSeconds": 2.5})
+    # With laserEnd stimulusOff laserDurationSeconds is the laser's cap, its end then followed by the ramp-down: the same limit.
+    _with(opto={**on, "laserEnd": "stimulusOff", "laserDurationSeconds": 2.8})
+    with pytest.raises(ValidationError, match="laser_duration_seconds"):
+        _with(opto={**on, "laserEnd": "stimulusOff", "laserDurationSeconds": 2.81})
+    with pytest.raises(ValidationError, match="Input should be 'duration' or 'stimulusOff'"):
+        _with(opto={**on, "laserEnd": "outcome"})
 
 
 def test_the_conditions_file_s_ramp_down_given_as_context_shortens_the_laser_limit():
@@ -674,7 +680,7 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_session_fields():
 
 def test_a_condition_may_set_any_field_but_a_session_field():
     _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 2, "visualStimulus.initialOrientationDeg": [0, 90], "penalty.incorrect.timeoutSeconds": 2}})
-    for path in ["rngSeed", "taskType", "curriculum.code", "optogenetics.zapitConditionsPath", "optogenetics.enabled"]:
+    for path in ["rngSeed", "taskType", "curriculum.code", "optogenetics.zapitConditionsPath", "optogenetics.enabled", "optogenetics.laserEnd"]:
         field = ct.session_field(path, SESSION_FIELDS)
         with pytest.raises(ValidationError, match=rf"sets or pairs {re.escape(path)}, a session field \(x-session-fields: {re.escape(field)} "):
             _conditions({"weight": 1, "set": {path: 1}})

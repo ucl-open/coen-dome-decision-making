@@ -379,7 +379,8 @@ public class TrialDraw
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
-    /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least stimulusToResponseWindowSeconds
+    /// <summary>The maximum laserDurationSeconds (task.py's same rule; with laserEnd stimulusOff the laser's cap, its end then followed by
+    /// the ramp-down too): from a trigger to the next is at least stimulusToResponseWindowSeconds
     /// + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse), and in that time the laser, the
     /// conditions file's largest ramp-down <paramref name="rampDownSeconds"/> (Zapit refuses the next StartStimulus until it
     /// has played) and Zapit's reply margin must fit before the next trigger.</summary>
@@ -636,9 +637,17 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         draw = new TrialDraw(taskText, speakers, zapitConditions);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
-        // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
-        // conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
-        laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds) : null;
+        // laserEnd duration: the line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); stimulusOff:
+        // the laser on to the trial's StimulusOff, capped at its laserDurationSeconds (the timing's cap, LaserBackstop's wall-clock
+        // wait, the longest any combination has), the line held the ramp-down past its end. Either way the next trial is armed
+        // once the conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
+        if (!optogenetics.Enabled) laser = null;
+        else if (optogenetics.LaserEnd == LaserEndMode.StimulusOff)
+        {
+            var cap = draw.Conditions.SelectMany(c => c.Combinations).Max(m => m.Task.Optogenetics.LaserDurationSeconds);
+            laser = LaserTiming.UntilStimulusOff(hardwareTriggered, draw.MaxRampDownSeconds, cap);
+        }
+        else laser = LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds);
     }
 
     /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>

@@ -188,6 +188,7 @@ class RepeatOn(StrEnum):
 SESSION_FIELDS = {
     **ct.COMMON_SESSION_FIELDS,
     "taskType": "the task the file and its curriculum train; x-required-conditions keys on it",
+    "optogenetics.laserEnd": "one laser timing (LaserTiming) for the experiment, set at Go",
 }
 # Where one setting limits another (the schema's x-rules, JSON Schema over dotted paths; open_rigs.rigs.conditions
 # evaluates them), checked on the task and on every combination of every condition. A side target reads its azimuth to
@@ -272,14 +273,26 @@ class Repeats(TaskBlock):
     )
 
 
+class LaserEndMode(StrEnum):
+    """When the laser ends: duration (laserDurationSeconds after the trigger) or stimulusOff (the trial's stimulus off)."""
+
+    DURATION = "duration"
+    STIMULUS_OFF = "stimulusOff"
+
+
 class Optogenetics(LabOptogenetics):
     """Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
-    laserDurationSeconds is a fixed laser time here, per trial (its combination's). A repeated trial never has the laser on."""
+    laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
+    laser runs. A repeated trial never has the laser on."""
 
+    laser_end: LaserEndMode = Field(
+        default=LaserEndMode.DURATION,
+        description="duration: the laser and the masking light stay on laserDurationSeconds from the trigger, whatever the mouse does; stimulusOff: until the trial's stimulus goes off (stimulus.durationSeconds after its onset or stimulus.responseToStimulusOffSeconds after the outcome, whichever comes first; the outcome when the stimulus never came on), at most laserDurationSeconds from the trigger. One for the experiment (a session field)",
+    )
     laser_duration_seconds: Double = Field(
         default=1.5,
         gt=0,
-        description="How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)",
+        description="How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)",
     )
 
 
