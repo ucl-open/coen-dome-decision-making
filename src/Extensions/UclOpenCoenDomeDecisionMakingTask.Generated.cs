@@ -1744,15 +1744,14 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; a move after an unrewarded outcome at once, after a reward at the SpoutsOut cue. One value per experiment, off by default; refused on discriminationGoNoGo
+        /// Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; each move sent as the next inter-trial interval begins. One value per experiment, off by default; refused on discriminationGoNoGo
         /// </summary>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         [Newtonsoft.Json.JsonPropertyAttribute("biasCorrection")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="biasCorrection")]
         [System.ComponentModel.DescriptionAttribute("Bias correction: the spouts shifted sideways, a step at a time, toward the side t" +
-            "he mouse neglects; a move after an unrewarded outcome at once, after a reward at" +
-            " the SpoutsOut cue. One value per experiment, off by default; refused on discrim" +
-            "inationGoNoGo")]
+            "he mouse neglects; each move sent as the next inter-trial interval begins. One v" +
+            "alue per experiment, off by default; refused on discriminationGoNoGo")]
         public BiasCorrection BiasCorrection
         {
             get

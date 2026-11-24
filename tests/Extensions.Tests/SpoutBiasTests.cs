@@ -77,7 +77,10 @@ public class SpoutBiasTests
         var refusal = Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers()));
         StringAssert.Contains(refusal, "spouts.biasCorrection.trialsPerSide (0) must be 1 or more");
         StringAssert.Contains(refusal, "spouts.biasCorrection.threshold (1.5) must be above 0 and at most 1");
-        StringAssert.Contains(refusal, "spouts.biasCorrection.maxOffsetSteps (0) must be 1 or more");
+        StringAssert.Contains(refusal, "spouts.biasCorrection.maxOffsetSteps (0) must be 1 to 1000");
+        task = Fixture.Task("task-discrimination-left-right.yml", 4);
+        task.Spouts.BiasCorrection.MaxOffsetSteps = 1001;
+        StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "spouts.biasCorrection.maxOffsetSteps (1001) must be 1 to 1000");
         task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Spouts.BiasCorrection.Threshold = 0;
         StringAssert.Contains(Fixture.Refusal(() => Fixture.Check(task, Fixture.Speakers())), "spouts.biasCorrection.threshold (0) must be above 0 and at most 1");
@@ -123,6 +126,22 @@ public class SpoutBiasTests
         var even = Rules.Make(t => { On(t, 3, 500); t.Spouts.BiasCorrection.Threshold = 0.34; });
         foreach (var choice in new[] { Choice.Left, Choice.Left, Choice.Right }) Respond(even, TargetWords.Left, choice);
         foreach (var choice in new[] { Choice.Right, Choice.Left, Choice.Left }) Assert.IsNull(Respond(even, TargetWords.Right, choice));
+    }
+
+    [DataTestMethod]
+    [DataRow(4, 1)]
+    [DataRow(8, 5)]
+    [DataRow(7, 4)]
+    [DataRow(3, 0)]
+    public void AGapOfExactlyTheThresholdNeverMoves(int leftCorrect, int rightCorrect)
+    {
+        // At the defaults (10 a side, 0.3) a 3-in-10 gap is not above 0.3, whatever the doubles round to (0.8 - 0.5 > 0.3, 0.7 - 0.4 < 0.3).
+        foreach (var mirrored in new[] { false, true })
+        {
+            var bias = Rules.Make(t => On(t, 10, 500));
+            for (int i = 0; i < 10; i++) Respond(bias, mirrored ? TargetWords.Right : TargetWords.Left, i < leftCorrect ? (mirrored ? Choice.Right : Choice.Left) : (mirrored ? Choice.Left : Choice.Right));
+            for (int i = 0; i < 10; i++) Assert.IsNull(Respond(bias, mirrored ? TargetWords.Left : TargetWords.Right, i < rightCorrect ? (mirrored ? Choice.Left : Choice.Right) : (mirrored ? Choice.Right : Choice.Left)));
+        }
     }
 
     [TestMethod]

@@ -79,6 +79,7 @@
         "maxOffsetSteps": {
           "default": 500,
           "description": "The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps",
+          "maximum": 1000,
           "minimum": 1,
           "title": "MaxOffsetSteps",
           "type": "integer"
@@ -495,7 +496,7 @@
             "threshold": 0.3,
             "maxOffsetSteps": 500
           },
-          "description": "Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; a move after an unrewarded outcome at once, after a reward at the SpoutsOut cue. One value per experiment, off by default; refused on discriminationGoNoGo"
+          "description": "Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; each move sent as the next inter-trial interval begins. One value per experiment, off by default; refused on discriminationGoNoGo"
         }
       },
       "title": "Spouts",

@@ -133,6 +133,9 @@ def test_the_bias_correction_is_optional_a_session_field_and_refused_on_go_no_go
         data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
         data["spouts"]["biasCorrection"]["enabled"] = True
         assert UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data).spouts.bias_correction.enabled
+    data["spouts"]["biasCorrection"]["maxOffsetSteps"] = 1001  # TrialDraw.CheckTask's same cap
+    with pytest.raises(ValidationError, match="less than or equal to 1000"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
     data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
     data["spouts"]["biasCorrection"]["enabled"] = True
     with pytest.raises(ValidationError, match="discriminationGoNoGo uses the left spout alone"):

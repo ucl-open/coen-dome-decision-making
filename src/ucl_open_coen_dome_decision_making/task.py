@@ -68,7 +68,7 @@ class BiasCorrection(TaskBlock):
     enabled: Bool = Field(default=False, description="Bias correction on: the spouts move sideways, a step at a time, toward the side the mouse neglects; off unless a curriculum stage sets it")
     trials_per_side: int = Field(default=10, ge=1, description="Counted trials of each target side the bias is worked out from; nothing moves until both sides have this many, and both start again after a move")
     threshold: Double = Field(default=0.3, gt=0, le=1, description="Fraction correct on the left less on the right above which the spouts move toward the mouse's left (below minus this, toward its right)")
-    max_offset_steps: int = Field(default=500, ge=1, description="The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps")
+    max_offset_steps: int = Field(default=500, ge=1, le=1000, description="The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps")
 
 
 class Spouts(LabSpouts):
@@ -87,7 +87,7 @@ class Spouts(LabSpouts):
     )
     bias_correction: BiasCorrection = Field(
         default=BiasCorrection(),
-        description="Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; a move after an unrewarded outcome at once, after a reward at the SpoutsOut cue. One value per experiment, off by default; refused on discriminationGoNoGo",
+        description="Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; each move sent as the next inter-trial interval begins. One value per experiment, off by default; refused on discriminationGoNoGo",
     )
 
 

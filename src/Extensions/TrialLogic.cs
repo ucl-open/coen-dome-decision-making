@@ -394,7 +394,7 @@ public class TrialDraw
         {
             if (bias.TrialsPerSide < 1) problems.Add("spouts.biasCorrection.trialsPerSide (" + bias.TrialsPerSide + ") must be 1 or more");
             if (!(bias.Threshold > 0 && bias.Threshold <= 1)) problems.Add("spouts.biasCorrection.threshold (" + bias.Threshold + ") must be above 0 and at most 1");
-            if (bias.MaxOffsetSteps < 1) problems.Add("spouts.biasCorrection.maxOffsetSteps (" + bias.MaxOffsetSteps + ") must be 1 or more");
+            if (bias.MaxOffsetSteps < 1 || bias.MaxOffsetSteps > 1000) problems.Add("spouts.biasCorrection.maxOffsetSteps (" + bias.MaxOffsetSteps + ") must be 1 to 1000");
             if (bias.Enabled && task.TaskType == TaskType.DiscriminationGoNoGo) problems.Add("spouts.biasCorrection.enabled is for two spouts: discriminationGoNoGo uses the left spout alone");
         }
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
@@ -806,8 +806,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         side.Enqueue(row.choice == row.target);
         if (side.Count > settings.TrialsPerSide) side.Dequeue();
         if (biasLeft.Count < settings.TrialsPerSide || biasRight.Count < settings.TrialsPerSide) return null;
+        // A difference of exactly threshold never moves: the tolerance keeps rounding (0.8 - 0.5 > 0.3) from deciding it.
         var bias = FractionCorrect(biasLeft) - FractionCorrect(biasRight);
-        var wanted = bias > settings.Threshold ? biasStep : bias < -settings.Threshold ? -biasStep : 0;
+        var wanted = bias > settings.Threshold + 1e-9 ? biasStep : bias < -settings.Threshold - 1e-9 ? -biasStep : 0;
         var moved = Math.Max(-settings.MaxOffsetSteps, Math.Min(settings.MaxOffsetSteps, biasSteps + wanted)) - biasSteps;
         if (moved == 0) return null;
         biasSteps += moved;
