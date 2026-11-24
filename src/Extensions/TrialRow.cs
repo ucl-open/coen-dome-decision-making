@@ -30,6 +30,8 @@ public class TrialRow
     public string laserPointsMm;
     public double laserPowerMw;
     public double laserTriggerTime;
+    public bool laserOn;
+    public bool laserStarted;
     public int trialConditionId;
     public int trialCombinationId;
     public double visualInitialContrast;

@@ -542,7 +542,7 @@ public class TrialDrawTests
         task.Optogenetics.Enabled = true;
         task.Optogenetics.TrialsBeforeLaser = 20;
         task.Optogenetics.LaserOnProbability = 0.5;
-        task.Optogenetics.LaserDurationSeconds = 2.3;   // the most itiMinSeconds 2.5 allows
+        task.Optogenetics.LaserDurationSeconds = 2.15;   // the most itiMinSeconds 2.5 allows with the test bank
         var trials = Fixture.Draw(task, 300, t => Choice.NoResponse);
         Assert.IsTrue(trials.All(t => t.laserCondition == 1 || t.laserCondition == 2));
         Assert.IsTrue(trials.Take(20).All(t => !t.laserOn));
@@ -712,20 +712,23 @@ public class TrialDrawTests
     [TestMethod]
     public void ALaserThatWouldDelayTheNextArmIsRefused()
     {
-        // Discrimination: 0.5 s stimulus to window + 2.5 s interval - the bank's longest ramp-down - 0.2 s arm
-        // time: 2.3 s with a 0.5 s ramp-down, 2.7 s with a 0.1 s one (ZapitBank.LongestRampSeconds).
+        // Discrimination: 0.5 s stimulus to window + 2.5 s interval - what a ZapitDaq trial outlasts its laser (one scan
+        // cycle, here 0.1 s; the bank's longest ramp-down; ZapitDaqTrial.FreeMarginSeconds, 0.05 s) - 0.2 s arm time:
+        // 2.15 s with a 0.5 s ramp-down, 2.55 s with a 0.1 s one (audit F F1: the next Arm waits for the whole trial).
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
         Func<double, string> refusal = rampDown => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(rampDown)));
-        Assert.AreEqual(2.3, TrialDraw.MaxLaserSeconds(task, 0.5), 1e-9);
-        Assert.AreEqual(2.7, TrialDraw.MaxLaserSeconds(task, 0.1), 1e-9);
-        StringAssert.Contains(refusal(0.5), "laserDurationSeconds (2.5 s) must be at most 2.3 s");
-        StringAssert.Contains(refusal(0.5), "the Zapit bank's 0.5 s ramp-down");
-        Assert.AreEqual("accepted", refusal(0.1), "a 0.1 s ramp-down allows 2.7 s");
-        task.Optogenetics.LaserDurationSeconds = 2.8;
-        StringAssert.Contains(refusal(0.1), "laserDurationSeconds (2.8 s) must be at most 2.7 s");
-        task.Optogenetics.LaserDurationSeconds = 2.3;
+        Assert.AreEqual(0.65, ZapitDaqTrial.FreeAfterLaserSeconds(Fixture.Bank(0.5)), 1e-9);
+        Assert.AreEqual(2.15, TrialDraw.MaxLaserSeconds(task, 0.65), 1e-9);
+        Assert.AreEqual(2.55, TrialDraw.MaxLaserSeconds(task, 0.25), 1e-9);
+        StringAssert.Contains(refusal(0.5), "laserDurationSeconds (2.5 s) must be at most 2.15 s");
+        StringAssert.Contains(refusal(0.5), "the 0.65 s a Zapit trial outlasts its laser");
+        task.Optogenetics.LaserDurationSeconds = 2.55;
+        Assert.AreEqual("accepted", refusal(0.1), "a 0.1 s ramp-down allows 2.55 s");
+        task.Optogenetics.LaserDurationSeconds = 2.6;
+        StringAssert.Contains(refusal(0.1), "laserDurationSeconds (2.6 s) must be at most 2.55 s");
+        task.Optogenetics.LaserDurationSeconds = 2.15;
         Assert.AreEqual("accepted", refusal(0.5));
         var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(0.1));
         Assert.AreEqual(0.1, rules.Laser.RampDownSeconds, "the next trial armed once the bank's own ramp-down has played");

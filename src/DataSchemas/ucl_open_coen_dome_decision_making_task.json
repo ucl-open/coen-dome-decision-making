@@ -161,7 +161,7 @@
         },
         "laserDurationSeconds": {
           "default": 1.5,
-          "description": "How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's longest ramp-down - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go)",
+          "description": "How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
           "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
           "type": "number"

@@ -140,6 +140,7 @@ static class Rules
             LaserOn = trial.laserOn,
             PowerMw = trial.laserPowerMw,
             CappedPowerMw = trial.laserPowerMw,
+            TrialSeconds = trial.values.Optogenetics.LaserDurationSeconds + Fixture.RampDownSeconds,   // whole 0.1 s cycles and the ramp
         };
     }
 }
@@ -682,8 +683,8 @@ public class LaserTests
         run.At(12.6, h => h.Lick(right)).RunTo(13.5);
         Assert.AreEqual(12.8, run.Of(TrialEventKind.TriggerOff)[0].Seconds, 1e-9, "laserDurationSeconds after the trigger, outcome or not");
         var row = run.Row();
-        Assert.IsTrue(row.laserCondition > 0 && row.laserPowerMw == 3 && row.laserTriggerTime == 11.5);
-        Assert.AreEqual(13.3, run.Of(TrialEventKind.Arm)[1].Seconds, 1e-9, "trial 2's interval began at 12.7; Zapit is free 0.5 s after the line fell");
+        Assert.IsTrue(row.laserCondition > 0 && row.laserPowerMw == 3 && row.laserTriggerTime == 11.5 && row.laserOn && row.laserStarted);
+        Assert.AreEqual(13.35, run.Of(TrialEventKind.Arm)[1].Seconds, 1e-9, "trial 2's interval began at 12.7; Zapit is free once the whole trial (the 1.3 s laser and the 0.5 s ramp) has played, plus ZapitDaqTrial.FreeMarginSeconds");
     }
 
     [TestMethod]
@@ -696,6 +697,7 @@ public class LaserTests
         Assert.AreEqual(0, run.Of(TrialEventKind.Trigger).Count);
         Assert.AreEqual(0, run.Row().laserPowerMw);
         Assert.IsTrue(double.IsNaN(run.Row().laserTriggerTime));
+        Assert.IsTrue(run.Row().laserOn && !run.Row().laserStarted, "drawn on, never started");
     }
 
     [TestMethod]
@@ -770,8 +772,9 @@ public class TrialRowTests
         var times = Times(10);
         times.LaserTriggerTime = 9.25;
         times.LaserPowerMw = 2.5;   // ZapitDaq's Armed CappedPowerMw: the 3 mW asked for, capped by the rig's ceiling
+        times.LaserStarted = true;
         var row = TrialRow.Build(Choice.Left, trial, times, Penalties.Of(4, -35.0, 0, 10));
-        Assert.IsTrue(row.laserCondition == 2 && row.laserPointsMm == "1.5 1;1.5 -1" && row.laserPowerMw == 2.5 && row.laserTriggerTime == 9.25);
+        Assert.IsTrue(row.laserCondition == 2 && row.laserPointsMm == "1.5 1;1.5 -1" && row.laserPowerMw == 2.5 && row.laserTriggerTime == 9.25 && row.laserOn && row.laserStarted);
         var answered = TrialRow.Build(Choice.Left, trial, Times(10), Penalties.Of(4, -35.0, 0, 10));
         Assert.IsTrue(answered.laserCondition == 2 && answered.laserPointsMm == "1.5 1;1.5 -1" && answered.laserPowerMw == 0 && double.IsNaN(answered.laserTriggerTime), "answered before its trigger");
     }

@@ -85,7 +85,7 @@ taskParameters:
     laserOnProbability: 0.5
     laserToStimulusSeconds: 0.1    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     trialsBeforeLaser: 20
-    laserDurationSeconds: 2.5      # s; with optogenetics on at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's longest ramp-down - 0.2 s arm time (2.3 s at a 0.5 s ramp-down here), checked at Go: 2.5 is over it, so ticking optogenetics.enabled is refused until this is shortened
+    laserDurationSeconds: 2.5      # s; with optogenetics on at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin) - 0.2 s arm time (2.475 s with avdome_main_initialstim.yml's 25 ms cycle and 250 ms ramp-down), checked at Go: 2.5 is over it, so ticking optogenetics.enabled is refused until this is shortened
   taskType: discriminationLeftRight
   response:
     thresholdLicks: 1      # net lick difference giving the choice (the window still runs in full); 1 = first lick

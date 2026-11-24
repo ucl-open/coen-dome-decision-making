@@ -155,7 +155,7 @@ public class TrialDraw
             }
             this.bank = bank;
             MaxRampDownSeconds = bank.LongestRampSeconds;
-            var problems = LaserProblems(conditions, MaxRampDownSeconds);
+            var problems = LaserProblems(conditions, ZapitDaqTrial.FreeAfterLaserSeconds(bank));
             if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
         }
         Seed = RngSeed.Resolve(task.RngSeed);
@@ -216,11 +216,12 @@ public class TrialDraw
             tasks.Select(t => t.Stimulus.ResponseToStimulusOffSeconds), iti, MinOutcomeToItiSeconds));
     }
 
-    /// <summary>With optogenetics, the laser of every combination (task.py's same rules, with the bank's ramp-down when the
-    /// check has it): each laserDurationSeconds within MaxLaserSeconds, and across the weighted combinations within the shortest
-    /// lead plus stimulus to response window plus the shortest interval less the lead, less the bank's longest
-    /// ramp-down and Zapit's arm time, so Zapit is free at the next trigger.</summary>
-    public static List<string> LaserProblems(IList<BuiltTrialCondition> conditions, double rampDownSeconds)
+    /// <summary>With optogenetics, the laser of every combination (task.py's same rules, looser before Go: it has the bank's
+    /// ramp-down at most): each laserDurationSeconds within MaxLaserSeconds, and across the weighted combinations within the shortest
+    /// lead plus stimulus to response window plus the shortest interval less the lead, less what a ZapitDaq trial outlasts its
+    /// laser (<paramref name="freeAfterLaserSeconds"/>, ZapitDaqTrial.FreeAfterLaserSeconds: a scan cycle, the bank's longest
+    /// ramp-down and the free margin) and Zapit's arm time, so Zapit is free at the next trigger.</summary>
+    public static List<string> LaserProblems(IList<BuiltTrialCondition> conditions, double freeAfterLaserSeconds)
     {
         var problems = new List<string>();
         foreach (var condition in conditions)
@@ -228,11 +229,11 @@ public class TrialDraw
             foreach (var combination in condition.Combinations)
             {
                 var opto = combination.Task.Optogenetics;
-                var maxSeconds = MaxLaserSeconds(combination.Task, rampDownSeconds);
+                var maxSeconds = MaxLaserSeconds(combination.Task, freeAfterLaserSeconds);
                 if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
                 {
-                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit bank's {3} s ramp-down - {4} s arm time), so Zapit can be armed for the next trial in time",
-                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, rampDownSeconds, ZapitDaqTrial.ArmSeconds));
+                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + itiMinSeconds - the {3} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a {5} s margin) - {4} s arm time), so Zapit can be armed for the next trial in time",
+                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, freeAfterLaserSeconds, ZapitDaqTrial.ArmSeconds, ZapitDaqTrial.FreeMarginSeconds));
                 }
             }
         }
@@ -240,9 +241,9 @@ public class TrialDraw
         if (tasks.Count > 0 && tasks[0].Optogenetics.Enabled)
         {
             var across = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.StimulusToResponseWindowSeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
-                - rampDownSeconds - ZapitDaqTrial.ArmSeconds;
+                - freeAfterLaserSeconds - ZapitDaqTrial.ArmSeconds;
             var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
-            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to response window, plus the shortest interval less the lead, less the Zapit bank's {2} s ramp-down and Zapit's arm time", duration, across, rampDownSeconds));
+            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to response window, plus the shortest interval less the lead, less the {2} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a margin) and Zapit's arm time", duration, across, freeAfterLaserSeconds));
         }
         return problems.Distinct().ToList();
     }
@@ -385,13 +386,14 @@ public class TrialDraw
     }
 
     /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least stimulusToResponseWindowSeconds
-    /// + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse), and in that time the laser, the
-    /// bank's longest ramp-down <paramref name="rampDownSeconds"/> (the next trial is armed only once it has played) and
-    /// ZapitDaq's arm time must fit before the next trigger.</summary>
-    public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double rampDownSeconds)
+    /// + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse), and in that time the laser, what the
+    /// ZapitDaq trial outlasts it <paramref name="freeAfterLaserSeconds"/> (whole scan cycles, the ramp and a margin:
+    /// ZapitDaqTrial.FreeAfterLaserSeconds; the next trial is armed only once it has played) and ZapitDaq's arm time must
+    /// fit before the next trigger.</summary>
+    public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double freeAfterLaserSeconds)
     {
         var s = task.TrialStructure;
-        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - rampDownSeconds - ZapitDaqTrial.ArmSeconds;
+        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - freeAfterLaserSeconds - ZapitDaqTrial.ArmSeconds;
     }
 
     /// <summary>The next trial, after the last one's row (its outcome and choice; null before the first).</summary>
