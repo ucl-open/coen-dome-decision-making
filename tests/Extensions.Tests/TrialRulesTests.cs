@@ -754,6 +754,49 @@ public class LaserTests
     }
 
     [TestMethod]
+    public void WithLaserEndStimulusOffAsOnTheRigTheLaserEndsAtStimulusOffNotTheOutcome()
+    {
+        // The rig's session (25 Nov 2026): a 1.5 s stimulus 0.1 s after the trigger, auto-rewarded misses, the window in full to
+        // 2.5 s after the onset, a 2 s cap, earlyStopLeadSeconds 0.07. Each trial's LaserOff, so its early stop, is at its
+        // StimulusOff, a second before the outcome; the next trial is armed at the outcome. ZapitDaq's Stopped logged at the
+        // outcome was that Arm ending a buffer NI had played to its end (lib-open-rigs: the Arm now ends the samples there).
+        // With laserEnd duration nothing stops the laser early.
+        Action<UclOpenCoenDomeDecisionMakingTaskParameters> rig = t =>
+        {
+            Rules.Optogenetics(t);
+            t.TrialStructure.ItiMinSeconds = 2.5;
+            t.TrialStructure.ItiMaxSeconds = 2.5;
+            t.Optogenetics.LaserEnd = LaserEndMode.StimulusOff;
+            t.Optogenetics.LaserDurationSeconds = 2;
+            t.Optogenetics.LaserToStimulusSeconds = 0.1;
+            t.Stimulus.DurationSeconds = 1.5;
+            t.AutoRewardProbability = 1;
+        };
+        var run = new Harness(Rules.Make(rig, earlyStopLeadSeconds: 0.07));
+        for (var n = 1; n <= 3; n++)
+        {
+            run.Loop.OnZapitEvent(Rules.Armed(run.Of(TrialEventKind.Arm)[n - 1].Trial));
+            while (run.Of(TrialEventKind.Arm).Count == n) run.RunTo(run.Now + 0.001);
+        }
+        for (var i = 0; i < 3; i++)
+        {
+            var off = run.Of(TrialEventKind.StimulusOff)[i].Seconds;
+            var outcome = run.Of(TrialEventKind.Outcome)[i].Seconds;
+            Assert.AreEqual(run.Of(TrialEventKind.Stimulus)[i].Seconds + 1.5, off, 1e-9);
+            Assert.AreEqual(off, run.Of(TrialEventKind.LaserOff)[i].Seconds, 1e-9, "the early stop at StimulusOff");
+            Assert.AreEqual(off + 1, outcome, 1e-9, "not at the outcome");
+            Assert.AreEqual(outcome + 0.001, run.Of(TrialEventKind.Arm)[i + 1].Seconds, 1e-9, "the next trial armed at the outcome");
+        }
+        Assert.AreEqual(0, run.Of(TrialEventKind.LaserCap).Count);
+
+        var timed = new Harness(Rules.Make(t => { rig(t); t.Optogenetics.LaserEnd = LaserEndMode.Duration; }, earlyStopLeadSeconds: 0.07));
+        timed.Loop.OnZapitEvent(Rules.Armed(timed.Of(TrialEventKind.Arm)[0].Trial));
+        while (timed.Of(TrialEventKind.Arm).Count == 1) timed.RunTo(timed.Now + 0.001);
+        Assert.AreEqual(1, timed.Of(TrialEventKind.StimulusOff).Count);
+        Assert.AreEqual(0, timed.Of(TrialEventKind.LaserOff).Count + timed.Of(TrialEventKind.LaserCap).Count, "laserEnd duration: no early stop");
+    }
+
+    [TestMethod]
     public void WithLaserEndStimulusOffGoAddsTheEarlyStopLead()
     {
         // rig.yml's earlyStopLeadSeconds lengthens the hold and shortens the longest cap Go allows, under stimulusOff alone.
