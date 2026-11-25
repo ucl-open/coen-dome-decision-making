@@ -586,13 +586,32 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
 
     /// <summary>
-    /// Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
-    ///laserDurationSeconds is a fixed laser time here, per trial (its combination's). A repeated trial never has the laser on.
+    /// When the laser ends: duration (laserDurationSeconds after the trigger) or stimulusOff (the trial's stimulus off).
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
-    [System.ComponentModel.DescriptionAttribute("Zapit optogenetic stimulation: the lab\'s block (open_rigs.core.task Optogenetics)" +
-        " and this task\'s laser timing;\nlaserDurationSeconds is a fixed laser time here, " +
-        "per trial (its combination\'s). A repeated trial never has the laser on.")]
+    [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+    public enum LaserEndMode
+    {
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="duration")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="duration")]
+        Duration = 0,
+    
+        [System.Runtime.Serialization.EnumMemberAttribute(Value="stimulusOff")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="stimulusOff")]
+        StimulusOff = 1,
+    }
+
+
+    /// <summary>
+    /// Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
+    ///laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
+    ///laser runs. A repeated trial never has the laser on.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
+    [System.ComponentModel.DescriptionAttribute(@"Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
+    laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
+    laser runs. A repeated trial never has the laser on.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class Optogenetics
@@ -610,12 +629,15 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private int _trialsBeforeLaser;
     
+        private LaserEndMode _laserEnd;
+    
         private double _laserDurationSeconds;
     
         public Optogenetics()
         {
             _enabled = false;
             _zapitConditionsPath = "";
+            _laserEnd = LaserEndMode.Duration;
             _laserDurationSeconds = 1.5D;
         }
     
@@ -627,6 +649,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             _laserOnProbability = other._laserOnProbability;
             _laserToStimulusSeconds = other._laserToStimulusSeconds;
             _trialsBeforeLaser = other._trialsBeforeLaser;
+            _laserEnd = other._laserEnd;
             _laserDurationSeconds = other._laserDurationSeconds;
         }
     
@@ -744,11 +767,29 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)
+        /// duration: the laser and the masking light stay on laserDurationSeconds from the trigger, whatever the mouse does; stimulusOff: until the trial's stimulus goes off (stimulus.durationSeconds after its onset or stimulus.responseToStimulusOffSeconds after the outcome, whichever comes first; the outcome when the stimulus never came on), at most laserDurationSeconds from the trigger. One for the experiment (a session field)
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("laserEnd")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserEnd")]
+        [System.ComponentModel.DescriptionAttribute(@"duration: the laser and the masking light stay on laserDurationSeconds from the trigger, whatever the mouse does; stimulusOff: until the trial's stimulus goes off (stimulus.durationSeconds after its onset or stimulus.responseToStimulusOffSeconds after the outcome, whichever comes first; the outcome when the stimulus never came on), at most laserDurationSeconds from the trigger. One for the experiment (a session field)")]
+        public LaserEndMode LaserEnd
+        {
+            get
+            {
+                return _laserEnd;
+            }
+            set
+            {
+                _laserEnd = value;
+            }
+        }
+    
+        /// <summary>
+        /// How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserDurationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserDurationSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)")]
+        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)")]
         public double LaserDurationSeconds
         {
             get
@@ -779,6 +820,7 @@ namespace UclOpenCoenDomeDecisionMakingTask
             stringBuilder.Append("LaserOnProbability = " + _laserOnProbability + ", ");
             stringBuilder.Append("LaserToStimulusSeconds = " + _laserToStimulusSeconds + ", ");
             stringBuilder.Append("TrialsBeforeLaser = " + _trialsBeforeLaser + ", ");
+            stringBuilder.Append("LaserEnd = " + _laserEnd + ", ");
             stringBuilder.Append("LaserDurationSeconds = " + _laserDurationSeconds);
             return true;
         }

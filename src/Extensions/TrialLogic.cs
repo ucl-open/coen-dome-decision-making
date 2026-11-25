@@ -381,6 +381,17 @@ public class TrialDraw
         {
             problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (stimulusToResponseWindowSeconds + responseWindowSeconds, {1} s)", lead, structure.StimulusToResponseWindowSeconds + structure.ResponseWindowSeconds));
         }
+        // laserEnd stimulusOff (task.py's same rules): the stimulus's own off, durationSeconds after its onset, after the trigger
+        // and within the laser's cap. Only that off is known at Go: one that follows the answer (responseToStimulusOffSeconds, the
+        // earlier of the two) is not checked, and the cap ends a laser still on then.
+        var duration = task.Stimulus.DurationSeconds;
+        if (opto.Enabled && opto.LaserEnd == LaserEndMode.StimulusOff && duration.HasValue)
+        {
+            if (-lead >= duration.Value - 1e-9)
+                problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) triggers the laser {1} s after the stimulus onset, when the stimulus (stimulus.durationSeconds {2} s) is already off: with optogenetics.laserEnd stimulusOff the laser would stop as it starts", lead, -lead, duration.Value));
+            else if (lead + duration.Value > opto.LaserDurationSeconds + 1e-9)
+                problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) is the laser's cap with optogenetics.laserEnd stimulusOff, but the stimulus goes off {1} s after the trigger (optogenetics.laserToStimulusSeconds {2} s + stimulus.durationSeconds {3} s): the cap would end the laser before the stimulus off", opto.LaserDurationSeconds, lead + duration.Value, lead, duration.Value));
+        }
         // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var reward = task.Reward;
         problems.AddRange(TaskBlocks.LargeRewardProblems(reward.SizeUl, reward.LargeMultiplier, reward.LargeProbability, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
@@ -400,7 +411,8 @@ public class TrialDraw
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
-    /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least stimulusToResponseWindowSeconds
+    /// <summary>The maximum laserDurationSeconds (task.py's same rule; with laserEnd stimulusOff the laser's cap, its end then followed by
+    /// the ramp-down too): from a trigger to the next is at least stimulusToResponseWindowSeconds
     /// + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse), and in that time the laser, the
     /// conditions file's largest ramp-down <paramref name="rampDownSeconds"/> (Zapit refuses the next StartStimulus until it
     /// has played) and Zapit's reply margin must fit before the next trigger.</summary>
@@ -666,9 +678,17 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         draw = new TrialDraw(taskText, speakers, zapitConditions);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
-        // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
-        // conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
-        laser = optogenetics.Enabled ? LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds) : null;
+        // laserEnd duration: the line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); stimulusOff:
+        // the laser on to the trial's StimulusOff, capped at its laserDurationSeconds (the timing's cap, LaserBackstop's wall-clock
+        // wait, the longest any combination has), the line held the ramp-down past its end. Either way the next trial is armed
+        // once the conditions file's largest ramp-down has played (Zapit refuses a StartStimulus until then).
+        if (!optogenetics.Enabled) laser = null;
+        else if (optogenetics.LaserEnd == LaserEndMode.StimulusOff)
+        {
+            var cap = draw.Conditions.SelectMany(c => c.Combinations).Max(m => m.Task.Optogenetics.LaserDurationSeconds);
+            laser = LaserTiming.UntilStimulusOff(hardwareTriggered, draw.MaxRampDownSeconds, cap);
+        }
+        else laser = LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds);
         biasStep = biasStepSize;
     }
 
