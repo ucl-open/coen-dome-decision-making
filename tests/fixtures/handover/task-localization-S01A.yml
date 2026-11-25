@@ -34,6 +34,11 @@ taskParameters:
     stimulusToSpoutsInSeconds: 0.5
     rewardConsumptionSeconds: 1.5
     singleSpoutProbability: 0.0
+    biasCorrection:
+      enabled: false
+      trialsPerSide: 10
+      threshold: 0.3
+      maxOffsetSteps: 500
   stimulus:
     durationSeconds: 1.5
     rateHz: 8

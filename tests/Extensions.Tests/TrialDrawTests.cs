@@ -16,6 +16,9 @@ using BuiltTrialCondition = OpenRigs.Trials.BuiltTrialCondition<UclOpenCoenDomeD
 
 static class Fixture
 {
+    // The workflow's bias step (CheckTaskAtGo.BiasStepSize's default, main.bonsai's).
+    public static readonly int BiasStepSize = new CheckTaskAtGo().BiasStepSize;
+
     public static string Repo([CallerFilePath] string here = "")
     {
         return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(here), "..", ".."));
@@ -691,7 +694,7 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(0.1), "laserDurationSeconds (2.8 s) must be at most 2.7 s");
         task.Optogenetics.LaserDurationSeconds = 2.3;
         Assert.AreEqual("accepted", refusal(0.5));
-        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), true, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, 0.1));
+        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), true, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, 0.1), Fixture.BiasStepSize);
         Assert.AreEqual(0.1, rules.Laser.RampDownSeconds, "the next trial armed once the file's own ramp-down has played");
         task.Optogenetics.LaserDurationSeconds = 2.5;
         task.Optogenetics.Enabled = false;
@@ -940,11 +943,11 @@ public class TrialConditionTests
     public void TheMaxSoundLevelIsTheHighestLevelAWeightedConditionDraws()
     {
         var rules = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", Fixture.List("mute", -46.0, -38.0)), Fixture.Condition(0, "auditoryStimulus.initialLevelDbfs", -10.0))),
-            Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+            Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize);
         Assert.AreEqual(-38.0, rules.MaxStimulusLevel.LevelDbfs);
         StringAssert.StartsWith(rules.MaxStimulusLevel.Where, "trialConditions[0] (audiovisualCoherent) with ");
         StringAssert.Contains(rules.MaxStimulusLevel.Where, "auditoryStimulus.initialLevelDbfs -38, ");
-        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", "mute"))), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        var mute = new TrialRules(Fixture.Text(With(Fixture.Condition(1, "auditoryStimulus.initialLevelDbfs", "mute"))), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize);
         Assert.IsTrue(double.IsNaN(mute.MaxStimulusLevel.LevelDbfs), "all mute: none");
     }
 
@@ -955,7 +958,7 @@ public class TrialConditionTests
         // MaxPenaltyLevelDbfs is the highest a weighted condition draws, for PlayPenaltySound's buffer at Go.
         var task = With(Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", -50.0), Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", "mute"),
             Fixture.Condition(0, "penalty.incorrect.sound.levelDbfs", -20.0));
-        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
+        Assert.AreEqual(-50.0, new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize).MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
         foreach (var t in Fixture.Draw(task, 100))
         {
             var wrong = TrialOutcome.At(t.target == Choice.Left ? Choice.Right : Choice.Left, t, new TrialTimes { Now = 1 });
@@ -1015,10 +1018,10 @@ public class TrialConditionTests
         Assert.IsTrue(wrong.PenaltyFlash.Plays && wrong.PenaltyFlash.Brightness == 0.5 && wrong.PenaltyFlash.RateHz == 5 && wrong.Row.Value.penaltyFlashBrightness == 0.5);
         Assert.IsTrue(miss.Penalised && !miss.PenaltyFlash.Plays && miss.Row.Value.penaltyFlashBrightness == 0, "penalty.noResponse's flash: brightness 0");
         Assert.IsTrue(correct.Rewarded && !correct.PenaltyFlash.Plays && correct.Row.Value.penaltyFlashBrightness == 0);
-        var flashes = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).PenaltyFlashes;
+        var flashes = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize).PenaltyFlashes;
         Assert.IsTrue(flashes.Plays && flashes.ShortestTimeoutSeconds == 4 && flashes.Problems.Count == 0);
         // Go/no-go: penalty.noResponse null, so only penalty.incorrect's flash is drawn; none plays at brightness 0.
-        Assert.IsFalse(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-go-no-go.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).PenaltyFlashes.Plays);
+        Assert.IsFalse(new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-go-no-go.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize).PenaltyFlashes.Plays);
     }
 
     [TestMethod]
@@ -1026,14 +1029,14 @@ public class TrialConditionTests
     {
         // A condition sets penalty.noResponse.sound.levelDbfs: louder than every choice's, it is the buffer's level, named.
         var task = With(Fixture.Condition(1), Fixture.Condition(1, "penalty.noResponse.sound.levelDbfs", -30.0), Fixture.Condition(0, "penalty.noResponse.sound.levelDbfs", -20.0));
-        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
+        var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize);
         Assert.AreEqual(-30.0, rules.MaxPenaltyLevelDbfs, "the weight-0 condition's -20 is never drawn");
         var draw = new TrialDraw(Fixture.Text(task), Fixture.Speakers(), path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds));
         StringAssert.StartsWith(draw.MaxPenaltyLevel().Where, "trialConditions[1]");
         foreach (var t in Fixture.Draw(task, 40).Where(x => x.trialConditionId == 1))
             Assert.AreEqual(-30.0, TrialOutcome.At(Choice.NoResponse, t, new TrialTimes { Now = 1 }).PenaltyLevelDbfs);
         // Left-right's file: both kinds at -35.
-        Assert.AreEqual(-35.0, new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds)).MaxPenaltyLevelDbfs);
+        Assert.AreEqual(-35.0, new TrialRules(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), Fixture.Speakers(), false, path => new ZapitConditionsFile(new[] { "-0.7 1.5;-0.7 -1.5", "1.5 1;1.5 -1" }, ZapitConditions.MaximumRampDownSeconds), Fixture.BiasStepSize).MaxPenaltyLevelDbfs);
     }
 
     [TestMethod]

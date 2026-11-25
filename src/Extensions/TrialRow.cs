@@ -44,6 +44,7 @@ public class TrialRow
     public bool singleSpoutOffered;
     public double visualInitialAzimuthDeg;
     public int auditorySoundFileIndex;
+    public int biasCorrectionSteps;
 
     // left or right against the target, or no choice (NoChoice); in discriminationGoNoGo, go or no choice against go or
     // noGo (a withheld noGo is correct), and a probe's outcome is probe whatever the choice.

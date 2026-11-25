@@ -4,6 +4,7 @@ What is still to do, then what has been decided and why. Closed work, audit roun
 
 ## Open
 
+- Spout bias correction (`spouts.biasCorrection`, Gerion, 24 Nov 2026; branch `bias-correction`, on lib-open-rigs' Devices .70, `LickSpoutStage.Moves`): built and tested off the rig, off in every task file. Before any curriculum stage turns it on, on each dome rig, watched: BaseLeft moves the base toward the mouse's left (rig.yml has `reversed: true` on Motor0 on G2 and B2, not on G1 and B1; set it only where BaseLeft goes the mouse's right, which also swaps that rig's BaseLeft and BaseRight buttons), then on one mouse a + move (`SpoutPositionsMoved` event) goes to its left and stops at `maxOffsetSteps`. A wrong sign makes the correction push toward the favoured side until the cap.
 - Design question after the release (Pip, 18 Nov 2026): Python draws the trial sequence at launch (from conditions, weights and the seed) and writes it into the task file as an explicit list, as open-rigs' own tutorial does (`trials=[...]`); Bonsai plays it and keeps only adaptive behaviour (repeat-on-incorrect, navigation's sweep). Would remove the C# draw, the last duplicate, and make what runs inspectable before Go.
 - The trial now runs on lib-open-rigs' `TrialLoop` (16 Nov 2026): before any mouse, a no-mouse rig run with scripted licks (the `test` mouse) proving each trial's interval, start, stimulus, grating off, spouts in, response, reward, penalty sound, timeout and drink on the Harp clock, and with optogenetics the arm, trigger and line on a hardware-triggered rig; then `uv run summarise-experiment` on its folder.
 - On a rig, with the `test` mouse (BLUE-OPTO-2 first; Pip at the rig):
@@ -82,3 +83,15 @@ Deferred:
 Not changed, do not raise again without new information:
 
 - None in this repo this round.
+
+## Audit 24 Nov 2026 (spout bias correction): not recommended
+
+- Save Spout Positions keeps the corrected base, so over several sessions the base can drift past `maxOffsetSteps` (Pip accepted).
+- The base may move at the Iti while the rewarded spout is still in (Pip: it doesn't matter).
+- `LickSpoutStage.Moves` is not gated on homing like `Commands`: the stage starts at home, so an early move shifts only the in position.
+- The Virtual Rig keeps its own copy of the rule and the 50-step move (it cannot read main.bonsai; Pip kept the biased mouse).
+- `Moves` is an rx:BehaviorSubject like `Commands`: one subscriber, subscribed at start.
+- `biasCorrectionSteps` is the sum of the task's moves, not the stage's position (the events carry that).
+- An absolute `SpoutMove.Position` ignores `reversed`: it is the raw count the positions file stores.
+- The `open-rigs` pin differs from navigation's on the branch: update-workflows moves both at the release.
+- jacuzzi-ingest's dome converter needs a `biasCorrectionSteps` rule (0 for old sessions) only when its pinned columns move; it refuses loudly until then.

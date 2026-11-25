@@ -57,8 +57,22 @@ class TrialStructure(Iti, ResponseWindow, ResponseWindowAlwaysFull, LickQuietWai
     )
 
 
+class BiasCorrection(TaskBlock):
+    """The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of
+    right-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each
+    counted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the
+    workflow's CheckTaskAtGo.BiasStepSize) toward the mouse's left, below minus threshold toward its right, never past
+    maxOffsetSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value
+    per experiment (SESSION_FIELDS)."""
+
+    enabled: Bool = Field(default=False, description="Bias correction on: the spouts move sideways, a step at a time, toward the side the mouse neglects; off unless a curriculum stage sets it")
+    trials_per_side: int = Field(default=10, ge=1, description="Counted trials of each target side the bias is worked out from; nothing moves until both sides have this many, and both start again after a move")
+    threshold: Double = Field(default=0.3, gt=0, le=1, description="Fraction correct on the left less on the right above which the spouts move toward the mouse's left (below minus this, toward its right)")
+    max_offset_steps: int = Field(default=500, ge=1, le=1000, description="The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps")
+
+
 class Spouts(LabSpouts):
-    """The spouts (the lab's spouts block, open_rigs.core.task Spouts) and this task's single-spout guide."""
+    """The spouts (the lab's spouts block, open_rigs.core.task Spouts), this task's single-spout guide and its bias correction."""
 
     stimulus_to_spouts_in_seconds: Double = Field(default=0.5, description=LabSpouts.model_fields["stimulus_to_spouts_in_seconds"].description)
     single_spout_probability: Double = Field(
@@ -70,6 +84,10 @@ class Spouts(LabSpouts):
             "whose spouts move (alwaysIn false); else both come in. discriminationGoNoGo always uses the left spout alone, and a "
             "random-reward probe both (logged as singleSpoutOffered)"
         ),
+    )
+    bias_correction: BiasCorrection = Field(
+        default=BiasCorrection(),
+        description="Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; each move sent as the next inter-trial interval begins. One value per experiment, off by default; refused on discriminationGoNoGo",
     )
 
 
@@ -187,6 +205,7 @@ class RepeatOn(StrEnum):
 # draw reads it per trial from the trial's combination, logged through trialCombinationId and Settings_Combinations.
 SESSION_FIELDS = {
     **ct.COMMON_SESSION_FIELDS,
+    "spouts.biasCorrection": "its buffers and moves run across the experiment's trials",
     "taskType": "the task the file and its curriculum train; x-required-conditions keys on it",
     "optogenetics.laserEnd": "one laser timing (LaserTiming) for the experiment, set at Go",
 }
@@ -325,7 +344,7 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
         json_schema_extra={"x-whole": True},
     )
     trial_structure: TrialStructure = Field(description="Timing of each trial")
-    spouts: Spouts = Field(description="The spouts: when they come in and go out, whether they are always in, and the single-spout guide")
+    spouts: Spouts = Field(description="The spouts: when they come in and go out, whether they are always in, the single-spout guide and the bias correction")
     stimulus: Stimulus = Field(description="What the grating and the sound share: their duration, their off after the response, and the pulse rate")
     visual_stimulus: VisualStimulus = Field(description="The grating")
     auditory_stimulus: AuditoryStimulus = Field(description="The sound")
@@ -416,6 +435,13 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
             ramp_down_seconds=ramp_down_from(info),
             response_delay_seconds=s.stimulus_to_response_window_seconds,
         )
+        return self
+
+    @model_validator(mode="after")
+    def _bias_correction_two_spouts(self) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
+        # TrialDraw.CheckTask's same rule: the correction weighs the left spout against the right, and go/no-go has one.
+        if self.spouts.bias_correction.enabled and self.task_type == TaskType.DISCRIMINATION_GO_NO_GO:
+            raise ValueError("spouts.biasCorrection.enabled is for two spouts: discriminationGoNoGo uses the left spout alone")
         return self
 
     @model_validator(mode="after")

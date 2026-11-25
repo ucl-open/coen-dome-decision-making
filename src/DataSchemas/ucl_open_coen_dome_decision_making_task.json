@@ -52,6 +52,42 @@
       "title": "AuditoryStimulus",
       "type": "object"
     },
+    "BiasCorrection": {
+      "description": "The spouts' bias correction (TrialRules, src/Extensions): the last trialsPerSide counted results of left-target and of\nright-target trials (a side target, both spouts offered, a choice, not a repeat, laser off). Once both are full, after each\ncounted response, the left fraction correct less the right's above threshold moves the spouts' base one step (the\nworkflow's CheckTaskAtGo.BiasStepSize) toward the mouse's left, below minus threshold toward its right, never past\nmaxOffsetSteps either way; after a move both buffers empty. Each move is sent as the next inter-trial interval begins. One value\nper experiment (SESSION_FIELDS).",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "description": "Bias correction on: the spouts move sideways, a step at a time, toward the side the mouse neglects; off unless a curriculum stage sets it",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "trialsPerSide": {
+          "default": 10,
+          "description": "Counted trials of each target side the bias is worked out from; nothing moves until both sides have this many, and both start again after a move",
+          "minimum": 1,
+          "title": "TrialsPerSide",
+          "type": "integer"
+        },
+        "threshold": {
+          "default": 0.3,
+          "description": "Fraction correct on the left less on the right above which the spouts move toward the mouse's left (below minus this, toward its right)",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "maxOffsetSteps": {
+          "default": 500,
+          "description": "The furthest all moves together take the spouts' base from where the experiment started, each way, in motor steps",
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "MaxOffsetSteps",
+          "type": "integer"
+        }
+      },
+      "title": "BiasCorrection",
+      "type": "object"
+    },
     "Curriculum": {
       "description": "The Mouse Curriculum stage these values are, and the task file's only record of the stage: app-rig-control fills it at\nlaunch from the share's curriculum file (K:\\config\\curricula\\<repo>\\<task file stem>.conditions.yml), its stage's values written over the task\nfile's; empty in the repo's task files. Bonsai only records it.",
       "properties": {
@@ -438,7 +474,7 @@
       "type": "object"
     },
     "Spouts": {
-      "description": "The spouts (the lab's spouts block, open_rigs.core.task Spouts) and this task's single-spout guide.",
+      "description": "The spouts (the lab's spouts block, open_rigs.core.task Spouts), this task's single-spout guide and its bias correction.",
       "properties": {
         "alwaysIn": {
           "default": false,
@@ -466,6 +502,16 @@
           "minimum": 0,
           "title": "SingleSpoutProbability",
           "type": "number"
+        },
+        "biasCorrection": {
+          "$ref": "#/$defs/BiasCorrection",
+          "default": {
+            "enabled": false,
+            "trialsPerSide": 10,
+            "threshold": 0.3,
+            "maxOffsetSteps": 500
+          },
+          "description": "Bias correction: the spouts shifted sideways, a step at a time, toward the side the mouse neglects; each move sent as the next inter-trial interval begins. One value per experiment, off by default; refused on discriminationGoNoGo"
         }
       },
       "title": "Spouts",
@@ -718,7 +764,7 @@
         },
         "spouts": {
           "$ref": "#/$defs/Spouts",
-          "description": "The spouts: when they come in and go out, whether they are always in, and the single-spout guide"
+          "description": "The spouts: when they come in and go out, whether they are always in, the single-spout guide and the bias correction"
         },
         "stimulus": {
           "$ref": "#/$defs/Stimulus",
@@ -1078,6 +1124,7 @@
         "trialConditions",
         "optogenetics.enabled",
         "optogenetics.zapitConditionsPath",
+        "spouts.biasCorrection",
         "taskType",
         "optogenetics.laserEnd"
       ],

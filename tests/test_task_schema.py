@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
     MAX_WEIGHT_SUM,
+    BiasCorrection,
     REQUIRED_CONDITIONS,
     RULES,
     SESSION_FIELDS,
@@ -111,6 +112,34 @@ def test_spouts_staying_in_is_condition_level():
     # P19: a condition may set it; the C# reads each trial's (lib-open-rigs SpoutCommands, the trial's SpoutsAlwaysIn).
     assert ct.session_field("spouts.alwaysIn", SESSION_FIELDS) is None
     _conditions({"weight": 1, "set": {"spouts.alwaysIn": True, "spouts.singleSpoutProbability": 1}})
+
+
+@pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
+def test_every_task_file_carries_the_bias_correction_off_at_its_defaults(path):
+    # app-rig-control's curriculum offers only the fields a task file has; off until a stage turns it on.
+    written = yaml.safe_load(path.read_text())["taskParameters"]["spouts"]["biasCorrection"]
+    assert written == BiasCorrection().model_dump(by_alias=True) and written["enabled"] is False
+
+
+def test_the_bias_correction_is_optional_a_session_field_and_refused_on_go_no_go():
+    # An old task file without it reads as off; one value per experiment; go/no-go has one spout (TrialDraw.CheckTask).
+    data = yaml.safe_load((CONFIG / "task-localization.yml").read_text())["taskParameters"]
+    del data["spouts"]["biasCorrection"]
+    assert not UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data).spouts.bias_correction.enabled
+    assert ct.session_field("spouts.biasCorrection.threshold", SESSION_FIELDS) == "spouts.biasCorrection"
+    with pytest.raises(ValidationError, match="a session field"):
+        _conditions({"weight": 1, "set": {"spouts.biasCorrection.enabled": True}})
+    for name in ("task-localization.yml", "task-discrimination-left-right.yml"):
+        data = yaml.safe_load((CONFIG / name).read_text())["taskParameters"]
+        data["spouts"]["biasCorrection"]["enabled"] = True
+        assert UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data).spouts.bias_correction.enabled
+    data["spouts"]["biasCorrection"]["maxOffsetSteps"] = 1001  # TrialDraw.CheckTask's same cap
+    with pytest.raises(ValidationError, match="less than or equal to 1000"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
+    data = yaml.safe_load((CONFIG / "task-discrimination-go-no-go.yml").read_text())["taskParameters"]
+    data["spouts"]["biasCorrection"]["enabled"] = True
+    with pytest.raises(ValidationError, match="discriminationGoNoGo uses the left spout alone"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
 
 
 def test_no_text_says_a_probe_s_side_is_drawn_at_random():

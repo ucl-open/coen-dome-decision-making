@@ -48,6 +48,9 @@ public class Trial : ConditionedTrial, ILaserDurationTrial, ISpoutTrial
     /// <summary>Whether the used spouts are always in on this trial (its combination's spouts.alwaysIn).</summary>
     public bool SpoutsAlwaysIn { get { return values.Spouts.AlwaysIn; } }
 
+    /// <summary>The bias move the previous trial's outcome set off (TrialOutcome.BiasMove), or null: sent to LickSpoutStage.Moves at this trial's Iti event.</summary>
+    public SpoutMove BiasMove { get; internal set; }
+
     /// <summary>Where the spouts go at the SpoutsIn cue: the target's alone on a single-spout trial (go/no-go: the left), else both in.</summary>
     public LickSpoutCommand SpoutsInCommand
     {
@@ -76,9 +79,17 @@ public class ReadTask
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
+    public CheckTaskAtGo()
+    {
+        BiasStepSize = 50;
+    }
+
+    [Description("Motor steps of the spouts' base one bias correction move shifts them (spouts.biasCorrection).")]
+    public int BiasStepSize { get; set; }
+
     public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source)
     {
-        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null));
+        return source.Select(input => TrialRules.Create(input.Item1, input.Item2, null, BiasStepSize));
     }
 }
 
@@ -387,6 +398,16 @@ public class TrialDraw
         // The condition fields' bounds (a condition's cell is not checked by pydantic before Go).
         problems.AddRange(TaskBlocks.RewardSizeProblems(reward.SizeUl, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
         if (!(task.Spouts.SingleSpoutProbability >= 0 && task.Spouts.SingleSpoutProbability <= 1)) problems.Add("spouts.singleSpoutProbability must be in [0, 1]");
+        // The bias correction's settings, checked off too (the curriculum may turn it on); on, refused in go/no-go's one spout.
+        var bias = task.Spouts.BiasCorrection;
+        if (bias == null) problems.Add("spouts.biasCorrection must be given");
+        else
+        {
+            if (bias.TrialsPerSide < 1) problems.Add("spouts.biasCorrection.trialsPerSide (" + bias.TrialsPerSide + ") must be 1 or more");
+            if (!(bias.Threshold > 0 && bias.Threshold <= 1)) problems.Add("spouts.biasCorrection.threshold (" + bias.Threshold + ") must be above 0 and at most 1");
+            if (bias.MaxOffsetSteps < 1 || bias.MaxOffsetSteps > 1000) problems.Add("spouts.biasCorrection.maxOffsetSteps (" + bias.MaxOffsetSteps + ") must be 1 to 1000");
+            if (bias.Enabled && task.TaskType == TaskType.DiscriminationGoNoGo) problems.Add("spouts.biasCorrection.enabled is for two spouts: discriminationGoNoGo uses the left spout alone");
+        }
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
@@ -608,6 +629,9 @@ public class TrialOutcome : OpenRigs.Trials.TrialOutcome<TrialRow>
 {
     TrialOutcome(TrialRow row, string instance, double penaltyLevelDbfs, double penaltyFlashRateHz) : base(row, instance, penaltyLevelDbfs, penaltyFlashRateHz) { }
 
+    /// <summary>The spouts' bias move this outcome sets off (TrialRules' bias correction), or null; the next trial carries it (Trial.BiasMove).</summary>
+    public SpoutMove BiasMove { get; set; }
+
     /// <summary>The row's rewarded (TrialRow.Rewarded) is the reward: rewardOfferedUl at the target's spout
     /// (discriminationGoNoGo's: the left), a random trial's at the spout chosen, the other spout drawn back, the next interval
     /// from the trial's end, the response window's (both out spouts.rewardConsumptionSeconds into it). Anything else draws both back, with the penalty sound, flash and timeout of its kind
@@ -641,10 +665,16 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     readonly UclOpenCoenDomeDecisionMakingTaskParameters task;
     readonly TrialDraw draw;
     readonly LaserTiming laser;
+    readonly int biasStep;
+    // The bias correction's last trialsPerSide counted results of left-target and of right-target trials, and the sum of its moves.
+    readonly Queue<bool> biasLeft = new Queue<bool>();
+    readonly Queue<bool> biasRight = new Queue<bool>();
+    int biasSteps;
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions)
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions, int biasStepSize)
     {
+        if (biasStepSize <= 0) throw new ArgumentOutOfRangeException("biasStepSize", biasStepSize, "CheckTaskAtGo.BiasStepSize must be above 0");
         draw = new TrialDraw(taskText, speakers, zapitConditions);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
@@ -659,12 +689,13 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             laser = LaserTiming.UntilStimulusOff(hardwareTriggered, draw.MaxRampDownSeconds, cap);
         }
         else laser = LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds);
+        biasStep = biasStepSize;
     }
 
-    /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering); throws naming every problem.</summary>
-    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions)
+    /// <summary>The rules for a task file's text on a rig (its speakers, and Zapit's hardware triggering) and the bias correction's step; throws naming every problem.</summary>
+    public static TrialRules Create(string taskText, LabRig rig, Func<string, ZapitConditionsFile> zapitConditions, int biasStepSize)
     {
-        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions);
+        return new TrialRules(taskText, rig.SpeakerArray, rig.Zapit != null && rig.Zapit.HardwareTriggered, zapitConditions, biasStepSize);
     }
 
     public LaserTiming Laser { get { return laser; } }
@@ -695,7 +726,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     public Trial Draw(TrialOutcome previous)
     {
-        return draw.Next(previous == null ? null : previous.Row.Value);
+        var trial = draw.Next(previous == null ? null : previous.Row.Value);
+        trial.BiasMove = previous == null ? null : previous.BiasMove;
+        return trial;
     }
 
     public TrialTiming Timing(Trial trial)
@@ -765,7 +798,48 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 
     TrialOutcome Outcome(Trial trial, string choice, TrialTimes times)
     {
-        return TrialOutcome.At(choice, trial, times);
+        var outcome = TrialOutcome.At(choice, trial, times);
+        if (task.Spouts.BiasCorrection.Enabled) outcome.BiasMove = CorrectBias(outcome.Row.Value);
+        return outcome;
+    }
+
+    /// <summary>Whether the bias correction counts a finished trial: a left or right target, both spouts offered, a left or right choice, not a repeat, the laser off.</summary>
+    internal static bool CountsForBias(TrialRow row)
+    {
+        return (row.target == TargetWords.Left || row.target == TargetWords.Right)
+            && !row.singleSpoutOffered
+            && (row.choice == Choice.Left || row.choice == Choice.Right)
+            && row.repeatCount == 0
+            && row.laserPowerMw == 0;
+    }
+
+    /// <summary>The bias correction (spouts.biasCorrection) after a finished trial: the row's biasCorrectionSteps is the sum of the
+    /// moves before its own. Once both sides hold trialsPerSide counted results, the left fraction correct less the right's
+    /// above threshold moves the base one step toward the mouse's left (+ on BaseTransverse), below minus threshold toward
+    /// its right, never past maxOffsetSteps in all either way; after a move both sides empty. Returns the move, or null.</summary>
+    internal SpoutMove CorrectBias(TrialRow row)
+    {
+        var settings = task.Spouts.BiasCorrection;
+        row.biasCorrectionSteps = biasSteps;
+        if (!CountsForBias(row)) return null;
+        var side = row.target == TargetWords.Left ? biasLeft : biasRight;
+        side.Enqueue(row.choice == row.target);
+        if (side.Count > settings.TrialsPerSide) side.Dequeue();
+        if (biasLeft.Count < settings.TrialsPerSide || biasRight.Count < settings.TrialsPerSide) return null;
+        // A difference of exactly threshold never moves: the tolerance keeps rounding (0.8 - 0.5 > 0.3) from deciding it.
+        var bias = FractionCorrect(biasLeft) - FractionCorrect(biasRight);
+        var wanted = bias > settings.Threshold + 1e-9 ? biasStep : bias < -settings.Threshold - 1e-9 ? -biasStep : 0;
+        var moved = Math.Max(-settings.MaxOffsetSteps, Math.Min(settings.MaxOffsetSteps, biasSteps + wanted)) - biasSteps;
+        if (moved == 0) return null;
+        biasSteps += moved;
+        biasLeft.Clear();
+        biasRight.Clear();
+        return new SpoutMove { Axis = SpoutAxis.BaseTransverse, Steps = moved };
+    }
+
+    static double FractionCorrect(Queue<bool> results)
+    {
+        return results.Count(correct => correct) / (double)results.Count;
     }
 }
 
