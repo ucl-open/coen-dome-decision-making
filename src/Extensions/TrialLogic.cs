@@ -135,10 +135,14 @@ public class TrialDraw
     /// next trial is armed once it has played after the laser.</summary>
     public double MaxRampDownSeconds { get; private set; }
 
+    /// <summary>How long ZapitDaq stays busy after the laser's end, in seconds (0 without optogenetics): ZapitDaqTrial.FreeAfterLaserSeconds,
+    /// plus rig.yml's earlyStopLeadSeconds when an early stop ends it (laserEnd stimulusOff).</summary>
+    public double FreeAfterLaserSeconds { get; private set; }
+
     /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers, with the session's
     /// Zapit bank (null without one: refused with optogenetics on). Throws naming every problem, with optogenetics a laser
     /// that could leave Zapit busy at the next trigger (LaserProblems).</summary>
-    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank)
+    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank, double earlyStopLeadSeconds = 0)
     {
         conditions = CheckTask(taskText, speakers, out task);
         this.speakers = speakers;
@@ -155,7 +159,8 @@ public class TrialDraw
             }
             this.bank = bank;
             MaxRampDownSeconds = bank.LongestRampSeconds;
-            var problems = LaserProblems(conditions, ZapitDaqTrial.FreeAfterLaserSeconds(bank));
+            FreeAfterLaserSeconds = ZapitDaqTrial.FreeAfterLaserSeconds(bank) + (optogenetics.LaserEnd == LaserEndMode.StimulusOff ? earlyStopLeadSeconds : 0);
+            var problems = LaserProblems(conditions, FreeAfterLaserSeconds);
             if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
         }
         Seed = RngSeed.Resolve(task.RngSeed);
@@ -376,6 +381,17 @@ public class TrialDraw
         {
             problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) puts the trigger after the response window (stimulusToResponseWindowSeconds + responseWindowSeconds, {1} s)", lead, structure.StimulusToResponseWindowSeconds + structure.ResponseWindowSeconds));
         }
+        // laserEnd stimulusOff (task.py's same rules): the stimulus's own off, durationSeconds after its onset, after the trigger
+        // and within the laser's cap. Only that off is known at Go: one that follows the answer (responseToStimulusOffSeconds, the
+        // earlier of the two) is not checked, and the cap ends a laser still on then.
+        var duration = task.Stimulus.DurationSeconds;
+        if (opto.Enabled && opto.LaserEnd == LaserEndMode.StimulusOff && duration.HasValue)
+        {
+            if (-lead >= duration.Value - 1e-9)
+                problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) triggers the laser {1} s after the stimulus onset, when the stimulus (stimulus.durationSeconds {2} s) is already off: with optogenetics.laserEnd stimulusOff the laser would stop as it starts", lead, -lead, duration.Value));
+            else if (lead + duration.Value > opto.LaserDurationSeconds + 1e-9)
+                problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) is the laser's cap with optogenetics.laserEnd stimulusOff, but the stimulus goes off {1} s after the trigger (optogenetics.laserToStimulusSeconds {2} s + stimulus.durationSeconds {3} s): the cap would end the laser before the stimulus off", opto.LaserDurationSeconds, lead + duration.Value, lead, duration.Value));
+        }
         // Each RewardValve piece refuses a reward over MaxRewardUl when it plans it, mid-session (task.py's same rule).
         var reward = task.Reward;
         problems.AddRange(TaskBlocks.LargeRewardProblems(reward.SizeUl, reward.LargeMultiplier, reward.LargeProbability, LoadRewardLine.DefaultMaxRewardUl).Select(p => "reward." + p));
@@ -385,11 +401,11 @@ public class TrialDraw
         problems.AddRange(TaskBlocks.LaserOnProbabilityProblems(opto.LaserOnProbability).Select(p => "optogenetics." + p));
     }
 
-    /// <summary>The maximum laserDurationSeconds (task.py's same rule): from a trigger to the next is at least stimulusToResponseWindowSeconds
-    /// + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse), and in that time the laser, what the
-    /// ZapitDaq trial outlasts it <paramref name="freeAfterLaserSeconds"/> (whole scan cycles, the ramp and a margin:
-    /// ZapitDaqTrial.FreeAfterLaserSeconds; the next trial is armed only once it has played) and ZapitDaq's arm time must
-    /// fit before the next trigger.</summary>
+    /// <summary>The maximum laserDurationSeconds (task.py's same rule; with laserEnd stimulusOff the laser's cap): from a trigger to the
+    /// next is at least stimulusToResponseWindowSeconds + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse),
+    /// and in that time the laser, what the ZapitDaq trial outlasts it <paramref name="freeAfterLaserSeconds"/> (whole scan cycles,
+    /// the ramp and a margin: ZapitDaqTrial.FreeAfterLaserSeconds, plus rig.yml's earlyStopLeadSeconds when an early stop ends it;
+    /// the next trial is armed only once it has played) and ZapitDaq's arm time must fit before the next trigger.</summary>
     public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double freeAfterLaserSeconds)
     {
         var s = task.TrialStructure;
@@ -638,21 +654,32 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     readonly LaserTiming laser;
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
-    public TrialRules(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank)
+    /// <summary>The rules for a task file's text on these speakers with the session's Zapit bank (null for none); earlyStopLeadSeconds
+    /// rig.yml's zapit.earlyStopLeadSeconds, how far ahead ZapitDaq writes an early stop's ramp (laserEnd stimulusOff).</summary>
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank, double earlyStopLeadSeconds = 0)
     {
-        draw = new TrialDraw(taskText, speakers, bank);
+        draw = new TrialDraw(taskText, speakers, bank, earlyStopLeadSeconds);
         task = draw.Task;
         var optogenetics = task.Optogenetics;
-        // The line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial armed once the
-        // bank's longest ramp-down has played.
-        laser = optogenetics.Enabled ? LaserTiming.ForDuration(draw.MaxRampDownSeconds) : null;
+        // laserEnd duration: the line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial
+        // armed once ZapitDaq's whole trial has played. stimulusOff: the laser on to the trial's StimulusOff, then ZapitDaq's early
+        // stop, capped at its laserDurationSeconds (the timing's cap, LaserBackstop's wall-clock wait, the longest any combination
+        // has); the line held, and the next trial armed, once the early stop's lead, a scan cycle, the ramp and a margin have passed.
+        if (!optogenetics.Enabled) laser = null;
+        else if (optogenetics.LaserEnd == LaserEndMode.StimulusOff)
+        {
+            var cap = draw.Conditions.SelectMany(c => c.Combinations).Max(m => m.Task.Optogenetics.LaserDurationSeconds);
+            laser = LaserTiming.UntilStimulusOff(draw.FreeAfterLaserSeconds, cap);
+        }
+        else laser = LaserTiming.ForDuration(draw.MaxRampDownSeconds);
     }
 
-    /// <summary>The rules for a task file's text on a rig (its speakers) with the session's Zapit bank (null for none);
-    /// throws naming every problem.</summary>
+    /// <summary>The rules for a task file's text on a rig (its speakers and zapit.earlyStopLeadSeconds) with the session's Zapit bank
+    /// (null for none); throws naming every problem.</summary>
     public static TrialRules Create(string taskText, LabRig rig, ZapitBank bank)
     {
-        return new TrialRules(taskText, rig.SpeakerArray, bank);
+        var lead = rig.Zapit != null && rig.Zapit.EarlyStopLeadSeconds.HasValue ? rig.Zapit.EarlyStopLeadSeconds.Value : 0;
+        return new TrialRules(taskText, rig.SpeakerArray, bank, lead);
     }
 
     public LaserTiming Laser { get { return laser; } }

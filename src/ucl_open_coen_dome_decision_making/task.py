@@ -188,6 +188,7 @@ class RepeatOn(StrEnum):
 SESSION_FIELDS = {
     **ct.COMMON_SESSION_FIELDS,
     "taskType": "the task the file and its curriculum train; x-required-conditions keys on it",
+    "optogenetics.laserEnd": "one laser timing (LaserTiming) for the experiment, set at Go",
 }
 # Where one setting limits another (the schema's x-rules, JSON Schema over dotted paths; open_rigs.rigs.conditions
 # evaluates them), checked on the task and on every combination of every condition. A side target reads its azimuth to
@@ -272,14 +273,26 @@ class Repeats(TaskBlock):
     )
 
 
+class LaserEndMode(StrEnum):
+    """When the laser ends: duration (laserDurationSeconds after the trigger) or stimulusOff (the trial's stimulus off)."""
+
+    DURATION = "duration"
+    STIMULUS_OFF = "stimulusOff"
+
+
 class Optogenetics(LabOptogenetics):
     """Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
-    laserDurationSeconds is a fixed laser time here, per trial (its combination's). A repeated trial never has the laser on."""
+    laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
+    laser runs. A repeated trial never has the laser on."""
 
+    laser_end: LaserEndMode = Field(
+        default=LaserEndMode.DURATION,
+        description="duration: the laser and the masking light stay on laserDurationSeconds from the trigger, whatever the mouse does; stimulusOff: until the trial's stimulus goes off (stimulus.durationSeconds after its onset or stimulus.responseToStimulusOffSeconds after the outcome, whichever comes first; the outcome when the stimulus never came on), at most laserDurationSeconds from the trigger. One for the experiment (a session field)",
+    )
     laser_duration_seconds: Double = Field(
         default=1.5,
         gt=0,
-        description="How long the laser and the masking light stay on, in seconds from the trigger. With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
+        description="How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
     )
 
 
@@ -392,6 +405,8 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
                 f"optogenetics.laser_to_stimulus_seconds ({lead} s) puts the trigger after the response window "
                 f"(stimulus_to_response_window_seconds + response_window_seconds, {s.stimulus_to_response_window_seconds + s.response_window_seconds:g} s)"
             )
+        _laser_to_stimulus_off_fits(opto.enabled and opto.laser_end == LaserEndMode.STIMULUS_OFF, lead, opto.laser_duration_seconds,
+                                    self.stimulus.duration_seconds)
         # The Zapit bank's longest ramp-down, once the session's bank is built (app-rig-control's open_rigs.rigs.check_task
         # passes it as context); without it, 0, the laser and the arm time alone. Go has the
         # last word either way (TrialDraw.LaserProblems).
@@ -428,6 +443,26 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
 
 # The list fields one entry of which each trial draws (open_rigs.rigs.conditions.pick_lists).
 LIST_FIELDS = UclOpenCoenDomeDecisionMakingTaskParameters.list_fields()
+
+
+def _laser_to_stimulus_off_fits(stimulus_off: Bool,lead: Double, laser_duration_seconds: Double, duration_seconds: Double | None) -> None:
+    """With laserEnd stimulusOff, the stimulus's own off (stimulus.durationSeconds after its onset) after the trigger and within
+    the laser's cap, laserDurationSeconds from the trigger (TrialDraw.CheckTask's same rules). Only that off is known at Go: one
+    that follows the answer (stimulus.responseToStimulusOffSeconds, the earlier of the two) is not checked, and the cap ends a
+    laser still on then."""
+    if not stimulus_off or duration_seconds is None:
+        return
+    if -lead >= duration_seconds - 1e-9:
+        raise ValueError(
+            f"optogenetics.laserToStimulusSeconds ({lead} s) triggers the laser {-lead:g} s after the stimulus onset, when the stimulus "
+            f"(stimulus.durationSeconds {duration_seconds} s) is already off: with optogenetics.laserEnd stimulusOff the laser would stop as it starts"
+        )
+    if lead + duration_seconds > laser_duration_seconds + 1e-9:
+        raise ValueError(
+            f"optogenetics.laserDurationSeconds ({laser_duration_seconds} s) is the laser's cap with optogenetics.laserEnd stimulusOff, but the "
+            f"stimulus goes off {lead + duration_seconds:g} s after the trigger (optogenetics.laserToStimulusSeconds {lead} s + stimulus.durationSeconds "
+            f"{duration_seconds} s): the cap would end the laser before the stimulus off"
+        )
 
 
 def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
