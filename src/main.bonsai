@@ -47,7 +47,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskFile</Name>
-        <Description>Reads the task file (TaskPath) at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, read by ReadTask, which keeps a trial condition's set values as numbers and bools and reads an old file's optogenetics.enabled as optogenetics.zapitMatlab. OptogeneticsExperiment: either Zapit box ticked (optogenetics.zapitBonsai, Zapit-Bonsai; optogenetics.zapitMatlab, Zapit-MATLAB), the condition of Settings_ZapitConditions in ExpectedFiles, which each Zapit leaves. TaskRules, after both Zapit pieces, checks it at Go and builds the trials' rules.</Description>
+        <Description>Reads the task file (TaskPath) at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, read by ReadTask, which keeps a trial condition's set values as numbers and bools and ignores an old file's optogenetics.enabled (the old Zapit On): the file then ticks neither box, so the session runs with neither Zapit, and enabled: true warns at Go (CheckTaskAtGo); enabled beside either box is refused. OptogeneticsExperiment: either Zapit box ticked (optogenetics.zapitBonsai, Zapit-Bonsai; optogenetics.zapitMatlab, Zapit-MATLAB), the condition of Settings_ZapitConditions in ExpectedFiles, which each Zapit leaves. TaskRules, after both Zapit pieces, checks it at Go and builds the trials' rules.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Core:TaskFileText.bonsai" />
