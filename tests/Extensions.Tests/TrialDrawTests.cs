@@ -757,14 +757,14 @@ public class TrialDrawTests
         // the soonest stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds after this one (not from the
         // opening, as before the window ran in full). With the task files' 0.5, 2.0 and 2.5 s and avdome_main_initialstim.yml's
         // bank (a Zapit trial outlasting its laser 0.325 s: 2.475 s when the limit counted from the opening) 4.475 s; under
-        // laserEnd stimulusOff rig.yml's earlyStopLeadSeconds (the lab's 0.08 s) less, 4.395 s.
+        // laserEnd stimulusOff ZapitDaq.EarlyStopLeadSeconds (0.1 s) less, 4.375 s.
         foreach (var file in new[] { "task-localization.yml", "task-discrimination-left-right.yml", "task-discrimination-go-no-go.yml" })
         {
             var shipped = Fixture.Task(file, 1);   // a stage sets no timing: the file's
             Assert.AreEqual(5.0, TrialDraw.TrialEndSeconds(shipped.TrialStructure) + shipped.TrialStructure.ItiMinSeconds, 1e-12, file);
             Assert.AreEqual(4.475, TrialDraw.MaxLaserSeconds(shipped, 0.325), 1e-9, file);
-            Assert.AreEqual(4.395, TrialDraw.MaxLaserSeconds(shipped, 0.325 + 0.08), 1e-9, file + " stimulusOff");
-            Assert.IsTrue(shipped.Optogenetics.LaserDurationSeconds <= TrialDraw.MaxLaserSeconds(shipped, 0.325 + 0.08), file + ": its 2.5 s laser fits either way");
+            Assert.AreEqual(4.375, TrialDraw.MaxLaserSeconds(shipped, 0.325 + ZapitDaq.EarlyStopLeadSeconds), 1e-9, file + " stimulusOff");
+            Assert.IsTrue(shipped.Optogenetics.LaserDurationSeconds <= TrialDraw.MaxLaserSeconds(shipped, 0.325 + ZapitDaq.EarlyStopLeadSeconds), file + ": its 2.5 s laser fits either way");
         }
 
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
