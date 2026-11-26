@@ -820,6 +820,79 @@ public class LaserTests
     }
 
     [TestMethod]
+    public void WithLaserEndStimulusOffZapitDaqTrialsArmsEveryTrialStreamed()
+    {
+        // lib-open-rigs zapit-native.26 streams a trial only when its Arm says UntilStopped, so its early stop ramps within
+        // ZapitDaq.EarlyStopLeadSeconds; a trial written whole ignores an early stop once started. Under stimulusOff the
+        // stimulus's off is decided during the trial (here by the response: no stimulus duration), so every Arm must say
+        // UntilStopped, for the cap. ZapitDaqTrials maps ZapitDaqTrialCommand.UntilStopped from the rules' Laser.UntilStopped.
+        // With laserEnd duration the Arm is the trial's own laserDurationSeconds, written whole, and no early stop is sent.
+        foreach (var mode in new[] { LaserEndMode.StimulusOff, LaserEndMode.Duration })
+        {
+            var rules = Rules.Make(t =>
+            {
+                Rules.Optogenetics(t);
+                t.Optogenetics.LaserEnd = mode;
+                t.Optogenetics.LaserDurationSeconds = 1.3;
+                t.Stimulus.DurationSeconds = null;
+                t.Stimulus.ResponseToStimulusOffSeconds = 0.1;
+            });
+            var arm = new Harness(rules).Of(TrialEventKind.Arm)[0];
+            var command = new ZapitDaqTrialCommand { UntilStopped = rules.Laser.UntilStopped }.Process(Observable.Return(arm)).Wait();
+            Assert.AreEqual(mode == LaserEndMode.StimulusOff, command.UntilStopped, mode.ToString());
+            Assert.AreEqual(1.3, command.DurationSeconds, 1e-12, mode + ": the cap, or the trial's own duration");
+        }
+    }
+
+    [TestMethod]
+    public void WithLaserEndStimulusOffAtTheLimitAFastAndASlowLaserFreeZapitDaqBeforeTheNextTrigger()
+    {
+        // Pip's stimulusOff limit, with the streamed early stop (zapit-native.26). A fast response: the laser ends at the
+        // response plus responseToStimulusOffSeconds (LaserOff, the early stop); its ramp starts within EarlyStopLeadSeconds
+        // (the stream's samples written ahead, its longest write and a scan cycle are inside that lead) and lasts the bank's
+        // longest ramp. A slow or no response: the laser ends at its cap (LaserCap), laserDurationSeconds from the trigger.
+        // Either way the loop holds ZapitDaq FreeAfterLaserSeconds (a cycle, the ramp, a 0.05 s margin) plus the lead past the
+        // laser's end, then arms the next trial at least ArmSeconds before its trigger. The laser never ends after its cap,
+        // so the cap rule (MaxLaserSeconds, from the trial's end) bounds both cases: here, with no trigger lead, exactly.
+        var bank = Fixture.Bank();
+        var free = ZapitDaqTrial.FreeAfterLaserSeconds(bank);
+        var limit = 0.5 + 2 + 2 - free - ZapitDaq.EarlyStopLeadSeconds - ZapitDaqTrial.ArmSeconds;
+        var rules = Rules.Make(t =>
+        {
+            Rules.Optogenetics(t);
+            t.Optogenetics.LaserEnd = LaserEndMode.StimulusOff;
+            t.Optogenetics.LaserDurationSeconds = limit;
+            t.Optogenetics.LaserToStimulusSeconds = 0;
+            t.Stimulus.DurationSeconds = null;
+            t.Stimulus.ResponseToStimulusOffSeconds = 1.5;   // a miss's stimulus goes off after the cap
+            t.Penalty.NoResponse.TimeoutSeconds = 0;   // the next trial as soon as the rules allow
+        });
+        var run = new Harness(rules);
+        run.At(12.501, h => h.Lick(h.Spout(true)));   // trial 1 answered right as its window opens; trial 2 never answered
+        var answered = 0;
+        while (run.Of(TrialEventKind.Trigger).Count < 3)
+        {
+            var asked = run.Of(TrialEventKind.Arm);
+            for (; answered < asked.Count; answered++) run.Loop.OnZapitEvent(Rules.Armed(asked[answered].Trial));
+            run.RunTo(run.Now + 0.001);
+        }
+        var arms = run.Of(TrialEventKind.Arm);
+        var triggers = run.Of(TrialEventKind.Trigger);
+        var fast = run.Of(TrialEventKind.LaserOff).Single(e => e.Trial.trialNumber == 1);
+        Assert.AreEqual(12.501 + 1.5, fast.Seconds, 1e-9, "the fast response: its stimulus's off");
+        var slow = run.Of(TrialEventKind.LaserCap).Single(e => e.Trial.trialNumber == 2);
+        Assert.AreEqual(triggers[1].Seconds + limit, slow.Seconds, 1e-9, "the miss: its cap");
+        Assert.AreEqual(0, run.Of(TrialEventKind.LaserOff).Count(e => e.Trial.trialNumber == 2));
+        var ends = new[] { fast.Seconds, slow.Seconds };
+        for (var next = 1; next <= 2; next++)
+        {
+            Assert.IsTrue(arms[next].Seconds >= ends[next - 1] + ZapitDaq.EarlyStopLeadSeconds + bank.LongestRampSeconds, string.Format("trial {0} armed at {1} s, before the last laser's ramp could end", next + 1, arms[next].Seconds));
+            Assert.IsTrue(triggers[next].Seconds - arms[next].Seconds >= ZapitDaqTrial.ArmSeconds - 1e-9, string.Format("trial {0} armed {1} s before its trigger", next + 1, triggers[next].Seconds - arms[next].Seconds));
+        }
+        Assert.AreEqual(ZapitDaqTrial.ArmSeconds, triggers[2].Seconds - (slow.Seconds + free + ZapitDaq.EarlyStopLeadSeconds), 0.0015, "the slow case is the binding one: the cap's laser frees ZapitDaq just its arm time before the next trigger");
+    }
+
+    [TestMethod]
     public void WithTheTaskFilesTimingGoAcceptsTheirLaserNatively()
     {
         // The shipped task files as they are (0.5 s to the window, the 2 s window, itiMinSeconds 2.5, the trigger 0.1 s ahead,
