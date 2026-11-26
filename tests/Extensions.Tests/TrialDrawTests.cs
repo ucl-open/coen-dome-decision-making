@@ -542,7 +542,7 @@ public class TrialDrawTests
         task.Optogenetics.Enabled = true;
         task.Optogenetics.TrialsBeforeLaser = 20;
         task.Optogenetics.LaserOnProbability = 0.5;
-        task.Optogenetics.LaserDurationSeconds = 2.15;   // the most itiMinSeconds 2.5 allows with the test bank
+        task.Optogenetics.LaserDurationSeconds = 4.15;   // the most the trial's end (0.5 + 2.0 s) and itiMinSeconds 2.5 allow with the test bank
         var trials = Fixture.Draw(task, 300, t => Choice.NoResponse);
         Assert.IsTrue(trials.All(t => t.laserCondition == 1 || t.laserCondition == 2));
         Assert.IsTrue(trials.Take(20).All(t => !t.laserOn));
@@ -619,13 +619,22 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(task), "stimulus.durationSeconds and stimulus.responseToStimulusOffSeconds are both null");
 
         task = Fixture.Task("task-localization.yml", 4);
-        // Off before the next stimulus: from the soonest outcome (the window's opening, 0.5 s) at most the shortest outcome
-        // to next interval (0: a reward's interval starts at the outcome) plus itiMinSeconds (2.5), so 3 s from onset.
+        // Off before the next stimulus: counted from the trial's end (the window always runs in full: 0.5 + 5 s), not the
+        // soonest outcome (the window's opening), so a stimulus may last to the window's close, 5.5 s, which is its own limit.
         task.TrialStructure.ResponseWindowSeconds = 5;
-        task.Stimulus.DurationSeconds = 3.0;
+        Assert.AreEqual(5.5, TrialDraw.TrialEndSeconds(task.TrialStructure), 1e-12);
+        task.Stimulus.DurationSeconds = 5.5;
         Assert.AreEqual("accepted", refusal(task));
-        task.Stimulus.DurationSeconds = 3.1;
-        StringAssert.Contains(refusal(task), "stimulus.durationSeconds (3.1 s) runs 2.6 s past the soonest outcome, longer than the shortest outcome to next interval (0 s");
+        task.Stimulus.DurationSeconds = 5.6;
+        StringAssert.Contains(refusal(task), "stimulus.durationSeconds (5.6 s) is longer than the stimulus to the response window's close (5.5 s)");
+        Assert.IsFalse(refusal(task).Contains("past the soonest outcome"), "never past the next stimulus once within the window");
+        // responseToStimulusOffSeconds counts from the outcome, on a miss the window's end: still at most itiMinSeconds (2.5 s).
+        task = Fixture.Task("task-localization.yml", 4);
+        task.Stimulus.DurationSeconds = null;
+        task.Stimulus.ResponseToStimulusOffSeconds = 2.5;
+        Assert.AreEqual("accepted", refusal(task));
+        task.Stimulus.ResponseToStimulusOffSeconds = 2.6;
+        StringAssert.Contains(refusal(task), "responseToStimulusOffSeconds");
 
         task = Fixture.Task("task-localization.yml", 4);
         task.Stimulus.RateHz = 21;
@@ -712,29 +721,83 @@ public class TrialDrawTests
     [TestMethod]
     public void ALaserThatWouldDelayTheNextArmIsRefused()
     {
-        // Discrimination: 0.5 s stimulus to window + 2.5 s interval - what a ZapitDaq trial outlasts its laser (one scan
-        // cycle, here 0.1 s; the bank's longest ramp-down; ZapitDaqTrial.FreeMarginSeconds, 0.05 s) - 0.2 s arm time:
-        // 2.15 s with a 0.5 s ramp-down, 2.55 s with a 0.1 s one (audit F F1: the next Arm waits for the whole trial).
+        // Discrimination: from a trigger to the next is at least the trial's end (0.5 s stimulus to window + the 2.0 s window,
+        // which always runs in full) + the 2.5 s interval; less what a ZapitDaq trial outlasts its laser (one scan cycle, here
+        // 0.1 s; the bank's longest ramp-down; ZapitDaqTrial.FreeMarginSeconds, 0.05 s) and the 0.2 s arm time: 4.15 s with a
+        // 0.5 s ramp-down, 4.55 s with a 0.1 s one (audit F F1: the next Arm waits for the whole trial).
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
         task.Optogenetics.Enabled = true;
         task.Optogenetics.LaserPowerMw = 3;
         Func<double, string> refusal = rampDown => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(rampDown)));
+        Assert.AreEqual(2.5, task.Optogenetics.LaserDurationSeconds, "the task files' laser");
+        Assert.AreEqual("accepted", refusal(0.5), "the task files' 2.5 s laser passes Go natively");
         Assert.AreEqual(0.65, ZapitDaqTrial.FreeAfterLaserSeconds(Fixture.Bank(0.5)), 1e-9);
-        Assert.AreEqual(2.15, TrialDraw.MaxLaserSeconds(task, 0.65), 1e-9);
-        Assert.AreEqual(2.55, TrialDraw.MaxLaserSeconds(task, 0.25), 1e-9);
-        StringAssert.Contains(refusal(0.5), "laserDurationSeconds (2.5 s) must be at most 2.15 s");
+        Assert.AreEqual(4.15, TrialDraw.MaxLaserSeconds(task, 0.65), 1e-9);
+        Assert.AreEqual(4.55, TrialDraw.MaxLaserSeconds(task, 0.25), 1e-9);
+        task.Optogenetics.LaserDurationSeconds = 4.2;
+        StringAssert.Contains(refusal(0.5), "laserDurationSeconds (4.2 s) must be at most 4.15 s (stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds");
         StringAssert.Contains(refusal(0.5), "the 0.65 s a Zapit trial outlasts its laser");
-        task.Optogenetics.LaserDurationSeconds = 2.55;
-        Assert.AreEqual("accepted", refusal(0.1), "a 0.1 s ramp-down allows 2.55 s");
-        task.Optogenetics.LaserDurationSeconds = 2.6;
-        StringAssert.Contains(refusal(0.1), "laserDurationSeconds (2.6 s) must be at most 2.55 s");
-        task.Optogenetics.LaserDurationSeconds = 2.15;
+        task.Optogenetics.LaserDurationSeconds = 4.55;
+        Assert.AreEqual("accepted", refusal(0.1), "a 0.1 s ramp-down allows 4.55 s");
+        task.Optogenetics.LaserDurationSeconds = 4.6;
+        StringAssert.Contains(refusal(0.1), "laserDurationSeconds (4.6 s) must be at most 4.55 s");
+        task.Optogenetics.LaserDurationSeconds = 4.15;
         Assert.AreEqual("accepted", refusal(0.5));
         var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(0.1));
         Assert.AreEqual(0.1, rules.Laser.RampDownSeconds, "the next trial armed once the bank's own ramp-down has played");
-        task.Optogenetics.LaserDurationSeconds = 2.5;
+        task.Optogenetics.LaserDurationSeconds = 5;
         task.Optogenetics.Enabled = false;
         Assert.AreEqual("accepted", refusal(0.5));
+    }
+
+    [TestMethod]
+    public void TheLaserLimitCountsFromTheResponseWindowsEnd()
+    {
+        // The window always runs in full, so even a lick at its opening ends the trial at its close: the next trigger is at
+        // the soonest stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds after this one (not from the
+        // opening, as before the window ran in full). With the task files' 0.5, 2.0 and 2.5 s and avdome_main_initialstim.yml's
+        // bank (a Zapit trial outlasting its laser 0.325 s: 2.475 s when the limit counted from the opening) 4.475 s; under
+        // laserEnd stimulusOff rig.yml's earlyStopLeadSeconds (the lab's 0.08 s) less, 4.395 s.
+        foreach (var file in new[] { "task-localization.yml", "task-discrimination-left-right.yml", "task-discrimination-go-no-go.yml" })
+        {
+            var shipped = Fixture.Task(file, 1);   // a stage sets no timing: the file's
+            Assert.AreEqual(5.0, TrialDraw.TrialEndSeconds(shipped.TrialStructure) + shipped.TrialStructure.ItiMinSeconds, 1e-12, file);
+            Assert.AreEqual(4.475, TrialDraw.MaxLaserSeconds(shipped, 0.325), 1e-9, file);
+            Assert.AreEqual(4.395, TrialDraw.MaxLaserSeconds(shipped, 0.325 + 0.08), 1e-9, file + " stimulusOff");
+            Assert.IsTrue(shipped.Optogenetics.LaserDurationSeconds <= TrialDraw.MaxLaserSeconds(shipped, 0.325 + 0.08), file + ": its 2.5 s laser fits either way");
+        }
+
+        var task = Fixture.Task("task-discrimination-left-right.yml", 4);
+        task.Optogenetics.Enabled = true;
+        task.Optogenetics.LaserPowerMw = 3;
+        Func<string> refusal = () => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(0.5)));
+        // A penalty timeout leaves it: a rewarded trial (its interval at once after its end) is the shortest to the next trigger.
+        task.Penalty.Incorrect.TimeoutSeconds = 10;
+        task.Penalty.NoResponse.TimeoutSeconds = 0;
+        Assert.AreEqual(4.15, TrialDraw.MaxLaserSeconds(task, 0.65), 1e-9);
+        task.Optogenetics.LaserDurationSeconds = 4.15;
+        Assert.AreEqual("accepted", refusal());
+        // A shorter window brings it in by as much: 1.0 s, 3.15 s.
+        task.TrialStructure.ResponseWindowSeconds = 1.0;
+        Assert.AreEqual(3.15, TrialDraw.MaxLaserSeconds(task, 0.65), 1e-9);
+        StringAssert.Contains(refusal(), "laserDurationSeconds (4.15 s) must be at most 3.15 s");
+        task.Optogenetics.LaserDurationSeconds = 3.15;
+        Assert.AreEqual("accepted", refusal());
+        // So does a later window opening move it out: 1.0 s to the window, 3.65 s.
+        task.TrialStructure.StimulusToResponseWindowSeconds = 1.0;
+        Assert.AreEqual(3.65, TrialDraw.MaxLaserSeconds(task, 0.65), 1e-9);
+
+        // Across the combinations: the shortest lead plus trial end, plus the shortest interval less the lead. A condition
+        // whose trigger comes 1 s before its stimulus, after one with the files' 0.1 s, has the next trigger 0.9 s sooner:
+        // 0.1 + 2.5 + (2.5 - 1.0) - 0.65 - 0.2 = 3.25 s, though each combination alone allows 4.15 s.
+        task = Fixture.Task("task-discrimination-left-right.yml", 4);
+        task.Optogenetics.Enabled = true;
+        task.Optogenetics.LaserPowerMw = 3;
+        task.TrialConditions = new List<TrialCondition> { Fixture.Condition(1, "target", "left"), Fixture.Condition(1, "target", "right", "optogenetics.laserToStimulusSeconds", 1.0) };
+        task.Optogenetics.LaserDurationSeconds = 3.25;
+        Assert.AreEqual("accepted", refusal());
+        task.Optogenetics.LaserDurationSeconds = 3.3;
+        StringAssert.Contains(refusal(), "optogenetics.laserDurationSeconds (3.3 s) must be at most 3.25 s across the combinations");
     }
 
     [TestMethod]

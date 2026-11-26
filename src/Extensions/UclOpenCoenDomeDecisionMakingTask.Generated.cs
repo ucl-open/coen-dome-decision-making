@@ -631,11 +631,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)
+        /// How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserDurationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserDurationSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)")]
+        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)")]
         public double LaserDurationSeconds
         {
             get
@@ -1695,11 +1695,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The longest the stimulus lasts from its onset, in seconds; off before the next trial's stimulus can come (the soonest outcome plus the shortest penalty timeout, 0 where a reward can come, plus itiMinSeconds). Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)
+        /// The longest the stimulus lasts from its onset, in seconds: at most stimulusToResponseWindowSeconds + responseWindowSeconds, the response window's close and the trial's end (the window always runs in full), so it is off before the next trial's stimulus, which comes at the soonest itiMinSeconds after that end. Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("durationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="durationSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"The longest the stimulus lasts from its onset, in seconds; off before the next trial's stimulus can come (the soonest outcome plus the shortest penalty timeout, 0 where a reward can come, plus itiMinSeconds). Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)")]
+        [System.ComponentModel.DescriptionAttribute(@"The longest the stimulus lasts from its onset, in seconds: at most stimulusToResponseWindowSeconds + responseWindowSeconds, the response window's close and the trial's end (the window always runs in full), so it is off before the next trial's stimulus, which comes at the soonest itiMinSeconds after that end. Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)")]
         public double? DurationSeconds
         {
             get

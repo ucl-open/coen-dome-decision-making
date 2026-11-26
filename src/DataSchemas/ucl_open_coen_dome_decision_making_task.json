@@ -176,7 +176,7 @@
         },
         "laserDurationSeconds": {
           "default": 1.5,
-          "description": "How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
+          "description": "How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
           "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
           "type": "number"
@@ -485,7 +485,7 @@
             }
           ],
           "default": 1.5,
-          "description": "The longest the stimulus lasts from its onset, in seconds; off before the next trial's stimulus can come (the soonest outcome plus the shortest penalty timeout, 0 where a reward can come, plus itiMinSeconds). Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)",
+          "description": "The longest the stimulus lasts from its onset, in seconds: at most stimulusToResponseWindowSeconds + responseWindowSeconds, the response window's close and the trial's end (the window always runs in full), so it is off before the next trial's stimulus, which comes at the soonest itiMinSeconds after that end. Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)",
           "title": "DurationSeconds"
         },
         "responseToStimulusOffSeconds": {

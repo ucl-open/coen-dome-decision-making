@@ -667,7 +667,8 @@ public class LaserTests
     [TestMethod]
     public void TheLaserRunsForItsDurationAndTheNextArmWaitsForTheRampDown()
     {
-        // laserDurationSeconds 1.3 (the most this task allows at itiMinSeconds 2) so the outcome, from 12.5 s, still comes
+        // laserDurationSeconds 1.3 (within the 1.85 s this task allows: 0.5 + 0.2 s to the trial's end + itiMinSeconds 2, less
+        // the 0.65 s a ZapitDaq trial outlasts its laser and the 0.2 s arm time) so the outcome, from 12.5 s, still comes
         // before the line falls; a 0.2 s window (the stimulus 0.5 s to fit it) ends the trial at 12.7 s, where trial 2's
         // interval starts, before Zapit is free.
         var rules = Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 1.3; t.TrialStructure.ResponseWindowSeconds = 0.2; t.Stimulus.DurationSeconds = 0.5; });
@@ -804,16 +805,42 @@ public class LaserTests
         {
             Rules.Optogenetics(t);
             t.Optogenetics.LaserEnd = LaserEndMode.StimulusOff;
-            t.Optogenetics.LaserDurationSeconds = 1.2;
+            t.Optogenetics.LaserDurationSeconds = 3.2;
             t.Stimulus.DurationSeconds = 0.6;
         };
         var free = ZapitDaqTrial.FreeAfterLaserSeconds(Fixture.Bank());
         Assert.AreEqual(free + 0.1, Rules.Make(off, earlyStopLeadSeconds: 0.1).Laser.TriggerHoldSeconds, 1e-12);
-        // The limit is 0.5 s to the window + 2 s interval - free - lead - 0.2 s arm: this lead brings it to 1.15 s, under the 1.2 s cap.
-        var lead = 0.5 + 2 - free - ZapitDaqTrial.ArmSeconds - 1.15;
+        // The limit is 0.5 s to the window + the 2 s window (always in full: the trial's end) + 2 s interval - free - lead - 0.2 s
+        // arm: this lead (0.5 s) brings it to 3.15 s, under the 3.2 s cap.
+        var lead = 0.5 + 2 + 2 - free - ZapitDaqTrial.ArmSeconds - 3.15;
+        Assert.AreEqual(0.5, lead, 1e-9);
         Rules.Make(off, earlyStopLeadSeconds: lead - 0.1);
-        StringAssert.Contains(Fixture.Refusal(() => Rules.Make(off, earlyStopLeadSeconds: lead)), "optogenetics.laserDurationSeconds (1.2 s)");
-        Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 1.2; t.Stimulus.DurationSeconds = 0.6; }, earlyStopLeadSeconds: lead);   // duration: no early stop, no lead
+        StringAssert.Contains(Fixture.Refusal(() => Rules.Make(off, earlyStopLeadSeconds: lead)), "optogenetics.laserDurationSeconds (3.2 s) must be at most 3.15 s");
+        Rules.Make(t => { Rules.Optogenetics(t); t.Optogenetics.LaserDurationSeconds = 3.2; t.Stimulus.DurationSeconds = 0.6; }, earlyStopLeadSeconds: lead);   // duration: no early stop, no lead
+    }
+
+    [TestMethod]
+    public void WithTheTaskFilesTimingGoAcceptsTheirLaserNatively()
+    {
+        // The shipped task files as they are (0.5 s to the window, the 2 s window, itiMinSeconds 2.5, the trigger 0.1 s ahead,
+        // a 2.5 s laser), optogenetics ticked: Go accepts them on the test bank (the limit 4.15 s, its 0.5 s ramp-down) with
+        // laserEnd duration, and with stimulusOff and the lab's 0.08 s early-stop lead (4.07 s). Before the limit counted
+        // from the window's end (2.15 s and 2.07 s here) both were refused.
+        foreach (var file in new[] { "task-localization.yml", "task-discrimination-left-right.yml", "task-discrimination-go-no-go.yml" })
+        {
+            foreach (var end in new[] { LaserEndMode.Duration, LaserEndMode.StimulusOff })
+            {
+                var task = Fixture.Task(file, 1);
+                task.Optogenetics.Enabled = true;
+                task.Optogenetics.LaserPowerMw = task.Optogenetics.LaserPowerMw ?? 3;   // the discriminations' files leave it to the experimenter
+                task.Optogenetics.LaserEnd = end;
+                Assert.AreEqual(2.5, task.Optogenetics.LaserDurationSeconds);
+                Assert.AreEqual("accepted", Fixture.Refusal(() => new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(), 0.08)), file + " " + end);
+                task.Optogenetics.LaserDurationSeconds = end == LaserEndMode.Duration ? 4.2 : 4.1;
+                StringAssert.Contains(Fixture.Refusal(() => new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(), 0.08)),
+                    end == LaserEndMode.Duration ? "must be at most 4.15 s" : "must be at most 4.07 s", file + " " + end);
+            }
+        }
     }
 
     [TestMethod]

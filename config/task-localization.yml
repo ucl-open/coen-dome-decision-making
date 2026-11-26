@@ -40,7 +40,7 @@ taskParameters:
     rewardConsumptionSeconds: 1.5      # s to drink, inside the ITI: the spouts drawn out this long into it; at most itiMinSeconds, less any lead of the spouts before the stimulus
     singleSpoutProbability: 0.5        # chance only the target's spout comes in, on a scored trial with the spouts moving
   stimulus:
-    durationSeconds: 1.5       # s, the most the grating and the sound last from onset (null: no cap); at most stimulusToResponseWindowSeconds + responseWindowSeconds, and over before the next trial's earliest stimulus: the earliest outcome (stimulusToResponseWindowSeconds) + the shortest penalty timeout, 0 where a reward or neither can come (always here) + itiMinSeconds
+    durationSeconds: 1.5       # s, the most the grating and the sound last from onset (null: no cap); at most stimulusToResponseWindowSeconds + responseWindowSeconds, the trial's end (the window always runs in full), so always over before the next trial's earliest stimulus (that end, no timeout after a reward, + itiMinSeconds)
     rateHz: 8                  # pulses a second, sound and grating together, each 50 ms; at most 20
     responseToStimulusOffSeconds: null      # s from the response (a miss: the response window's end) to both off; 0 at the response; null: the response does not end them
   visualStimulus:
@@ -86,7 +86,7 @@ taskParameters:
     laserToStimulusSeconds: 0.1    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     trialsBeforeLaser: 20
     laserEnd: duration             # duration: the laser lasts laserDurationSeconds from the trigger; stimulusOff: it ends with the trial's stimulus (its StimulusOff, or the outcome if the stimulus never came on), laserDurationSeconds then its cap
-    laserDurationSeconds: 2.5      # s; with optogenetics on, checked at Go. MATLAB Zapit: at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down - 0.2 s reply margin (2.55 s at the lab's 0.25 s ramp-down), so Go accepts 2.5 (BLUE-OPTO-2, 25 Nov 2026). Native ZapitDaq: at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s arm time (2.475 s with avdome_main_initialstim.yml; 2.395 s with stimulusOff at the lab's 0.08 s lead), so ticking optogenetics.enabled is refused until this is shortened
+    laserDurationSeconds: 2.5      # s; with optogenetics on, checked at Go. A trigger to the next is at least the trial's end (stimulusToResponseWindowSeconds + responseWindowSeconds: the window always runs in full) + itiMinSeconds. MATLAB Zapit: at most that - the Zapit conditions file's largest ramp-down - 0.2 s reply margin (4.55 s at the lab's 0.25 s ramp-down). Native ZapitDaq: at most that - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s arm time (4.475 s with avdome_main_initialstim.yml; 4.395 s with stimulusOff at the lab's 0.08 s lead), so Go accepts 2.5
   taskType: localization   # localization, discriminationGoNoGo or discriminationLeftRight
   response:
     thresholdLicks: 1      # net lick difference giving the choice (the window still runs in full); 1 = first-lick 2AFC

@@ -78,7 +78,16 @@ class Stimulus(StimulusTiming):
     grating on for 50 ms) until the stimulus off (the lab's StimulusTiming: durationSeconds after onset, or
     responseToStimulusOffSeconds after the response if that comes first), the last pulse cut where it ends."""
 
-    duration_seconds: Double | None = Field(default=1.5, gt=0, description=StimulusTiming.model_fields["duration_seconds"].description)
+    duration_seconds: Double | None = Field(
+        default=1.5,
+        gt=0,
+        description=(
+            "The longest the stimulus lasts from its onset, in seconds: at most stimulusToResponseWindowSeconds + responseWindowSeconds, "
+            "the response window's close and the trial's end (the window always runs in full), so it is off before the next trial's "
+            "stimulus, which comes at the soonest itiMinSeconds after that end. Null: no cap, the stimulus ends only "
+            "responseToStimulusOffSeconds after the response (both null is refused)"
+        ),
+    )
     rate_hz: Double = Field(
         default=8.0, gt=0, le=20,
         description="Pulses a second, of the sound and the grating together, each 50 ms long (AuditoryStimulusSet.PulseSeconds, each sound file's length), so at most 20",
@@ -292,7 +301,7 @@ class Optogenetics(LabOptogenetics):
     laser_duration_seconds: Double = Field(
         default=1.5,
         gt=0,
-        description="How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
+        description="How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus rig.yml's zapit.earlyStopLeadSeconds with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
     )
 
 
@@ -388,11 +397,15 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
     def _timing_fits(self, info: ValidationInfo) -> "UclOpenCoenDomeDecisionMakingTaskParameters":
         # TrialDraw.CheckTask's same rules.
         opto, s = self.optogenetics, self.trial_structure
-        # The soonest outcome is the response window's opening; the shortest outcome to next interval 0, as every trial
-        # here can end rewarded or neither (a correct choice, a probe's heads, a go/no-go miss or withheld noGo).
+        end = s.stimulus_to_response_window_seconds + s.response_window_seconds   # the trial's end (_trial_end_seconds)
+        # Where the outcome to next interval starts counting (the lab's stimulus_to_earliest_outcome_seconds) is the trial's
+        # end, the response window's: it always runs in full, so a choice gives its outcome sooner but the next interval starts
+        # there. The shortest outcome to next interval 0, as every trial here can end rewarded or neither (a correct choice, a
+        # probe's heads, a go/no-go miss or withheld noGo). responseToStimulusOffSeconds counts from the outcome itself, which
+        # on a miss is that same end, so its rule (at most the shortest outcome to next interval plus itiMinSeconds) stands.
         self.stimulus.check_fits(
             s.iti_min_seconds, s.stimulus_to_response_window_seconds + s.response_window_seconds,
-            stimulus_to_earliest_outcome_seconds=s.stimulus_to_response_window_seconds,
+            stimulus_to_earliest_outcome_seconds=end,
             min_outcome_to_iti_seconds=0.0,
         )
         # A miss is penalised in localization and discriminationLeftRight unless every trial is auto-rewarded.
@@ -409,12 +422,13 @@ class UclOpenCoenDomeDecisionMakingTaskParameters(TaskParameters, ct.Conditioned
                                     self.stimulus.duration_seconds)
         # The Zapit bank's longest ramp-down, once the session's bank is built (app-rig-control's open_rigs.rigs.check_task
         # passes it as context); without it, 0, the laser and the arm time alone. Go has the
-        # last word either way (TrialDraw.LaserProblems).
+        # last word either way (TrialDraw.LaserProblems). The next trigger counts from the trial's end (the lab's
+        # response_delay_seconds, the soonest the interval can start after the stimulus), not the window's opening.
         opto.check_zapit_free_in_time(
             s.iti_min_seconds,
             laser_duration_seconds=opto.laser_duration_seconds,
             ramp_down_seconds=ramp_down_from(info),
-            response_delay_seconds=s.stimulus_to_response_window_seconds,
+            response_delay_seconds=end,
         )
         return self
 
@@ -465,13 +479,22 @@ def _laser_to_stimulus_off_fits(stimulus_off: Bool,lead: Double, laser_duration_
         )
 
 
+def _trial_end_seconds(structure: dict) -> Double:
+    """From stimulus onset to the trial's end, in seconds (TrialDraw.TrialEndSeconds): the response window's end, as the
+    window always runs in full, so the next interval (after any timeout) starts there whatever the mouse does; without a
+    responseWindowSeconds (refused) the window's opening."""
+    return structure["stimulusToResponseWindowSeconds"] + (structure.get("responseWindowSeconds") or 0.0)
+
+
 def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
     """The timing rules between a trial and the next, each drawn from any weighted combination (TrialDraw.BetweenTrials):
     the longest spouts.rewardConsumptionSeconds plus the spouts' longest lead before the stimulus within the shortest
-    itiMinSeconds (OpenRigs.Trials Spouts.BetweenTrialsProblems); every stimulus.durationSeconds past its soonest outcome,
-    and every stimulus.responseToStimulusOffSeconds, within the shortest itiMinSeconds (the shortest outcome to next
-    interval is 0: every trial can end rewarded or neither; StimulusTiming.BetweenTrialsProblems); and with optogenetics every laserDurationSeconds within the shortest trigger to the next trigger less the ramp-down and
-    ZapitDaq's arm time."""
+    itiMinSeconds (OpenRigs.Trials Spouts.BetweenTrialsProblems); every stimulus.durationSeconds past its trial's end (the
+    response window's, where the next interval starts), and every stimulus.responseToStimulusOffSeconds (from the outcome,
+    on a miss that end), within the shortest itiMinSeconds (the shortest outcome to next interval is 0: every trial can end
+    rewarded or neither; StimulusTiming.BetweenTrialsProblems); and with optogenetics every laserDurationSeconds within the
+    shortest trigger to the next trigger (the lead plus the trial's end plus the interval less the next lead) less the
+    ramp-down and ZapitDaq's arm time."""
     if not tasks:
         return
     s = [task["trialStructure"] for task in tasks]
@@ -485,10 +508,10 @@ def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
             f"trialStructure.itiMinSeconds {iti:g} s of a combination that may come next"
         )
     gap = iti
-    past = [task["stimulus"]["durationSeconds"] - x["stimulusToResponseWindowSeconds"] for task, x in zip(tasks, s) if task["stimulus"]["durationSeconds"] is not None]
+    past = [task["stimulus"]["durationSeconds"] - _trial_end_seconds(x) for task, x in zip(tasks, s) if task["stimulus"]["durationSeconds"] is not None]
     if past and max(past) > gap + 1e-9:
         raise ValueError(
-            f"stimulus.durationSeconds runs {max(past):g} s past the soonest outcome, longer than itiMinSeconds ({gap:g} s) "
+            f"stimulus.durationSeconds runs {max(past):g} s past the trial's end, longer than itiMinSeconds ({gap:g} s) "
             "of a combination that may come next (the shortest outcome to next interval is 0, after a reward)"
         )
     after = [task["stimulus"]["responseToStimulusOffSeconds"] for task in tasks if task["stimulus"]["responseToStimulusOffSeconds"] is not None]
@@ -499,12 +522,12 @@ def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
         )
     if tasks[0]["optogenetics"]["enabled"]:
         leads = [task["optogenetics"]["laserToStimulusSeconds"] for task in tasks]
-        cap = (min(lead + x["stimulusToResponseWindowSeconds"] for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
+        cap = (min(lead + _trial_end_seconds(x) for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
                    - ramp_down_seconds - ZAPIT_ARM_SECONDS)
         duration = max(task["optogenetics"]["laserDurationSeconds"] for task in tasks)
         if duration > cap + 1e-9:
             raise ValueError(f"optogenetics.laserDurationSeconds ({duration} s) must be at most {cap:g} s across the combinations: "
-                             "the shortest lead plus stimulus to response window, plus the shortest interval less the lead, "
+                             "the shortest lead plus stimulus to trial end (the response window's end), plus the shortest interval less the lead, "
                              f"less the Zapit bank's {ramp_down_seconds:g} s ramp-down and Zapit's arm time")
 
 

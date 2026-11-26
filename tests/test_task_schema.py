@@ -219,17 +219,18 @@ def test_a_lead_outside_them_is_refused(lead, words):
 
 
 def test_a_laser_that_would_delay_the_next_arm_is_refused():
-    # TrialDraw.MaxLaserSeconds' rule: 0.5 s stimulus to window + 2.5 s interval - the ramp-down - 0.2 s margin. The
-    # ramp-down is the conditions file's, which only Go reads (TrialDraw.LaserProblems): here 2.8 s, the file's taken off at Go.
+    # TrialDraw.MaxLaserSeconds' rule: the trial's end (0.5 s stimulus to window + the 2.0 s window, which always runs in
+    # full) + 2.5 s interval - the ramp-down - 0.2 s margin. The ramp-down is the conditions file's, which only Go reads
+    # (TrialDraw.LaserProblems): here 4.8 s, the file's taken off at Go.
     on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
-    _with(opto={**on, "laserDurationSeconds": 2.8})
-    with pytest.raises(ValidationError, match="laser_duration_seconds"):
-        _with(opto={**on, "laserDurationSeconds": 2.81})
-    _with(opto={**on, "enabled": False, "laserDurationSeconds": 2.5})
+    _with(opto={**on, "laserDurationSeconds": 4.8})
+    with pytest.raises(ValidationError, match=r"laser_duration_seconds \(4.81 s\) must be at most 4.8 s"):
+        _with(opto={**on, "laserDurationSeconds": 4.81})
+    _with(opto={**on, "enabled": False, "laserDurationSeconds": 5.0})
     # With laserEnd stimulusOff laserDurationSeconds is the laser's cap, its end then followed by the ramp-down: the same limit.
-    _with(opto={**on, "laserEnd": "stimulusOff", "laserDurationSeconds": 2.8})
+    _with(opto={**on, "laserEnd": "stimulusOff", "laserDurationSeconds": 4.8})
     with pytest.raises(ValidationError, match="laser_duration_seconds"):
-        _with(opto={**on, "laserEnd": "stimulusOff", "laserDurationSeconds": 2.81})
+        _with(opto={**on, "laserEnd": "stimulusOff", "laserDurationSeconds": 4.81})
     with pytest.raises(ValidationError, match="Input should be 'duration' or 'stimulusOff'"):
         _with(opto={**on, "laserEnd": "outcome"})
 
@@ -258,14 +259,52 @@ def test_with_laser_end_stimulus_off_a_trigger_after_the_stimulus_s_own_off_is_r
 
 def test_the_conditions_file_s_ramp_down_given_as_context_shortens_the_laser_limit():
     # On the rig app-rig-control's check_task reads the session's Zapit bank and passes its longest ramp-down (RAMP_DOWN_CONTEXT):
-    # 0.5 + 2.5 - 0.5 - 0.2 = 2.3 s, so Gerion's 2.5 s is refused there; without the file (no context) it passes, Go deciding.
+    # the trial's end (0.5 + the 2.0 s window, always in full) + 2.5 - 0.5 - 0.2 = 4.3 s, so Gerion's 2.5 s passes there (2.3 s,
+    # refused, when the limit counted from the window's opening) and 4.4 s is refused; without the file (no context) 4.4 s
+    # passes, Go deciding.
     from open_rigs.components.zapit import RAMP_DOWN_CONTEXT
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     data["optogenetics"].update({"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserDurationSeconds": 2.5})
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.5})
+    data["optogenetics"]["laserDurationSeconds"] = 4.4
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
-    with pytest.raises(ValidationError, match="ramp-down"):
+    with pytest.raises(ValidationError, match="must be at most 4.3 s"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.5})
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.1})
+    # A shorter window brings it in by as much (1.0 s: 3.3 s); a penalty timeout leaves it (a rewarded trial has none).
+    data["optogenetics"]["laserDurationSeconds"] = 3.3
+    data["trialStructure"]["responseWindowSeconds"] = 1.0
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.5})
+    data["optogenetics"]["laserDurationSeconds"] = 3.4
+    with pytest.raises(ValidationError, match="must be at most 3.3 s"):
+        UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.5})
+    data["trialStructure"]["responseWindowSeconds"] = 2.0
+    data["optogenetics"]["laserDurationSeconds"] = 4.3
+    data["penalty"]["incorrect"]["timeoutSeconds"] = 10.0
+    UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.5})
+
+
+def test_between_trials_counts_from_each_trial_s_end():
+    # _between_trials (TrialDraw.BetweenTrials): the window always runs in full, so the next trigger and stimulus count from
+    # the trial's end (0.5 + 2.0 s), not the window's opening. Across combinations: the shortest lead plus trial end, plus
+    # the shortest interval less the lead, less the ramp-down and the 0.2 s arm time: with leads 0.1 and 1.0 s and a 0.5 s
+    # ramp-down, 0.1 + 2.5 + (2.5 - 1.0) - 0.5 - 0.2 = 3.4 s (0.9 s from the opening).
+    from ucl_open_coen_dome_decision_making.task import _between_trials
+    task = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
+    task["optogenetics"].update({"enabled": True, "laserDurationSeconds": 3.4})
+    other = {**task, "optogenetics": {**task["optogenetics"], "laserToStimulusSeconds": 1.0}}
+    _between_trials([task, other], 0.5)
+    task["optogenetics"]["laserDurationSeconds"] = 3.5
+    with pytest.raises(ValueError, match="must be at most 3.4 s across the combinations"):
+        _between_trials([task, other], 0.5)
+    # A stimulus may last to the window's close (5.5 s with a 5 s window): its end before the next stimulus counts from there.
+    task["optogenetics"]["enabled"] = False
+    task["trialStructure"] = {**task["trialStructure"], "responseWindowSeconds": 5.0}
+    task["stimulus"] = {**task["stimulus"], "durationSeconds": 5.5}
+    _between_trials([task], 0.5)
+    _localization(durationSeconds=None, responseToStimulusOffSeconds=2.5)   # from the outcome, a miss's at the window's end: at most itiMinSeconds
+    with pytest.raises(ValidationError, match="response_to_stimulus_off_seconds"):
+        _localization(durationSeconds=None, responseToStimulusOffSeconds=2.6)
 
 
 @pytest.mark.parametrize(

@@ -208,22 +208,31 @@ public class TrialDraw
     /// <summary>The timing rules between a trial and the next, each drawn from any weighted combination (task.py
     /// _between_trials): the lab's spouts (OpenRigs.Trials Spouts.BetweenTrialsProblems: the longest rewardConsumptionSeconds
     /// plus the longest lead within the shortest itiMinSeconds) and stimulus off between trials
-    /// (StimulusTiming.BetweenTrialsProblems: the soonest outcome the response window's opening, the shortest outcome to next
-    /// interval 0, MinOutcomeToItiSeconds), and with optogenetics the laser (LaserProblems, once the bank's
-    /// ramp-down is known).</summary>
+    /// (StimulusTiming.BetweenTrialsProblems: as its stimulusToEarliestOutcomeSeconds, where the outcome to next interval
+    /// starts counting, each trial's end, TrialEndSeconds; the shortest outcome to next interval 0, MinOutcomeToItiSeconds),
+    /// and with optogenetics the laser (LaserProblems, once the bank's ramp-down is known).</summary>
     static void BetweenTrials(List<string> problems, List<UclOpenCoenDomeDecisionMakingTaskParameters> tasks)
     {
         if (tasks.Count == 0) return;
         var iti = tasks.Select(t => t.TrialStructure.ItiMinSeconds).ToList();
         problems.AddRange(LabSpouts.BetweenTrialsProblems(tasks.Select(t => t.Spouts.StimulusToSpoutsInSeconds), tasks.Select(t => t.Spouts.AlwaysIn),
             tasks.Select(t => t.Spouts.RewardConsumptionSeconds), iti));
-        problems.AddRange(StimulusTiming.BetweenTrialsProblems(tasks.Select(t => t.Stimulus.DurationSeconds), tasks.Select(t => t.TrialStructure.StimulusToResponseWindowSeconds),
+        problems.AddRange(StimulusTiming.BetweenTrialsProblems(tasks.Select(t => t.Stimulus.DurationSeconds), tasks.Select(t => TrialEndSeconds(t.TrialStructure)),
             tasks.Select(t => t.Stimulus.ResponseToStimulusOffSeconds), iti, MinOutcomeToItiSeconds));
+    }
+
+    /// <summary>From stimulus onset to the trial's end, in seconds: the response window's end (stimulusToResponseWindowSeconds +
+    /// responseWindowSeconds), as the window always runs in full (responseWindowAlwaysFull), so the next interval (after any
+    /// penalty timeout) starts there whatever the mouse does. A choice gives its outcome sooner, but the next trial's stimulus
+    /// and trigger count from here. Without a responseWindowSeconds (refused at Go) the window's opening, the soonest outcome.</summary>
+    public static double TrialEndSeconds(TrialStructure structure)
+    {
+        return structure.StimulusToResponseWindowSeconds + (structure.ResponseWindowSeconds ?? 0);
     }
 
     /// <summary>With optogenetics, the laser of every combination (task.py's same rules, looser before Go: it has the bank's
     /// ramp-down at most): each laserDurationSeconds within MaxLaserSeconds, and across the weighted combinations within the shortest
-    /// lead plus stimulus to response window plus the shortest interval less the lead, less what a ZapitDaq trial outlasts its
+    /// lead plus stimulus to trial end (TrialEndSeconds, the response window's end) plus the shortest interval less the lead, less what a ZapitDaq trial outlasts its
     /// laser (<paramref name="freeAfterLaserSeconds"/>, ZapitDaqTrial.FreeAfterLaserSeconds: a scan cycle, the bank's longest
     /// ramp-down and the free margin) and Zapit's arm time, so Zapit is free at the next trigger.</summary>
     public static List<string> LaserProblems(IList<BuiltTrialCondition> conditions, double freeAfterLaserSeconds)
@@ -237,7 +246,7 @@ public class TrialDraw
                 var maxSeconds = MaxLaserSeconds(combination.Task, freeAfterLaserSeconds);
                 if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
                 {
-                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + itiMinSeconds - the {3} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a {5} s margin) - {4} s arm time), so Zapit can be armed for the next trial in time",
+                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds - the {3} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a {5} s margin) - {4} s arm time), so Zapit can be armed for the next trial in time",
                         condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, freeAfterLaserSeconds, ZapitDaqTrial.ArmSeconds, ZapitDaqTrial.FreeMarginSeconds));
                 }
             }
@@ -245,10 +254,10 @@ public class TrialDraw
         var tasks = conditions.Where(c => c.Weight > 0).SelectMany(c => c.Combinations).Select(m => m.Task).ToList();
         if (tasks.Count > 0 && tasks[0].Optogenetics.Enabled)
         {
-            var across = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + t.TrialStructure.StimulusToResponseWindowSeconds) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
+            var across = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + TrialEndSeconds(t.TrialStructure)) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
                 - freeAfterLaserSeconds - ZapitDaqTrial.ArmSeconds;
             var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
-            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to response window, plus the shortest interval less the lead, less the {2} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a margin) and Zapit's arm time", duration, across, freeAfterLaserSeconds));
+            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to trial end (the response window's end), plus the shortest interval less the lead, less the {2} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a margin) and Zapit's arm time", duration, across, freeAfterLaserSeconds));
         }
         return problems.Distinct().ToList();
     }
@@ -257,7 +266,8 @@ public class TrialDraw
     /// timeout among the outcomes that can occur, 0 where a reward or neither can come): 0 in every task here, as every trial
     /// can end rewarded or neither (a correct choice, a random probe's heads, a go/no-go miss or withheld noGo, a no-reward
     /// probe), and a rewarded trial's interval starts at its end (task.py's same 0). Its end is the response window's
-    /// (responseWindowAlwaysFull), never sooner than the outcome, so the checks built on it hold with room to spare.</summary>
+    /// (responseWindowAlwaysFull, TrialEndSeconds), so the checks that count to the next trial count from there; the check of
+    /// responseToStimulusOffSeconds counts from the outcome itself, which on a miss or a last-moment choice is that end.</summary>
     public const double MinOutcomeToItiSeconds = 0;
 
     // Each penalty kind's sound level: a number of dBFS RMS or mute (NaN), at most the peak limit.
@@ -366,11 +376,13 @@ public class TrialDraw
         foreach (var p in QuietWait.WheelProblems(structure.WheelQuietSeconds, structure.WheelQuietCm)) problems.Add("trialStructure." + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
         if (task.Optogenetics.Enabled) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
-        // The lab's stimulus off and spouts blocks, by their one C# check each (OpenRigs.Trials StimulusTiming, Spouts): the
-        // soonest outcome the response window's opening, the shortest outcome to next interval 0 (MinOutcomeToItiSeconds).
+        // The lab's stimulus off and spouts blocks, by their one C# check each (OpenRigs.Trials StimulusTiming, Spouts): as
+        // StimulusTiming's stimulusToEarliestOutcomeSeconds (where the outcome to next interval starts counting) the trial's
+        // end, the response window's (TrialEndSeconds); the shortest outcome to next interval 0 (MinOutcomeToItiSeconds). The
+        // spouts' check keeps the window's opening: the spouts must be in when a lick first counts.
         var responseEnd = structure.StimulusToResponseWindowSeconds + (structure.ResponseWindowSeconds ?? double.PositiveInfinity);
         problems.AddRange(StimulusTiming.Problems(task.Stimulus.DurationSeconds, task.Stimulus.ResponseToStimulusOffSeconds, structure.ItiMinSeconds, responseEnd,
-            structure.StimulusToResponseWindowSeconds, MinOutcomeToItiSeconds));
+            TrialEndSeconds(structure), MinOutcomeToItiSeconds));
         problems.AddRange(LabSpouts.Problems(task.Spouts.StimulusToSpoutsInSeconds, task.Spouts.AlwaysIn, task.Spouts.RewardConsumptionSeconds, structure.ItiMinSeconds,
             structure.StimulusToResponseWindowSeconds));
         var opto = task.Optogenetics;
@@ -402,14 +414,15 @@ public class TrialDraw
     }
 
     /// <summary>The maximum laserDurationSeconds (task.py's same rule; with laserEnd stimulusOff the laser's cap): from a trigger to the
-    /// next is at least stimulusToResponseWindowSeconds + itiMinSeconds (a response at once, nothing after the outcome, a quiet mouse),
+    /// next is at least stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds (TrialEndSeconds: the window always
+    /// runs in full, so even a response at once ends the trial at the window's end; no timeout after a reward; a quiet mouse),
     /// and in that time the laser, what the ZapitDaq trial outlasts it <paramref name="freeAfterLaserSeconds"/> (whole scan cycles,
     /// the ramp and a margin: ZapitDaqTrial.FreeAfterLaserSeconds, plus rig.yml's earlyStopLeadSeconds when an early stop ends it;
     /// the next trial is armed only once it has played) and ZapitDaq's arm time must fit before the next trigger.</summary>
     public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double freeAfterLaserSeconds)
     {
         var s = task.TrialStructure;
-        return s.StimulusToResponseWindowSeconds + s.ItiMinSeconds - freeAfterLaserSeconds - ZapitDaqTrial.ArmSeconds;
+        return TrialEndSeconds(s) + s.ItiMinSeconds - freeAfterLaserSeconds - ZapitDaqTrial.ArmSeconds;
     }
 
     /// <summary>The next trial, after the last one's row (its outcome and choice; null before the first).</summary>
