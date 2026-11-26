@@ -21,11 +21,12 @@ from open_rigs.core.task import (
     level_dbfs,
 )
 from open_rigs.core.task import Optogenetics as LabOptogenetics
-from open_rigs.components.zapit import ZAPIT_ARM_SECONDS
+from open_rigs.components.zapit import ZAPIT_ARM_SECONDS, ZAPIT_REPLY_MARGIN_SECONDS
 from open_rigs.components.zapit import ramp_down_from
 from open_rigs.rigs import conditioned_task as ct
 from open_rigs.rigs.conditioned_task import ABOVE_0, MAX_WEIGHT_SUM, SIDELESS, SOUNDING, SoundAzimuth, if_
 from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from ucl_open_coen_dome_decision_making import __semver__
 
@@ -194,8 +195,17 @@ class RepeatOn(StrEnum):
 # The session fields (the schema's x-session-fields; TrialDraw.SessionFields, a test holds both): only what cannot change
 # per trial, so a condition may not set it (the path or any path under it). A condition may set every other field: the
 # draw reads it per trial from the trial's combination, logged through trialCombinationId and Settings_Combinations.
+# The lab's, with this task's two Zapit boxes in place of optogenetics.enabled (Optogenetics), at its place.
 SESSION_FIELDS = {
-    **ct.COMMON_SESSION_FIELDS,
+    **{
+        k: v
+        for path, why in ct.COMMON_SESSION_FIELDS.items()
+        for k, v in (
+            [("optogenetics.zapitBonsai", "ZapitDaq runs the session: its bank is loaded before Go and checked at Go"),
+             ("optogenetics.zapitMatlab", "MATLAB Zapit is connected and its conditions file loaded at Go")]
+            if path == "optogenetics.enabled" else [(path, why)]
+        )
+    },
     "taskType": "the task the file and its curriculum train; x-required-conditions keys on it",
     "optogenetics.laserEnd": "one laser timing (LaserTiming) for the experiment, set at Go",
 }
@@ -289,10 +299,56 @@ class LaserEndMode(StrEnum):
     STIMULUS_OFF = "stimulusOff"
 
 
+ZAPIT_BOXES = ("zapitBonsai", "zapitMatlab")
+# The launcher checks the task file against the schema, not this model: either box ticked needs a conditions file and a power
+# (the lab's rule on its enabled), and both ticked is refused. additionalProperties spelt out, as the lab's are.
+_TICKED = {box: {"properties": {box: {"const": True}}, "required": [box], "additionalProperties": True} for box in ZAPIT_BOXES}
+BOTH_ZAPITS = ("optogenetics.zapitBonsai (Zapit-Bonsai) and optogenetics.zapitMatlab (Zapit-MATLAB) are both ticked: "
+               "tick one, the Zapit this rig runs, or neither")
+
+
 class Optogenetics(LabOptogenetics):
     """Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
     laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
-    laser runs. A repeated trial never has the laser on."""
+    laser runs. A repeated trial never has the laser on.
+
+    Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
+    or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
+    schema and the file, as either box, so its checks run. An old file's enabled reads as zapitMatlab (MATLAB was the only
+    Zapit); enabled beside either box is refused. zapitMatlab, and enabled's reading, go when MATLAB Zapit is retired."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "if": {"anyOf": [_TICKED["zapitBonsai"], _TICKED["zapitMatlab"]]},
+            "then": {
+                "properties": {"zapitConditionsPath": {"minLength": 1}, "laserPowerMw": {"type": "number"}},
+                "required": ["laserPowerMw"],
+                "additionalProperties": True,
+            },
+            "not": {"allOf": [_TICKED["zapitBonsai"], _TICKED["zapitMatlab"]]},
+        }
+    )
+
+    enabled: SkipJsonSchema[bool] = Field(default=False, exclude=True, description="Either box: set from them, never read from the file")
+    zapit_bonsai: Bool = Field(
+        default=False,
+        title="Zapit-Bonsai",
+        description=(
+            "Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit "
+            "block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the "
+            "conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light "
+            "shows). Not with Zapit-MATLAB"
+        ),
+    )
+    zapit_matlab: Bool = Field(
+        default=False,
+        title="Zapit-MATLAB",
+        description=(
+            "Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions "
+            "file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, so tick it "
+            "before launch on a rig with a native zapit block. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired"
+        ),
+    )
 
     laser_end: LaserEndMode = Field(
         default=LaserEndMode.DURATION,
@@ -303,6 +359,32 @@ class Optogenetics(LabOptogenetics):
         gt=0,
         description="How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus ZapitDaq's 0.1 s early-stop lead with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _old_switch(cls, data: Any) -> Any:
+        # A file from before the two boxes (26 Nov 2026): enabled was MATLAB Zapit's (OldOptogeneticsSwitch in the C#, the same
+        # reading). Goes when MATLAB Zapit is retired.
+        if isinstance(data, dict) and "enabled" in data:
+            if any(key in data for key in (*ZAPIT_BOXES, "zapit_bonsai", "zapit_matlab")):
+                raise ValueError("optogenetics has enabled, the old switch, beside zapitBonsai or zapitMatlab: delete enabled and tick "
+                                 "Zapit-Bonsai or Zapit-MATLAB (or neither)")
+            data = {**data, "zapitMatlab": data["enabled"]}
+            del data["enabled"]
+        return data
+
+    @model_validator(mode="after")
+    def _power_when_on(self):
+        # Replaces the lab's check of the same name: its enabled is either box here, set before the lab's checks read it.
+        if self.zapit_bonsai and self.zapit_matlab:
+            raise ValueError(BOTH_ZAPITS)
+        self.__dict__["enabled"] = self.zapit_bonsai or self.zapit_matlab
+        box = "Zapit-Bonsai" if self.zapit_bonsai else "Zapit-MATLAB"
+        if self.enabled and not self.zapit_conditions_path:
+            raise ValueError(f"{box} is ticked but zapit_conditions_path is empty")
+        if self.enabled and self.laser_power_mw is None:
+            raise ValueError(f"{box} is ticked but laser_power_mw is not set")
+        return self
 
 
 class Curriculum(ct.Curriculum):
@@ -520,15 +602,18 @@ def _between_trials(tasks: list[dict], ramp_down_seconds: Double = 0.0) -> None:
             f"stimulus.responseToStimulusOffSeconds {max(after):g} s is longer than itiMinSeconds ({gap:g} s) "
             "of a combination that may come next (the shortest outcome to next interval is 0, after a reward)"
         )
-    if tasks[0]["optogenetics"]["enabled"]:
+    opto = tasks[0]["optogenetics"]
+    if opto["zapitBonsai"] or opto["zapitMatlab"]:
+        # ZapitDaq's arm time, or MATLAB Zapit's reply margin (TrialDraw.MatlabLaserProblems; goes when MATLAB Zapit is retired).
+        margin, ramp = (ZAPIT_ARM_SECONDS, "Zapit bank's") if opto["zapitBonsai"] else (ZAPIT_REPLY_MARGIN_SECONDS, "Zapit conditions file's")
         leads = [task["optogenetics"]["laserToStimulusSeconds"] for task in tasks]
         cap = (min(lead + _trial_end_seconds(x) for lead, x in zip(leads, s)) + min(x["itiMinSeconds"] - lead for lead, x in zip(leads, s))
-                   - ramp_down_seconds - ZAPIT_ARM_SECONDS)
+                   - ramp_down_seconds - margin)
         duration = max(task["optogenetics"]["laserDurationSeconds"] for task in tasks)
         if duration > cap + 1e-9:
             raise ValueError(f"optogenetics.laserDurationSeconds ({duration} s) must be at most {cap:g} s across the combinations: "
                              "the shortest lead plus stimulus to trial end (the response window's end), plus the shortest interval less the lead, "
-                             f"less the Zapit bank's {ramp_down_seconds:g} s ramp-down and Zapit's arm time")
+                             f"less the {ramp} {ramp_down_seconds:g} s ramp-down and Zapit's {'arm time' if opto['zapitBonsai'] else 'reply margin'}")
 
 
 class UclOpenCoenDomeDecisionMakingTaskLogic(Task):

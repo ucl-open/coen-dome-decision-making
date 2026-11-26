@@ -109,15 +109,18 @@ def test_task_logic_runs_the_trial_loop():
 
 def test_the_task_is_checked_once_at_go_into_the_rules():
     # The one task check: CheckTaskAtGo builds TrialRules from the task, the stage, rig.yml and the Zapit bank the setup
-    # loaded (Zapit.Bank, ConnectForTaskZapitDaq's), so TaskRules comes after ConnectForTaskZapitDaq, which comes after DomeHardware.
+    # loaded (Zapit.Bank, ConnectForTaskZapitDaq's) and whether ZapitDaq opened at launch (ZapitRig, ConnectForTaskZapitDaq's),
+    # so TaskRules comes after both Zapit pieces, which come after DomeHardware.
     assert TEXT.count('"ext:CheckTaskAtGo"') == 1
     top = [n.get("Path") or n.findtext(W + "Name") for n in ET.fromstring(TEXT).find(W + "Workflow").find(W + "Nodes")]
     assert top.index("OpenRigs.Devices:DomeHardware.bonsai") < top.index(lint.ZAPIT_DAQ_FOR_TASK) < top.index("TaskRules") < top.index("Audio")
+    assert top.index(lint.ZAPIT_FOR_TASK) < top.index("TaskRules")
     nodes, edges = _scope(_named("TaskRules"))
     (check,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:CheckTaskAtGo"]
     assert [(nodes[b].get(XSI), nodes[b].findtext(W + "Name")) for a, b, _ in edges if a == check] == [("rx:AsyncSubject", "TrialRules")]
     assert {nodes[i].findtext(W + "Name") for i in _upstream(edges, check) if nodes[i].get(XSI) == "SubscribeSubject"} == {
-        "TaskText", "RigConfigs", "Zapit.Bank"}
+        "TaskText", "RigConfigs", "Zapit.Bank", "ZapitRig"}
+    assert [nodes[a].findtext(W + "Name") for a, b, label in edges if b == check and label == "Source3"] == ["ZapitRig"]
 
 
 def test_each_trial_event_reaches_its_hardware():
@@ -145,15 +148,43 @@ def test_every_spout_move_is_spout_commands_over_the_trial_events():
     assert "SpoutMovements" not in TEXT and "SpoutsInCommand" not in TEXT
 
 
-def test_zapit_s_trials_are_the_shared_include_given_the_rules():
-    # OpenRigs.Trials ZapitDaqTrials, once, given TrialRules: its StartStimulus at Arm on a hardware-triggered rig, else at the
-    # trigger, timed by the rules' Laser (rig.yml's zapit.hardwareTriggered and the task's laserDurationSeconds, fixed at Go).
-    assert TEXT.count('Path="OpenRigs.Trials:ZapitDaqTrials.bonsai"') == 1
+def test_zapit_s_trials_are_the_shared_includes_each_given_the_rules_with_its_box():
+    # OpenRigs.Trials ZapitDaqTrials (Zapit-Bonsai) and ZapitTrials (Zapit-MATLAB), once each, each given TrialRules only through
+    # its box's condition (TrialRules.ZapitBonsai, ZapitMatlab), so only the session's Zapit is armed and writes the trigger
+    # line: each writes nothing until given rules with a laser (lib zapit-native .24). Timed by the rules' Laser, fixed at Go.
     nodes, edges = _scope(_named("TaskLogic"))
-    (zapit,) = [i for i, n in enumerate(nodes) if n.get("Path") == "OpenRigs.Trials:ZapitDaqTrials.bonsai"]
-    assert [(nodes[a].get(XSI), nodes[a].findtext(W + "Name"), label) for a, b, label in edges if b == zapit] == [
-        ("SubscribeSubject", "TrialRules", "Source1")]
+    for path, box in (("OpenRigs.Trials:ZapitDaqTrials.bonsai", "ZapitBonsai"), ("OpenRigs.Trials:ZapitTrials.bonsai", "ZapitMatlab")):
+        assert TEXT.count(f'Path="{path}"') == 1
+        (zapit,) = [i for i, n in enumerate(nodes) if n.get("Path") == path]
+        (gate,) = [a for a, b, label in edges if b == zapit and label == "Source1"]
+        assert nodes[gate].get(XSI) == "scr:ExpressionCondition"
+        assert nodes[gate].findtext("{clr-namespace:Bonsai.Scripting.Expressions;assembly=Bonsai.Scripting.Expressions}Expression") == box
+        assert [(nodes[a].get(XSI), nodes[a].findtext(W + "Name")) for a, b, _ in edges if b == gate] == [("SubscribeSubject", "TrialRules")]
     assert "ZapitDaqTrialCommand" not in TEXT and "SetZapitTriggerLine" not in TEXT and "HardwareTriggered" not in TEXT
+    # The loop reads both Zapits' answers; RunTrials takes MATLAB Zapit's replies with Zapit-MATLAB ticked, else ZapitDaq's events.
+    (run,) = [i for i, n in enumerate(nodes) if _kind(n) == "ext:RunTrials"]
+    assert [nodes[a].findtext(W + "Name") for a, b, label in edges if b == run and label == "Source7"] == ["ZapitReplies"]
+
+
+def test_each_zapit_piece_is_gated_on_its_own_box():
+    # Pip, 26 Nov 2026: two boxes, mutually exclusive, Zapit-Bonsai and Zapit-MATLAB. Each lib piece reads its own box
+    # (OptogeneticsSwitch); ConnectForTaskZapitDaq stays closed for a session the task file hands to MATLAB Zapit at launch
+    # (ClosedBy), and its refusal names both boxes; ConnectForTask publishes its switch under its own name, as
+    # ConnectForTaskZapitDaq publishes Optogenetics; ZapitLogs writes Settings_ZapitConditions only with Zapit-MATLAB.
+    def props(path):
+        (node,) = [e for e in MAIN.iter(W + "Expression") if e.get("Path") == path]
+        return {c.tag.removeprefix(W): c.text for c in node}
+    native, matlab, logs = props(lint.ZAPIT_DAQ_FOR_TASK), props(lint.ZAPIT_FOR_TASK), props("OpenRigs.Devices:ZapitLogs.bonsai")
+    assert native["OptogeneticsSwitch"] == "TaskParameters.Optogenetics.ZapitBonsai" and native["ClosedBy"] == "optogenetics.zapitMatlab"
+    assert "tick Zapit-MATLAB instead, or fill in rig.yml's zapit block" in native["NoZapitDaqMessage"]
+    assert matlab["OptogeneticsSwitch"] == logs["OptogeneticsSwitch"] == "TaskParameters.Optogenetics.ZapitMatlab"
+    assert matlab["OptogeneticsSubjectName"] == "OptogeneticsMatlab"
+    # The manifest's Settings_ZapitConditions is either Zapit's: OptogeneticsExperiment, either box (TaskConfig's Optogenetics.On).
+    nodes, edges = _scope(_named("TaskFile"))
+    (either,) = [i for i, n in enumerate(nodes) if n.findtext(W + "Name") == "OptogeneticsExperiment"]
+    (selector,) = [a for a, b, _ in edges if b == either]
+    assert nodes[selector].findtext(W + "Selector") == "TaskParameters.Optogenetics.On"
+    assert "Settings/Settings_ZapitConditions_?OptogeneticsExperiment" in TEXT
 
 
 def test_each_grating_starts_at_its_own_trial_s_azimuth():
@@ -223,6 +254,33 @@ def test_the_metrics_are_the_view_s():
 # workflow_checks' tests; test_the_hardware_is_the_lab_s_pieces below replaces the shared one, adding DomeHardware's devices.
 WORKFLOW = lint.Workflow(ROOT)
 globals().update(workflow_checks.tests(ROOT))
+
+# Both Zapits in one workflow (Zapit-Bonsai and Zapit-MATLAB, 26 Nov 2026): open_rigs' workflow_lint (pinned) knows a
+# workflow on one Zapit only, so these three shared checks are held here without exactly the problems a workflow with both
+# Zapits has by design (test_each_zapit_piece_is_gated_on_its_own_box holds what it must keep instead). They go back to the
+# shared ones when workflow_lint learns both Zapits, or when MATLAB Zapit is retired.
+DUAL_ZAPIT = {
+    "the workflow includes ConnectForTask, MATLAB Zapit's, beside ConnectForTaskZapitDaq",
+    "the workflow includes ZapitLogs, MATLAB Zapit's, beside ConnectForTaskZapitDaq",
+    "the workflow includes ZapitTrials, MATLAB Zapit's, beside ConnectForTaskZapitDaq",
+    "the workflow includes ZapitLogs itself (TaskLogs does)",
+    "ExpectedFiles names Settings/Settings_ZapitConditions_?OptogeneticsExperiment; "
+    "its block writes it as Settings/Settings_ZapitConditions_?Optogenetics",
+}
+
+
+def test_zapit_is_the_shared_include_given_the_conditions_file():
+    assert [p for p in lint.zapit_include_problems(WORKFLOW) if p not in DUAL_ZAPIT] == []
+    assert TEXT.count(f'Path="{lint.ZAPIT_FOR_TASK}"') == 1 and f'Path="{lint.ZAPIT_INCLUDE}"' not in TEXT
+
+
+def test_the_task_logs_are_the_shared_include():
+    assert [p for p in lint.task_logs_problems(WORKFLOW) if p not in DUAL_ZAPIT] == []
+    assert TEXT.count('Path="OpenRigs.Devices:ZapitLogs.bonsai"') == 1
+
+
+def test_every_file_the_workflow_writes_is_in_the_manifest_s_expected_files():
+    assert [p for p in lint.expected_files_problems(WORKFLOW) if p not in DUAL_ZAPIT] == []
 
 
 def test_every_harp_delay_runs_on_the_timestamp_clock():

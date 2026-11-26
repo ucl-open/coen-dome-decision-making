@@ -111,25 +111,60 @@
       "type": "string"
     },
     "Optogenetics": {
-      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the\nlaser runs. A repeated trial never has the laser on.",
+      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the\nlaser runs. A repeated trial never has the laser on.\n\nTwo boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)\nor zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the\nschema and the file, as either box, so its checks run. An old file's enabled reads as zapitMatlab (MATLAB was the only\nZapit); enabled beside either box is refused. zapitMatlab, and enabled's reading, go when MATLAB Zapit is retired.",
       "if": {
-        "additionalProperties": true,
-        "properties": {
-          "enabled": {
-            "const": true
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitBonsai": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitBonsai"
+            ]
+          },
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitMatlab": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitMatlab"
+            ]
           }
-        },
-        "required": [
-          "enabled"
+        ]
+      },
+      "not": {
+        "allOf": [
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitBonsai": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitBonsai"
+            ]
+          },
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitMatlab": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitMatlab"
+            ]
+          }
         ]
       },
       "properties": {
-        "enabled": {
-          "default": false,
-          "description": "Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go",
-          "title": "Enabled",
-          "type": "boolean"
-        },
         "zapitConditionsPath": {
           "default": "",
           "description": "Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. The launching app keeps a copy beside the task file at Go",
@@ -167,6 +202,18 @@
           "minimum": 0,
           "title": "TrialsBeforeLaser",
           "type": "integer"
+        },
+        "zapitBonsai": {
+          "default": false,
+          "description": "Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Not with Zapit-MATLAB",
+          "title": "Zapit-Bonsai",
+          "type": "boolean"
+        },
+        "zapitMatlab": {
+          "default": false,
+          "description": "Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, so tick it before launch on a rig with a native zapit block. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired",
+          "title": "Zapit-MATLAB",
+          "type": "boolean"
         },
         "laserEnd": {
           "$ref": "#/$defs/LaserEndMode",
@@ -1076,7 +1123,8 @@
         "rngSeed",
         "curriculum",
         "trialConditions",
-        "optogenetics.enabled",
+        "optogenetics.zapitBonsai",
+        "optogenetics.zapitMatlab",
         "optogenetics.zapitConditionsPath",
         "taskType",
         "optogenetics.laserEnd"

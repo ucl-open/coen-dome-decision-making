@@ -4,6 +4,7 @@ using OpenRigs.Audio;
 using OpenRigs.Core;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
+using OpenRigs.Devices.Zapit;   // MATLAB Zapit (ZapitTrial, ZapitConditions, ZapitReply): goes when MATLAB Zapit is retired
 using OpenRigs.Trials;
 using OpenRigs.Zapit;
 using System;
@@ -61,27 +62,65 @@ public class Trial : ConditionedTrial, ILaserDurationTrial, ISpoutTrial
 }
 
 [Combinator]
-[Description("Reads the task file's text into the task (OpenRigs.Core TaskYaml.Read): as DeserializeFromYaml, but a trial condition's set values keep their YAML types (numbers, bools), so Settings_Task logs them as such.")]
+[Description("Reads the task file's text into the task (OpenRigs.Core TaskYaml.Read): as DeserializeFromYaml, but a trial condition's set values keep their YAML types (numbers, bools), so Settings_Task logs them as such; an old file's optogenetics.enabled read as optogenetics.zapitMatlab (OldOptogeneticsSwitch).")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class ReadTask
 {
     public IObservable<UclOpenCoenDomeDecisionMakingTaskLogic> Process(IObservable<string> source)
     {
-        return source.Select(TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>);
+        return source.Select(text => TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(OldOptogeneticsSwitch.Upgrade(text)));
+    }
+}
+
+/// <summary>A task file from before the two Zapit boxes (26 Nov 2026), whose optogenetics block has enabled: true read as
+/// zapitMatlab true (MATLAB Zapit was the only Zapit then), false as neither box; enabled beside zapitBonsai or zapitMatlab
+/// is refused. task.py's Optogenetics reads such a file the same way.</summary>
+public static class OldOptogeneticsSwitch
+{
+    /// <summary>The text unchanged unless its taskParameters.optogenetics has enabled; else with enabled renamed zapitMatlab.</summary>
+    public static string Upgrade(string text)
+    {
+        if (text == null || !text.Contains("enabled")) return text;
+        var stream = TaskYaml.Load(text);
+        var root = stream.Documents.Count == 0 ? null : stream.Documents[0].RootNode as YamlMappingNode;
+        YamlNode parameters, block;
+        if (root == null || !root.Children.TryGetValue(new YamlScalarNode("taskParameters"), out parameters) || !(parameters is YamlMappingNode)
+            || !((YamlMappingNode)parameters).Children.TryGetValue(new YamlScalarNode("optogenetics"), out block) || !(block is YamlMappingNode))
+        {
+            return text;
+        }
+        var optogenetics = (YamlMappingNode)block;
+        var enabled = new YamlScalarNode("enabled");
+        if (!optogenetics.Children.ContainsKey(enabled)) return text;
+        if (optogenetics.Children.ContainsKey(new YamlScalarNode("zapitBonsai")) || optogenetics.Children.ContainsKey(new YamlScalarNode("zapitMatlab")))
+        {
+            throw new InvalidOperationException("The task file's optogenetics block has enabled, the old switch, beside zapitBonsai or zapitMatlab: delete enabled and tick Zapit-Bonsai or Zapit-MATLAB (or neither).");
+        }
+        var upgraded = new YamlMappingNode();
+        foreach (var cell in optogenetics.Children)
+        {
+            upgraded.Add(cell.Key.Equals(enabled) ? new YamlScalarNode("zapitMatlab") : cell.Key, cell.Value);
+        }
+        ((YamlMappingNode)parameters).Children[new YamlScalarNode("optogenetics")] = upgraded;
+        var writer = new StringWriter();
+        stream.Save(writer, false);
+        return writer.ToString();
     }
 }
 
 [Combinator]
-[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): curriculum is present and well formed, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), and with optogenetics the session's Zapit bank (its conditions drawn from, its longest ramp-down). Inputs: the task file's text and rig.yml; Zapit.Bank (none on a rig without Zapit or before the setup loads one). Stops the workflow naming every problem.")]
+[Description("Checks the task at Go and gives the trials' rules (TrialRules, tested C#): curriculum is present and well formed, each trial condition builds and the draw's rules hold on rig.yml's speakers for the task and every condition (TrialDraw.CheckTask), the ticked Zapit is this session's (TrialRules.ZapitSessionProblem), and with Zapit-Bonsai the session's Zapit bank (its conditions drawn from, its longest ramp-down), with Zapit-MATLAB the Zapit conditions file. Inputs: the task file's text and rig.yml; Zapit.Bank (none on a rig without ZapitDaq or before the setup loads one); ZapitRig (ConnectForTaskZapitDaq's: a value when ZapitDaq opened at launch). Stops the workflow naming every problem.")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class CheckTaskAtGo
 {
-    public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source, IObservable<ZapitBank> bank)
+    public IObservable<TrialRules> Process(IObservable<Tuple<string, LabRig>> source, IObservable<ZapitBank> bank, IObservable<OpenRigs.Devices.Rigs.Zapit> zapitRig)
     {
         // The bank as loaded at Go, null when none was: a rig without Zapit never loads one, and needs none without optogenetics.
         // Zapit.Bank is a BehaviorSubject, subscribed first, so its last bank is in hand before the task text comes, once.
+        // ZapitRig is an AsyncSubject settled at launch: a value when ZapitDaq opened, none when it stayed closed.
+        var opened = zapitRig.Select(_ => true).Concat(Observable.Return(false)).Take(1);
         return bank.StartWith((ZapitBank)null).CombineLatest(source, (loaded, input) => Tuple.Create(input, loaded)).Take(1)
-            .Select(x => TrialRules.Create(x.Item1.Item1, x.Item1.Item2, x.Item2));
+            .Zip(opened, (x, daq) => TrialRules.Create(x.Item1.Item1, x.Item1.Item2, x.Item2, daq));
     }
 }
 
@@ -118,7 +157,8 @@ public class TrialDraw
     readonly List<BuiltTrialCondition> conditions;
     readonly EqualisedSpeakerArray speakers;
     readonly Random random;
-    readonly ZapitBank bank;   // null without optogenetics
+    readonly ZapitBank bank;   // Zapit-Bonsai's; null without it
+    readonly ZapitConditionsFile zapitConditionsFile;   // Zapit-MATLAB's; null without it (goes when MATLAB Zapit is retired)
     Trial last;
     int drawn;
 
@@ -131,36 +171,56 @@ public class TrialDraw
     /// <summary>The conditions as built at Go, in trialConditions' order.</summary>
     public IList<BuiltTrialCondition> Conditions { get { return conditions; } }
 
-    /// <summary>The Zapit bank's longest ramp-down (ZapitBank.LongestRampSeconds), in seconds (0 without optogenetics): the
-    /// next trial is armed once it has played after the laser.</summary>
+    /// <summary>The ticked Zapit's longest ramp-down, in seconds (0 without optogenetics): Zapit-Bonsai's bank's
+    /// (ZapitBank.LongestRampSeconds), Zapit-MATLAB's conditions file's (ZapitConditionsFile.MaxRampDownSeconds); the next trial
+    /// is armed once it has played after the laser.</summary>
     public double MaxRampDownSeconds { get; private set; }
 
-    /// <summary>How long ZapitDaq stays busy after the laser's end, in seconds (0 without optogenetics): ZapitDaqTrial.FreeAfterLaserSeconds,
+    /// <summary>With Zapit-Bonsai, how long ZapitDaq stays busy after the laser's end, in seconds (0 otherwise): ZapitDaqTrial.FreeAfterLaserSeconds,
     /// plus ZapitDaq.EarlyStopLeadSeconds when an early stop ends it (laserEnd stimulusOff).</summary>
     public double FreeAfterLaserSeconds { get; private set; }
 
     /// <summary>The draw of a task file's text (as rig-control wrote it at launch) on a rig's speakers, with the session's
-    /// Zapit bank (null without one: refused with optogenetics on). Throws naming every problem, with optogenetics a laser
-    /// that could leave Zapit busy at the next trigger (LaserProblems).</summary>
-    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank)
+    /// Zapit bank (null without one: refused with Zapit-Bonsai ticked). Zapit-MATLAB reads the task's Zapit conditions file
+    /// (ZapitConditions.Check). Throws naming every problem, with optogenetics a laser that could leave Zapit busy at the next
+    /// trigger (LaserProblems, MatlabLaserProblems).</summary>
+    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank) : this(taskText, speakers, bank, null)
+    {
+    }
+
+    /// <summary>As TrialDraw(taskText, speakers, bank), with Zapit-MATLAB's conditions file read by
+    /// <paramref name="zapitConditions"/> (null: ZapitConditions.Check reads it).</summary>
+    public TrialDraw(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank, Func<string, ZapitConditionsFile> zapitConditions)
     {
         conditions = CheckTask(taskText, speakers, out task);
         this.speakers = speakers;
         var optogenetics = task.Optogenetics;
-        if (optogenetics.Enabled)
+        if (optogenetics.On)
         {
             if (!(optogenetics.LaserPowerMw > 0))
             {
-                throw new InvalidOperationException("optogenetics is enabled, so optogenetics.laserPowerMw must be a power in mW above 0.");
+                throw new InvalidOperationException(string.Format("{0} is ticked, so optogenetics.laserPowerMw must be a power in mW above 0.", optogenetics.ZapitBonsai ? "Zapit-Bonsai" : "Zapit-MATLAB"));
             }
-            if (bank == null)
+            List<string> problems;
+            if (optogenetics.ZapitBonsai)
             {
-                throw new InvalidOperationException("optogenetics is enabled, but no Zapit bank was loaded before Go: run Zapit's setup (scanner, sample, bank) in app-rig-control, or turn optogenetics off.");
+                if (bank == null)
+                {
+                    throw new InvalidOperationException("Zapit-Bonsai is ticked, but no Zapit bank was loaded before Go: run Zapit's setup (scanner, sample, bank) in app-rig-control, or untick Zapit-Bonsai.");
+                }
+                this.bank = bank;
+                MaxRampDownSeconds = bank.LongestRampSeconds;
+                FreeAfterLaserSeconds = ZapitDaqTrial.FreeAfterLaserSeconds(bank) + (optogenetics.LaserEnd == LaserEndMode.StimulusOff ? ZapitDaq.EarlyStopLeadSeconds : 0);
+                problems = LaserProblems(conditions, FreeAfterLaserSeconds);
             }
-            this.bank = bank;
-            MaxRampDownSeconds = bank.LongestRampSeconds;
-            FreeAfterLaserSeconds = ZapitDaqTrial.FreeAfterLaserSeconds(bank) + (optogenetics.LaserEnd == LaserEndMode.StimulusOff ? ZapitDaq.EarlyStopLeadSeconds : 0);
-            var problems = LaserProblems(conditions, FreeAfterLaserSeconds);
+            else
+            {
+                // Zapit-MATLAB: goes when MATLAB Zapit is retired.
+                var path = optogenetics.ZapitConditionsPath;
+                zapitConditionsFile = zapitConditions != null ? zapitConditions(path) : ZapitConditions.Check(path);
+                MaxRampDownSeconds = zapitConditionsFile.MaxRampDownSeconds;
+                problems = MatlabLaserProblems(conditions, MaxRampDownSeconds);
+            }
             if (problems.Count > 0) throw new InvalidOperationException("The task cannot be run: " + string.Join("; ", problems) + ".");
         }
         Seed = RngSeed.Resolve(task.RngSeed);
@@ -172,10 +232,12 @@ public class TrialDraw
     /// these speakers, naming every problem.</summary>
     public static List<BuiltTrialCondition> CheckTask(string taskText, EqualisedSpeakerArray speakers, out UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
+        taskText = OldOptogeneticsSwitch.Upgrade(taskText);
         task = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(taskText).TaskParameters;
         var curriculumProblem = CurriculumCheck.Problem(task.Curriculum);
         if (curriculumProblem != null) throw new InvalidOperationException("The task file's curriculum " + curriculumProblem + ": launch it from app-rig-control, which writes the stage's values and fills it.");
         var problems = new List<string>();
+        if (task.Optogenetics.ZapitBonsai && task.Optogenetics.ZapitMatlab) problems.Add(BothZapits);
         Check(problems, task, speakers);
         if (task.Target != null) problems.Add("target is each trial condition's (its set's target), not the task's");
         var built = problems.Count == 0 ? TrialConditions.Build(taskText, task, t => TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(t).TaskParameters, Schema, problems) : null;
@@ -237,30 +299,57 @@ public class TrialDraw
     /// ramp-down and the free margin) and Zapit's arm time, so Zapit is free at the next trigger.</summary>
     public static List<string> LaserProblems(IList<BuiltTrialCondition> conditions, double freeAfterLaserSeconds)
     {
+        return LaserProblems(conditions, freeAfterLaserSeconds + ZapitDaqTrial.ArmSeconds,
+            (duration, max) => string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds - the {2} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a {4} s margin) - {3} s arm time), so Zapit can be armed for the next trial in time",
+                duration, max, freeAfterLaserSeconds, ZapitDaqTrial.ArmSeconds, ZapitDaqTrial.FreeMarginSeconds),
+            (duration, max) => string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to trial end (the response window's end), plus the shortest interval less the lead, less the {2} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a margin) and Zapit's arm time",
+                duration, max, freeAfterLaserSeconds));
+    }
+
+    /// <summary>Zapit-MATLAB's LaserProblems (main's rules before the two boxes, counted from the trial's end since 26 Nov 2026):
+    /// each laserDurationSeconds within MatlabMaxLaserSeconds, and across the weighted combinations within the shortest lead
+    /// plus stimulus to trial end plus the shortest interval less the lead, less the Zapit conditions file's largest ramp-down
+    /// <paramref name="rampDownSeconds"/> (Zapit refuses the next StartStimulus until it has played) and Zapit's reply margin.
+    /// Goes when MATLAB Zapit is retired.</summary>
+    public static List<string> MatlabLaserProblems(IList<BuiltTrialCondition> conditions, double rampDownSeconds)
+    {
+        return LaserProblems(conditions, rampDownSeconds + ZapitTrial.ReplyMarginSeconds,
+            (duration, max) => string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s (stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds - the Zapit conditions file's {2} s ramp-down - {3} s reply margin), so MATLAB Zapit can be armed for the next trial in time",
+                duration, max, rampDownSeconds, ZapitTrial.ReplyMarginSeconds),
+            (duration, max) => string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to trial end (the response window's end), plus the shortest interval less the lead, less the Zapit conditions file's {2} s ramp-down and Zapit's reply margin",
+                duration, max, rampDownSeconds));
+    }
+
+    // The laser rule of either Zapit: each combination's laserDurationSeconds within its trial end plus itiMinSeconds less
+    // overheadSeconds (what the Zapit needs after the laser before the next trigger), and across the weighted combinations.
+    static List<string> LaserProblems(IList<BuiltTrialCondition> conditions, double overheadSeconds, Func<double, double, string> tooLong, Func<double, double, string> tooLongAcross)
+    {
         var problems = new List<string>();
         foreach (var condition in conditions)
         {
             foreach (var combination in condition.Combinations)
             {
                 var opto = combination.Task.Optogenetics;
-                var maxSeconds = MaxLaserSeconds(combination.Task, freeAfterLaserSeconds);
-                if (opto.Enabled && opto.LaserDurationSeconds > maxSeconds + 1e-9)
+                var maxSeconds = LaserLimitSeconds(combination.Task, overheadSeconds);
+                if (opto.On && opto.LaserDurationSeconds > maxSeconds + 1e-9)
                 {
-                    problems.Add(string.Format("{0}optogenetics.laserDurationSeconds ({1} s) must be at most {2} s (stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds - the {3} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a {5} s margin) - {4} s arm time), so Zapit can be armed for the next trial in time",
-                        condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": ", opto.LaserDurationSeconds, maxSeconds, freeAfterLaserSeconds, ZapitDaqTrial.ArmSeconds, ZapitDaqTrial.FreeMarginSeconds));
+                    problems.Add(condition.Where + (combination.Picks.Length == 0 ? "" : " with " + combination.Picks) + ": " + tooLong(opto.LaserDurationSeconds, maxSeconds));
                 }
             }
         }
         var tasks = conditions.Where(c => c.Weight > 0).SelectMany(c => c.Combinations).Select(m => m.Task).ToList();
-        if (tasks.Count > 0 && tasks[0].Optogenetics.Enabled)
+        if (tasks.Count > 0 && tasks[0].Optogenetics.On)
         {
             var across = tasks.Min(t => t.Optogenetics.LaserToStimulusSeconds + TrialEndSeconds(t.TrialStructure)) + tasks.Min(t => t.TrialStructure.ItiMinSeconds - t.Optogenetics.LaserToStimulusSeconds)
-                - freeAfterLaserSeconds - ZapitDaqTrial.ArmSeconds;
+                - overheadSeconds;
             var duration = tasks.Max(t => t.Optogenetics.LaserDurationSeconds);
-            if (duration > across + 1e-9) problems.Add(string.Format("optogenetics.laserDurationSeconds ({0} s) must be at most {1} s across the combinations: the shortest lead plus stimulus to trial end (the response window's end), plus the shortest interval less the lead, less the {2} s a Zapit trial outlasts its laser (a scan cycle, the bank's ramp-down and a margin) and Zapit's arm time", duration, across, freeAfterLaserSeconds));
+            if (duration > across + 1e-9) problems.Add(tooLongAcross(duration, across));
         }
         return problems.Distinct().ToList();
     }
+
+    /// <summary>The refusal of a task file with both Zapit boxes ticked.</summary>
+    public const string BothZapits = "optogenetics.zapitBonsai (Zapit-Bonsai) and optogenetics.zapitMatlab (Zapit-MATLAB) are both ticked: tick one, the Zapit this rig runs, or neither";
 
     /// <summary>The shortest outcome to next interval a trial can have (OpenRigs.Trials StimulusTiming: the shortest penalty
     /// timeout among the outcomes that can occur, 0 where a reward or neither can come): 0 in every task here, as every trial
@@ -375,7 +464,7 @@ public class TrialDraw
         foreach (var p in QuietWait.LickProblems(structure.LickQuietSeconds)) problems.Add("trialStructure." + p);
         foreach (var p in QuietWait.WheelProblems(structure.WheelQuietSeconds, structure.WheelQuietCm)) problems.Add("trialStructure." + p);
         if (double.IsNaN(task.Optogenetics.LaserToStimulusSeconds) || double.IsInfinity(task.Optogenetics.LaserToStimulusSeconds)) problems.Add("optogenetics.laserToStimulusSeconds must be a finite number");
-        if (task.Optogenetics.Enabled) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
+        if (task.Optogenetics.On) positive("optogenetics.laserDurationSeconds", task.Optogenetics.LaserDurationSeconds);
         // The lab's stimulus off and spouts blocks, by their one C# check each (OpenRigs.Trials StimulusTiming, Spouts): as
         // StimulusTiming's stimulusToEarliestOutcomeSeconds (where the outcome to next interval starts counting) the trial's
         // end, the response window's (TrialEndSeconds); the shortest outcome to next interval 0 (MinOutcomeToItiSeconds). The
@@ -387,7 +476,7 @@ public class TrialDraw
             structure.StimulusToResponseWindowSeconds));
         var opto = task.Optogenetics;
         var lead = opto.LaserToStimulusSeconds;
-        var leadProblem = ZapitDaqTrial.LeadProblem(lead, structure.ItiMinSeconds);
+        var leadProblem = opto.ZapitMatlab ? ZapitTrial.LeadProblem(lead, structure.ItiMinSeconds) : ZapitDaqTrial.LeadProblem(lead, structure.ItiMinSeconds);   // MATLAB's goes when MATLAB Zapit is retired
         if (leadProblem != null) problems.Add(leadProblem);
         if (-lead > structure.StimulusToResponseWindowSeconds + structure.ResponseWindowSeconds + 1e-9)
         {
@@ -397,7 +486,7 @@ public class TrialDraw
         // and within the laser's cap. Only that off is known at Go: one that follows the answer (responseToStimulusOffSeconds, the
         // earlier of the two) is not checked, and the cap ends a laser still on then.
         var duration = task.Stimulus.DurationSeconds;
-        if (opto.Enabled && opto.LaserEnd == LaserEndMode.StimulusOff && duration.HasValue)
+        if (opto.On && opto.LaserEnd == LaserEndMode.StimulusOff && duration.HasValue)
         {
             if (-lead >= duration.Value - 1e-9)
                 problems.Add(string.Format("optogenetics.laserToStimulusSeconds ({0} s) triggers the laser {1} s after the stimulus onset, when the stimulus (stimulus.durationSeconds {2} s) is already off: with optogenetics.laserEnd stimulusOff the laser would stop as it starts", lead, -lead, duration.Value));
@@ -421,8 +510,23 @@ public class TrialDraw
     /// the next trial is armed only once it has played) and ZapitDaq's arm time must fit before the next trigger.</summary>
     public static double MaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double freeAfterLaserSeconds)
     {
+        return LaserLimitSeconds(task, freeAfterLaserSeconds + ZapitDaqTrial.ArmSeconds);
+    }
+
+    /// <summary>Zapit-MATLAB's MaxLaserSeconds (main's rule, counted from the trial's end since 26 Nov 2026): the trial's end plus
+    /// itiMinSeconds less the Zapit conditions file's largest ramp-down <paramref name="rampDownSeconds"/> (MATLAB Zapit refuses
+    /// the next StartStimulus until it has played) and Zapit's reply margin. 4.55 s with the shipped task files at the lab's
+    /// 0.25 s ramp-down. Goes when MATLAB Zapit is retired.</summary>
+    public static double MatlabMaxLaserSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double rampDownSeconds)
+    {
+        return LaserLimitSeconds(task, rampDownSeconds + ZapitTrial.ReplyMarginSeconds);
+    }
+
+    // The trial's end plus itiMinSeconds less what the Zapit needs after the laser before the next trigger.
+    static double LaserLimitSeconds(UclOpenCoenDomeDecisionMakingTaskParameters task, double overheadSeconds)
+    {
         var s = task.TrialStructure;
-        return TrialEndSeconds(s) + s.ItiMinSeconds - freeAfterLaserSeconds - ZapitDaqTrial.ArmSeconds;
+        return TrialEndSeconds(s) + s.ItiMinSeconds - overheadSeconds;
     }
 
     /// <summary>The next trial, after the last one's row (its outcome and choice; null before the first).</summary>
@@ -563,10 +667,16 @@ public class TrialDraw
         trial.singleSpoutOffered = task.TaskType == TaskType.DiscriminationGoNoGo || (trial.target != TargetWords.Random && trial.target != TargetWords.NoReward && !p.Spouts.AlwaysIn && singleDrawn);
 
         var optogenetics = task.Optogenetics;
-        if (optogenetics.Enabled)
+        if (optogenetics.ZapitBonsai)
         {
             // drawn + 1: this trial's number, which Next sets once it is drawn.
             ZapitDaqTrial.Draw(random, drawn + 1, bank, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
+                out trial.laserCondition, out trial.laserPointsMm, out trial.laserOn, out trial.laserPowerMw);
+        }
+        else if (optogenetics.ZapitMatlab)
+        {
+            // Zapit-MATLAB, the same draw from the conditions file: goes when MATLAB Zapit is retired.
+            ZapitTrial.Draw(random, drawn + 1, zapitConditionsFile, p.Optogenetics.TrialsBeforeLaser, p.Optogenetics.LaserOnProbability, p.Optogenetics.LaserPowerMw.Value,
                 out trial.laserCondition, out trial.laserPointsMm, out trial.laserOn, out trial.laserPowerMw);
         }
         // Drawn last, so adding it changed no earlier draw; a repeat plays the waveform of the trial it repeats.
@@ -668,33 +778,89 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     int decision;   // the running trial's net licks in its window: +1 each left, -1 each right
 
     /// <summary>The rules for a task file's text on these speakers with the session's Zapit bank (null for none); under laserEnd stimulusOff the
-    /// hold adds ZapitDaq.EarlyStopLeadSeconds, how far ahead ZapitDaq writes an early stop's ramp.</summary>
-    public TrialRules(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank)
+    /// hold adds ZapitDaq.EarlyStopLeadSeconds, how far ahead ZapitDaq writes an early stop's ramp. With Zapit-MATLAB ticked, its
+    /// conditions file read from disk on a hardware-triggered rig.</summary>
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank) : this(taskText, speakers, bank, true, null)
     {
-        draw = new TrialDraw(taskText, speakers, bank);
-        task = draw.Task;
-        var optogenetics = task.Optogenetics;
-        // laserEnd duration: the line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial
-        // armed once ZapitDaq's whole trial has played. stimulusOff: the laser on to the trial's StimulusOff, then ZapitDaq's early
-        // stop, capped at its laserDurationSeconds (the timing's cap, LaserBackstop's wall-clock wait, the longest any combination
-        // has); the line held, and the next trial armed, once the early stop's lead, a scan cycle, the ramp and a margin have passed.
-        if (!optogenetics.Enabled) laser = null;
-        else if (optogenetics.LaserEnd == LaserEndMode.StimulusOff)
-        {
-            var cap = draw.Conditions.SelectMany(c => c.Combinations).Max(m => m.Task.Optogenetics.LaserDurationSeconds);
-            laser = LaserTiming.UntilStimulusOff(draw.FreeAfterLaserSeconds, cap);
-        }
-        else laser = LaserTiming.ForDuration(draw.MaxRampDownSeconds);
     }
 
-    /// <summary>The rules for a task file's text on a rig (its speakers) with the session's Zapit bank
-    /// (null for none); throws naming every problem.</summary>
-    public static TrialRules Create(string taskText, LabRig rig, ZapitBank bank)
+    /// <summary>Zapit-MATLAB's rules (main's constructor before the two boxes): Zapit's hardware triggering (rig.yml
+    /// zapit.hardwareTriggered) and its conditions file read by <paramref name="zapitConditions"/> (null: ZapitConditions.Check).
+    /// Goes when MATLAB Zapit is retired.</summary>
+    public TrialRules(string taskText, EqualisedSpeakerArray speakers, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions)
+        : this(taskText, speakers, null, hardwareTriggered, zapitConditions)
     {
-        return new TrialRules(taskText, rig.SpeakerArray, bank);
+    }
+
+    TrialRules(string taskText, EqualisedSpeakerArray speakers, ZapitBank bank, bool hardwareTriggered, Func<string, ZapitConditionsFile> zapitConditions)
+    {
+        draw = new TrialDraw(taskText, speakers, bank, zapitConditions);
+        task = draw.Task;
+        var optogenetics = task.Optogenetics;
+        var cap = optogenetics.On ? draw.Conditions.SelectMany(c => c.Combinations).Max(m => m.Task.Optogenetics.LaserDurationSeconds) : 0;
+        if (!optogenetics.On) laser = null;
+        else if (optogenetics.ZapitBonsai)
+        {
+            // laserEnd duration: the line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial
+            // armed once ZapitDaq's whole trial has played. stimulusOff: the laser on to the trial's StimulusOff, then ZapitDaq's early
+            // stop, capped at its laserDurationSeconds (the timing's cap, LaserBackstop's wall-clock wait, the longest any combination
+            // has); the line held, and the next trial armed, once the early stop's lead, a scan cycle, the ramp and a margin have passed.
+            laser = optogenetics.LaserEnd == LaserEndMode.StimulusOff ? LaserTiming.UntilStimulusOff(draw.FreeAfterLaserSeconds, cap) : LaserTiming.ForDuration(draw.MaxRampDownSeconds);
+        }
+        else
+        {
+            // Zapit-MATLAB (goes when MATLAB Zapit is retired): laserEnd duration, the line held each trial's laserDurationSeconds;
+            // stimulusOff, the laser on to the trial's StimulusOff, StopStimulus then (capped at its laserDurationSeconds) and the line
+            // held the conditions file's largest ramp-down past it. Either way the next StartStimulus waits for the ramp-down
+            // (Zapit refuses one until then) and, after a stop, for Zapit's stop reply (TrialLoop.StopReplyMarginSeconds).
+            laser = optogenetics.LaserEnd == LaserEndMode.StimulusOff ? LaserTiming.UntilStimulusOff(hardwareTriggered, draw.MaxRampDownSeconds, cap)
+                : LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds);
+        }
+    }
+
+    /// <summary>The rules for a task file's text on a rig (its speakers, and MATLAB Zapit's hardware triggering) with the session's
+    /// Zapit bank (null for none) and whether ZapitDaq opened at launch (ConnectForTaskZapitDaq's ZapitRig); throws naming every
+    /// problem, first a ticked Zapit the session does not have (ZapitSessionProblem).</summary>
+    public static TrialRules Create(string taskText, LabRig rig, ZapitBank bank, bool zapitDaqOpen)
+    {
+        var optogenetics = TaskYaml.Read<UclOpenCoenDomeDecisionMakingTaskLogic>(OldOptogeneticsSwitch.Upgrade(taskText)).TaskParameters.Optogenetics;
+        var problem = optogenetics == null ? null : ZapitSessionProblem(optogenetics, rig, zapitDaqOpen);
+        if (problem != null) throw new InvalidOperationException(problem);
+        return new TrialRules(taskText, rig.SpeakerArray, bank, rig.Zapit != null && rig.Zapit.HardwareTriggered, null);
+    }
+
+    /// <summary>The refusal at Go of Zapit-Bonsai on a rig whose rig.yml has no native zapit block (ConnectForTaskZapitDaq's
+    /// NoZapitDaqMessage in main.bonsai is the same words).</summary>
+    public const string NoNativeZapit = "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but this rig's rig.yml has no native zapit block (zapit.device, its lines and the rest), so the workflow has no ZapitDaq: tick Zapit-MATLAB instead, or fill in rig.yml's zapit block";
+
+    /// <summary>Why the ticked Zapit is not this session's, or null: Zapit-Bonsai with no ZapitDaq (no native zapit block in
+    /// rig.yml, or Zapit-MATLAB ticked in the task file at launch, which keeps ZapitDaq closed); Zapit-MATLAB with ZapitDaq open
+    /// (it holds the NI card and the camera MATLAB Zapit needs). Both ticked is CheckTask's (BothZapits).</summary>
+    public static string ZapitSessionProblem(Optogenetics optogenetics, LabRig rig, bool zapitDaqOpen)
+    {
+        if (optogenetics.ZapitBonsai && optogenetics.ZapitMatlab) return null;
+        if (optogenetics.ZapitBonsai && !zapitDaqOpen)
+        {
+            if (rig.Zapit == null || rig.Zapit.Device == null) return NoNativeZapit;
+            return "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but Zapit-MATLAB was ticked in the task file when the workflow was launched, so ZapitDaq stayed closed: launch again with Zapit-Bonsai ticked";
+        }
+        // Zapit-MATLAB beside ZapitDaq: goes when MATLAB Zapit is retired.
+        if (optogenetics.ZapitMatlab && zapitDaqOpen)
+        {
+            return "Zapit-MATLAB is ticked (optogenetics.zapitMatlab), but the workflow opened ZapitDaq at launch (this rig's rig.yml names its NI device, and Zapit-MATLAB was not ticked in the task file then), and ZapitDaq holds the NI card and the camera MATLAB Zapit needs: launch again with Zapit-MATLAB ticked, or tick Zapit-Bonsai";
+        }
+        return null;
     }
 
     public LaserTiming Laser { get { return laser; } }
+
+    /// <summary>Whether the session runs on ZapitDaq (Zapit-Bonsai ticked): TaskLogic gives these rules to ZapitDaqTrials and
+    /// RunTrials feeds the loop Zapit.Events.</summary>
+    public bool ZapitBonsai { get { return task.Optogenetics.ZapitBonsai; } }
+
+    /// <summary>Whether the session runs on MATLAB Zapit (Zapit-MATLAB ticked): TaskLogic gives these rules to ZapitTrials and
+    /// RunTrials feeds the loop ZapitReplies. Goes when MATLAB Zapit is retired.</summary>
+    public bool ZapitMatlab { get { return task.Optogenetics.ZapitMatlab; } }
 
     /// <summary>The seed every draw of the experiment follows from (TrialDraw.Seed), logged once as an RngSeed event at trial 1's start.</summary>
     public int Seed { get { return draw.Seed; } }
@@ -797,13 +963,16 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
 }
 
 [Combinator]
-[Description("Runs the trials (lib-open-rigs TrialLoop on TrialRules). Inputs: the rules, the Harp clock, the wheel in cm, the left and right lick states, ZapitDaq's events (Zapit.Events).")]
+[Description("Runs the trials (lib-open-rigs TrialLoop on TrialRules). Inputs: the rules, the Harp clock, the wheel in cm, the left and right lick states, ZapitDaq's events (Zapit.Events) and MATLAB Zapit's replies (ZapitReplies): the loop takes the replies with Zapit-MATLAB ticked, else the events.")]
 [WorkflowElementCategory(ElementCategory.Combinator)]
 public class RunTrials
 {
     public IObservable<TrialEvent<Trial, DecisionUpdate, TrialOutcome>> Process(IObservable<TrialRules> rules, IObservable<double> clock,
-        IObservable<double> wheelCm, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<ZapitDaqEvent> zapitEvents)
+        IObservable<double> wheelCm, IObservable<bool> lickLeft, IObservable<bool> lickRight, IObservable<ZapitDaqEvent> zapitEvents, IObservable<ZapitReply> zapitReplies)
     {
-        return TrialLoop.Observe(rules, clock, new[] { lickLeft, lickRight }, zapitEvents, wheelCm);
+        var licks = new[] { lickLeft, lickRight };
+        return rules.Take(1).SelectMany(r => r.ZapitMatlab
+            ? TrialLoop.Observe(Observable.Return(r), clock, licks, zapitReplies, wheelCm)   // goes when MATLAB Zapit is retired
+            : TrialLoop.Observe(Observable.Return(r), clock, licks, zapitEvents, wheelCm));
     }
 }

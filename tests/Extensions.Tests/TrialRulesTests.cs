@@ -109,7 +109,7 @@ static class Rules
 
     public static void Optogenetics(UclOpenCoenDomeDecisionMakingTaskParameters task)
     {
-        task.Optogenetics.Enabled = true;
+        task.Optogenetics.ZapitBonsai = true;
         task.Optogenetics.LaserPowerMw = 3;
         task.Optogenetics.LaserDurationSeconds = 0.8;
         task.Optogenetics.TrialsBeforeLaser = 0;
@@ -831,7 +831,7 @@ public class LaserTests
             foreach (var end in new[] { LaserEndMode.Duration, LaserEndMode.StimulusOff })
             {
                 var task = Fixture.Task(file, 1);
-                task.Optogenetics.Enabled = true;
+                task.Optogenetics.ZapitBonsai = true;
                 task.Optogenetics.LaserPowerMw = task.Optogenetics.LaserPowerMw ?? 3;   // the discriminations' files leave it to the experimenter
                 task.Optogenetics.LaserEnd = end;
                 Assert.AreEqual(2.5, task.Optogenetics.LaserDurationSeconds);
@@ -1045,8 +1045,8 @@ public class CheckTaskAtGoTests
         var rig = new LabRig { SpeakerArray = Fixture.Speakers() };
         var unfilled = Fixture.Task("task-localization.yml", 4);
         unfilled.Curriculum = null;
-        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(unfilled), rig, null)), "The task file's curriculum is empty");
-        var rules = TrialRules.Create(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), rig, null);
+        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(Fixture.Text(unfilled), rig, null, false)), "The task file's curriculum is empty");
+        var rules = TrialRules.Create(Fixture.Text(Fixture.Task("task-discrimination-left-right.yml", 4)), rig, null, false);
         Assert.IsNull(rules.Laser, "no optogenetics");
         Assert.AreEqual("S04A-k7f2", rules.CurriculumStage);
         var timing = rules.Timing(rules.Draw(null));
@@ -1061,7 +1061,7 @@ public class CheckTaskAtGoTests
         var rules = new BehaviorSubject<TrialRules>(Rules.Make());
         var clock = new Subject<double>();
         var events = new List<Event>();
-        new RunTrials().Process(rules, clock, new Subject<double>(), new Subject<bool>(), new Subject<bool>(), new Subject<ZapitDaqEvent>()).Subscribe(events.Add);
+        new RunTrials().Process(rules, clock, new Subject<double>(), new Subject<bool>(), new Subject<bool>(), new Subject<ZapitDaqEvent>(), new Subject<OpenRigs.Devices.Zapit.ZapitReply>()).Subscribe(events.Add);
         for (int ms = 10000; ms <= 12000; ms++) clock.OnNext(ms / 1000.0);
         CollectionAssert.AreEqual(new[] { TrialEventKind.Iti, TrialEventKind.Start, TrialEventKind.Stimulus, TrialEventKind.Update },
                                   events.Select(e => e.Kind).Take(4).ToList());

@@ -539,7 +539,7 @@ public class TrialDrawTests
     public void OptogeneticsSendsAConditionOnEveryTrial()
     {
         var task = Fixture.Task("task-localization.yml", 4);
-        task.Optogenetics.Enabled = true;
+        task.Optogenetics.ZapitBonsai = true;
         task.Optogenetics.TrialsBeforeLaser = 20;
         task.Optogenetics.LaserOnProbability = 0.5;
         task.Optogenetics.LaserDurationSeconds = 4.15;   // the most the trial's end (0.5 + 2.0 s) and itiMinSeconds 2.5 allow with the test bank
@@ -657,7 +657,7 @@ public class TrialDrawTests
         StringAssert.Contains(refusal(task), "is 'centre', not on the right");
 
         task = Fixture.Task("task-discrimination-left-right.yml", 4);
-        task.Optogenetics.Enabled = true;
+        task.Optogenetics.ZapitBonsai = true;
         task.Optogenetics.LaserPowerMw = null;
         task.Optogenetics.LaserDurationSeconds = 0.8;
         StringAssert.Contains(Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank())), "laserPowerMw");
@@ -726,7 +726,7 @@ public class TrialDrawTests
         // 0.1 s; the bank's longest ramp-down; ZapitDaqTrial.FreeMarginSeconds, 0.05 s) and the 0.2 s arm time: 4.15 s with a
         // 0.5 s ramp-down, 4.55 s with a 0.1 s one (audit F F1: the next Arm waits for the whole trial).
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
-        task.Optogenetics.Enabled = true;
+        task.Optogenetics.ZapitBonsai = true;
         task.Optogenetics.LaserPowerMw = 3;
         Func<double, string> refusal = rampDown => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(rampDown)));
         Assert.AreEqual(2.5, task.Optogenetics.LaserDurationSeconds, "the task files' laser");
@@ -746,7 +746,7 @@ public class TrialDrawTests
         var rules = new TrialRules(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(0.1));
         Assert.AreEqual(0.1, rules.Laser.RampDownSeconds, "the next trial armed once the bank's own ramp-down has played");
         task.Optogenetics.LaserDurationSeconds = 5;
-        task.Optogenetics.Enabled = false;
+        task.Optogenetics.ZapitBonsai = false;
         Assert.AreEqual("accepted", refusal(0.5));
     }
 
@@ -768,7 +768,7 @@ public class TrialDrawTests
         }
 
         var task = Fixture.Task("task-discrimination-left-right.yml", 4);
-        task.Optogenetics.Enabled = true;
+        task.Optogenetics.ZapitBonsai = true;
         task.Optogenetics.LaserPowerMw = 3;
         Func<string> refusal = () => Fixture.Refusal(() => new TrialDraw(Fixture.Text(task), Fixture.Speakers(), Fixture.Bank(0.5)));
         // A penalty timeout leaves it: a rewarded trial (its interval at once after its end) is the shortest to the next trigger.
@@ -791,7 +791,7 @@ public class TrialDrawTests
         // whose trigger comes 1 s before its stimulus, after one with the files' 0.1 s, has the next trigger 0.9 s sooner:
         // 0.1 + 2.5 + (2.5 - 1.0) - 0.65 - 0.2 = 3.25 s, though each combination alone allows 4.15 s.
         task = Fixture.Task("task-discrimination-left-right.yml", 4);
-        task.Optogenetics.Enabled = true;
+        task.Optogenetics.ZapitBonsai = true;
         task.Optogenetics.LaserPowerMw = 3;
         task.TrialConditions = new List<TrialCondition> { Fixture.Condition(1, "target", "left"), Fixture.Condition(1, "target", "right", "optogenetics.laserToStimulusSeconds", 1.0) };
         task.Optogenetics.LaserDurationSeconds = 3.25;
@@ -1255,8 +1255,8 @@ public class TrialConditionTests
         Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "trialStructure.itiMinSeconds", 2.0, "visualStimulus.initialOrientationDeg", Fixture.List(0.0, 90.0))));
         StringAssert.Contains(refusal(Fixture.Condition(1, "taskType", "localization")), "sets or pairs taskType, a session field (x-session-fields: taskType)");
         // A set path that holds a session field (a map set whole) is refused as the field itself is.
-        StringAssert.Contains(refusal(Fixture.Condition(1, "optogenetics", new Dictionary<object, object> { { "enabled", true } })),
-            "sets or pairs optogenetics, a session field (x-session-fields: optogenetics.enabled)");
+        StringAssert.Contains(refusal(Fixture.Condition(1, "optogenetics", new Dictionary<object, object> { { "zapitBonsai", true } })),
+            "sets or pairs optogenetics, a session field (x-session-fields: optogenetics.zapitBonsai)");
         Assert.AreEqual("accepted", refusal(Fixture.Condition(1, "penalty.incorrect.sound.levelDbfs", -50.0, "spouts.alwaysIn", true)), "condition-level since P19");
         StringAssert.Contains(refusal(Fixture.Condition(1, "colour.red", 1.0)), "sets or pairs colour.red, which is not a task field");
         StringAssert.Contains(refusal(Fixture.Condition(1, "optogenetics.laserOnProbability", 1.0)), "sets optogenetics.laserOnProbability with optogenetics off");
@@ -1271,7 +1271,7 @@ public class TrialConditionTests
     public void AConditionPinsTheLaser()
     {
         var task = With(Fixture.Condition(1, "optogenetics.laserOnProbability", 1.0), Fixture.Condition(1, "optogenetics.laserOnProbability", 0.0));
-        task.Optogenetics.Enabled = true;
+        task.Optogenetics.ZapitBonsai = true;
         task.Optogenetics.LaserPowerMw = 3;
         task.Optogenetics.TrialsBeforeLaser = 0;
         task.Optogenetics.LaserDurationSeconds = 0.8;

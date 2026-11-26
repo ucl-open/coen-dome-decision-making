@@ -39,8 +39,9 @@ def test_committed_task_files_validate(path):
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
 def test_committed_task_files_start_with_the_laser_off(path):
-    # The laser is off unless the experimenter turns it on.
-    assert yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]["enabled"] is False
+    # The laser is off unless the experimenter turns it on: neither Zapit box ticked, and no old enabled.
+    opto = yaml.safe_load(path.read_text())["taskParameters"]["optogenetics"]
+    assert opto["zapitBonsai"] is False and opto["zapitMatlab"] is False and "enabled" not in opto
 
 
 @pytest.mark.parametrize("path", TASK_FILES, ids=lambda path: path.name)
@@ -164,7 +165,7 @@ def test_rig_control_keeps_the_zapit_file(path):
 def test_laser_power_is_required_with_optogenetics_on():
     # This workflow sends and logs laserPowerMw as coen-dome-navigation does, required when on.
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    on = {**data["optogenetics"], "enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserDurationSeconds": 0.8}
+    on = {**data["optogenetics"], "zapitBonsai": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserDurationSeconds": 0.8}
     with pytest.raises(ValidationError, match="laser_power_mw is not set"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     with pytest.raises(ValidationError):
@@ -174,14 +175,15 @@ def test_laser_power_is_required_with_optogenetics_on():
     import json
     schema = json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8"))
     rule = schema["$defs"]["Optogenetics"]
-    assert rule["if"]["properties"]["enabled"] == {"const": True} and rule["then"]["required"] == ["laserPowerMw"]
+    assert [branch["properties"] for branch in rule["if"]["anyOf"]] == [{"zapitBonsai": {"const": True}}, {"zapitMatlab": {"const": True}}]
+    assert rule["then"]["required"] == ["laserPowerMw"] and "enabled" not in rule["properties"]
 
 
 def test_zapit_needs_its_file_in_the_model_and_the_schema():
     # An empty zapitConditionsPath with Zapit ticked must fail rig-control's schema check, not stop the experiment at its
     # first trial; the form says to set it first, and coen-dome-navigation's schema refuses it too.
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    on = {**data["optogenetics"], "enabled": True, "laserPowerMw": 2.0, "zapitConditionsPath": ""}
+    on = {**data["optogenetics"], "zapitBonsai": True, "laserPowerMw": 2.0, "zapitConditionsPath": ""}
     with pytest.raises(ValidationError, match="zapit_conditions_path is empty"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": on})
     jsonschema = pytest.importorskip("jsonschema")
@@ -192,7 +194,7 @@ def test_zapit_needs_its_file_in_the_model_and_the_schema():
     assert not jsonschema.Draft202012Validator(schema).is_valid(task)
     task["taskParameters"]["optogenetics"] = {**on, "zapitConditionsPath": "C:\\zapit\\conditions.yml"}
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
-    task["taskParameters"]["optogenetics"] = {**on, "enabled": False}
+    task["taskParameters"]["optogenetics"] = {**on, "zapitBonsai": False}
     assert jsonschema.Draft202012Validator(schema).is_valid(task)
 
 
@@ -222,11 +224,11 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
     # TrialDraw.MaxLaserSeconds' rule: the trial's end (0.5 s stimulus to window + the 2.0 s window, which always runs in
     # full) + 2.5 s interval - the ramp-down - 0.2 s margin. The ramp-down is the conditions file's, which only Go reads
     # (TrialDraw.LaserProblems): here 4.8 s, the file's taken off at Go.
-    on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
+    on = {"zapitBonsai": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0}
     _with(opto={**on, "laserDurationSeconds": 4.8})
     with pytest.raises(ValidationError, match=r"laser_duration_seconds \(4.81 s\) must be at most 4.8 s"):
         _with(opto={**on, "laserDurationSeconds": 4.81})
-    _with(opto={**on, "enabled": False, "laserDurationSeconds": 5.0})
+    _with(opto={**on, "zapitBonsai": False, "laserDurationSeconds": 5.0})
     # With laserEnd stimulusOff laserDurationSeconds is the laser's cap, its end then followed by the ramp-down: the same limit.
     _with(opto={**on, "laserEnd": "stimulusOff", "laserDurationSeconds": 4.8})
     with pytest.raises(ValidationError, match="laser_duration_seconds"):
@@ -237,19 +239,19 @@ def test_a_laser_that_would_delay_the_next_arm_is_refused():
 
 def test_with_laser_end_stimulus_off_the_cap_covers_the_stimulus_s_own_off():
     # TrialDraw.CheckTask's same rule: the trigger 0.1 s before the stimulus, off 1.5 s after it, so a cap of at least 1.6 s.
-    on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserEnd": "stimulusOff"}
+    on = {"zapitBonsai": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserEnd": "stimulusOff"}
     _with(opto={**on, "laserDurationSeconds": 1.6})
     with pytest.raises(ValidationError, match=r"laserDurationSeconds \(1.5 s\) is the laser's cap .* goes off 1.6 s after the trigger"):
         _with(opto={**on, "laserDurationSeconds": 1.5})
     _with(opto={**on, "laserEnd": "duration", "laserDurationSeconds": 1.5})
-    _with(opto={**on, "enabled": False, "laserDurationSeconds": 1.5})
+    _with(opto={**on, "zapitBonsai": False, "laserDurationSeconds": 1.5})
     # An off that follows the answer is not known at Go: the cap may end the laser first.
     _with(opto={**on, "laserDurationSeconds": 1.5}, stimulus={"durationSeconds": None, "responseToStimulusOffSeconds": 0.1})
 
 
 def test_with_laser_end_stimulus_off_a_trigger_after_the_stimulus_s_own_off_is_refused():
     # TrialDraw.CheckTask's same rule: the stimulus off 1.5 s after its onset, so the trigger at most 1.5 s after it, exclusive.
-    on = {"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserEnd": "stimulusOff"}
+    on = {"zapitBonsai": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserEnd": "stimulusOff"}
     _with(opto={**on, "laserToStimulusSeconds": -1.4})
     with pytest.raises(ValidationError, match=r"laserToStimulusSeconds \(-1.5 s\) triggers the laser 1.5 s after the stimulus onset, when the stimulus .* is already off"):
         _with(opto={**on, "laserToStimulusSeconds": -1.5})
@@ -264,7 +266,7 @@ def test_the_conditions_file_s_ramp_down_given_as_context_shortens_the_laser_lim
     # passes, Go deciding.
     from open_rigs.components.zapit import RAMP_DOWN_CONTEXT
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    data["optogenetics"].update({"enabled": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserDurationSeconds": 2.5})
+    data["optogenetics"].update({"zapitBonsai": True, "zapitConditionsPath": "C:\\zapit\\conditions.yml", "laserPowerMw": 3.0, "laserDurationSeconds": 2.5})
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data, context={RAMP_DOWN_CONTEXT: 0.5})
     data["optogenetics"]["laserDurationSeconds"] = 4.4
     UclOpenCoenDomeDecisionMakingTaskParameters.model_validate(data)
@@ -291,14 +293,14 @@ def test_between_trials_counts_from_each_trial_s_end():
     # ramp-down, 0.1 + 2.5 + (2.5 - 1.0) - 0.5 - 0.2 = 3.4 s (0.9 s from the opening).
     from ucl_open_coen_dome_decision_making.task import _between_trials
     task = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    task["optogenetics"].update({"enabled": True, "laserDurationSeconds": 3.4})
+    task["optogenetics"].update({"zapitBonsai": True, "laserDurationSeconds": 3.4})
     other = {**task, "optogenetics": {**task["optogenetics"], "laserToStimulusSeconds": 1.0}}
     _between_trials([task, other], 0.5)
     task["optogenetics"]["laserDurationSeconds"] = 3.5
     with pytest.raises(ValueError, match="must be at most 3.4 s across the combinations"):
         _between_trials([task, other], 0.5)
     # A stimulus may last to the window's close (5.5 s with a 5 s window): its end before the next stimulus counts from there.
-    task["optogenetics"]["enabled"] = False
+    task["optogenetics"]["zapitBonsai"] = False
     task["trialStructure"] = {**task["trialStructure"], "responseWindowSeconds": 5.0}
     task["stimulus"] = {**task["stimulus"], "durationSeconds": 5.5}
     _between_trials([task], 0.5)
@@ -742,7 +744,7 @@ def test_the_schema_marks_the_conditions_whole_and_names_the_session_fields():
 
 def test_a_condition_may_set_any_field_but_a_session_field():
     _conditions({"weight": 1, "set": {"trialStructure.itiMinSeconds": 2, "visualStimulus.initialOrientationDeg": [0, 90], "penalty.incorrect.timeoutSeconds": 2}})
-    for path in ["rngSeed", "taskType", "curriculum.code", "optogenetics.zapitConditionsPath", "optogenetics.enabled", "optogenetics.laserEnd"]:
+    for path in ["rngSeed", "taskType", "curriculum.code", "optogenetics.zapitConditionsPath", "optogenetics.zapitBonsai", "optogenetics.zapitMatlab", "optogenetics.laserEnd"]:
         field = ct.session_field(path, SESSION_FIELDS)
         with pytest.raises(ValidationError, match=rf"sets or pairs {re.escape(path)}, a session field \(x-session-fields: {re.escape(field)} "):
             _conditions({"weight": 1, "set": {path: 1}})
@@ -793,7 +795,7 @@ def test_an_oversized_condition_is_refused_before_its_combinations_are_built():
 
 def test_a_condition_pins_the_laser_with_optogenetics_on():
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
-    on = {**data["optogenetics"], "enabled": True, "laserPowerMw": 2.0, "laserDurationSeconds": 0.8, "zapitConditionsPath": "C:\\zapit\\conditions.yml"}
+    on = {**data["optogenetics"], "zapitBonsai": True, "laserPowerMw": 2.0, "laserDurationSeconds": 0.8, "zapitConditionsPath": "C:\\zapit\\conditions.yml"}
     _conditions({"weight": 1, "set": {"optogenetics.laserOnProbability": 1}}, {"weight": 1, "set": {"optogenetics.laserOnProbability": 0}},
                 name="task-discrimination-left-right.yml", optogenetics=on)
 
@@ -842,3 +844,68 @@ def test_the_probe_conditions_default_to_no_reward_probes(name):
     assert "noReward" in targets and "random" not in targets
     for target in ("noReward", "random"):
         UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "trialConditions": [{"weight": 1, "set": {"target": target}}]})
+
+
+# The two Zapit boxes (Pip, 26 Nov 2026: "two boxes, mutually exclusive, Zapit-Bonsai and Zapit-MATLAB"). The MATLAB cases go
+# when MATLAB Zapit is retired.
+ZAPIT_ON = {"zapitConditionsPath": "C:/zapit/conditions.yml", "laserPowerMw": 3.0, "laserDurationSeconds": 0.8}
+
+
+def _schema():
+    return json.loads((CONFIG.parent / "src" / "DataSchemas" / "ucl_open_coen_dome_decision_making_task.json").read_text(encoding="utf-8"))
+
+
+def test_neither_zapit_box_is_no_optogenetics():
+    opto = _with().optogenetics
+    assert not opto.zapit_bonsai and not opto.zapit_matlab and not opto.enabled
+    # The lab's enabled is kept inside, never in the schema or the dump.
+    assert "enabled" not in _schema()["$defs"]["Optogenetics"]["properties"]
+    assert "enabled" not in opto.model_dump(by_alias=True)
+    labels = {name: field["title"] for name, field in _schema()["$defs"]["Optogenetics"]["properties"].items() if name.startswith("zapit") and name != "zapitConditionsPath"}
+    assert labels == {"zapitBonsai": "Zapit-Bonsai", "zapitMatlab": "Zapit-MATLAB"}
+
+
+@pytest.mark.parametrize("box, field", [("zapitBonsai", "zapit_bonsai"), ("zapitMatlab", "zapit_matlab")])
+def test_each_zapit_box_alone_is_an_optogenetics_experiment(box, field):
+    opto = _with(opto={**ZAPIT_ON, box: True}).optogenetics
+    assert getattr(opto, field) and opto.enabled
+    with pytest.raises(ValidationError, match=("Zapit-Bonsai" if box == "zapitBonsai" else "Zapit-MATLAB") + " is ticked but laser_power_mw is not set"):
+        _with(opto={**ZAPIT_ON, box: True, "laserPowerMw": None})
+
+
+def test_both_zapit_boxes_are_refused_by_the_model_and_the_schema():
+    with pytest.raises(ValidationError, match=r"optogenetics.zapitBonsai \(Zapit-Bonsai\) and optogenetics.zapitMatlab \(Zapit-MATLAB\) are both ticked"):
+        _with(opto={**ZAPIT_ON, "zapitBonsai": True, "zapitMatlab": True})
+    jsonschema = pytest.importorskip("jsonschema")
+    task = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())
+    for bonsai, matlab, valid in ((True, True, False), (True, False, True), (False, True, True), (False, False, True)):
+        task["taskParameters"]["optogenetics"].update({**ZAPIT_ON, "zapitBonsai": bonsai, "zapitMatlab": matlab})
+        assert jsonschema.Draft202012Validator(_schema()).is_valid(task) == valid, (bonsai, matlab)
+
+
+def test_an_old_files_enabled_reads_as_zapit_matlab():
+    data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
+    old = {k: v for k, v in data["optogenetics"].items() if k not in ("zapitBonsai", "zapitMatlab")}
+    on = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, **ZAPIT_ON, "enabled": True}}).optogenetics
+    assert on.zapit_matlab and not on.zapit_bonsai and on.enabled
+    assert on.model_dump(by_alias=True)["zapitMatlab"] is True and "enabled" not in on.model_dump(by_alias=True)
+    off = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, "enabled": False}}).optogenetics
+    assert not off.zapit_matlab and not off.zapit_bonsai and not off.enabled
+    for box in ("zapitBonsai", "zapitMatlab"):
+        with pytest.raises(ValidationError, match="enabled, the old switch, beside zapitBonsai or zapitMatlab"):
+            UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, **ZAPIT_ON, "enabled": True, box: False}})
+
+
+def test_between_trials_takes_each_zapits_margin():
+    # _between_trials: ZapitDaq's 0.2 s arm time with Zapit-Bonsai, MATLAB Zapit's 0.2 s reply margin with Zapit-MATLAB (the same
+    # length, named for each); none with neither.
+    from ucl_open_coen_dome_decision_making.task import _between_trials
+    task = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
+    for box, words in (("zapitBonsai", "arm time"), ("zapitMatlab", "reply margin")):
+        task["optogenetics"].update({"zapitBonsai": False, "zapitMatlab": False, box: True, "laserDurationSeconds": 4.56})
+        with pytest.raises(ValueError, match=words):
+            _between_trials([task], 0.25)
+        task["optogenetics"]["laserDurationSeconds"] = 4.55   # 0.1 s lead + 2.5 s trial end + (2.5 - 0.1) s interval - 0.25 s ramp-down - 0.2 s
+        _between_trials([task], 0.25)
+    task["optogenetics"].update({"zapitBonsai": False, "zapitMatlab": False, "laserDurationSeconds": 9.0})
+    _between_trials([task], 0.25)

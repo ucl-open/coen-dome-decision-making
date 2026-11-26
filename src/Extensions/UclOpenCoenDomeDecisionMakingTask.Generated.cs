@@ -453,17 +453,25 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
     ///laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
     ///laser runs. A repeated trial never has the laser on.
+    ///
+    ///Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
+    ///or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
+    ///schema and the file, as either box, so its checks run. An old file's enabled reads as zapitMatlab (MATLAB was the only
+    ///Zapit); enabled beside either box is refused. zapitMatlab, and enabled's reading, go when MATLAB Zapit is retired.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
     laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
-    laser runs. A repeated trial never has the laser on.")]
+    laser runs. A repeated trial never has the laser on.
+
+    Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
+    or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
+    schema and the file, as either box, so its checks run. An old file's enabled reads as zapitMatlab (MATLAB was the only
+    Zapit); enabled beside either box is refused. zapitMatlab, and enabled's reading, go when MATLAB Zapit is retired.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class Optogenetics
     {
-    
-        private bool _enabled;
     
         private string _zapitConditionsPath;
     
@@ -475,46 +483,34 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private int _trialsBeforeLaser;
     
+        private bool _zapitBonsai;
+    
+        private bool _zapitMatlab;
+    
         private LaserEndMode _laserEnd;
     
         private double _laserDurationSeconds;
     
         public Optogenetics()
         {
-            _enabled = false;
             _zapitConditionsPath = "";
+            _zapitBonsai = false;
+            _zapitMatlab = false;
             _laserEnd = LaserEndMode.Duration;
             _laserDurationSeconds = 1.5D;
         }
     
         protected Optogenetics(Optogenetics other)
         {
-            _enabled = other._enabled;
             _zapitConditionsPath = other._zapitConditionsPath;
             _laserPowerMw = other._laserPowerMw;
             _laserOnProbability = other._laserOnProbability;
             _laserToStimulusSeconds = other._laserToStimulusSeconds;
             _trialsBeforeLaser = other._trialsBeforeLaser;
+            _zapitBonsai = other._zapitBonsai;
+            _zapitMatlab = other._zapitMatlab;
             _laserEnd = other._laserEnd;
             _laserDurationSeconds = other._laserDurationSeconds;
-        }
-    
-        /// <summary>
-        /// Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("enabled")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="enabled")]
-        [System.ComponentModel.DescriptionAttribute(@"Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go")]
-        public bool Enabled
-        {
-            get
-            {
-                return _enabled;
-            }
-            set
-            {
-                _enabled = value;
-            }
         }
     
         /// <summary>
@@ -613,6 +609,42 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
+        /// Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Not with Zapit-MATLAB
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("zapitBonsai")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitBonsai")]
+        [System.ComponentModel.DescriptionAttribute(@"Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Not with Zapit-MATLAB")]
+        public bool ZapitBonsai
+        {
+            get
+            {
+                return _zapitBonsai;
+            }
+            set
+            {
+                _zapitBonsai = value;
+            }
+        }
+    
+        /// <summary>
+        /// Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, so tick it before launch on a rig with a native zapit block. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("zapitMatlab")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitMatlab")]
+        [System.ComponentModel.DescriptionAttribute(@"Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, so tick it before launch on a rig with a native zapit block. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired")]
+        public bool ZapitMatlab
+        {
+            get
+            {
+                return _zapitMatlab;
+            }
+            set
+            {
+                _zapitMatlab = value;
+            }
+        }
+    
+        /// <summary>
         /// duration: the laser and the masking light stay on laserDurationSeconds from the trigger, whatever the mouse does; stimulusOff: until the trial's stimulus goes off (stimulus.durationSeconds after its onset or stimulus.responseToStimulusOffSeconds after the outcome, whichever comes first; the outcome when the stimulus never came on), at most laserDurationSeconds from the trigger. One for the experiment (a session field)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserEnd")]
@@ -660,12 +692,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("Enabled = " + _enabled + ", ");
             stringBuilder.Append("ZapitConditionsPath = " + _zapitConditionsPath + ", ");
             stringBuilder.Append("LaserPowerMw = " + _laserPowerMw + ", ");
             stringBuilder.Append("LaserOnProbability = " + _laserOnProbability + ", ");
             stringBuilder.Append("LaserToStimulusSeconds = " + _laserToStimulusSeconds + ", ");
             stringBuilder.Append("TrialsBeforeLaser = " + _trialsBeforeLaser + ", ");
+            stringBuilder.Append("ZapitBonsai = " + _zapitBonsai + ", ");
+            stringBuilder.Append("ZapitMatlab = " + _zapitMatlab + ", ");
             stringBuilder.Append("LaserEnd = " + _laserEnd + ", ");
             stringBuilder.Append("LaserDurationSeconds = " + _laserDurationSeconds);
             return true;

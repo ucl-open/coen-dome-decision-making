@@ -47,7 +47,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskFile</Name>
-        <Description>Reads the task file (TaskPath) at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, read by ReadTask, which keeps a trial condition's set values as numbers and bools. TaskRules, after ConnectForTaskZapitDaq, checks it at Go and builds the trials' rules.</Description>
+        <Description>Reads the task file (TaskPath) at Go, with the form's edits, into TaskText (the file's text, OpenRigs.Core TaskFileText) and TaskConfig, read by ReadTask, which keeps a trial condition's set values as numbers and bools and reads an old file's optogenetics.enabled as optogenetics.zapitMatlab. OptogeneticsExperiment: either Zapit box ticked (optogenetics.zapitBonsai, Zapit-Bonsai; optogenetics.zapitMatlab, Zapit-MATLAB), the condition of Settings_ZapitConditions in ExpectedFiles, which each Zapit leaves. TaskRules, after both Zapit pieces, checks it at Go and builds the trials' rules.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Core:TaskFileText.bonsai" />
@@ -57,16 +57,24 @@
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TaskConfig</Name>
             </Expression>
+            <Expression xsi:type="MemberSelector">
+              <Selector>TaskParameters.Optogenetics.On</Selector>
+            </Expression>
+            <Expression xsi:type="rx:AsyncSubject">
+              <Name>OptogeneticsExperiment</Name>
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
             <Edge From="1" To="2" Label="Source1" />
+            <Edge From="2" To="3" Label="Source1" />
+            <Edge From="3" To="4" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Declarations</Name>
-        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's WorkflowData_Trials row, built at its outcome; GratingAzimuthDeg, the response; StimulusTrial, the trial at its stimulus, for the grating and the sound; StimulusOff, the trial at its StimulusOff event (OpenRigs.Trials StimulusTiming: stimulus.durationSeconds after the stimulus, or stimulus.responseToStimulusOffSeconds after the outcome if sooner), once a trial. Zapit's commands, events and bank (Zapit.Commands, Zapit.Events, Zapit.Bank) are ConnectForTaskZapitDaq's, RewardRequests Rewards'.</Description>
+        <Description>Subjects the groups share. TrialEvents, the trial loop's events (RunTrials); Trial, each trial at its start; TrialRow, each trial's WorkflowData_Trials row, built at its outcome; GratingAzimuthDeg, the response; StimulusTrial, the trial at its stimulus, for the grating and the sound; StimulusOff, the trial at its StimulusOff event (OpenRigs.Trials StimulusTiming: stimulus.durationSeconds after the stimulus, or stimulus.responseToStimulusOffSeconds after the outcome if sooner), once a trial. Zapit's commands, events and bank are ConnectForTaskZapitDaq's on ZapitDaq (Zapit.Commands, Zapit.Events, Zapit.Bank) and ConnectForTask's on MATLAB Zapit (ZapitCommands, ZapitReplies), RewardRequests Rewards'.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="rx:BehaviorSubject" TypeArguments="ext:Trial">
@@ -105,10 +113,20 @@
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="LaserCeilingVolts" Description="The laser ceiling as control volts (ConnectForTaskZapitDaq's): rig.yml's zapit.ceilingMw through the rig's laser curve, lib_zapit's max_control_volts, a launch property from rig-control. ZapitDaq and the Zapit setup refuse any laser volts above it; 0, the default, refuses any laser." />
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTaskZapitDaq.bonsai" />
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTaskZapitDaq.bonsai">
+        <Description>Zapit-Bonsai (optogenetics.zapitBonsai): ZapitDaq on the NI card, the Zapit camera and the setup phase from launch on a rig whose rig.yml names zapit.device, unless the task file at launch ticks Zapit-MATLAB (ClosedBy), as MATLAB Zapit then holds the card and the camera; the session an optogenetics experiment on it with Zapit-Bonsai ticked at Go (OptogeneticsSwitch, published as Optogenetics).</Description>
+        <ClosedBy>optogenetics.zapitMatlab</ClosedBy>
+        <OptogeneticsSwitch>TaskParameters.Optogenetics.ZapitBonsai</OptogeneticsSwitch>
+        <NoZapitDaqMessage>Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but this rig's rig.yml has no native zapit block (zapit.device, its lines and the rest), so the workflow has no ZapitDaq: tick Zapit-MATLAB instead, or fill in rig.yml's zapit block</NoZapitDaqMessage>
+      </Expression>
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTask.bonsai">
+        <Description>Zapit-MATLAB (optogenetics.zapitMatlab), MATLAB Zapit over TCP: at Go with Zapit-MATLAB ticked connects to rig.yml's zapit host and port and checks the conditions file loaded there (ConnectZapit), carrying ZapitCommands and ZapitReplies; its switch published as OptogeneticsMatlab, as ConnectForTaskZapitDaq publishes Optogenetics. Goes when MATLAB Zapit is retired, with ZapitTrials in TaskLogic, ZapitLogs in Logging and ZapitReplies in RunTrials.</Description>
+        <OptogeneticsSwitch>TaskParameters.Optogenetics.ZapitMatlab</OptogeneticsSwitch>
+        <OptogeneticsSubjectName>OptogeneticsMatlab</OptogeneticsSubjectName>
+      </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskRules</Name>
-        <Description>At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once with rig.yml and, in an optogenetics experiment, the Zapit bank the setup loaded (Zapit.Bank, ConnectForTaskZapitDaq's: hence after it), and publishes the trials' rules (TrialRules) for TaskLogic, and the stage as CurriculumStage.</Description>
+        <Description>At Go, CheckTaskAtGo builds the trial conditions from TaskText (each condition's set over the task's values), checks the task once with rig.yml, the ticked Zapit against the session (ZapitRig: whether ZapitDaq opened at launch) and, with Zapit-Bonsai, the Zapit bank the setup loaded (Zapit.Bank, ConnectForTaskZapitDaq's: hence after it), with Zapit-MATLAB the Zapit conditions file, and publishes the trials' rules (TrialRules) for TaskLogic, and the stage as CurriculumStage.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -125,8 +143,11 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>CheckTaskAtGo</Name>
-              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the task file's curriculum present and well formed, each trial condition built (its set and pairs over the task's values, every combination), rig.yml's speakers, the draw's rules (TrialDraw.CheckTask: a stage past the table, the x-rules, a go/no-go task with no go trials, a laser that would outlast the next trigger, ...) and with optogenetics the Zapit bank the setup loaded (its conditions, its longest ramp-down; none loaded is refused). A problem stops the workflow here, naming each, before the first trial.</Description>
+              <Description>The task file's text checked once, at Go, and the trials' rules built from it (TrialRules, tested C#): the task file's curriculum present and well formed, each trial condition built (its set and pairs over the task's values, every combination), rig.yml's speakers, the draw's rules (TrialDraw.CheckTask: a stage past the table, the x-rules, a go/no-go task with no go trials, both Zapit boxes ticked, a laser that would outlast the next trigger, ...), the ticked Zapit the session's (Zapit-Bonsai with ZapitDaq open, Zapit-MATLAB without), and with Zapit-Bonsai the Zapit bank the setup loaded (its conditions, its longest ramp-down; none loaded is refused), with Zapit-MATLAB the Zapit conditions file (its count, its largest ramp-down) and MATLAB Zapit's timing. A problem stops the workflow here, naming each, before the first trial.</Description>
               <Combinator xsi:type="ext:CheckTaskAtGo" />
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>ZapitRig</Name>
             </Expression>
             <Expression xsi:type="rx:AsyncSubject">
               <Name>TrialRules</Name>
@@ -152,10 +173,11 @@
             <Edge From="1" To="2" Label="Source2" />
             <Edge From="2" To="4" Label="Source1" />
             <Edge From="3" To="4" Label="Source2" />
-            <Edge From="4" To="5" Label="Source1" />
-            <Edge From="6" To="7" Label="Source1" />
+            <Edge From="5" To="4" Label="Source3" />
+            <Edge From="4" To="6" Label="Source1" />
             <Edge From="7" To="8" Label="Source1" />
             <Edge From="8" To="9" Label="Source1" />
+            <Edge From="9" To="10" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -545,7 +567,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>Logging</Name>
-        <Description>Everything else written to the experiment folder (ExperimentLogs, before DomeHardware, makes it at Go, with WorkflowData_Events, Settings_Rig and Settings_Experiment; each device logs itself): ConditionedTaskLogsZapitDaq (OpenRigs.Logging) writes Settings_Combinations (TrialRules.CombinationsJson) every combination the conditions built at Go, each a row the trial log's trialCombinationId names, with the values that vary, and through TaskLogsZapitDaq Settings_Task (the task file as JSON), WorkflowData_Trials and each ZapitDaq event as an Events row (Event Zapit); the Zapit bank, sample, scanner fit, accuracy and conditions copy are app-rig-control's files, the scanner frames and Camera-Zapit ConnectForTaskZapitDaq's; Rewards (OpenRigs.Devices) logs each reward (RewardDelivered) and each RewardValve piece its calibration file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to WorkflowData_Events, records the Harp devices and writes the manifest.</Description>
+        <Description>Everything else written to the experiment folder (ExperimentLogs, before DomeHardware, makes it at Go, with WorkflowData_Events, Settings_Rig and Settings_Experiment; each device logs itself): ConditionedTaskLogsZapitDaq (OpenRigs.Logging) writes Settings_Combinations (TrialRules.CombinationsJson) every combination the conditions built at Go, each a row the trial log's trialCombinationId names, with the values that vary, and through TaskLogsZapitDaq Settings_Task (the task file as JSON), WorkflowData_Trials and each ZapitDaq event as an Events row (Event Zapit; none on MATLAB Zapit); ZapitLogs (OpenRigs.Devices, MATLAB Zapit's: goes when it is retired) each MATLAB Zapit reply as an Events row (Event ZapitReply; none on ZapitDaq) and with Zapit-MATLAB ticked Settings_ZapitConditions; with Zapit-Bonsai the Zapit bank, sample, scanner fit, accuracy and conditions copy are app-rig-control's files, the scanner frames and Camera-Zapit ConnectForTaskZapitDaq's; Rewards (OpenRigs.Devices) logs each reward (RewardDelivered) and each RewardValve piece its calibration file (a valve with no calibration stops the workflow, for every mouse); ExperimentRecords, last but LiveView, adds the controller's events to WorkflowData_Events, records the Harp devices and writes the manifest.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -557,6 +579,10 @@
               </Combinator>
             </Expression>
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ConditionedTaskLogsZapitDaq.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ZapitLogs.bonsai">
+              <Description>MATLAB Zapit's logs: each reply on ZapitReplies an Events row, and with Zapit-MATLAB ticked (OptogeneticsSwitch) Settings_ZapitConditions, the conditions file's copy. Goes when MATLAB Zapit is retired.</Description>
+              <OptogeneticsSwitch>TaskParameters.Optogenetics.ZapitMatlab</OptogeneticsSwitch>
+            </Expression>
           </Nodes>
           <Edges>
             <Edge From="0" To="1" Label="Source1" />
@@ -628,7 +654,7 @@
       </Expression>
       <Expression xsi:type="GroupWorkflow">
         <Name>TaskLogic</Name>
-        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: ZapitDaq's Arm and the ZapitTrigger line raised, cleared at TriggerOff (OpenRigs.Trials ZapitDaqTrials, given the rules, whose Laser times it); Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
+        <Description>The trials, every time on the Harp clock: TrialRules (checked and built at Go, TaskFile's CheckTaskAtGo) run by lib-open-rigs' TrialLoop (RunTrials) into TrialEvents once the experiment folder exists, the first trial's interval starting then; each kind picked from them (PickTrialEvents) and sent to the hardware. Start: Trial (Status) and, at trial 1's, the rules' seed (TrialRules.Seed); Arm and Trigger: with Zapit-Bonsai ZapitDaq's Arm (OpenRigs.Trials ZapitDaqTrials), with Zapit-MATLAB MATLAB Zapit's StartStimulus and StopStimulus (OpenRigs.Trials ZapitTrials; goes when MATLAB Zapit is retired), each given the rules only with its box ticked (ZapitBonsai?, ZapitMatlab?), whose Laser times it, and the ZapitTrigger line raised, cleared at TriggerOff, by that one; Stimulus: the grating and the sound; Update: the decision variable and the grating's azimuth; StimulusOff (OpenRigs.Trials StimulusTiming: the earlier of stimulus.durationSeconds after the stimulus and stimulus.responseToStimulusOffSeconds after the outcome): the grating hidden and the sound stopped, once a trial; the cues SpoutsIn (spouts.stimulusToSpoutsInSeconds after the stimulus, before it when negative) and SpoutsOut (spouts.rewardConsumptionSeconds into the next interval: the spouts out unless the coming trial's are always in); Outcome: the trial's row (TrialRow), the reward (RewardRequests), the penalty sound and, on the projector, the penalty flash (PlayPenaltyFlash). Every spout move is lib-open-rigs' SpoutCommands' over all the events: trial 1's spouts out at its interval start, the SpoutsIn and SpoutsOut cues', the outcome's. Zapit adds no time.</Description>
         <Workflow>
           <Nodes>
             <Expression xsi:type="SubscribeSubject">
@@ -671,7 +697,7 @@
             </Expression>
             <Expression xsi:type="Combinator">
               <Name>RunTrials</Name>
-              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last trial's end, its response window's end whatever the choice, plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window stimulusToResponseWindowSeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved azimuthShiftPerLickDeg a lick; left at thresholdLicks, right at -thresholdLicks, else noResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once its whole ZapitDaq trial has played; or with optogenetics.laserEnd stimulusOff the laser early-stopped at the trial's StimulusOff (LaserOff, at most laserDurationSeconds after the trigger: LaserCap), the line cleared and the next armed once ZapitDaq.EarlyStopLeadSeconds (0.1 s), a scan cycle, the ramp-down and a margin have passed. Inputs: the rules, the clock, the wheel, the left and right lick states, ZapitDaq's events (Zapit.Events).</Description>
+              <Description>The trials (TrialRules, tested C#, run by lib-open-rigs' TrialLoop) on the Harp clock: each drawn at its interval's start (the last trial's end, its response window's end whatever the choice, plus its timeout), started at the interval's end less the lead (max(laserToStimulusSeconds, 0)) or later until the quiet waits hold (both spouts released for lickQuietSeconds; the wheel within wheelQuietCm over the last wheelQuietSeconds), the stimulus the lead after the start in every experiment, the response window stimulusToResponseWindowSeconds after it for responseWindowSeconds (each lick 1 left or -1 right on the decision variable, the grating moved azimuthShiftPerLickDeg a lick; left at thresholdLicks, right at -thresholdLicks, else noResponse at the window's end), the outcome, its timeout; with optogenetics each trial armed (Arm), triggered laserToStimulusSeconds before the stimulus unless answered first, and its line cleared laserDurationSeconds later (TriggerOff), the next armed once its whole ZapitDaq trial has played; or with optogenetics.laserEnd stimulusOff the laser early-stopped at the trial's StimulusOff (LaserOff, at most laserDurationSeconds after the trigger: LaserCap), the line cleared and the next armed once ZapitDaq.EarlyStopLeadSeconds (0.1 s), a scan cycle, the ramp-down and a margin have passed. With Zapit-MATLAB (MATLAB Zapit's timing: the next StartStimulus once the conditions file's largest ramp-down has played and, after a StopStimulus, Zapit's stop reply) the loop reads ZapitReplies, else ZapitDaq's events. Inputs: the rules, the clock, the wheel, the left and right lick states, ZapitDaq's events (Zapit.Events), MATLAB Zapit's replies (ZapitReplies).</Description>
               <Combinator xsi:type="ext:RunTrials" />
             </Expression>
             <Expression xsi:type="MulticastSubject">
@@ -778,6 +804,23 @@
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Vision:PlayPenaltyFlash.bonsai">
               <Description>The penalty flash on DomeHardware's projector (lib-open-rigs PlayPenaltyFlash): each outcome TrialOutcomeEffects passes on whose PenaltyFlash plays (penalised, its kind's penalty.&lt;kind&gt;.flash.brightness above 0) flashes the whole field at that brightness at its rateHz for the penalty sound's length; TrialRules' PenaltyFlashes checked at Go against the sound.</Description>
             </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>ZapitReplies</Name>
+            </Expression>
+            <Expression xsi:type="scr:ExpressionCondition">
+              <scr:Name>ZapitBonsai?</scr:Name>
+              <scr:Description>The rules to ZapitDaqTrials only with Zapit-Bonsai ticked (TrialRules.ZapitBonsai): it arms ZapitDaq and writes the trigger line only once given them.</scr:Description>
+              <scr:Expression>ZapitBonsai</scr:Expression>
+            </Expression>
+            <Expression xsi:type="SubscribeSubject">
+              <Name>TrialRules</Name>
+            </Expression>
+            <Expression xsi:type="scr:ExpressionCondition">
+              <scr:Name>ZapitMatlab?</scr:Name>
+              <scr:Description>The rules to ZapitTrials only with Zapit-MATLAB ticked (TrialRules.ZapitMatlab): it sends MATLAB Zapit's StartStimulus and StopStimulus and writes the trigger line only once given them. Goes when MATLAB Zapit is retired.</scr:Description>
+              <scr:Expression>ZapitMatlab</scr:Expression>
+            </Expression>
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Trials:ZapitTrials.bonsai" />
           </Nodes>
           <Edges>
             <Edge From="0" To="2" Label="Source1" />
@@ -800,7 +843,7 @@
             <Edge From="18" To="19" Label="Source2" />
             <Edge From="19" To="20" Label="Source1" />
             <Edge From="20" To="21" Label="Source1" />
-            <Edge From="22" To="23" Label="Source1" />
+            <Edge From="22" To="46" Label="Source1" />
             <Edge From="24" To="25" Label="Source1" />
             <Edge From="25" To="26" Label="Source1" />
             <Edge From="26" To="27" Label="Source1" />
@@ -816,6 +859,10 @@
             <Edge From="40" To="41" Label="Source1" />
             <Edge From="41" To="42" Label="Source1" />
             <Edge From="39" To="44" Label="Source1" />
+            <Edge From="45" To="12" Label="Source7" />
+            <Edge From="46" To="23" Label="Source1" />
+            <Edge From="47" To="48" Label="Source1" />
+            <Edge From="48" To="49" Label="Source1" />
           </Edges>
         </Workflow>
       </Expression>
@@ -823,9 +870,9 @@
         <Description>The lab clock checked at Start (OpenRigs.Logging LabClockReady): a clock that disagrees with the lab's stops the workflow before Ready; it announces LabClockChecked, which ReadyGate waits for (WorkflowStages).</Description>
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ExperimentRecords.bonsai">
-        <Description>The controller's events (LogControlEvents), every Harp device in rig.yml checked at Start and recorded (RecordHarpDevices: the Behavior board, the timestamp generator, both stepper drivers and both Lickety Splits), and manifest.json (ExperimentManifest: the machine, this repo's commit, who launched it and sent Go, rig.yml and every file it names by hash ({RigFiles}: Projector-Mesh.csv, Projector-Gamma.bmp, the speakers' filters, the valve calibrations; the auditory stimuli are this repo's, in src\sounds, so the commit names them) and this mouse's spout positions, schemas\trial-columns.yml, and what the experiment must leave: a folder for each device in rig.yml, the Harp device records (harp), the three settings files and WorkflowData (Trials and Events), and in an optogenetics experiment Zapit's files: Camera-Zapit and the Zapit bank, sample, scanner fit and conditions settings, and with the laser enabled too (OptogeneticsLaserEnabled: rig.yml zapit.ceilingMw above 0) ZapitScanner and the accuracy settings, which only a beam makes). Last but LiveView, as it finds each device by the subjects published before it.</Description>
+        <Description>The controller's events (LogControlEvents), every Harp device in rig.yml checked at Start and recorded (RecordHarpDevices: the Behavior board, the timestamp generator, both stepper drivers and both Lickety Splits), and manifest.json (ExperimentManifest: the machine, this repo's commit, who launched it and sent Go, rig.yml and every file it names by hash ({RigFiles}: Projector-Mesh.csv, Projector-Gamma.bmp, the speakers' filters, the valve calibrations; the auditory stimuli are this repo's, in src\sounds, so the commit names them) and this mouse's spout positions, schemas\trial-columns.yml, and what the experiment must leave: a folder for each device in rig.yml, the Harp device records (harp), the three settings files and WorkflowData (Trials and Events), in an optogenetics experiment on either Zapit (OptogeneticsExperiment) Settings_ZapitConditions, and with Zapit-Bonsai (Optogenetics, ConnectForTaskZapitDaq's) Camera-Zapit and the Zapit bank, sample and scanner fit settings, and with the laser enabled too (OptogeneticsLaserEnabled: rig.yml zapit.ceilingMw above 0) ZapitScanner, the accuracy and the laser curve settings, which only a beam makes). Last but LiveView, as it finds each device by the subjects published before it.</Description>
         <IngestScript>coen-dome-decision-making</IngestScript>
-        <ExpectedFiles>auto;harp;Settings/Settings_Rig_;Settings/Settings_Task_;Settings/Settings_Combinations_;Settings/Settings_Experiment_;WorkflowData/WorkflowData_Trials_;WorkflowData/WorkflowData_Events_;Camera-Zapit/?Optogenetics;ZapitScanner/?OptogeneticsLaserEnabled;Settings/Settings_ZapitBank_?Optogenetics;Settings/Settings_ZapitSample_?Optogenetics;Settings/Settings_ZapitScannerFit_?Optogenetics;Settings/Settings_ZapitAccuracy_?OptogeneticsLaserEnabled;Settings/Settings_ZapitLaserCurve_?OptogeneticsLaserEnabled;Settings/Settings_ZapitConditions_?Optogenetics</ExpectedFiles>
+        <ExpectedFiles>auto;harp;Settings/Settings_Rig_;Settings/Settings_Task_;Settings/Settings_Combinations_;Settings/Settings_Experiment_;WorkflowData/WorkflowData_Trials_;WorkflowData/WorkflowData_Events_;Camera-Zapit/?Optogenetics;ZapitScanner/?OptogeneticsLaserEnabled;Settings/Settings_ZapitBank_?Optogenetics;Settings/Settings_ZapitSample_?Optogenetics;Settings/Settings_ZapitScannerFit_?Optogenetics;Settings/Settings_ZapitAccuracy_?OptogeneticsLaserEnabled;Settings/Settings_ZapitLaserCurve_?OptogeneticsLaserEnabled;Settings/Settings_ZapitConditions_?OptogeneticsExperiment</ExpectedFiles>
       </Expression>
       <Expression xsi:type="lv:StreamDevices">
         <Name>LiveView</Name>
