@@ -92,7 +92,7 @@ taskParameters:
   penaliseRandomProbes: false
   optogenetics:
     enabled: false
-    zapitConditionsPath: C:\Users\CoenLabUsers\zapit\experimental_configs\avdome_main_initialstim.yml
+    zapitConditionsPath: ""
     laserPowerMw: 3.0
     laserOnProbability: 0.5
     laserToStimulusSeconds: 0.1

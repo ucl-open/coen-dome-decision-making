@@ -453,17 +453,27 @@ namespace UclOpenCoenDomeDecisionMakingTask
     /// Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
     ///laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
     ///laser runs. A repeated trial never has the laser on.
+    ///
+    ///Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
+    ///or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
+    ///schema and the file, as either box, so its checks run. An old file's enabled is dropped, so it ticks neither box, and
+    ///enabled: true warns that it was ignored (OldZapitOnIgnored); enabled beside either box is refused. zapitMatlab, and
+    ///enabled's reading, go when MATLAB Zapit is retired.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
     laserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the
-    laser runs. A repeated trial never has the laser on.")]
+    laser runs. A repeated trial never has the laser on.
+
+    Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
+    or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
+    schema and the file, as either box, so its checks run. An old file's enabled is dropped, so it ticks neither box, and
+    enabled: true warns that it was ignored (OldZapitOnIgnored); enabled beside either box is refused. zapitMatlab, and
+    enabled's reading, go when MATLAB Zapit is retired.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class Optogenetics
     {
-    
-        private bool _enabled;
     
         private string _zapitConditionsPath;
     
@@ -475,46 +485,34 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         private int _trialsBeforeLaser;
     
+        private bool _zapitBonsai;
+    
+        private bool _zapitMatlab;
+    
         private LaserEndMode _laserEnd;
     
         private double _laserDurationSeconds;
     
         public Optogenetics()
         {
-            _enabled = false;
             _zapitConditionsPath = "";
+            _zapitBonsai = false;
+            _zapitMatlab = false;
             _laserEnd = LaserEndMode.Duration;
             _laserDurationSeconds = 1.5D;
         }
     
         protected Optogenetics(Optogenetics other)
         {
-            _enabled = other._enabled;
             _zapitConditionsPath = other._zapitConditionsPath;
             _laserPowerMw = other._laserPowerMw;
             _laserOnProbability = other._laserOnProbability;
             _laserToStimulusSeconds = other._laserToStimulusSeconds;
             _trialsBeforeLaser = other._trialsBeforeLaser;
+            _zapitBonsai = other._zapitBonsai;
+            _zapitMatlab = other._zapitMatlab;
             _laserEnd = other._laserEnd;
             _laserDurationSeconds = other._laserDurationSeconds;
-        }
-    
-        /// <summary>
-        /// Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go
-        /// </summary>
-        [Newtonsoft.Json.JsonPropertyAttribute("enabled")]
-        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="enabled")]
-        [System.ComponentModel.DescriptionAttribute(@"Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go")]
-        public bool Enabled
-        {
-            get
-            {
-                return _enabled;
-            }
-            set
-            {
-                _enabled = value;
-            }
         }
     
         /// <summary>
@@ -613,6 +611,42 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
+        /// Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's Zapit-Bonsai fields: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("zapitBonsai")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitBonsai")]
+        [System.ComponentModel.DescriptionAttribute(@"Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's Zapit-Bonsai fields: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB")]
+        public bool ZapitBonsai
+        {
+            get
+            {
+                return _zapitBonsai;
+            }
+            set
+            {
+                _zapitBonsai = value;
+            }
+        }
+    
+        /// <summary>
+        /// Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, which the workflow leaves free unless Zapit-Bonsai is ticked at launch. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired
+        /// </summary>
+        [Newtonsoft.Json.JsonPropertyAttribute("zapitMatlab")]
+        [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitMatlab")]
+        [System.ComponentModel.DescriptionAttribute(@"Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, which the workflow leaves free unless Zapit-Bonsai is ticked at launch. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired")]
+        public bool ZapitMatlab
+        {
+            get
+            {
+                return _zapitMatlab;
+            }
+            set
+            {
+                _zapitMatlab = value;
+            }
+        }
+    
+        /// <summary>
         /// duration: the laser and the masking light stay on laserDurationSeconds from the trigger, whatever the mouse does; stimulusOff: until the trial's stimulus goes off (stimulus.durationSeconds after its onset or stimulus.responseToStimulusOffSeconds after the outcome, whichever comes first; the outcome when the stimulus never came on), at most laserDurationSeconds from the trigger. One for the experiment (a session field)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserEnd")]
@@ -631,11 +665,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)
+        /// How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus ZapitDaq's 0.1 s early-stop lead with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("laserDurationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="laserDurationSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)")]
+        [System.ComponentModel.DescriptionAttribute(@"How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus ZapitDaq's 0.1 s early-stop lead with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)")]
         public double LaserDurationSeconds
         {
             get
@@ -660,12 +694,13 @@ namespace UclOpenCoenDomeDecisionMakingTask
     
         protected virtual bool PrintMembers(System.Text.StringBuilder stringBuilder)
         {
-            stringBuilder.Append("Enabled = " + _enabled + ", ");
             stringBuilder.Append("ZapitConditionsPath = " + _zapitConditionsPath + ", ");
             stringBuilder.Append("LaserPowerMw = " + _laserPowerMw + ", ");
             stringBuilder.Append("LaserOnProbability = " + _laserOnProbability + ", ");
             stringBuilder.Append("LaserToStimulusSeconds = " + _laserToStimulusSeconds + ", ");
             stringBuilder.Append("TrialsBeforeLaser = " + _trialsBeforeLaser + ", ");
+            stringBuilder.Append("ZapitBonsai = " + _zapitBonsai + ", ");
+            stringBuilder.Append("ZapitMatlab = " + _zapitMatlab + ", ");
             stringBuilder.Append("LaserEnd = " + _laserEnd + ", ");
             stringBuilder.Append("LaserDurationSeconds = " + _laserDurationSeconds);
             return true;
@@ -1695,11 +1730,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// The longest the stimulus lasts from its onset, in seconds; off before the next trial's stimulus can come (the soonest outcome plus the shortest penalty timeout, 0 where a reward can come, plus itiMinSeconds). Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)
+        /// The longest the stimulus lasts from its onset, in seconds: at most stimulusToResponseWindowSeconds + responseWindowSeconds, the response window's close and the trial's end (the window always runs in full), so it is off before the next trial's stimulus, which comes at the soonest itiMinSeconds after that end. Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("durationSeconds")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="durationSeconds")]
-        [System.ComponentModel.DescriptionAttribute(@"The longest the stimulus lasts from its onset, in seconds; off before the next trial's stimulus can come (the soonest outcome plus the shortest penalty timeout, 0 where a reward can come, plus itiMinSeconds). Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)")]
+        [System.ComponentModel.DescriptionAttribute(@"The longest the stimulus lasts from its onset, in seconds: at most stimulusToResponseWindowSeconds + responseWindowSeconds, the response window's close and the trial's end (the window always runs in full), so it is off before the next trial's stimulus, which comes at the soonest itiMinSeconds after that end. Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)")]
         public double? DurationSeconds
         {
             get

@@ -105,7 +105,7 @@ def _timing(t: dict) -> dict:
         "lickQuiet": s["lickQuietSeconds"],
         "wheelQuiet": s["wheelQuietSeconds"],
         "laser": ({"p": opto["laserOnProbability"], "lead": opto["laserToStimulusSeconds"], "dur": opto["laserDurationSeconds"],
-                   "mw": opto["laserPowerMw"]} if opto["enabled"] else None),
+                   "mw": opto["laserPowerMw"]} if opto["zapitBonsai"] or opto["zapitMatlab"] else None),
     }
 
 

@@ -111,25 +111,60 @@
       "type": "string"
     },
     "Optogenetics": {
-      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the\nlaser runs. A repeated trial never has the laser on.",
+      "description": "Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;\nlaserDurationSeconds is a fixed laser time here, per trial (its combination's), or with laserEnd stimulusOff the most the\nlaser runs. A repeated trial never has the laser on.\n\nTwo boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)\nor zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the\nschema and the file, as either box, so its checks run. An old file's enabled is dropped, so it ticks neither box, and\nenabled: true warns that it was ignored (OldZapitOnIgnored); enabled beside either box is refused. zapitMatlab, and\nenabled's reading, go when MATLAB Zapit is retired.",
       "if": {
-        "additionalProperties": true,
-        "properties": {
-          "enabled": {
-            "const": true
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitBonsai": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitBonsai"
+            ]
+          },
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitMatlab": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitMatlab"
+            ]
           }
-        },
-        "required": [
-          "enabled"
+        ]
+      },
+      "not": {
+        "allOf": [
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitBonsai": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitBonsai"
+            ]
+          },
+          {
+            "additionalProperties": true,
+            "properties": {
+              "zapitMatlab": {
+                "const": true
+              }
+            },
+            "required": [
+              "zapitMatlab"
+            ]
+          }
         ]
       },
       "properties": {
-        "enabled": {
-          "default": false,
-          "description": "Whether this is an optogenetics experiment, Zapit running it: every trial sends it a condition from the conditions file (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows), and the launching app checks Zapit is answering before Go",
-          "title": "Enabled",
-          "type": "boolean"
-        },
         "zapitConditionsPath": {
           "default": "",
           "description": "Path to the Zapit conditions file loaded in Zapit. Its top-level stimLocations01, stimLocations02, ... entries are the conditions, numbered 1 to N with no gaps. The launching app keeps a copy beside the task file at Go",
@@ -168,6 +203,18 @@
           "title": "TrialsBeforeLaser",
           "type": "integer"
         },
+        "zapitBonsai": {
+          "default": false,
+          "description": "Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's Zapit-Bonsai fields: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB",
+          "title": "Zapit-Bonsai",
+          "type": "boolean"
+        },
+        "zapitMatlab": {
+          "default": false,
+          "description": "Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, which the workflow leaves free unless Zapit-Bonsai is ticked at launch. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired",
+          "title": "Zapit-MATLAB",
+          "type": "boolean"
+        },
         "laserEnd": {
           "$ref": "#/$defs/LaserEndMode",
           "default": "duration",
@@ -176,7 +223,7 @@
         },
         "laserDurationSeconds": {
           "default": 1.5,
-          "description": "How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + itiMinSeconds - the Zapit conditions file's largest ramp-down (0.1 to 0.5 s) - 0.2 s: Zapit is armed for the next trial only once this laser and its ramp-down have ended, and its reply must be in 0.2 s before the next trigger (checked against the file at Go)",
+          "description": "How long the laser and the masking light stay on, in seconds from the trigger (with laserEnd stimulusOff, the most they stay on). With optogenetics on, at most stimulusToResponseWindowSeconds + responseWindowSeconds (the trial's end: the window always runs in full) + itiMinSeconds - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus ZapitDaq's 0.1 s early-stop lead with laserEnd stimulusOff) - 0.2 s: Zapit is armed for the next trial only once this laser's whole trial has played, and arming takes up to 0.2 s before the next trigger (checked against the session's bank at Go; before Go only the ramp-down is known)",
           "exclusiveMinimum": 0,
           "title": "LaserDurationSeconds",
           "type": "number"
@@ -485,7 +532,7 @@
             }
           ],
           "default": 1.5,
-          "description": "The longest the stimulus lasts from its onset, in seconds; off before the next trial's stimulus can come (the soonest outcome plus the shortest penalty timeout, 0 where a reward can come, plus itiMinSeconds). Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)",
+          "description": "The longest the stimulus lasts from its onset, in seconds: at most stimulusToResponseWindowSeconds + responseWindowSeconds, the response window's close and the trial's end (the window always runs in full), so it is off before the next trial's stimulus, which comes at the soonest itiMinSeconds after that end. Null: no cap, the stimulus ends only responseToStimulusOffSeconds after the response (both null is refused)",
           "title": "DurationSeconds"
         },
         "responseToStimulusOffSeconds": {
@@ -1076,7 +1123,8 @@
         "rngSeed",
         "curriculum",
         "trialConditions",
-        "optogenetics.enabled",
+        "optogenetics.zapitBonsai",
+        "optogenetics.zapitMatlab",
         "optogenetics.zapitConditionsPath",
         "taskType",
         "optogenetics.laserEnd"

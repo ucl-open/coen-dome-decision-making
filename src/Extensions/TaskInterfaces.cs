@@ -21,6 +21,16 @@ namespace UclOpenCoenDomeDecisionMakingTask
     {
         IList<ITrialCondition> IConditionedTask.Conditions { get { return TrialConditions == null ? null : TrialConditions.Cast<ITrialCondition>().ToList(); } }
         ICurriculum IConditionedTask.Stage { get { return Curriculum; } }
-        bool IConditionedTask.OptogeneticsEnabled { get { return Optogenetics != null && Optogenetics.Enabled; } }
+        bool IConditionedTask.OptogeneticsEnabled { get { return Optogenetics != null && Optogenetics.On; } }
+    }
+
+    /// <summary>The optogenetics block, whose two boxes choose the session's Zapit: zapitBonsai (Zapit-Bonsai, ZapitDaq on the NI
+    /// card) or zapitMatlab (Zapit-MATLAB, MATLAB Zapit over TCP; goes when MATLAB Zapit is retired), never both (TrialDraw.BothZapits).</summary>
+    partial class Optogenetics
+    {
+        /// <summary>Whether this is an optogenetics experiment: either box ticked. Not a task field, so never written to Settings_Task.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        [YamlDotNet.Serialization.YamlIgnore]
+        public bool On { get { return ZapitBonsai || ZapitMatlab; } }
     }
 }
