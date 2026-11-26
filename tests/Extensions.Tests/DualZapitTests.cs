@@ -12,7 +12,7 @@ using System.Text.RegularExpressions;
 using UclOpenCoenDomeDecisionMakingTask;
 
 /// <summary>The two Zapit boxes (Pip, 26 Nov 2026: "two boxes, mutually exclusive, Zapit-Bonsai and Zapit-MATLAB"): neither is no
-/// optogenetics, each alone picks its Zapit's path and timing, both are refused, an old file's enabled: true is Zapit-MATLAB, and
+/// optogenetics, each alone picks its Zapit's path and timing, both are refused, an old file's enabled: true is neither box with a warning at Go, and
 /// Go refuses a ticked Zapit the session does not have. The MATLAB cases go when MATLAB Zapit is retired.</summary>
 [TestClass]
 public class DualZapitTests
@@ -118,19 +118,43 @@ public class DualZapitTests
         return Regex.Replace(text, @"\r?\n *zapitMatlab: (true|false)", "");
     }
 
+    // Pip, 26 Nov 2026: "Untick both + Go warns". An old file's Zapit On ticks neither box; Go goes on, with a warning.
     [TestMethod]
-    public void AnOldFilesEnabledTrueIsZapitMatlab()
+    public void AnOldFilesEnabledTrueIsNeitherBoxAndGoWarns()
     {
         var on = Old(Task(false, true), "true");
         StringAssert.Contains(on, "enabled: true");
         Assert.IsFalse(on.Contains("zapit" + "Matlab"), "the old file has neither box");
+        string warning;
+        var upgraded = OldOptogeneticsSwitch.Upgrade(on, out warning);
+        Assert.AreEqual(OldOptogeneticsSwitch.OldZapitOnIgnored, warning);
+        Assert.IsFalse(upgraded.Contains("enabled"), "enabled is dropped");
+        StringAssert.Contains(warning, "tick Zapit-Bonsai or Zapit-MATLAB");
         var read = new ReadTask().Process(Observable.Return(on)).Wait().TaskParameters.Optogenetics;
-        Assert.IsTrue(read.ZapitMatlab && !read.ZapitBonsai);
-        var rules = new TrialRules(on, Fixture.Speakers(), true, Conditions);
-        Assert.IsTrue(rules.ZapitMatlab && rules.Laser != null);
-        var off = new ReadTask().Process(Observable.Return(Old(Task(false, false), "false"))).Wait().TaskParameters.Optogenetics;
+        Assert.IsFalse(read.ZapitMatlab || read.ZapitBonsai || read.On);
+        var rules = new TrialRules(on, Fixture.Speakers(), null);
+        Assert.IsFalse(rules.ZapitMatlab || rules.ZapitBonsai);
+        Assert.IsNull(rules.Laser, "no Zapit: no laser timing");
+        Assert.AreEqual(OldOptogeneticsSwitch.OldZapitOnIgnored, rules.Warning);
+        // Go accepts it on any rig, ZapitDaq open or not, and writes the warning to standard error.
+        Assert.AreEqual(OldOptogeneticsSwitch.OldZapitOnIgnored, TrialRules.Create(on, Rig("Dev1"), null, false).Warning);
+        Assert.IsNotNull(TrialRules.Create(on, new LabRig { SpeakerArray = Fixture.Speakers() }, null, false));
+        var error = new System.IO.StringWriter();
+        CheckTaskAtGo.Warn(rules, error);
+        Assert.AreEqual("CheckTaskAtGo: warning: " + OldOptogeneticsSwitch.OldZapitOnIgnored + "." + Environment.NewLine, error.ToString());
+        var accepted = new CheckTaskAtGo().Process(Observable.Return(Tuple.Create(on, Rig("Dev1"))), Observable.Never<ZapitBank>(), Observable.Empty<OpenRigs.Devices.Rigs.Zapit>()).Wait();
+        Assert.AreEqual(OldOptogeneticsSwitch.OldZapitOnIgnored, accepted.Warning);
+        // enabled: false ignores nothing, so says nothing; nor does a file with the boxes.
+        var offText = Old(Task(false, false), "false");
+        var off = new ReadTask().Process(Observable.Return(offText)).Wait().TaskParameters.Optogenetics;
         Assert.IsFalse(off.ZapitMatlab || off.ZapitBonsai);
-        Assert.IsNull(new TrialRules(Old(Task(false, false), "false"), Fixture.Speakers(), null).Laser);
+        var offRules = new TrialRules(offText, Fixture.Speakers(), null);
+        Assert.IsNull(offRules.Laser);
+        Assert.IsNull(offRules.Warning);
+        Assert.IsNull(new TrialRules(Fixture.Text(Task(false, false)), Fixture.Speakers(), null).Warning);
+        var silent = new System.IO.StringWriter();
+        CheckTaskAtGo.Warn(offRules, silent);
+        Assert.AreEqual("", silent.ToString());
         // enabled beside either box is refused.
         var mixed = Fixture.Text(Task(false, true)).Replace("zapitBonsai: false", "zapitBonsai: false\n    enabled: true");
         StringAssert.Contains(Fixture.Refusal(() => OldOptogeneticsSwitch.Upgrade(mixed)), "enabled, the old switch, beside zapitBonsai or zapitMatlab");
@@ -148,12 +172,19 @@ public class DualZapitTests
         StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(bonsai, Rig(null), Fixture.Bank(), false)), TrialRules.NoNativeZapit);
         StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(bonsai, new LabRig { SpeakerArray = Fixture.Speakers() }, Fixture.Bank(), false)), TrialRules.NoNativeZapit);
         StringAssert.Contains(TrialRules.NoNativeZapit, "tick Zapit-MATLAB instead, or fill in rig.yml's zapit block");
-        // A native rig whose ZapitDaq stayed closed: Zapit-MATLAB was ticked at launch.
-        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(bonsai, Rig("Dev1"), Fixture.Bank(), false)), "launch again with Zapit-Bonsai ticked");
+        // A native rig whose ZapitDaq stayed closed: Zapit-Bonsai was not ticked at launch (OpenedBy).
+        Assert.AreEqual(TrialRules.ZapitDaqClosedAtLaunch, Fixture.Refusal(() => TrialRules.Create(bonsai, Rig("Dev1"), Fixture.Bank(), false)));
+        StringAssert.Contains(TrialRules.ZapitDaqClosedAtLaunch, "it was not ticked in the task file when the workflow was launched");
+        StringAssert.Contains(TrialRules.ZapitDaqClosedAtLaunch, "launch again with Zapit-Bonsai ticked");
         Assert.IsTrue(TrialRules.Create(bonsai, Rig("Dev1"), Fixture.Bank(), true).ZapitBonsai);
-        // Zapit-MATLAB while ZapitDaq holds the NI card and the camera.
-        StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(matlab, Rig("Dev1"), null, true)), "ZapitDaq holds the NI card and the camera MATLAB Zapit needs");
+        // Zapit-MATLAB while ZapitDaq holds the NI card and the camera: only Zapit-Bonsai at launch opens it now, so only a box
+        // changed between launch and Go brings this.
+        var opened = Fixture.Refusal(() => TrialRules.Create(matlab, Rig("Dev1"), null, true));
+        StringAssert.Contains(opened, "ZapitDaq, which holds the NI card and the camera MATLAB Zapit needs");
+        StringAssert.Contains(opened, "Zapit-Bonsai was ticked in the task file when the workflow was launched");
         Assert.IsNull(TrialRules.ZapitSessionProblem(Task(false, true).Optogenetics, Rig(null), false));
+        // Zapit-MATLAB on a native rig: ZapitDaq stayed closed (OpenedBy false at launch), so Go goes on to MATLAB Zapit.
+        Assert.IsNull(TrialRules.ZapitSessionProblem(Task(false, true).Optogenetics, Rig("Dev1"), false));
     }
 
     // CheckTaskAtGo takes ZapitRig, ConnectForTaskZapitDaq's AsyncSubject: a value when ZapitDaq opened at launch, none when not.
@@ -166,7 +197,10 @@ public class DualZapitTests
         var open = Observable.Return(new OpenRigs.Devices.Rigs.Zapit { Device = "Dev1" });
         Assert.AreEqual("accepted", go(Fixture.Text(Task(true, false)), Rig("Dev1"), open, Observable.Return(Fixture.Bank())));
         StringAssert.Contains(go(Fixture.Text(Task(true, false)), Rig(null), closed, Observable.Never<ZapitBank>()), TrialRules.NoNativeZapit);
-        StringAssert.Contains(go(Fixture.Text(Task(false, true)), Rig("Dev1"), open, Observable.Never<ZapitBank>()), "ZapitDaq holds the NI card");
+        StringAssert.Contains(go(Fixture.Text(Task(false, true)), Rig("Dev1"), open, Observable.Never<ZapitBank>()), "ZapitDaq, which holds the NI card");
+        // A native rig whose launch-time task file did not tick Zapit-Bonsai (OpenedBy false): ZapitDaq closed, Zapit-Bonsai refused.
+        Assert.AreEqual(TrialRules.ZapitDaqClosedAtLaunch, go(Fixture.Text(Task(true, false)), Rig("Dev1"), closed, Observable.Never<ZapitBank>()));
+        Assert.AreEqual("accepted", go(Fixture.Text(Task(false, false)), Rig("Dev1"), closed, Observable.Never<ZapitBank>()));
         Assert.AreEqual("accepted", go(Fixture.Text(Task(false, false)), Rig("Dev1"), open, Observable.Never<ZapitBank>()));
     }
 }

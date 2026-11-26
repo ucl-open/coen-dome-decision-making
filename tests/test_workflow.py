@@ -168,14 +168,16 @@ def test_zapit_s_trials_are_the_shared_includes_each_given_the_rules_with_its_bo
 
 def test_each_zapit_piece_is_gated_on_its_own_box():
     # Pip, 26 Nov 2026: two boxes, mutually exclusive, Zapit-Bonsai and Zapit-MATLAB. Each lib piece reads its own box
-    # (OptogeneticsSwitch); ConnectForTaskZapitDaq stays closed for a session the task file hands to MATLAB Zapit at launch
-    # (ClosedBy), and its refusal names both boxes; ConnectForTask publishes its switch under its own name, as
-    # ConnectForTaskZapitDaq publishes Optogenetics; ZapitLogs writes Settings_ZapitConditions only with Zapit-MATLAB.
+    # (OptogeneticsSwitch); ConnectForTaskZapitDaq opens the NI card and the Zapit camera at launch only when the task file
+    # then ticks Zapit-Bonsai (OpenedBy: Pip, 26 Nov 2026), and its refusal names both boxes; ConnectForTask publishes its
+    # switch under its own name, as ConnectForTaskZapitDaq publishes Optogenetics; ZapitLogs writes Settings_ZapitConditions
+    # only with Zapit-MATLAB.
     def props(path):
         (node,) = [e for e in MAIN.iter(W + "Expression") if e.get("Path") == path]
         return {c.tag.removeprefix(W): c.text for c in node}
     native, matlab, logs = props(lint.ZAPIT_DAQ_FOR_TASK), props(lint.ZAPIT_FOR_TASK), props("OpenRigs.Devices:ZapitLogs.bonsai")
-    assert native["OptogeneticsSwitch"] == "TaskParameters.Optogenetics.ZapitBonsai" and native["ClosedBy"] == "optogenetics.zapitMatlab"
+    assert native["OptogeneticsSwitch"] == "TaskParameters.Optogenetics.ZapitBonsai" and native["OpenedBy"] == "optogenetics.zapitBonsai"
+    assert "ClosedBy" not in native
     assert "tick Zapit-MATLAB instead, or fill in rig.yml's zapit block" in native["NoZapitDaqMessage"]
     assert matlab["OptogeneticsSwitch"] == logs["OptogeneticsSwitch"] == "TaskParameters.Optogenetics.ZapitMatlab"
     assert matlab["OptogeneticsSubjectName"] == "OptogeneticsMatlab"

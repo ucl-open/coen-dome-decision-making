@@ -1,5 +1,6 @@
 import json
 import re
+import warnings
 import wave
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from pydantic import ValidationError
 
 from ucl_open_coen_dome_decision_making.task import (
     MAX_WEIGHT_SUM,
+    OLD_ZAPIT_ON_IGNORED,
+    OldZapitOnIgnored,
     REQUIRED_CONDITIONS,
     RULES,
     SESSION_FIELDS,
@@ -883,14 +886,25 @@ def test_both_zapit_boxes_are_refused_by_the_model_and_the_schema():
         assert jsonschema.Draft202012Validator(_schema()).is_valid(task) == valid, (bonsai, matlab)
 
 
-def test_an_old_files_enabled_reads_as_zapit_matlab():
+def test_an_old_files_enabled_is_ignored_with_a_warning():
+    # Pip, 26 Nov 2026: "Untick both + Go warns". An old file's Zapit On ticks neither box, and warns (never refuses).
     data = yaml.safe_load((CONFIG / "task-discrimination-left-right.yml").read_text())["taskParameters"]
     old = {k: v for k, v in data["optogenetics"].items() if k not in ("zapitBonsai", "zapitMatlab")}
-    on = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, **ZAPIT_ON, "enabled": True}}).optogenetics
-    assert on.zapit_matlab and not on.zapit_bonsai and on.enabled
-    assert on.model_dump(by_alias=True)["zapitMatlab"] is True and "enabled" not in on.model_dump(by_alias=True)
-    off = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, "enabled": False}}).optogenetics
+    for value in (True, "true"):
+        with pytest.warns(OldZapitOnIgnored) as said:
+            on = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, **ZAPIT_ON, "enabled": value}}).optogenetics
+        assert [str(w.message) for w in said] == [OLD_ZAPIT_ON_IGNORED]
+        assert not on.zapit_matlab and not on.zapit_bonsai and not on.enabled
+        dumped = on.model_dump(by_alias=True)
+        assert dumped["zapitMatlab"] is False and dumped["zapitBonsai"] is False and "enabled" not in dumped
+    assert "tick Zapit-Bonsai or Zapit-MATLAB" in OLD_ZAPIT_ON_IGNORED
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # enabled: false ignores nothing, so says nothing
+        off = UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, "enabled": False}}).optogenetics
     assert not off.zapit_matlab and not off.zapit_bonsai and not off.enabled
+    # The C#'s warning (OldOptogeneticsSwitch.OldZapitOnIgnored, written by CheckTaskAtGo) is the same words.
+    cs = (Path(__file__).parent.parent / "src" / "Extensions" / "TrialLogic.cs").read_text(encoding="utf-8")
+    assert f'public const string OldZapitOnIgnored = "{OLD_ZAPIT_ON_IGNORED}";' in cs
     for box in ("zapitBonsai", "zapitMatlab"):
         with pytest.raises(ValidationError, match="enabled, the old switch, beside zapitBonsai or zapitMatlab"):
             UclOpenCoenDomeDecisionMakingTaskParameters.model_validate({**data, "optogenetics": {**old, **ZAPIT_ON, "enabled": True, box: False}})

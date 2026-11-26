@@ -456,8 +456,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
     ///
     ///Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
     ///or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
-    ///schema and the file, as either box, so its checks run. An old file's enabled reads as zapitMatlab (MATLAB was the only
-    ///Zapit); enabled beside either box is refused. zapitMatlab, and enabled's reading, go when MATLAB Zapit is retired.
+    ///schema and the file, as either box, so its checks run. An old file's enabled is dropped, so it ticks neither box, and
+    ///enabled: true warns that it was ignored (OldZapitOnIgnored); enabled beside either box is refused. zapitMatlab, and
+    ///enabled's reading, go when MATLAB Zapit is retired.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Bonsai.Sgen", "0.9.0.0 (Newtonsoft.Json v13.0.0.0, YamlDotNet v16.0.0.0)")]
     [System.ComponentModel.DescriptionAttribute(@"Zapit optogenetic stimulation: the lab's block (open_rigs.core.task Optogenetics) and this task's laser timing;
@@ -466,8 +467,9 @@ namespace UclOpenCoenDomeDecisionMakingTask
 
     Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
     or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
-    schema and the file, as either box, so its checks run. An old file's enabled reads as zapitMatlab (MATLAB was the only
-    Zapit); enabled beside either box is refused. zapitMatlab, and enabled's reading, go when MATLAB Zapit is retired.")]
+    schema and the file, as either box, so its checks run. An old file's enabled is dropped, so it ticks neither box, and
+    enabled: true warns that it was ignored (OldZapitOnIgnored); enabled beside either box is refused. zapitMatlab, and
+    enabled's reading, go when MATLAB Zapit is retired.")]
     [Bonsai.WorkflowElementCategoryAttribute(Bonsai.ElementCategory.Source)]
     [Bonsai.CombinatorAttribute(MethodName="Generate")]
     public partial class Optogenetics
@@ -609,11 +611,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Not with Zapit-MATLAB
+        /// Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("zapitBonsai")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitBonsai")]
-        [System.ComponentModel.DescriptionAttribute(@"Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Not with Zapit-MATLAB")]
+        [System.ComponentModel.DescriptionAttribute(@"Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB")]
         public bool ZapitBonsai
         {
             get
@@ -627,11 +629,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, so tick it before launch on a rig with a native zapit block. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired
+        /// Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, which the workflow leaves free unless Zapit-Bonsai is ticked at launch. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("zapitMatlab")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitMatlab")]
-        [System.ComponentModel.DescriptionAttribute(@"Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, so tick it before launch on a rig with a native zapit block. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired")]
+        [System.ComponentModel.DescriptionAttribute(@"Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, which the workflow leaves free unless Zapit-Bonsai is ticked at launch. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired")]
         public bool ZapitMatlab
         {
             get

@@ -1,3 +1,4 @@
+import warnings
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -305,6 +306,14 @@ ZAPIT_BOXES = ("zapitBonsai", "zapitMatlab")
 _TICKED = {box: {"properties": {box: {"const": True}}, "required": [box], "additionalProperties": True} for box in ZAPIT_BOXES}
 BOTH_ZAPITS = ("optogenetics.zapitBonsai (Zapit-Bonsai) and optogenetics.zapitMatlab (Zapit-MATLAB) are both ticked: "
                "tick one, the Zapit this rig runs, or neither")
+# An old file's Zapit On (optogenetics.enabled: true), read as neither box: a warning, never a refusal (Pip, 26 Nov 2026: "Untick
+# both + Go warns"). The C#'s OldOptogeneticsSwitch.OldZapitOnIgnored is the same words; CheckTaskAtGo writes it at Go.
+OLD_ZAPIT_ON_IGNORED = ("the task file's optogenetics.enabled: true (the old Zapit On, from before the two Zapit boxes) was ignored, "
+                        "so this session runs with no Zapit: to run Zapit, tick Zapit-Bonsai or Zapit-MATLAB")
+
+
+class OldZapitOnIgnored(UserWarning):
+    """An old task file's optogenetics.enabled: true, ignored (OLD_ZAPIT_ON_IGNORED): the file ticks neither Zapit box."""
 
 
 class Optogenetics(LabOptogenetics):
@@ -314,8 +323,9 @@ class Optogenetics(LabOptogenetics):
 
     Two boxes in place of the lab's enabled choose the session's Zapit: zapitBonsai (ZapitDaq, Bonsai's own, on the NI card)
     or zapitMatlab (MATLAB Zapit over TCP), never both; neither is no optogenetics. The lab's enabled is kept inside, out of the
-    schema and the file, as either box, so its checks run. An old file's enabled reads as zapitMatlab (MATLAB was the only
-    Zapit); enabled beside either box is refused. zapitMatlab, and enabled's reading, go when MATLAB Zapit is retired."""
+    schema and the file, as either box, so its checks run. An old file's enabled is dropped, so it ticks neither box, and
+    enabled: true warns that it was ignored (OldZapitOnIgnored); enabled beside either box is refused. zapitMatlab, and
+    enabled's reading, go when MATLAB Zapit is retired."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -337,7 +347,8 @@ class Optogenetics(LabOptogenetics):
             "Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit "
             "block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the "
             "conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light "
-            "shows). Not with Zapit-MATLAB"
+            "shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file "
+            "then ticks it. Not with Zapit-MATLAB"
         ),
     )
     zapit_matlab: Bool = Field(
@@ -345,8 +356,8 @@ class Optogenetics(LabOptogenetics):
         title="Zapit-MATLAB",
         description=(
             "Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit, over TCP to rig.yml's zapit host and port, with the conditions "
-            "file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, so tick it "
-            "before launch on a rig with a native zapit block. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired"
+            "file loaded in Zapit (laser off at 0 mW on laser-off trials). MATLAB Zapit holds the NI card and the camera, which the "
+            "workflow leaves free unless Zapit-Bonsai is ticked at launch. Not with Zapit-Bonsai. Goes when MATLAB Zapit is retired"
         ),
     )
 
@@ -363,14 +374,17 @@ class Optogenetics(LabOptogenetics):
     @model_validator(mode="before")
     @classmethod
     def _old_switch(cls, data: Any) -> Any:
-        # A file from before the two boxes (26 Nov 2026): enabled was MATLAB Zapit's (OldOptogeneticsSwitch in the C#, the same
-        # reading). Goes when MATLAB Zapit is retired.
+        # A file from before the two boxes (26 Nov 2026): its enabled is dropped, so it ticks neither box (Pip: "Untick both + Go
+        # warns"); enabled: true warns (OldZapitOnIgnored), never refuses. OldOptogeneticsSwitch in the C# reads it the same way.
+        # Goes when MATLAB Zapit is retired.
         if isinstance(data, dict) and "enabled" in data:
             if any(key in data for key in (*ZAPIT_BOXES, "zapit_bonsai", "zapit_matlab")):
                 raise ValueError("optogenetics has enabled, the old switch, beside zapitBonsai or zapitMatlab: delete enabled and tick "
                                  "Zapit-Bonsai or Zapit-MATLAB (or neither)")
-            data = {**data, "zapitMatlab": data["enabled"]}
-            del data["enabled"]
+            on = data["enabled"]
+            data = {key: value for key, value in data.items() if key != "enabled"}
+            if on is True or str(on).strip().lower() == "true":
+                warnings.warn(OLD_ZAPIT_ON_IGNORED, OldZapitOnIgnored, stacklevel=2)
         return data
 
     @model_validator(mode="after")

@@ -114,8 +114,8 @@
         <Property Name="LaserCeilingVolts" Description="The laser ceiling as control volts (ConnectForTaskZapitDaq's): rig.yml's zapit.ceilingMw through the rig's laser curve, lib_zapit's max_control_volts, a launch property from rig-control. ZapitDaq and the Zapit setup refuse any laser volts above it; 0, the default, refuses any laser." />
       </Expression>
       <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTaskZapitDaq.bonsai">
-        <Description>Zapit-Bonsai (optogenetics.zapitBonsai): ZapitDaq on the NI card, the Zapit camera and the setup phase from launch on a rig whose rig.yml names zapit.device, unless the task file at launch ticks Zapit-MATLAB (ClosedBy), as MATLAB Zapit then holds the card and the camera; the session an optogenetics experiment on it with Zapit-Bonsai ticked at Go (OptogeneticsSwitch, published as Optogenetics).</Description>
-        <ClosedBy>optogenetics.zapitMatlab</ClosedBy>
+        <Description>Zapit-Bonsai (optogenetics.zapitBonsai): ZapitDaq on the NI card, the Zapit camera and the setup phase from launch on a rig whose rig.yml names zapit.device, only when the task file at launch ticks Zapit-Bonsai (OpenedBy), so a session with neither box or with Zapit-MATLAB (which holds the card and the camera) leaves them closed; the session an optogenetics experiment on it with Zapit-Bonsai ticked at Go (OptogeneticsSwitch, published as Optogenetics).</Description>
+        <OpenedBy>optogenetics.zapitBonsai</OpenedBy>
         <OptogeneticsSwitch>TaskParameters.Optogenetics.ZapitBonsai</OptogeneticsSwitch>
         <NoZapitDaqMessage>Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but this rig's rig.yml has no native zapit block (zapit.device, its lines and the rest), so the workflow has no ZapitDaq: tick Zapit-MATLAB instead, or fill in rig.yml's zapit block</NoZapitDaqMessage>
       </Expression>

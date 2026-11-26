@@ -62,7 +62,7 @@ public class Trial : ConditionedTrial, ILaserDurationTrial, ISpoutTrial
 }
 
 [Combinator]
-[Description("Reads the task file's text into the task (OpenRigs.Core TaskYaml.Read): as DeserializeFromYaml, but a trial condition's set values keep their YAML types (numbers, bools), so Settings_Task logs them as such; an old file's optogenetics.enabled read as optogenetics.zapitMatlab (OldOptogeneticsSwitch).")]
+[Description("Reads the task file's text into the task (OpenRigs.Core TaskYaml.Read): as DeserializeFromYaml, but a trial condition's set values keep their YAML types (numbers, bools), so Settings_Task logs them as such; an old file's optogenetics.enabled dropped, so it ticks neither Zapit box (OldOptogeneticsSwitch; CheckTaskAtGo warns of enabled: true).")]
 [WorkflowElementCategory(ElementCategory.Transform)]
 public class ReadTask
 {
@@ -72,14 +72,26 @@ public class ReadTask
     }
 }
 
-/// <summary>A task file from before the two Zapit boxes (26 Nov 2026), whose optogenetics block has enabled: true read as
-/// zapitMatlab true (MATLAB Zapit was the only Zapit then), false as neither box; enabled beside zapitBonsai or zapitMatlab
-/// is refused. task.py's Optogenetics reads such a file the same way.</summary>
+/// <summary>A task file from before the two Zapit boxes (26 Nov 2026), whose optogenetics block has enabled: read as neither
+/// box, true or false (Pip: "Untick both + Go warns"), enabled: true with a warning, never a refusal (OldZapitOnIgnored, which
+/// CheckTaskAtGo writes at Go); enabled beside zapitBonsai or zapitMatlab is refused. task.py's Optogenetics reads such a file
+/// the same way. Goes when MATLAB Zapit is retired.</summary>
 public static class OldOptogeneticsSwitch
 {
-    /// <summary>The text unchanged unless its taskParameters.optogenetics has enabled; else with enabled renamed zapitMatlab.</summary>
+    /// <summary>The warning for an old file's enabled: true (task.py's OLD_ZAPIT_ON_IGNORED, the same words).</summary>
+    public const string OldZapitOnIgnored = "the task file's optogenetics.enabled: true (the old Zapit On, from before the two Zapit boxes) was ignored, so this session runs with no Zapit: to run Zapit, tick Zapit-Bonsai or Zapit-MATLAB";
+
+    /// <summary>The text unchanged unless its taskParameters.optogenetics has enabled; else with enabled deleted.</summary>
     public static string Upgrade(string text)
     {
+        string warning;
+        return Upgrade(text, out warning);
+    }
+
+    /// <summary>As Upgrade(text), with <paramref name="warning"/> OldZapitOnIgnored when the deleted enabled was true, else null.</summary>
+    public static string Upgrade(string text, out string warning)
+    {
+        warning = null;
         if (text == null || !text.Contains("enabled")) return text;
         var stream = TaskYaml.Load(text);
         var root = stream.Documents.Count == 0 ? null : stream.Documents[0].RootNode as YamlMappingNode;
@@ -96,10 +108,13 @@ public static class OldOptogeneticsSwitch
         {
             throw new InvalidOperationException("The task file's optogenetics block has enabled, the old switch, beside zapitBonsai or zapitMatlab: delete enabled and tick Zapit-Bonsai or Zapit-MATLAB (or neither).");
         }
+        var value = optogenetics.Children[enabled] as YamlScalarNode;
+        bool on;
+        if (value != null && bool.TryParse(value.Value, out on) && on) warning = OldZapitOnIgnored;
         var upgraded = new YamlMappingNode();
         foreach (var cell in optogenetics.Children)
         {
-            upgraded.Add(cell.Key.Equals(enabled) ? new YamlScalarNode("zapitMatlab") : cell.Key, cell.Value);
+            if (!cell.Key.Equals(enabled)) upgraded.Add(cell.Key, cell.Value);
         }
         ((YamlMappingNode)parameters).Children[new YamlScalarNode("optogenetics")] = upgraded;
         var writer = new StringWriter();
@@ -120,7 +135,15 @@ public class CheckTaskAtGo
         // ZapitRig is an AsyncSubject settled at launch: a value when ZapitDaq opened, none when it stayed closed.
         var opened = zapitRig.Select(_ => true).Concat(Observable.Return(false)).Take(1);
         return bank.StartWith((ZapitBank)null).CombineLatest(source, (loaded, input) => Tuple.Create(input, loaded)).Take(1)
-            .Zip(opened, (x, daq) => TrialRules.Create(x.Item1.Item1, x.Item1.Item2, x.Item2, daq));
+            .Zip(opened, (x, daq) => TrialRules.Create(x.Item1.Item1, x.Item1.Item2, x.Item2, daq))
+            .Do(rules => Warn(rules, Console.Error));
+    }
+
+    /// <summary>The rules' warning (TrialRules.Warning: an old file's Zapit On ignored), if any, as one line on Bonsai's standard
+    /// error, as lib-open-rigs' HarpClockAgrees warns: the workflow has no other channel for a warning that lets Go through.</summary>
+    public static void Warn(TrialRules rules, TextWriter error)
+    {
+        if (rules.Warning != null) error.WriteLine("CheckTaskAtGo: warning: " + rules.Warning + ".");
     }
 }
 
@@ -796,6 +819,9 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     {
         draw = new TrialDraw(taskText, speakers, bank, zapitConditions);
         task = draw.Task;
+        string warning;
+        OldOptogeneticsSwitch.Upgrade(taskText, out warning);
+        Warning = warning;
         var optogenetics = task.Optogenetics;
         var cap = optogenetics.On ? draw.Conditions.SelectMany(c => c.Combinations).Max(m => m.Task.Optogenetics.LaserDurationSeconds) : 0;
         if (!optogenetics.On) laser = null;
@@ -834,25 +860,34 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
     public const string NoNativeZapit = "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but this rig's rig.yml has no native zapit block (zapit.device, its lines and the rest), so the workflow has no ZapitDaq: tick Zapit-MATLAB instead, or fill in rig.yml's zapit block";
 
     /// <summary>Why the ticked Zapit is not this session's, or null: Zapit-Bonsai with no ZapitDaq (no native zapit block in
-    /// rig.yml, or Zapit-MATLAB ticked in the task file at launch, which keeps ZapitDaq closed); Zapit-MATLAB with ZapitDaq open
-    /// (it holds the NI card and the camera MATLAB Zapit needs). Both ticked is CheckTask's (BothZapits).</summary>
+    /// rig.yml, or Zapit-Bonsai not ticked in the task file at launch: ConnectForTaskZapitDaq's OpenedBy opens ZapitDaq only then);
+    /// Zapit-MATLAB with ZapitDaq open (it holds the NI card and the camera MATLAB Zapit needs), which only a box changed between
+    /// launch and Go can bring now, as ZapitDaq opens only for Zapit-Bonsai. Both ticked is CheckTask's (BothZapits).</summary>
     public static string ZapitSessionProblem(Optogenetics optogenetics, LabRig rig, bool zapitDaqOpen)
     {
         if (optogenetics.ZapitBonsai && optogenetics.ZapitMatlab) return null;
         if (optogenetics.ZapitBonsai && !zapitDaqOpen)
         {
             if (rig.Zapit == null || rig.Zapit.Device == null) return NoNativeZapit;
-            return "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but Zapit-MATLAB was ticked in the task file when the workflow was launched, so ZapitDaq stayed closed: launch again with Zapit-Bonsai ticked";
+            return ZapitDaqClosedAtLaunch;
         }
         // Zapit-MATLAB beside ZapitDaq: goes when MATLAB Zapit is retired.
         if (optogenetics.ZapitMatlab && zapitDaqOpen)
         {
-            return "Zapit-MATLAB is ticked (optogenetics.zapitMatlab), but the workflow opened ZapitDaq at launch (this rig's rig.yml names its NI device, and Zapit-MATLAB was not ticked in the task file then), and ZapitDaq holds the NI card and the camera MATLAB Zapit needs: launch again with Zapit-MATLAB ticked, or tick Zapit-Bonsai";
+            return "Zapit-MATLAB is ticked (optogenetics.zapitMatlab), but Zapit-Bonsai was ticked in the task file when the workflow was launched, so the workflow opened ZapitDaq, which holds the NI card and the camera MATLAB Zapit needs: launch again with Zapit-MATLAB ticked, or tick Zapit-Bonsai";
         }
         return null;
     }
 
+    /// <summary>The refusal at Go of Zapit-Bonsai on a native rig whose ZapitDaq stayed closed: the task file at launch did not
+    /// tick Zapit-Bonsai (ConnectForTaskZapitDaq's OpenedBy, optogenetics.zapitBonsai).</summary>
+    public const string ZapitDaqClosedAtLaunch = "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but it was not ticked in the task file when the workflow was launched, so ZapitDaq, the Zapit camera and the setup phase stayed closed: launch again with Zapit-Bonsai ticked";
+
     public LaserTiming Laser { get { return laser; } }
+
+    /// <summary>What Go lets through but the person should know, or null: an old task file's optogenetics.enabled: true, ignored
+    /// (OldOptogeneticsSwitch.OldZapitOnIgnored). CheckTaskAtGo writes it to standard error.</summary>
+    public string Warning { get; private set; }
 
     /// <summary>Whether the session runs on ZapitDaq (Zapit-Bonsai ticked): TaskLogic gives these rules to ZapitDaqTrials and
     /// RunTrials feeds the loop Zapit.Events.</summary>
