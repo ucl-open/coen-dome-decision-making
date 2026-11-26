@@ -1,7 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Devices.Zapit;
-using OpenRigs.Opto.ZapitDaq;
+using OpenRigs.Opto.ZapitBonsai;
 using OpenRigs.Trials;
 using OpenRigs.Zapit;
 using System;
@@ -169,11 +169,11 @@ public class DualZapitTests
     {
         var bonsai = Fixture.Text(Task(true, false));
         var matlab = Fixture.Text(Task(false, true));
-        // Zapit-Bonsai on a rig with no native block (MATLAB Zapit's host and port alone), or none at all.
+        // Zapit-Bonsai on a rig with no Zapit-Bonsai fields (MATLAB Zapit's host and port alone), or none at all.
         StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(bonsai, Rig(null), Fixture.Bank(), false)), TrialRules.NoNativeZapit);
         StringAssert.Contains(Fixture.Refusal(() => TrialRules.Create(bonsai, new LabRig { SpeakerArray = Fixture.Speakers() }, Fixture.Bank(), false)), TrialRules.NoNativeZapit);
         StringAssert.Contains(TrialRules.NoNativeZapit, "tick Zapit-MATLAB instead, or fill in rig.yml's zapit block");
-        // A native rig whose ZapitDaq stayed closed: Zapit-Bonsai was not ticked at launch (OpenedBy).
+        // A Zapit-Bonsai rig whose ZapitDaq stayed closed: Zapit-Bonsai was not ticked at launch (OpenedBy).
         Assert.AreEqual(TrialRules.ZapitDaqClosedAtLaunch, Fixture.Refusal(() => TrialRules.Create(bonsai, Rig("Dev1"), Fixture.Bank(), false)));
         StringAssert.Contains(TrialRules.ZapitDaqClosedAtLaunch, "it was not ticked in the task file when the workflow was launched");
         StringAssert.Contains(TrialRules.ZapitDaqClosedAtLaunch, "launch again with Zapit-Bonsai ticked");
@@ -184,7 +184,7 @@ public class DualZapitTests
         StringAssert.Contains(opened, "ZapitDaq, which holds the NI card and the camera MATLAB Zapit needs");
         StringAssert.Contains(opened, "Zapit-Bonsai was ticked in the task file when the workflow was launched");
         Assert.IsNull(TrialRules.ZapitSessionProblem(Task(false, true).Optogenetics, Rig(null), false));
-        // Zapit-MATLAB on a native rig: ZapitDaq stayed closed (OpenedBy false at launch), so Go goes on to MATLAB Zapit.
+        // Zapit-MATLAB on a Zapit-Bonsai rig: ZapitDaq stayed closed (OpenedBy false at launch), so Go goes on to MATLAB Zapit.
         Assert.IsNull(TrialRules.ZapitSessionProblem(Task(false, true).Optogenetics, Rig("Dev1"), false));
     }
 
@@ -199,7 +199,7 @@ public class DualZapitTests
         Assert.AreEqual("accepted", go(Fixture.Text(Task(true, false)), Rig("Dev1"), open, Observable.Return(Fixture.Bank())));
         StringAssert.Contains(go(Fixture.Text(Task(true, false)), Rig(null), closed, Observable.Never<ZapitBank>()), TrialRules.NoNativeZapit);
         StringAssert.Contains(go(Fixture.Text(Task(false, true)), Rig("Dev1"), open, Observable.Never<ZapitBank>()), "ZapitDaq, which holds the NI card");
-        // A native rig whose launch-time task file did not tick Zapit-Bonsai (OpenedBy false): ZapitDaq closed, Zapit-Bonsai refused.
+        // A Zapit-Bonsai rig whose launch-time task file did not tick Zapit-Bonsai (OpenedBy false): ZapitDaq closed, Zapit-Bonsai refused.
         Assert.AreEqual(TrialRules.ZapitDaqClosedAtLaunch, go(Fixture.Text(Task(true, false)), Rig("Dev1"), closed, Observable.Never<ZapitBank>()));
         Assert.AreEqual("accepted", go(Fixture.Text(Task(false, false)), Rig("Dev1"), closed, Observable.Never<ZapitBank>()));
         Assert.AreEqual("accepted", go(Fixture.Text(Task(false, false)), Rig("Dev1"), open, Observable.Never<ZapitBank>()));

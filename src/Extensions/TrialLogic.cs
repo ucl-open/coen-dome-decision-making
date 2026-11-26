@@ -5,7 +5,7 @@ using OpenRigs.Core;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Devices.Zapit;   // MATLAB Zapit (ZapitTrial, ZapitConditions, ZapitReply): goes when MATLAB Zapit is retired
-using OpenRigs.Opto.ZapitDaq;
+using OpenRigs.Opto.ZapitBonsai;
 using OpenRigs.Opto.ZapitMatlab;   // MATLAB Zapit (ZapitMatlabOpto): goes when MATLAB Zapit is retired
 using OpenRigs.Trials;
 using OpenRigs.Zapit;
@@ -857,11 +857,11 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         return new TrialRules(taskText, rig.SpeakerArray, bank, rig.Zapit != null && rig.Zapit.HardwareTriggered, null);
     }
 
-    /// <summary>The refusal at Go of Zapit-Bonsai on a rig whose rig.yml has no native zapit block (ConnectForTaskZapitDaq's
+    /// <summary>The refusal at Go of Zapit-Bonsai on a rig whose rig.yml has no Zapit-Bonsai fields (ConnectForTaskZapitDaq's
     /// NoZapitDaqMessage in main.bonsai is the same words).</summary>
-    public const string NoNativeZapit = "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but this rig's rig.yml has no native zapit block (zapit.device, its lines and the rest), so the workflow has no ZapitDaq: tick Zapit-MATLAB instead, or fill in rig.yml's zapit block";
+    public const string NoNativeZapit = "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but this rig's rig.yml has no Zapit-Bonsai fields (zapit.device, its lines and the rest), so the workflow has no ZapitDaq: tick Zapit-MATLAB instead, or fill in rig.yml's zapit block";
 
-    /// <summary>Why the ticked Zapit is not this session's, or null: Zapit-Bonsai with no ZapitDaq (no native zapit block in
+    /// <summary>Why the ticked Zapit is not this session's, or null: Zapit-Bonsai with no ZapitDaq (no Zapit-Bonsai fields in
     /// rig.yml, or Zapit-Bonsai not ticked in the task file at launch: ConnectForTaskZapitDaq's OpenedBy opens ZapitDaq only then);
     /// Zapit-MATLAB with ZapitDaq open (it holds the NI card and the camera MATLAB Zapit needs), which only a box changed between
     /// launch and Go can bring now, as ZapitDaq opens only for Zapit-Bonsai. Both ticked is CheckTask's (BothZapits).</summary>
@@ -881,7 +881,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         return null;
     }
 
-    /// <summary>The refusal at Go of Zapit-Bonsai on a native rig whose ZapitDaq stayed closed: the task file at launch did not
+    /// <summary>The refusal at Go of Zapit-Bonsai on a Zapit-Bonsai rig whose ZapitDaq stayed closed: the task file at launch did not
     /// tick Zapit-Bonsai (ConnectForTaskZapitDaq's OpenedBy, optogenetics.zapitBonsai).</summary>
     public const string ZapitDaqClosedAtLaunch = "Zapit-Bonsai is ticked (optogenetics.zapitBonsai), but it was not ticked in the task file when the workflow was launched, so ZapitDaq, the Zapit camera and the setup phase stayed closed: launch again with Zapit-Bonsai ticked";
 
@@ -1010,6 +1010,6 @@ public class RunTrials
         var licks = new[] { lickLeft, lickRight };
         return rules.Take(1).SelectMany(r => r.ZapitMatlab
             ? ZapitMatlabOpto.Observe(Observable.Return(r), clock, licks, zapitReplies, wheelCm)   // goes when MATLAB Zapit is retired
-            : ZapitDaqOpto.Observe(Observable.Return(r), clock, licks, zapitEvents, wheelCm));
+            : ZapitBonsaiOpto.Observe(Observable.Return(r), clock, licks, zapitEvents, wheelCm));
     }
 }

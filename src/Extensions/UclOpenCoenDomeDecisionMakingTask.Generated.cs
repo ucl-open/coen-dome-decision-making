@@ -611,11 +611,11 @@ namespace UclOpenCoenDomeDecisionMakingTask
         }
     
         /// <summary>
-        /// Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB
+        /// Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's Zapit-Bonsai fields: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB
         /// </summary>
         [Newtonsoft.Json.JsonPropertyAttribute("zapitBonsai")]
         [YamlDotNet.Serialization.YamlMemberAttribute(Alias="zapitBonsai")]
-        [System.ComponentModel.DescriptionAttribute(@"Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's native zapit block: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB")]
+        [System.ComponentModel.DescriptionAttribute(@"Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on this rig's NI card (rig.yml's Zapit-Bonsai fields: zapit.device and its lines). Every trial is armed with a condition of the session's bank, built from the conditions file by Zapit's setup before Go (laser off at 0 mW on laser-off trials: the galvos move and the masking light shows). Tick it before launch: ZapitDaq, the Zapit camera and the setup phase open at launch only when the task file then ticks it. Not with Zapit-MATLAB")]
         public bool ZapitBonsai
         {
             get

@@ -2,7 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Core;
 using OpenRigs.Devices;
 using OpenRigs.Zapit;
-using OpenRigs.Opto.ZapitDaq;
+using OpenRigs.Opto.ZapitBonsai;
 using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
@@ -144,7 +144,7 @@ public class HandoverTests
         foreach (var golden in Goldens())
         {
             var built = Built(golden.Key, golden.Value);
-            var loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(new TrialRules(golden.Value, Fixture.Speakers(), Fixture.Bank()), true, ZapitDaqOptoSystem.Instance);
+            var loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(new TrialRules(golden.Value, Fixture.Speakers(), Fixture.Bank()), true, ZapitBonsaiOptoSystem.Instance);
             var mouse = new Random(1);
             var rows = new List<TrialRow>();
             var trials = new Dictionary<int, Trial>();

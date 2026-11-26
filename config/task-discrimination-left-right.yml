@@ -79,7 +79,7 @@ taskParameters:
         rateHz: 10          # Hz, at most 30
   penaliseRandomProbes: false    # false: a random-reward probe (target random; a noReward probe never is) is never penalised (tails unrewarded, a miss free); true: tails as incorrect, a miss as noResponse
   optogenetics:
-    zapitBonsai: false             # Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on the NI card (rig.yml's native zapit block); tick it before launch: ZapitDaq and the Zapit camera open at launch only then
+    zapitBonsai: false             # Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on the NI card (rig.yml's Zapit-Bonsai fields); tick it before launch: ZapitDaq and the Zapit camera open at launch only then
     zapitMatlab: false             # Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit over TCP (goes when MATLAB Zapit is retired); never both ticked, neither is no optogenetics; an old file's enabled (the old Zapit On) is ignored, and Go warns
     zapitConditionsPath: C:\Coen-Lab-Local\RigConfigs\shared\zapit-conditions\avdome_main_initialstim.yml   # the rig's mirror of the share's config\shared\zapit-conditions; the session's bank is built from it
     laserPowerMw: null             # mW on laser-on trials, every condition; required with optogenetics on
