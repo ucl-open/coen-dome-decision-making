@@ -151,7 +151,7 @@ def test_every_spout_move_is_spout_commands_over_the_trial_events():
 def test_zapit_s_trials_are_the_shared_includes_each_given_the_rules_with_its_box():
     # OpenRigs.Opto.ZapitBonsai ZapitDaqTrials (Zapit-Bonsai) and OpenRigs.Opto.ZapitMatlab ZapitTrials (Zapit-MATLAB), once each, each given TrialRules only through
     # its box's condition (TrialRules.ZapitBonsai, ZapitMatlab), so only the session's Zapit is armed and writes the trigger
-    # line: each writes nothing until given rules with a laser (lib zapit-native .24). Timed by the rules' Laser, fixed at Go.
+    # line: each writes nothing until given rules with a laser (lib lib build .24). Timed by the rules' Laser, fixed at Go.
     nodes, edges = _scope(_named("TaskLogic"))
     for path, box in (("OpenRigs.Opto.ZapitBonsai:ZapitDaqTrials.bonsai", "ZapitBonsai"), ("OpenRigs.Opto.ZapitMatlab:ZapitTrials.bonsai", "ZapitMatlab")):
         assert TEXT.count(f'Path="{path}"') == 1

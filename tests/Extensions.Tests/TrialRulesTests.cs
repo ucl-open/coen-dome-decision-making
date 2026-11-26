@@ -823,7 +823,7 @@ public class LaserTests
     [TestMethod]
     public void WithLaserEndStimulusOffZapitDaqTrialsArmsEveryTrialStreamed()
     {
-        // lib-open-rigs zapit-native.26 streams a trial only when its Arm says UntilStopped, so its early stop ramps within
+        // lib-open-rigs lib build .26 streams a trial only when its Arm says UntilStopped, so its early stop ramps within
         // ZapitDaq.EarlyStopLeadSeconds; a trial written whole ignores an early stop once started. Under stimulusOff the
         // stimulus's off is decided during the trial (here by the response: no stimulus duration), so every Arm must say
         // UntilStopped, for the cap. ZapitDaqTrials maps ZapitDaqTrialCommand.UntilStopped from the rules' Laser.UntilStopped.
@@ -848,7 +848,7 @@ public class LaserTests
     [TestMethod]
     public void WithLaserEndStimulusOffAtTheLimitAFastAndASlowLaserFreeZapitDaqBeforeTheNextTrigger()
     {
-        // Pip's stimulusOff limit, with the streamed early stop (zapit-native.26). A fast response: the laser ends at the
+        // Pip's stimulusOff limit, with the streamed early stop (lib build .26). A fast response: the laser ends at the
         // response plus responseToStimulusOffSeconds (LaserOff, the early stop); its ramp starts within EarlyStopLeadSeconds
         // (the stream's samples written ahead, its longest write and a scan cycle are inside that lead) and lasts the bank's
         // longest ramp. A slow or no response: the laser ends at its cap (LaserCap), laserDurationSeconds from the trigger.
