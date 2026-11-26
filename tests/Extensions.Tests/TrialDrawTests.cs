@@ -242,7 +242,7 @@ static class Fixture
         using (var sha = System.Security.Cryptography.SHA256.Create()) hash = string.Concat(sha.ComputeHash(bin).Select(b => b.ToString("x2")));
         var json = Path.Combine(dir, "Settings_ZapitBank_T.json");
         File.WriteAllText(json, string.Format("{{\"version\": 2, \"bin\": \"Settings_ZapitBank_T.bin\", \"sample_rate\": 100.0, \"ceiling_mw\": 1e9, \"scan_channels\": [\"galvo_x\", \"galvo_y\", \"led\"], \"scan_rows\": {0}, \"laser_rows\": {1}, " +
-            "\"hashes\": {{\"bin\": \"{2}\", \"scanner_fit\": \"\", \"laser_curve\": \"\", \"sample\": \"\"}}, \"conditions_name\": \"avdome_main_initialstim.yml\", \"conditions_sha256\": \"\", \"conditions\": [{3}]}}",
+            "\"hashes\": {{\"bin\": \"{2}\", \"scanner_fit\": \"\", \"laser_curve\": \"\", \"sample\": \"\"}}, \"conditions_name\": \"decision-making_S1-V1-MOs.yml\", \"conditions_sha256\": \"\", \"conditions\": [{3}]}}",
             scanRows, laserRows, hash, string.Join(", ", conditions)));
         return OpenRigs.Zapit.ZapitBank.Load(json);
     }
@@ -756,7 +756,7 @@ public class TrialDrawTests
     {
         // The window always runs in full, so even a lick at its opening ends the trial at its close: the next trigger is at
         // the soonest stimulusToResponseWindowSeconds + responseWindowSeconds + itiMinSeconds after this one (not from the
-        // opening, as before the window ran in full). With the task files' 0.5, 2.0 and 2.5 s and avdome_main_initialstim.yml's
+        // opening, as before the window ran in full). With the task files' 0.5, 2.0 and 2.5 s and decision-making_S1-V1-MOs.yml's
         // bank (a Zapit trial outlasting its laser 0.325 s: 2.475 s when the limit counted from the opening) 4.475 s; under
         // laserEnd stimulusOff ZapitDaq.EarlyStopLeadSeconds (0.1 s) less, 4.375 s.
         foreach (var file in new[] { "task-localization.yml", "task-discrimination-left-right.yml", "task-discrimination-go-no-go.yml" })

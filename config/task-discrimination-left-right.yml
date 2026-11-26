@@ -81,13 +81,13 @@ taskParameters:
   optogenetics:
     zapitBonsai: false             # Zapit-Bonsai: an optogenetics experiment on ZapitDaq, Bonsai's own Zapit on the NI card (rig.yml's Zapit-Bonsai fields); tick it before launch: ZapitDaq and the Zapit camera open at launch only then
     zapitMatlab: false             # Zapit-MATLAB: an optogenetics experiment on MATLAB Zapit over TCP (goes when MATLAB Zapit is retired); never both ticked, neither is no optogenetics; an old file's enabled (the old Zapit On) is ignored, and Go warns
-    zapitConditionsPath: C:\Coen-Lab-Local\RigConfigs\shared\zapit-conditions\avdome_main_initialstim.yml   # the rig's mirror of the share's config\shared\zapit-conditions; the session's bank is built from it
+    zapitConditionsPath: ""   # blank: nothing preselected, Go refuses until a file is chosen in Rig Control's drop-down (the share's config\shared\zapit-conditions); on Zapit-MATLAB blank means the file MATLAB Zapit loaded last
     laserPowerMw: null             # mW on laser-on trials, every condition; required with optogenetics on
     laserOnProbability: 0.5
     laserToStimulusSeconds: 0.1    # s, signed: the trigger this long before the stimulus (negative: after); the lead applies with optogenetics off too
     trialsBeforeLaser: 20
     laserEnd: duration             # duration: the laser lasts laserDurationSeconds from the trigger; stimulusOff: it ends with the trial's stimulus (its StimulusOff, or the outcome if the stimulus never came on), laserDurationSeconds then its cap
-    laserDurationSeconds: 2.5      # s; with optogenetics on, checked at Go. A trigger to the next is at least the trial's end (stimulusToResponseWindowSeconds + responseWindowSeconds: the window always runs in full) + itiMinSeconds. MATLAB Zapit: at most that - the Zapit conditions file's largest ramp-down - 0.2 s reply margin (4.55 s at the lab's 0.25 s ramp-down). Native ZapitDaq: at most that - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus ZapitDaq's 0.1 s early-stop lead with laserEnd stimulusOff) - 0.2 s arm time (4.475 s with avdome_main_initialstim.yml; 4.375 s with stimulusOff at ZapitDaq's 0.1 s lead), so Go accepts 2.5
+    laserDurationSeconds: 2.5      # s; with optogenetics on, checked at Go. A trigger to the next is at least the trial's end (stimulusToResponseWindowSeconds + responseWindowSeconds: the window always runs in full) + itiMinSeconds. MATLAB Zapit: at most that - the Zapit conditions file's largest ramp-down - 0.2 s reply margin (4.55 s at the lab's 0.25 s ramp-down). Native ZapitDaq: at most that - what a Zapit trial outlasts its laser (a scan cycle, the bank's longest ramp-down and a 0.05 s margin, plus ZapitDaq's 0.1 s early-stop lead with laserEnd stimulusOff) - 0.2 s arm time (4.475 s with decision-making_S1-V1-MOs.yml; 4.375 s with stimulusOff at ZapitDaq's 0.1 s lead), so Go accepts 2.5
   taskType: discriminationLeftRight
   response:
     thresholdLicks: 1      # net lick difference giving the choice (the window still runs in full); 1 = first lick
