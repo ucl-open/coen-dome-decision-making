@@ -149,11 +149,11 @@ def test_every_spout_move_is_spout_commands_over_the_trial_events():
 
 
 def test_zapit_s_trials_are_the_shared_includes_each_given_the_rules_with_its_box():
-    # OpenRigs.Trials ZapitDaqTrials (Zapit-Bonsai) and ZapitTrials (Zapit-MATLAB), once each, each given TrialRules only through
+    # OpenRigs.Opto.ZapitDaq ZapitDaqTrials (Zapit-Bonsai) and OpenRigs.Opto.ZapitMatlab ZapitTrials (Zapit-MATLAB), once each, each given TrialRules only through
     # its box's condition (TrialRules.ZapitBonsai, ZapitMatlab), so only the session's Zapit is armed and writes the trigger
     # line: each writes nothing until given rules with a laser (lib zapit-native .24). Timed by the rules' Laser, fixed at Go.
     nodes, edges = _scope(_named("TaskLogic"))
-    for path, box in (("OpenRigs.Trials:ZapitDaqTrials.bonsai", "ZapitBonsai"), ("OpenRigs.Trials:ZapitTrials.bonsai", "ZapitMatlab")):
+    for path, box in (("OpenRigs.Opto.ZapitDaq:ZapitDaqTrials.bonsai", "ZapitBonsai"), ("OpenRigs.Opto.ZapitMatlab:ZapitTrials.bonsai", "ZapitMatlab")):
         assert TEXT.count(f'Path="{path}"') == 1
         (zapit,) = [i for i, n in enumerate(nodes) if n.get("Path") == path]
         (gate,) = [a for a, b, label in edges if b == zapit and label == "Source1"]
@@ -204,7 +204,7 @@ def test_each_grating_starts_at_its_own_trial_s_azimuth():
 
 def test_the_shared_blocks_replace_the_local_copies():
     for block in ("OpenRigs.Devices:ReadLabRig.bonsai", "OpenRigs.Devices:DomeHardware.bonsai",
-                  lint.REWARDS, "OpenRigs.Devices:ConnectForTaskZapitDaq.bonsai",
+                  lint.REWARDS, "OpenRigs.Opto.ZapitDaq:ConnectForTaskZapitDaq.bonsai",
                   "OpenRigs.Logging:ExperimentLogs.bonsai", lint.LAUNCH_SETTINGS, lint.BACKGROUND_NOISE, lint.EXPERIMENT_RECORDS):
         assert f'Path="{block}"' in TEXT
     # The speakers and the projector are DomeHardware's (every task has background noise and a screen).

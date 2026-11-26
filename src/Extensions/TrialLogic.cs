@@ -5,6 +5,8 @@ using OpenRigs.Core;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Devices.Zapit;   // MATLAB Zapit (ZapitTrial, ZapitConditions, ZapitReply): goes when MATLAB Zapit is retired
+using OpenRigs.Opto.ZapitDaq;
+using OpenRigs.Opto.ZapitMatlab;   // MATLAB Zapit (ZapitMatlabOpto): goes when MATLAB Zapit is retired
 using OpenRigs.Trials;
 using OpenRigs.Zapit;
 using System;
@@ -26,9 +28,9 @@ using BuiltTrialCondition = OpenRigs.Trials.BuiltTrialCondition<UclOpenCoenDomeD
 /// trialConditionId, trialCombinationId, itiSeconds, rewardOfferedUl, the stimulus, the laser, autoReward) and this task's
 /// own; its fields are named as the trial log's columns where they are one. Every other value is its combination's
 /// (values), read per trial.</summary>
-public class Trial : ConditionedTrial, ILaserDurationTrial, ISpoutTrial
+public class Trial : ConditionedTrial, IOptoDurationTrial, ISpoutTrial
 {
-    double ILaserDurationTrial.LaserDurationSeconds { get { return values.Optogenetics.LaserDurationSeconds; } }
+    double IOptoDurationTrial.LaserDurationSeconds { get { return values.Optogenetics.LaserDurationSeconds; } }
 
     public string target;              // left or right; in discriminationGoNoGo go or noGo; on a trial with no right answer noReward or random (TargetWords)
     public bool singleSpoutOffered;    // only the target's spout came in (TrialDraw: go/no-go, or a scored trial with the spouts moving and the draw)
@@ -827,7 +829,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
         if (!optogenetics.On) laser = null;
         else if (optogenetics.ZapitBonsai)
         {
-            // laserEnd duration: the line held each trial's laserDurationSeconds from the trigger (ILaserDurationTrial); the next trial
+            // laserEnd duration: the line held each trial's laserDurationSeconds from the trigger (IOptoDurationTrial); the next trial
             // armed once ZapitDaq's whole trial has played. stimulusOff: the laser on to the trial's StimulusOff, then ZapitDaq's early
             // stop, capped at its laserDurationSeconds (the timing's cap, LaserBackstop's wall-clock wait, the longest any combination
             // has); the line held, and the next trial armed, once the early stop's lead, a scan cycle, the ramp and a margin have passed.
@@ -838,7 +840,7 @@ public class TrialRules : ITrialRules<Trial, DecisionUpdate, TrialOutcome>
             // Zapit-MATLAB (goes when MATLAB Zapit is retired): laserEnd duration, the line held each trial's laserDurationSeconds;
             // stimulusOff, the laser on to the trial's StimulusOff, StopStimulus then (capped at its laserDurationSeconds) and the line
             // held the conditions file's largest ramp-down past it. Either way the next StartStimulus waits for the ramp-down
-            // (Zapit refuses one until then) and, after a stop, for Zapit's stop reply (TrialLoop.StopReplyMarginSeconds).
+            // (Zapit refuses one until then) and, after a stop, for Zapit's stop reply (ZapitMatlabOptoSystem.StopReplyMarginSeconds).
             laser = optogenetics.LaserEnd == LaserEndMode.StimulusOff ? LaserTiming.UntilStimulusOff(hardwareTriggered, draw.MaxRampDownSeconds, cap)
                 : LaserTiming.ForDuration(hardwareTriggered, draw.MaxRampDownSeconds);
         }
@@ -1007,7 +1009,7 @@ public class RunTrials
     {
         var licks = new[] { lickLeft, lickRight };
         return rules.Take(1).SelectMany(r => r.ZapitMatlab
-            ? TrialLoop.Observe(Observable.Return(r), clock, licks, zapitReplies, wheelCm)   // goes when MATLAB Zapit is retired
-            : TrialLoop.Observe(Observable.Return(r), clock, licks, zapitEvents, wheelCm));
+            ? ZapitMatlabOpto.Observe(Observable.Return(r), clock, licks, zapitReplies, wheelCm)   // goes when MATLAB Zapit is retired
+            : ZapitDaqOpto.Observe(Observable.Return(r), clock, licks, zapitEvents, wheelCm));
     }
 }

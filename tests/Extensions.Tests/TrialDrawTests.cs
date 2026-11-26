@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Zapit;
+using OpenRigs.Opto.ZapitDaq;
 using OpenRigs.Trials;
 using UclOpenCoenDomeDecisionMakingTask;
 using YamlDotNet.RepresentationModel;

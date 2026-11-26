@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Devices.Zapit;
+using OpenRigs.Opto.ZapitDaq;
 using OpenRigs.Trials;
 using OpenRigs.Zapit;
 using System;

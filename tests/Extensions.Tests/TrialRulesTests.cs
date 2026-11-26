@@ -2,6 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using OpenRigs.Devices;
 using OpenRigs.Devices.Rigs;
 using OpenRigs.Zapit;
+using OpenRigs.Opto.ZapitDaq;
 using OpenRigs.Trials;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ class Harness
 
     public Harness(TrialRules rules)
     {
-        Loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(rules, true, true);   // ZapitDaq arms the laser trials
+        Loop = new TrialLoop<Trial, DecisionUpdate, TrialOutcome>(rules, true, ZapitDaqOptoSystem.Instance);   // ZapitDaq arms the laser trials
         Loop.OnWheel(0);
         Events.AddRange(Loop.OnClock(Now));
     }

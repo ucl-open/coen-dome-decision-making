@@ -113,7 +113,7 @@
       <Expression xsi:type="ExternalizedMapping">
         <Property Name="LaserCeilingVolts" Description="The laser ceiling as control volts (ConnectForTaskZapitDaq's): rig.yml's zapit.ceilingMw through the rig's laser curve, lib_zapit's max_control_volts, a launch property from rig-control. ZapitDaq and the Zapit setup refuse any laser volts above it; 0, the default, refuses any laser." />
       </Expression>
-      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ConnectForTaskZapitDaq.bonsai">
+      <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Opto.ZapitDaq:ConnectForTaskZapitDaq.bonsai">
         <Description>Zapit-Bonsai (optogenetics.zapitBonsai): ZapitDaq on the NI card, the Zapit camera and the setup phase from launch on a rig whose rig.yml names zapit.device, only when the task file at launch ticks Zapit-Bonsai (OpenedBy), so a session with neither box or with Zapit-MATLAB (which holds the card and the camera) leaves them closed; the session an optogenetics experiment on it with Zapit-Bonsai ticked at Go (OptogeneticsSwitch, published as Optogenetics).</Description>
         <OpenedBy>optogenetics.zapitBonsai</OpenedBy>
         <OptogeneticsSwitch>TaskParameters.Optogenetics.ZapitBonsai</OptogeneticsSwitch>
@@ -578,7 +578,7 @@
                 <task:Formatting>Indented</task:Formatting>
               </Combinator>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Logging:ConditionedTaskLogsZapitDaq.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Opto.ZapitDaq:ConditionedTaskLogsZapitDaq.bonsai" />
             <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Devices:ZapitLogs.bonsai">
               <Description>MATLAB Zapit's logs: each reply on ZapitReplies an Events row, and with Zapit-MATLAB ticked (OptogeneticsSwitch) Settings_ZapitConditions, the conditions file's copy. Goes when MATLAB Zapit is retired.</Description>
               <OptogeneticsSwitch>TaskParameters.Optogenetics.ZapitMatlab</OptogeneticsSwitch>
@@ -732,7 +732,7 @@
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialRules</Name>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Trials:ZapitDaqTrials.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Opto.ZapitDaq:ZapitDaqTrials.bonsai" />
             <Expression xsi:type="SubscribeSubject">
               <Name>TrialEvents</Name>
             </Expression>
@@ -820,7 +820,7 @@
               <scr:Description>The rules to ZapitTrials only with Zapit-MATLAB ticked (TrialRules.ZapitMatlab): it sends MATLAB Zapit's StartStimulus and StopStimulus and writes the trigger line only once given them. Goes when MATLAB Zapit is retired.</scr:Description>
               <scr:Expression>ZapitMatlab</scr:Expression>
             </Expression>
-            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Trials:ZapitTrials.bonsai" />
+            <Expression xsi:type="IncludeWorkflow" Path="OpenRigs.Opto.ZapitMatlab:ZapitTrials.bonsai" />
           </Nodes>
           <Edges>
             <Edge From="0" To="2" Label="Source1" />
