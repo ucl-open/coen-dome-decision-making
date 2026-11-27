@@ -11,7 +11,7 @@
     <PackageReference Include="OpenRigs.Audio" Version="0.1.1-coen-lab.26" />
     <PackageReference Include="OpenRigs.Devices" Version="0.1.1-coen-lab.74" />
     <PackageReference Include="OpenRigs.Trials" Version="0.1.1-coen-lab.26" />
-    <PackageReference Include="OpenRigs.Opto.ZapitBonsai" Version="0.1.1-coen-lab.4" />
+    <PackageReference Include="OpenRigs.Opto.ZapitBonsai" Version="0.1.1-coen-lab.5" />
     <PackageReference Include="OpenRigs.Opto.ZapitMatlab" Version="0.1.1-coen-lab.1" />
   </ItemGroup>
 
